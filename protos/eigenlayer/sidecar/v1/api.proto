@@ -24,6 +24,21 @@ message GetStateRootResponse {
   string stateRoot = 3;
 }
 
+message GenerateRewardAmountsRequest {
+  int64 snapshot = 1; // unix timestamp representation of the snapshot
+}
+
+message RewardAmount {
+  string earner = 1;
+  string token = 2;
+  int64 snapshot = 3; // unix timestamp representation of the snapshot
+  string cumulativeAmount = 4;
+}
+
+message GenerateRewardAmountsResponse {
+  repeated RewardAmount rewards = 1;
+}
+
 
 service Rpc {
   rpc GetBlockHeight(GetBlockHeightRequest) returns (GetBlockHeightResponse) {
@@ -39,4 +54,13 @@ service Rpc {
       body: "*"
     };
   }
+
+  rpc GenerateRewardAmounts(GenerateRewardAmountsRequest) returns (GenerateRewardAmountsResponse) {
+    option (google.api.http) = {
+      post: "/v1/reward-amounts"
+      body: "*"
+    };
+  }
+
+
 }

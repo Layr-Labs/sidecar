@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Rpc_GetBlockHeight_FullMethodName = "/eigenlayer.sidecar.api.v1.Rpc/GetBlockHeight"
-	Rpc_GetStateRoot_FullMethodName   = "/eigenlayer.sidecar.api.v1.Rpc/GetStateRoot"
+	Rpc_GetBlockHeight_FullMethodName        = "/eigenlayer.sidecar.api.v1.Rpc/GetBlockHeight"
+	Rpc_GetStateRoot_FullMethodName          = "/eigenlayer.sidecar.api.v1.Rpc/GetStateRoot"
+	Rpc_GenerateRewardAmounts_FullMethodName = "/eigenlayer.sidecar.api.v1.Rpc/GenerateRewardAmounts"
 )
 
 // RpcClient is the client API for Rpc service.
@@ -29,6 +30,7 @@ const (
 type RpcClient interface {
 	GetBlockHeight(ctx context.Context, in *GetBlockHeightRequest, opts ...grpc.CallOption) (*GetBlockHeightResponse, error)
 	GetStateRoot(ctx context.Context, in *GetStateRootRequest, opts ...grpc.CallOption) (*GetStateRootResponse, error)
+	GenerateRewardAmounts(ctx context.Context, in *GenerateRewardAmountsRequest, opts ...grpc.CallOption) (*GenerateRewardAmountsResponse, error)
 }
 
 type rpcClient struct {
@@ -59,12 +61,23 @@ func (c *rpcClient) GetStateRoot(ctx context.Context, in *GetStateRootRequest, o
 	return out, nil
 }
 
+func (c *rpcClient) GenerateRewardAmounts(ctx context.Context, in *GenerateRewardAmountsRequest, opts ...grpc.CallOption) (*GenerateRewardAmountsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GenerateRewardAmountsResponse)
+	err := c.cc.Invoke(ctx, Rpc_GenerateRewardAmounts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RpcServer is the server API for Rpc service.
 // All implementations should embed UnimplementedRpcServer
 // for forward compatibility.
 type RpcServer interface {
 	GetBlockHeight(context.Context, *GetBlockHeightRequest) (*GetBlockHeightResponse, error)
 	GetStateRoot(context.Context, *GetStateRootRequest) (*GetStateRootResponse, error)
+	GenerateRewardAmounts(context.Context, *GenerateRewardAmountsRequest) (*GenerateRewardAmountsResponse, error)
 }
 
 // UnimplementedRpcServer should be embedded to have
@@ -79,6 +92,9 @@ func (UnimplementedRpcServer) GetBlockHeight(context.Context, *GetBlockHeightReq
 }
 func (UnimplementedRpcServer) GetStateRoot(context.Context, *GetStateRootRequest) (*GetStateRootResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStateRoot not implemented")
+}
+func (UnimplementedRpcServer) GenerateRewardAmounts(context.Context, *GenerateRewardAmountsRequest) (*GenerateRewardAmountsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateRewardAmounts not implemented")
 }
 func (UnimplementedRpcServer) testEmbeddedByValue() {}
 
@@ -136,6 +152,24 @@ func _Rpc_GetStateRoot_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Rpc_GenerateRewardAmounts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateRewardAmountsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RpcServer).GenerateRewardAmounts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Rpc_GenerateRewardAmounts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RpcServer).GenerateRewardAmounts(ctx, req.(*GenerateRewardAmountsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Rpc_ServiceDesc is the grpc.ServiceDesc for Rpc service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -150,6 +184,10 @@ var Rpc_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStateRoot",
 			Handler:    _Rpc_GetStateRoot_Handler,
+		},
+		{
+			MethodName: "GenerateRewardAmounts",
+			Handler:    _Rpc_GenerateRewardAmounts_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

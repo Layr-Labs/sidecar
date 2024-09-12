@@ -48,6 +48,38 @@
         ]
       }
     },
+    "/v1/reward-amounts": {
+      "post": {
+        "operationId": "Rpc_GenerateRewardAmounts",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GenerateRewardAmountsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1GenerateRewardAmountsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Rpc"
+        ]
+      }
+    },
     "/v1/state-roots/{blockNumber}": {
       "post": {
         "operationId": "Rpc_GetStateRoot",
@@ -120,6 +152,28 @@
         }
       }
     },
+    "v1GenerateRewardAmountsRequest": {
+      "type": "object",
+      "properties": {
+        "snapshot": {
+          "type": "string",
+          "format": "int64",
+          "title": "unix timestamp representation of the snapshot"
+        }
+      }
+    },
+    "v1GenerateRewardAmountsResponse": {
+      "type": "object",
+      "properties": {
+        "rewards": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1RewardAmount"
+          }
+        }
+      }
+    },
     "v1GetBlockHeightRequest": {
       "type": "object"
     },
@@ -146,6 +200,25 @@
           "type": "string"
         },
         "stateRoot": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RewardAmount": {
+      "type": "object",
+      "properties": {
+        "earner": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        },
+        "snapshot": {
+          "type": "string",
+          "format": "int64",
+          "title": "unix timestamp representation of the snapshot"
+        },
+        "cumulativeAmount": {
           "type": "string"
         }
       }
