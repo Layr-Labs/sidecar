@@ -2,12 +2,12 @@
 FROM golang:1.22-alpine AS build
 
 # Install needed dependencies to build
-RUN apk add --no-cache make
+RUN apk add --no-cache gcc musl-dev linux-headers make
 
 COPY . /build
 WORKDIR /build
 
-RUN make build
+RUN CGO_ENABLED=1 make build
 
 # Pull compiled binaries into a vanilla alpine base image
 FROM alpine:latest
