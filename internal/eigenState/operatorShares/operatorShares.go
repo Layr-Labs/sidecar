@@ -278,7 +278,6 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 	// Map the existing records to a map for easier lookup
 	mappedRecords := make(map[types.SlotID]OperatorShares)
 	for _, record := range existingRecords {
-		fmt.Printf("Existing OperatorShares %+v\n", record)
 		slotID := NewSlotID(record.Operator, record.Strategy)
 		mappedRecords[slotID] = record
 	}

@@ -2,6 +2,7 @@ package avsOperators
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -44,6 +45,14 @@ type RegisteredAvsOperatorDiff struct {
 	Registered  bool
 }
 
+type AvsOperatorStateChange struct {
+	Avs         string
+	Operator    string
+	Registered  bool
+	LogIndex    uint64
+	BlockNumber uint64
+}
+
 func NewSlotID(avs string, operator string) types.SlotID {
 	return types.SlotID(fmt.Sprintf("%s_%s", avs, operator))
 }
@@ -58,6 +67,9 @@ type AvsOperatorsModel struct {
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
+
+	// Keep track of each distinct change, rather than accumulated change, to add to the delta table
+	deltaAccumulator map[uint64][]*AvsOperatorStateChange
 }
 
 // NewAvsOperators creates a new AvsOperatorsModel.
@@ -76,6 +88,8 @@ func NewAvsOperators(
 		globalConfig: globalConfig,
 
 		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
+
+		deltaAccumulator: make(map[uint64][]*AvsOperatorStateChange),
 	}
 	esm.RegisterState(s, 0)
 	return s, nil
@@ -119,6 +133,15 @@ func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[Accumu
 		if val, ok := outputData["status"]; ok {
 			registered = uint64(val.(float64)) == 1
 		}
+
+		// Store the change in the delta accumulator
+		a.deltaAccumulator[log.BlockNumber] = append(a.deltaAccumulator[log.BlockNumber], &AvsOperatorStateChange{
+			Avs:         avs,
+			Operator:    operator,
+			Registered:  registered,
+			LogIndex:    log.LogIndex,
+			BlockNumber: log.BlockNumber,
+		})
 
 		slotID := NewSlotID(avs, operator)
 		record, ok := a.stateAccumulator[log.BlockNumber][slotID]
@@ -173,6 +196,7 @@ func (a *AvsOperatorsModel) IsInterestingLog(log *storage.TransactionLog) bool {
 
 func (a *AvsOperatorsModel) InitBlockProcessing(blockNumber uint64) error {
 	a.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
+	a.deltaAccumulator[blockNumber] = make([]*AvsOperatorStateChange, 0)
 	return nil
 }
 
@@ -249,6 +273,22 @@ func (a *AvsOperatorsModel) prepareState(blockNumber uint64) ([]RegisteredAvsOpe
 	return inserts, deletes, nil
 }
 
+func (a *AvsOperatorsModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) error {
+	records, ok := a.deltaAccumulator[blockNumber]
+	if !ok {
+		msg := "Delta accumulator was not initialized"
+		a.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
+		return errors.New(msg)
+	}
+
+	res := a.DB.Model(&AvsOperatorStateChange{}).Clauses(clause.Returning{}).Create(&records)
+	if res.Error != nil {
+		a.logger.Sugar().Errorw("Failed to insert delta records", zap.Error(res.Error))
+		return res.Error
+	}
+	return nil
+}
+
 // CommitFinalState commits the final state for the given block number.
 func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64) error {
 	err := a.clonePreviousBlocksToNewBlock(blockNumber)
@@ -280,6 +320,11 @@ func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64) error {
 			return res.Error
 		}
 	}
+
+	if err = a.writeDeltaRecordsToDeltaTable(blockNumber); err != nil {
+		return err
+	}
+
 	return nil
 }
 

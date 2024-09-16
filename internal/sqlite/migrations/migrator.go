@@ -3,6 +3,7 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
+	_202409161057_avsOperatorDeltas "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409161057_avsOperatorDeltas"
 	"time"
 
 	_202409061249_bootstrapDb "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409061249_bootstrapDb"
@@ -52,6 +53,7 @@ func (m *SqliteMigrator) MigrateAll() error {
 		&_202409101144_submittedDistributionRoot.SqliteMigration{},
 		&_202409101540_rewardSubmissions.SqliteMigration{},
 		&_202409111509_removeOperatorRestakedStrategiesBlockConstraint.SqliteMigration{},
+		&_202409161057_avsOperatorDeltas.SqliteMigration{},
 	}
 
 	m.Logger.Sugar().Info("Running migrations")
