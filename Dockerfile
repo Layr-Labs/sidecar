@@ -1,31 +1,19 @@
-FROM golang:1.22-bullseye AS build
+# Use the standard go 1.22 alpine image as our build base
+FROM golang:1.22-alpine AS build
 
-RUN apt-get update
-RUN apt-get install -y make
+# Install needed dependencies to build
+RUN apk add --no-cache make
 
-RUN useradd --create-home -s /bin/bash gobuild
-RUN usermod -a -G sudo gobuild
-RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+COPY . /build
+WORKDIR /build
 
-ARG PROJECT=go-sidecar
-RUN mkdir -p /workspaces/${PROJECT}
-WORKDIR /workspaces/${PROJECT}
-COPY --chown=gobuild:gobuild . .
+RUN make build
 
-# system and linux dependencies
-RUN make deps-linux
-RUN chown -R gobuild:gobuild /go
+# Pull compiled binaries into a vanilla alpine base image
+FROM alpine:latest
 
-# local dependencies
-ENV USER=gobuild
-ENV GOBIN=/go/bin
-ENV PATH=$PATH:${GOBIN}
-USER gobuild
+RUN apk add --no-cache ca-certificates
 
-RUN git config --global --add safe.directory /workspaces/${PROJECT}
+COPY --from=build /build /go-sidecar
 
-RUN make yamlfmt
-RUN make fmtcheck
-RUN make vet
-RUN make lint
-RUN make test
+ENTRYPOINT ["/go-sidecar/bin/cmd/sidecar"]

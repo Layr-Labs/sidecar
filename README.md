@@ -36,7 +36,7 @@ docker run -it --rm \
   -e SIDECAR_SQLITE_DB_FILE_PATH="/sqlite/sidecar.db" \
   -v "$(pwd)/sqlite:/sqlite" \
   --tty -i \
-  public.ecr.aws/z6g0f8n7/go-sidecar:latest /build/bin/cmd/sidecar
+  public.ecr.aws/z6g0f8n7/go-sidecar:latest
 ```
 
 ### Build and run a container locally
@@ -56,7 +56,7 @@ docker run \
   -e "SIDECAR_SQLITE_DB_FILE_PATH=/sqlite/sidecar.db" \
   -v "$(pwd)/sqlite:/sqlite" \
   --tty -i \
-  go-sidecar:latest /build/bin/cmd/sidecar
+  go-sidecar:latest
 ```
 
 ## RPC Routes
