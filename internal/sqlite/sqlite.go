@@ -26,12 +26,18 @@ func bytesToHex(jsonByteArray string) (string, error) {
 	return hex.EncodeToString(jsonBytes), nil
 }
 
+var hasRegisteredExtensions = false
+
 func NewSqlite(path string) gorm.Dialector {
-	sql.Register("sqlite3_with_extensions", &goSqlite.SQLiteDriver{
-		ConnectHook: func(conn *goSqlite.SQLiteConn) error {
-			return conn.RegisterFunc("bytes_to_hex", bytesToHex, true)
-		},
-	})
+	if !hasRegisteredExtensions {
+		sql.Register("sqlite3_with_extensions", &goSqlite.SQLiteDriver{
+			ConnectHook: func(conn *goSqlite.SQLiteConn) error {
+				return conn.RegisterFunc("bytes_to_hex", bytesToHex, true)
+			},
+		})
+		hasRegisteredExtensions = true
+	}
+
 	return &sqlite.Dialector{
 		DriverName: "sqlite3_with_extensions",
 		DSN:        path,

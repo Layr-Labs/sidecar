@@ -98,5 +98,5 @@ func (rc *RewardsCalculator) getMostRecentDistributionRoot() (*submittedDistribu
 }
 
 func (rc *RewardsCalculator) calculateRewards(lowerBoundBlock *storage.Block, snapshotDate time.Time) error {
-
+	return nil
 }

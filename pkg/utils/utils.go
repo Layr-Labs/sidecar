@@ -19,6 +19,15 @@ func Filter[A any](coll []A, criteria func(i A) bool) []A {
 	return out
 }
 
+func Find[A any](coll []*A, criteria func(i *A) bool) *A {
+	for _, item := range coll {
+		if criteria(item) {
+			return item
+		}
+	}
+	return nil
+}
+
 func Reduce[A any, B any](coll []A, processor func(accum B, next A) B, initialState B) B {
 	val := initialState
 	for _, item := range coll {

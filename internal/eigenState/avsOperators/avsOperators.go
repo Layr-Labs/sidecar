@@ -281,10 +281,12 @@ func (a *AvsOperatorsModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) er
 		return errors.New(msg)
 	}
 
-	res := a.DB.Model(&AvsOperatorStateChange{}).Clauses(clause.Returning{}).Create(&records)
-	if res.Error != nil {
-		a.logger.Sugar().Errorw("Failed to insert delta records", zap.Error(res.Error))
-		return res.Error
+	if len(records) > 0 {
+		res := a.DB.Model(&AvsOperatorStateChange{}).Clauses(clause.Returning{}).Create(&records)
+		if res.Error != nil {
+			a.logger.Sugar().Errorw("Failed to insert delta records", zap.Error(res.Error))
+			return res.Error
+		}
 	}
 	return nil
 }
