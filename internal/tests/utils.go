@@ -15,10 +15,8 @@ func GetConfig() *config.Config {
 	return config.NewConfig()
 }
 
-const sqliteInMemoryPath = "file::memory:?cache=shared"
-
 func GetSqliteDatabaseConnection(l *zap.Logger) (*gorm.DB, error) {
-	db, err := sqlite2.NewGormSqliteFromSqlite(sqlite2.NewSqlite(sqliteInMemoryPath, l))
+	db, err := sqlite2.NewGormSqliteFromSqlite(sqlite2.NewSqlite(sqlite2.SqliteInMemoryPath, l))
 	if err != nil {
 		panic(err)
 	}

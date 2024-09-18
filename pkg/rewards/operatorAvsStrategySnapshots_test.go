@@ -91,7 +91,7 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 	})
 
 	t.Run("Should calculate correct operatorAvsStrategy windows", func(t *testing.T) {
-		rewards := NewRewardsCalculator(l, nil, grm, cfg)
+		rewards, _ := NewRewardsCalculator(l, nil, grm, cfg)
 
 		windows, err := rewards.GenerateOperatorAvsStrategySnapshots("2024-09-01")
 		assert.Nil(t, err)

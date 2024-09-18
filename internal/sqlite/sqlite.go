@@ -52,6 +52,8 @@ func (s *SumBigNumbers) Done() (string, error) {
 
 var hasRegisteredExtensions = false
 
+const SqliteInMemoryPath = "file::memory:?cache=shared"
+
 func NewSqlite(path string, l *zap.Logger) gorm.Dialector {
 	if !hasRegisteredExtensions {
 		sql.Register("sqlite3_with_extensions", &goSqlite.SQLiteDriver{

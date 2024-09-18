@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/submittedDistributionRoots"
+	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -12,19 +13,32 @@ import (
 )
 
 type RewardsCalculator struct {
-	logger       *zap.Logger
-	bs           storage.BlockStore
-	grm          *gorm.DB
-	globalConfig *config.Config
+	logger        *zap.Logger
+	bs            storage.BlockStore
+	grm           *gorm.DB
+	globalConfig  *config.Config
+	calculationDB *gorm.DB
 }
 
-func NewRewardsCalculator(l *zap.Logger, bs storage.BlockStore, grm *gorm.DB, cfg *config.Config) *RewardsCalculator {
-	return &RewardsCalculator{
-		logger:       l,
-		bs:           bs,
-		grm:          grm,
-		globalConfig: cfg,
+func NewRewardsCalculator(
+	l *zap.Logger,
+	bs storage.BlockStore,
+	grm *gorm.DB,
+	cfg *config.Config,
+) (*RewardsCalculator, error) {
+	inMemSqlite := sqlite.NewSqlite(sqlite.SqliteInMemoryPath, l)
+	db, err := sqlite.NewGormSqliteFromSqlite(inMemSqlite)
+	if err != nil {
+		l.Sugar().Fatalw("Failed to create in memory sqlite", zap.Error(err))
+		return nil, err
 	}
+	return &RewardsCalculator{
+		logger:        l,
+		bs:            bs,
+		grm:           grm,
+		globalConfig:  cfg,
+		calculationDB: db,
+	}, nil
 }
 
 // CalculateRewardsForSnapshot calculates the rewards for a given snapshot date.

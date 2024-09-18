@@ -94,7 +94,7 @@ func Test_StakerShareSnapshots(t *testing.T) {
 		}
 	})
 	t.Run("Should generate staker share snapshots", func(t *testing.T) {
-		rewards := NewRewardsCalculator(l, nil, grm, cfg)
+		rewards, _ := NewRewardsCalculator(l, nil, grm, cfg)
 
 		snapshots, err := rewards.GenerateStakerShareSnapshots(snapshotDate)
 		assert.Nil(t, err)
