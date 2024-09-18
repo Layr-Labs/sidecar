@@ -4,54 +4,6 @@ import (
 	"testing"
 )
 
-func TestParseNetwork(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected Network
-		hasError bool
-	}{
-		{"mainnet", Network_Ethereum, false},
-		{"holesky", Network_Holesky, false},
-		{"", Network_Holesky, true},
-		{"unknown", Network_Holesky, true},
-	}
-
-	for _, test := range tests {
-		result, err := ParseNetwork(test.input)
-		if (err != nil) != test.hasError {
-			t.Errorf("ParseNetwork(%s) error = %v, wantErr %v", test.input, err, test.hasError)
-		}
-		if result != test.expected {
-			t.Errorf("ParseNetwork(%s) = %v, want %v", test.input, result, test.expected)
-		}
-	}
-}
-
-func TestParseEnvironment(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected Environment
-		hasError bool
-	}{
-		{"preprod", Environment_PreProd, false},
-		{"testnet", Environment_Testnet, false},
-		{"mainnet", Environment_Mainnet, false},
-		{"local", Environment_Local, false},
-		{"", Environment_PreProd, true},
-		{"unknown", Environment_PreProd, true},
-	}
-
-	for _, test := range tests {
-		result, err := parseEnvironment(test.input)
-		if (err != nil) != test.hasError {
-			t.Errorf("parseEnvironment(%s) error = %v, wantErr %v", test.input, err, test.hasError)
-		}
-		if result != test.expected {
-			t.Errorf("parseEnvironment(%s) = %v, want %v", test.input, result, test.expected)
-		}
-	}
-}
-
 func TestGetEnvironmentAsString(t *testing.T) {
 	tests := []struct {
 		input    Environment
@@ -135,6 +87,31 @@ func TestGetSqlitePath(t *testing.T) {
 		result := test.config.GetSqlitePath()
 		if result != test.expected {
 			t.Errorf("GetSqlitePath() = %v, want %v", result, test.expected)
+		}
+	}
+}
+
+func TestParseChainConfig(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected ChainConfig
+		hasError bool
+	}{
+		{"ethereum", ChainConfig{"ethereum", Network_Ethereum, Environment_Mainnet}, false},
+		{"testnet", ChainConfig{"testnet", Network_Holesky, Environment_Testnet}, false},
+		{"preprod", ChainConfig{"preprod", Network_Holesky, Environment_PreProd}, false},
+		{"local", ChainConfig{"local", Network_Holesky, Environment_Local}, false},
+		{"unknown", ChainConfig{}, true},
+		{"", ChainConfig{}, true},
+	}
+
+	for _, test := range tests {
+		result, err := ParseChainConfig(test.input)
+		if (err != nil) != test.hasError {
+			t.Errorf("ParseChainConfig(%s) error = %v, wantErr %v", test.input, err, test.hasError)
+		}
+		if result != test.expected {
+			t.Errorf("ParseChainConfig(%s) = %v, want %v", test.input, result, test.expected)
 		}
 	}
 }

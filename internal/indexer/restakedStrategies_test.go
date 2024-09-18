@@ -34,8 +34,7 @@ func setup() (
 	error,
 ) {
 	options := &config.Options{
-		Network:            "holesky",
-		Environment:        "testnet",
+		ChainConfig:        "testnet",
 		EthereumRPCBaseURL: "http://34.229.43.36:8545",
 		EtherscanAPIKeys:   "QIPXW3YCXPR5NQ9GXTRQ3TSXB9EKMGDE34",
 		StatsdUrl:          "localhost:8125",

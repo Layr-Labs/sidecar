@@ -12,8 +12,7 @@ const ENV_VAR_PREFIX = "SIDECAR"
 
 // Options holds the configuration values from the command-line arguments and environment variables.
 type Options struct {
-	Network            string
-	Environment        string
+	ChainConfig        string
 	Debug              bool
 	EthereumRPCBaseURL string
 	EthereumWSURL      string
@@ -52,21 +51,11 @@ func ParseArgsAndEnvironment(args []string, envs map[string]string) (*Options, e
 
 		RunE: func(cmd *cobra.Command, cmdArgs []string) error {
 			// Validate required flags
-			if _, err := ParseNetwork(opts.Network); err != nil {
-				return fmt.Errorf("--network is required: %v", err)
+			if _, err := ParseChainConfig(opts.ChainConfig); err != nil {
+				return fmt.Errorf("--chain is required: %v", err)
 			}
-			if opts.Network == "mainnet" && opts.Environment == "" {
-				opts.Environment = "mainnet"
-			}
-			if _, err := parseEnvironment(opts.Environment); err != nil {
-				return fmt.Errorf("--environment is required: %v", err)
-			} else if opts.Network == "mainnet" && opts.Environment != "mainnet" {
-				return fmt.Errorf("mainnet environment required")
-			}
-			if opts.EthereumRPCBaseURL == "" {
+			if opts.EthereumRPCBaseURL == "" && opts.EthereumWSURL == "" {
 				return fmt.Errorf("--ethereum.rpc-base-url is required")
-			} else if opts.EthereumWSURL == "" {
-				return fmt.Errorf("--ethereum.ws-url is required")
 			}
 			if opts.EtherscanAPIKeys == "" {
 				return fmt.Errorf("--etherscan-api-keys is required")
@@ -77,8 +66,7 @@ func ParseArgsAndEnvironment(args []string, envs map[string]string) (*Options, e
 	}
 
 	// Set flags with environment variable support
-	runCmd.Flags().StringVar(&opts.Network, "network", getPrefixedEnvVar(envs, "NETWORK", ""), "<mainnet | holesky> (required)")
-	runCmd.Flags().StringVar(&opts.Environment, "environment", getPrefixedEnvVar(envs, "ENVIRONMENT", ""), "<local | testnet | mainnet | preprod> (required)")
+	runCmd.Flags().StringVar(&opts.ChainConfig, "chain", getPrefixedEnvVar(envs, "CHAIN", ""), "<ethereum | preprod | testnet | local> (required)")
 	runCmd.Flags().StringVar(&opts.EthereumRPCBaseURL, "ethereum.rpc-base-url", getPrefixedEnvVar(envs, "ETHEREUM_RPC_BASE_URL", ""), "Ethereum RPC base URL (required)")
 	runCmd.Flags().StringVar(&opts.EthereumWSURL, "ethereum.ws-url", getPrefixedEnvVar(envs, "ETHEREUM_WS_URL", ""), "Ethereum WebSocket URL (required)")
 	runCmd.Flags().StringVar(&opts.StatsdUrl, "statsd-url", getPrefixedEnvVar(envs, "STATSD_URL", ""), "StatsD URL")

@@ -15,8 +15,7 @@ func GetConfigFromOptions(options *config.Options) *config.Config {
 
 func GetConfig() *config.Config {
 	testOpts := &config.Options{
-		Network:     "holesky",
-		Environment: "testnet",
+		ChainConfig: "testnet",
 	}
 
 	cfg := config.NewConfig(testOpts)

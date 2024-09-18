@@ -19,8 +19,7 @@ mkdir ./sqlite || true
 bin/cmd/sidecar run \
                 --debug \
                 --ethereum.rpc-base-url http://34.229.43.36:8545 \
-                --environment testnet \
-                --network holesky \
+                --chain testnet \
                 --etherscan-api-keys your-etherscan-key \
                 --statsd-url localhost:8125 \
                 --sqlite.db-file-path ./sqlite/sidecar.db

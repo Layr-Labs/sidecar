@@ -20,36 +20,28 @@ const (
 	Environment_Local   Environment = 4
 )
 
-func ParseNetwork(n string) (Network, error) {
-	if n == "" {
-		return Network_Holesky, fmt.Errorf("network not found")
-	}
-	switch n {
-	case "mainnet":
-		return Network_Ethereum, nil
-	case "holesky":
-		return Network_Holesky, nil
-	default:
-		return Network_Holesky, fmt.Errorf("unsupported network %s", n)
-	}
+type ChainConfig struct {
+	Name        string
+	Network     Network
+	Environment Environment
 }
 
-func parseEnvironment(env string) (Environment, error) {
-	if env == "" {
-		return Environment_PreProd, fmt.Errorf("environment not found")
+func ParseChainConfig(name string) (ChainConfig, error) {
+	if name == "" {
+		return ChainConfig{}, fmt.Errorf("chain not found")
 	}
-	switch env {
-	case "preprod":
-		return Environment_PreProd, nil
-	case "testnet":
-		return Environment_Testnet, nil
-	case "mainnet":
-		return Environment_Mainnet, nil
-	case "local":
-		return Environment_Local, nil
-	default:
-		return Environment_PreProd, fmt.Errorf("unsupported environment %s", env)
+	chainConfig := [4]ChainConfig{
+		{"local", Network_Holesky, Environment_Local},
+		{"preprod", Network_Holesky, Environment_PreProd},
+		{"testnet", Network_Holesky, Environment_Testnet},
+		{"ethereum", Network_Ethereum, Environment_Mainnet},
 	}
+	for _, c := range chainConfig {
+		if c.Name == name {
+			return c, nil
+		}
+	}
+	return ChainConfig{}, fmt.Errorf("unsupported chain %s", name)
 }
 
 func GetEnvironmentAsString(e Environment) (string, error) {
@@ -135,17 +127,13 @@ func (s *SqliteConfig) GetSqlitePath() string {
 }
 
 func NewConfig(options *Options) *Config {
-	network, err := ParseNetwork(options.Network)
-	if err != nil {
-		panic(err)
-	}
-	environment, err := parseEnvironment(options.Environment)
+	chainConfig, err := ParseChainConfig(options.ChainConfig)
 	if err != nil {
 		panic(err)
 	}
 	return &Config{
-		Network:     network,
-		Environment: environment,
+		Network:     chainConfig.Network,
+		Environment: chainConfig.Environment,
 		Debug:       options.Debug,
 		StatsdUrl:   options.StatsdUrl,
 
