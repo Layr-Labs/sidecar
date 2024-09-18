@@ -39,7 +39,7 @@ operator_share_windows as (
 		operator, strategy, shares, snapshot_time as start_time,
 	CASE
 		-- If the range does not have the end, use the current timestamp truncated to 0 UTC
-		WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN DATE('2024-09-01')
+		WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN DATE(@cutoffDate)
 		ELSE LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time)
 	END AS end_time
 	FROM snapshotted_records

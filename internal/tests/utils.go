@@ -107,18 +107,13 @@ func GetExpectedOperatorAvsSnapshots() ([]*ExpectedOperatorAvsSnapshot, error) {
 	return getExpectedResultsJsonFile[ExpectedOperatorAvsSnapshot]("testdata/operatorRestakedStrategies/operatorAvsStrategySnapshotsExpectedResults.json")
 }
 
+// OperatorShares snapshots
 func GetOperatorSharesSqlFile() ([]string, error) {
 	return getMultilineInsertSqlFile("testdata/operatorShareSnapshots/operatorShares.sql")
 }
 
 func GetOperatorSharesBlocksSqlFile() (string, error) {
-	contents, err := testData.ReadFile("testdata/operatorShareSnapshots/operatorSharesBlocks.sql")
-
-	if err != nil {
-		return "", err
-	}
-
-	return strings.Trim(string(contents), "\n"), nil
+	return getSqlFile("testdata/operatorShareSnapshots/operatorSharesBlocks.sql")
 }
 
 type OperatorShareExpectedResult struct {
@@ -130,4 +125,24 @@ type OperatorShareExpectedResult struct {
 
 func GetOperatorSharesExpectedResults() ([]*OperatorShareExpectedResult, error) {
 	return getExpectedResultsJsonFile[OperatorShareExpectedResult]("testdata/operatorShareSnapshots/operatorSnapshotExpectedResults.json")
+}
+
+// StakerShareSnapshots
+func GetStakerSharesSqlFile() (string, error) {
+	return getSqlFile("testdata/stakerShareSnapshots/stakerShares.sql")
+}
+
+func GetStakerSharesBlocksSqlFile() (string, error) {
+	return getSqlFile("testdata/stakerShareSnapshots/stakerSharesBlocks.sql")
+}
+
+type StakerShareExpectedResult struct {
+	Staker   string
+	Strategy string
+	Snapshot string
+	Shares   string
+}
+
+func GetStakerSharesExpectedResults() ([]*StakerShareExpectedResult, error) {
+	return getExpectedResultsJsonFile[StakerShareExpectedResult]("testdata/stakerShareSnapshots/stakerSharesExpectedResults.json")
 }
