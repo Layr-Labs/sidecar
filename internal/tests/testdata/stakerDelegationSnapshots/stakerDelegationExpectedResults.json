@@ -1,0 +1,2082 @@
+[
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x0a3e3d83c99b27ca7540720b54105c79cd58dbdd",
+		"snapshot": "2024-04-14"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x0a3e3d83c99b27ca7540720b54105c79cd58dbdd",
+		"snapshot": "2024-04-15"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xa270ea3dc9dcee629336edb3d292915a329a80ab",
+		"snapshot": "2024-04-16"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x5bb835f911edcdb5bf5e948719a54b952bd9ace3",
+		"snapshot": "2024-04-17"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x006e5bcc73b47760a77465eb3a8c8fbbd18d6c1c",
+		"snapshot": "2024-04-18"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x1392d82c6e22cc6e7d48be93050f6f3ebee5986d",
+		"snapshot": "2024-04-19"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x1392d82c6e22cc6e7d48be93050f6f3ebee5986d",
+		"snapshot": "2024-04-20"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x139a091bcaad0ee1daabe93cbbd194736b197fb6",
+		"snapshot": "2024-04-21"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x9844f84da487ecd22fa2dba07afd44d97ada1be1",
+		"snapshot": "2024-04-22"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x9844f84da487ecd22fa2dba07afd44d97ada1be1",
+		"snapshot": "2024-04-23"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xe3577dc47b22e2998353d546fcffc640de87041f",
+		"snapshot": "2024-04-24"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x57b6fdef3a23b81547df68f44e5524b987755c99",
+		"snapshot": "2024-04-25"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x77a84ad9462d3bc5fea41a1c823962cfc4581553",
+		"snapshot": "2024-04-26"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xa4e245c3a1cb2f0512a71b9cd908dca2f1641781",
+		"snapshot": "2024-04-27"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x9631af6a712d296fedb800132edcf08e493b12cd",
+		"snapshot": "2024-04-28"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xae1cb559303cc17715fec4247bdc93820addf71e",
+		"snapshot": "2024-04-29"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x5626bb2407b2074a6467dde954fc4a1b3dd4bc51",
+		"snapshot": "2024-04-30"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x99c858727b6315ae385b5801a88f96f3aec2c56f",
+		"snapshot": "2024-05-01"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x41d36c783aee556e3950228bccee65f48acdee38",
+		"snapshot": "2024-05-02"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xd8f642848bfcaae2119ba1781117557ff45b1db4",
+		"snapshot": "2024-05-03"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x73bf91bb1327415ec7b9d436bfced67c3ee843fa",
+		"snapshot": "2024-05-04"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x5626bb2407b2074a6467dde954fc4a1b3dd4bc51",
+		"snapshot": "2024-05-05"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xdc59c4d517758e943ded1574f20b10c6bfc0f04c",
+		"snapshot": "2024-05-06"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x78fdde7a5006cc64e109aed99ca7b0ad3d8687bb",
+		"snapshot": "2024-05-07"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xe8a08a18d6dbdd85b8b2f63a43f488956e23b7cd",
+		"snapshot": "2024-05-08"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x6ec035ee9702c64c7293d1c74f5f5db8878338d6",
+		"snapshot": "2024-05-09"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x8184e50cda72529a65bff34be02a878e44afdf03",
+		"snapshot": "2024-05-10"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x2385bf3ab1e88e2055368a73a4943faff99a644d",
+		"snapshot": "2024-05-11"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xa8863f09f04cba00d8b61f654e018d481f60c4c4",
+		"snapshot": "2024-05-12"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x307bca101fccf76e9ab174c0f4c276d4b9ec625a",
+		"snapshot": "2024-05-13"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xad5a02d745bd42f401104fe6d6e9188a28579f50",
+		"snapshot": "2024-05-14"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x323f976228762118a0d9b88e0ca67fa451c71fe4",
+		"snapshot": "2024-05-15"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x5e29b3107937b4675fddf113edc5530498b3fb70",
+		"snapshot": "2024-05-16"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x74d39ecd19cace3665a5f700dbee8c4da4e2c4a7",
+		"snapshot": "2024-05-17"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x5626bb2407b2074a6467dde954fc4a1b3dd4bc51",
+		"snapshot": "2024-05-18"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x4a9dde45b36ff82705026ba819bb41d0c8bc7e52",
+		"snapshot": "2024-05-19"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xe1998282531cfea157bf85100aa9b01de67c9e20",
+		"snapshot": "2024-05-20"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xcc45768f1d507087f862ba17da1976a22cb611c4",
+		"snapshot": "2024-05-21"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x25c05583734d481702a8d7f89d24b8765022cdea",
+		"snapshot": "2024-05-22"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xb9125b2d6b886085cdc5d227cffd03c10c707c3e",
+		"snapshot": "2024-05-23"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xa37df672d6e6bc826d086d318b59abdfaf10090d",
+		"snapshot": "2024-05-24"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x125d9e464931a703e60fbd074baff25ca688fe41",
+		"snapshot": "2024-05-25"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x130e3923bf9c16570d46fd9728cc74978b33d9fb",
+		"snapshot": "2024-05-26"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x130e3923bf9c16570d46fd9728cc74978b33d9fb",
+		"snapshot": "2024-05-27"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xa37df672d6e6bc826d086d318b59abdfaf10090d",
+		"snapshot": "2024-05-28"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x8f38c1f2fb1d5d6f9a2cec77f1796e628c5087fc",
+		"snapshot": "2024-05-29"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x13949f2c2490220e22b56b314635eef1db6ad263",
+		"snapshot": "2024-05-30"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x72b3793b2a476c055a88dfd5e38d1e032a27e038",
+		"snapshot": "2024-05-31"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x786775c9ecb916bd7f5a59c150491871fcfcee86",
+		"snapshot": "2024-06-01"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xfb25846cfd614bbcd8960ff9752e9ac5df10cfd5",
+		"snapshot": "2024-06-02"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xfb25846cfd614bbcd8960ff9752e9ac5df10cfd5",
+		"snapshot": "2024-06-03"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x78fdde7a5006cc64e109aed99ca7b0ad3d8687bb",
+		"snapshot": "2024-06-04"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x72b3793b2a476c055a88dfd5e38d1e032a27e038",
+		"snapshot": "2024-06-05"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-06"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xce637eac04570dbb24582383e4c64757b0b59a1f",
+		"snapshot": "2024-06-07"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0xce637eac04570dbb24582383e4c64757b0b59a1f",
+		"snapshot": "2024-06-08"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-09"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-10"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-11"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-12"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-13"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-14"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-15"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-16"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-17"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-18"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-19"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-20"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-21"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-22"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-23"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-24"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-25"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-26"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-27"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-28"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-29"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-06-30"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-01"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-02"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-03"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-04"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-05"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-06"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-07"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-08"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-09"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-10"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-11"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-12"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-13"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-14"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-15"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-16"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-17"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-18"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-19"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-20"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-21"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-22"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-23"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-24"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-25"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-26"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-27"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-28"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-29"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-30"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-07-31"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-01"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-02"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-03"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-04"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-05"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-06"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-07"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-08"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-09"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-10"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-11"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-12"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-13"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-14"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-15"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-16"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-17"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-18"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-19"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-20"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-21"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-22"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-23"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-24"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-25"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-26"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-27"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-28"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-29"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-30"
+	},
+	{
+		"staker": "0x297db72a884a1246517ff1dd977bcccbd45c9505",
+		"operator": "0x3c7a1a9c769009d21fe2fcfb08c7334919f641fe",
+		"snapshot": "2024-08-31"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-15"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-16"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0a3e3d83c99b27ca7540720b54105c79cd58dbdd",
+		"snapshot": "2024-04-17"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-18"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0a3e3d83c99b27ca7540720b54105c79cd58dbdd",
+		"snapshot": "2024-04-19"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-20"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-21"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-22"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-23"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0a3e3d83c99b27ca7540720b54105c79cd58dbdd",
+		"snapshot": "2024-04-24"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-25"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-26"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-27"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-28"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-29"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-30"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-01"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-02"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-03"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-04"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-05"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-06"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-07"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-08"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-09"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-10"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-11"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-12"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-13"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-14"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-15"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-16"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-17"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-18"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-19"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-20"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-21"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0a3e3d83c99b27ca7540720b54105c79cd58dbdd",
+		"snapshot": "2024-05-22"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-23"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-24"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-25"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-26"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-27"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-28"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-29"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-30"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-31"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-01"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-02"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-03"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-04"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-05"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-06"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-07"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-08"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-09"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-10"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-11"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-12"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-13"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-14"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-15"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-16"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-17"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-18"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-19"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-20"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-21"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-22"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-23"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-24"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-25"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-26"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-27"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-28"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-29"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-30"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-01"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-02"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-03"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-04"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-05"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-06"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-07"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-08"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-09"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-10"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-11"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-12"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-13"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-14"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-15"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-16"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-17"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-18"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-19"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-20"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-21"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-22"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-23"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-24"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-25"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-26"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-27"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-28"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-29"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-30"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-31"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-01"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-02"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-03"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-04"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-05"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-06"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-07"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-08"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-09"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-10"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-11"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-12"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-13"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-14"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-15"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-16"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-17"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-18"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-19"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-20"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-21"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-22"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-23"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-24"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-25"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-26"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-27"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-28"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-29"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-30"
+	},
+	{
+		"staker": "0xd007f179078cf6c1b31d1e813107f664ba2d0ab7",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-31"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0a3e3d83c99b27ca7540720b54105c79cd58dbdd",
+		"snapshot": "2024-04-17"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0a3e3d83c99b27ca7540720b54105c79cd58dbdd",
+		"snapshot": "2024-04-18"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-19"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-20"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-21"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-22"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-23"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-24"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-25"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-26"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-27"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-28"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-29"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-04-30"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-01"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-02"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-03"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-04"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-05"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-06"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-07"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-08"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-09"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-10"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-11"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-12"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-13"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-14"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-15"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-16"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0a3e3d83c99b27ca7540720b54105c79cd58dbdd",
+		"snapshot": "2024-05-17"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-18"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-19"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-20"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-21"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-22"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-23"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-24"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-25"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-26"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-27"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-28"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-29"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-30"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-05-31"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-01"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-02"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-03"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-04"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-05"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0a3e3d83c99b27ca7540720b54105c79cd58dbdd",
+		"snapshot": "2024-06-06"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0a3e3d83c99b27ca7540720b54105c79cd58dbdd",
+		"snapshot": "2024-06-07"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0a3e3d83c99b27ca7540720b54105c79cd58dbdd",
+		"snapshot": "2024-06-08"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-09"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-10"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-11"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-12"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-13"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-14"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-15"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-16"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-17"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-18"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-19"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0xec84951f01910eb716de5f16e4c1ee9a3482df06",
+		"snapshot": "2024-06-20"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0xec84951f01910eb716de5f16e4c1ee9a3482df06",
+		"snapshot": "2024-06-21"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0xec84951f01910eb716de5f16e4c1ee9a3482df06",
+		"snapshot": "2024-06-22"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0xec84951f01910eb716de5f16e4c1ee9a3482df06",
+		"snapshot": "2024-06-23"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0xec84951f01910eb716de5f16e4c1ee9a3482df06",
+		"snapshot": "2024-06-24"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0xec84951f01910eb716de5f16e4c1ee9a3482df06",
+		"snapshot": "2024-06-25"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-26"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-27"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-28"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-29"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-06-30"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-01"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0xe3b520f525b57be060f2c7b9ca0ea98a2dc4500b",
+		"snapshot": "2024-07-02"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-03"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-04"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-05"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-06"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-07"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-08"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-09"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-10"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-11"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-12"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-13"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-14"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-15"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-16"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-17"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-18"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-19"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-20"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-21"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-22"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-23"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-24"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-25"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-26"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-27"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-28"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-29"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-30"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-07-31"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-01"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-02"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-03"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-04"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-05"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-06"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-07"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-08"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-09"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-10"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-11"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-12"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-13"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-14"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-15"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-16"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-17"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-18"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-19"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-20"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-21"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-22"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-23"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-24"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-25"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-26"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-27"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-28"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-29"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-30"
+	},
+	{
+		"staker": "0xf4195de8b9f564fa11163045d772f061adbc270e",
+		"operator": "0x0000000000000000000000000000000000000000",
+		"snapshot": "2024-08-31"
+	}
+]

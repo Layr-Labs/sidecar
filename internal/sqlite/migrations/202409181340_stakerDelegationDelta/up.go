@@ -14,8 +14,7 @@ func (m *SqliteMigration) Up(grm *gorm.DB) error {
 			operator TEXT NOT NULL,
 			delegated INTEGER NOT NULL,
 			block_number INTEGER NOT NULL,
-			log_index INTEGER NOT NULL,
-			unique(staker, operator, delegated, log_index)    
+			log_index INTEGER NOT NULL
 		)
 	`
 	res := grm.Exec(query)

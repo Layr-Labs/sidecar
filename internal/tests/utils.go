@@ -146,3 +146,22 @@ type StakerShareExpectedResult struct {
 func GetStakerSharesExpectedResults() ([]*StakerShareExpectedResult, error) {
 	return getExpectedResultsJsonFile[StakerShareExpectedResult]("testdata/stakerShareSnapshots/stakerSharesExpectedResults.json")
 }
+
+// StakerDelegationSnapshots
+func GetStakerDelegationsSqlFile() (string, error) {
+	return getSqlFile("testdata/stakerDelegationSnapshots/stakerDelegations.sql")
+}
+
+func GetStakerDelegationsBlocksSqlFile() (string, error) {
+	return getSqlFile("testdata/stakerDelegationSnapshots/stakerDelegationBlocks.sql")
+}
+
+type StakerDelegationExpectedResult struct {
+	Staker   string
+	Operator string
+	Snapshot string
+}
+
+func GetStakerDelegationExpectedResults() ([]*StakerDelegationExpectedResult, error) {
+	return getExpectedResultsJsonFile[StakerDelegationExpectedResult]("testdata/stakerDelegationSnapshots/stakerDelegationExpectedResults.json")
+}
