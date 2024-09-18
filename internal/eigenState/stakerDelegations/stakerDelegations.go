@@ -2,6 +2,7 @@ package stakerDelegations
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -36,6 +37,14 @@ type AccumulatedStateChange struct {
 	Delegated   bool
 }
 
+type StakerDelegationChange struct {
+	Staker      string
+	Operator    string
+	BlockNumber uint64
+	Delegated   bool
+	LogIndex    uint64
+}
+
 func NewSlotID(staker string, operator string) types.SlotID {
 	return types.SlotID(fmt.Sprintf("%s_%s", staker, operator))
 }
@@ -49,6 +58,8 @@ type StakerDelegationsModel struct {
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
+
+	deltaAccumulator map[uint64][]*StakerDelegationChange
 }
 
 type DelegatedStakersDiff struct {
@@ -72,6 +83,8 @@ func NewStakerDelegationsModel(
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
+
+		deltaAccumulator: make(map[uint64][]*StakerDelegationChange),
 	}
 
 	esm.RegisterState(model, 2)
@@ -123,6 +136,15 @@ func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[A
 			record.Delegated = true
 		}
 
+		// Store the change in the delta accumulator
+		s.deltaAccumulator[log.BlockNumber] = append(s.deltaAccumulator[log.BlockNumber], &StakerDelegationChange{
+			Staker:      staker,
+			Operator:    operator,
+			BlockNumber: log.BlockNumber,
+			Delegated:   record.Delegated,
+			LogIndex:    log.LogIndex,
+		})
+
 		return record, nil
 	}
 
@@ -157,6 +179,7 @@ func (s *StakerDelegationsModel) IsInterestingLog(log *storage.TransactionLog) b
 // InitBlockProcessing initialize state accumulator for the block.
 func (s *StakerDelegationsModel) InitBlockProcessing(blockNumber uint64) error {
 	s.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
+	s.deltaAccumulator[blockNumber] = make([]*StakerDelegationChange, 0)
 	return nil
 }
 
@@ -229,6 +252,24 @@ func (s *StakerDelegationsModel) prepareState(blockNumber uint64) ([]DelegatedSt
 	return inserts, deletes, nil
 }
 
+func (s *StakerDelegationsModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) error {
+	records, ok := s.deltaAccumulator[blockNumber]
+	if !ok {
+		msg := "Delta accumulator was not initialized"
+		s.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
+		return errors.New(msg)
+	}
+
+	if len(records) > 0 {
+		res := s.DB.Model(&StakerDelegationChange{}).Clauses(clause.Returning{}).Create(&records)
+		if res.Error != nil {
+			s.logger.Sugar().Errorw("Failed to insert delta records", zap.Error(res.Error))
+			return res.Error
+		}
+	}
+	return nil
+}
+
 func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 	// Clone the previous block state to give us a reference point.
 	//
@@ -264,12 +305,17 @@ func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 			return res.Error
 		}
 	}
+
+	if err = s.writeDeltaRecordsToDeltaTable(blockNumber); err != nil {
+		return err
+	}
 	return nil
 }
 
 // ClearAccumulatedState clears the accumulated state for the given block number to free up memory.
 func (s *StakerDelegationsModel) ClearAccumulatedState(blockNumber uint64) error {
 	delete(s.stateAccumulator, blockNumber)
+	delete(s.deltaAccumulator, blockNumber)
 	return nil
 }
 

@@ -39,6 +39,7 @@ func setup() (
 func teardown(model *StakerDelegationsModel) {
 	model.DB.Exec("delete from staker_delegation_changes")
 	model.DB.Exec("delete from delegated_stakers")
+	model.DB.Exec("delete from staker_delegation_changes")
 }
 
 func Test_DelegatedStakersState(t *testing.T) {

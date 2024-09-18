@@ -332,6 +332,7 @@ func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64) error {
 
 func (a *AvsOperatorsModel) ClearAccumulatedState(blockNumber uint64) error {
 	delete(a.stateAccumulator, blockNumber)
+	delete(a.deltaAccumulator, blockNumber)
 	return nil
 }
 
