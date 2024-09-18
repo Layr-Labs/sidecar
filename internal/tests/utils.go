@@ -111,3 +111,44 @@ func GetExpectedOperatorAvsSnapshots() ([]*ExpectedOperatorAvsSnapshot, error) {
 	}
 	return output, nil
 }
+
+func GetOperatorSharesSqlFile() ([]string, error) {
+	contents, err := testData.ReadFile("testdata/operatorShareSnapshots/operatorShares.sql")
+
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.Split(strings.Trim(string(contents), "\n"), "\n"), nil
+}
+
+func GetOperatorSharesBlocksSqlFile() (string, error) {
+	contents, err := testData.ReadFile("testdata/operatorShareSnapshots/operatorSharesBlocks.sql")
+
+	if err != nil {
+		return "", err
+	}
+
+	return strings.Trim(string(contents), "\n"), nil
+}
+
+type OperatorShareExpectedResult struct {
+	Operator string
+	Strategy string
+	Snapshot string
+	Shares   string
+}
+
+func GetOperatorSharesExpectedResults() ([]*OperatorShareExpectedResult, error) {
+	contents, err := testData.ReadFile("testdata/operatorShareSnapshots/operatorSnapshotExpectedResults.json")
+
+	if err != nil {
+		return nil, err
+	}
+
+	output := make([]*OperatorShareExpectedResult, 0)
+	if err = json.Unmarshal(contents, &output); err != nil {
+		return nil, err
+	}
+	return output, nil
+}

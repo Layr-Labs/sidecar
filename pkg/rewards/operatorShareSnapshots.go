@@ -9,6 +9,7 @@ with operator_shares_with_block_info as (
 	select
 		os.operator,
 		os.strategy,
+		os.shares,
 		os.block_number,
 		b.block_time,
 		DATE(b.block_time) as block_date
@@ -36,11 +37,11 @@ snapshotted_records as (
 operator_share_windows as (
 	SELECT
 		operator, strategy, shares, snapshot_time as start_time,
-		CASE
+	CASE
 		-- If the range does not have the end, use the current timestamp truncated to 0 UTC
-		WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN DATE(@cutoffDate)
+		WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN DATE('2024-09-01')
 		ELSE LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time)
-		END AS end_time
+	END AS end_time
 	FROM snapshotted_records
 ),
 cleaned_records as (
@@ -72,8 +73,9 @@ final_results as (
 		day as snapshot
 	FROM cleaned_records
 	cross join day_series
-	where DATE(day) between DATE(start_time) and DATE(end_time, '-1 day')
+		where DATE(day) between DATE(start_time) and DATE(end_time, '-1 day')
 )
+select * from final_results
 `
 
 type OperatorShareSnapshots struct {
