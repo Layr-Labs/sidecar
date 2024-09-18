@@ -41,24 +41,45 @@ func RestoreEnv(previousValues map[string]string) {
 //go:embed testdata
 var testData embed.FS
 
-func GetOperatorAvsRegistrationsSqlFile() ([]string, error) {
-	contents, err := testData.ReadFile("testdata/operatorAvsRegistrationSnapshots/operatorAvsRegistrations.sql")
+func getSqlFile(name string) (string, error) {
+	contents, err := testData.ReadFile(name)
+
+	if err != nil {
+		return "", err
+	}
+
+	return strings.Trim(string(contents), "\n"), nil
+}
+
+func getMultilineInsertSqlFile(name string) ([]string, error) {
+	contents, err := getSqlFile(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.Split(contents, "\n"), nil
+}
+
+func getExpectedResultsJsonFile[T any](name string) ([]*T, error) {
+	contents, err := testData.ReadFile(name)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return strings.Split(strings.Trim(string(contents), "\n"), "\n"), nil
+	output := make([]*T, 0)
+	if err = json.Unmarshal(contents, &output); err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
+func GetOperatorAvsRegistrationsSqlFile() ([]string, error) {
+	return getMultilineInsertSqlFile("testdata/operatorAvsRegistrationSnapshots/operatorAvsRegistrations.sql")
 }
 
 func GetOperatorAvsRegistrationsBlocksSqlFile() ([]string, error) {
-	contents, err := testData.ReadFile("testdata/operatorAvsRegistrationSnapshots/operatorAvsRegistrationsBlocks.sql")
-
-	if err != nil {
-		return nil, err
-	}
-
-	return strings.Split(strings.Trim(string(contents), "\n"), "\n"), nil
+	return getMultilineInsertSqlFile("testdata/operatorAvsRegistrationSnapshots/operatorAvsRegistrationsBlocks.sql")
 }
 
 type ExpectedOperatorAvsRegistrationSnapshot struct {
@@ -68,27 +89,11 @@ type ExpectedOperatorAvsRegistrationSnapshot struct {
 }
 
 func GetExpectedOperatorAvsSnapshotResults() ([]*ExpectedOperatorAvsRegistrationSnapshot, error) {
-	contents, err := testData.ReadFile("testdata/operatorAvsRegistrationSnapshots/operatorAvsSnapshotResults.json")
-
-	if err != nil {
-		return nil, err
-	}
-
-	output := make([]*ExpectedOperatorAvsRegistrationSnapshot, 0)
-	if err = json.Unmarshal(contents, &output); err != nil {
-		return nil, err
-	}
-	return output, nil
+	return getExpectedResultsJsonFile[ExpectedOperatorAvsRegistrationSnapshot]("testdata/operatorAvsRegistrationSnapshots/operatorAvsSnapshotResults.json")
 }
 
 func GetOperatorAvsRestakedStrategiesSqlFile() ([]string, error) {
-	contents, err := testData.ReadFile("testdata/operatorRestakedStrategies/operatorAvsRestakedStrategies.sql")
-
-	if err != nil {
-		return nil, err
-	}
-
-	return strings.Split(strings.Trim(string(contents), "\n"), "\n"), nil
+	return getMultilineInsertSqlFile("testdata/operatorRestakedStrategies/operatorAvsRestakedStrategies.sql")
 }
 
 type ExpectedOperatorAvsSnapshot struct {
@@ -99,27 +104,11 @@ type ExpectedOperatorAvsSnapshot struct {
 }
 
 func GetExpectedOperatorAvsSnapshots() ([]*ExpectedOperatorAvsSnapshot, error) {
-	contents, err := testData.ReadFile("testdata/operatorRestakedStrategies/operatorAvsStrategySnapshotsExpectedResults.json")
-
-	if err != nil {
-		return nil, err
-	}
-
-	output := make([]*ExpectedOperatorAvsSnapshot, 0)
-	if err = json.Unmarshal(contents, &output); err != nil {
-		return nil, err
-	}
-	return output, nil
+	return getExpectedResultsJsonFile[ExpectedOperatorAvsSnapshot]("testdata/operatorRestakedStrategies/operatorAvsStrategySnapshotsExpectedResults.json")
 }
 
 func GetOperatorSharesSqlFile() ([]string, error) {
-	contents, err := testData.ReadFile("testdata/operatorShareSnapshots/operatorShares.sql")
-
-	if err != nil {
-		return nil, err
-	}
-
-	return strings.Split(strings.Trim(string(contents), "\n"), "\n"), nil
+	return getMultilineInsertSqlFile("testdata/operatorShareSnapshots/operatorShares.sql")
 }
 
 func GetOperatorSharesBlocksSqlFile() (string, error) {
@@ -140,15 +129,5 @@ type OperatorShareExpectedResult struct {
 }
 
 func GetOperatorSharesExpectedResults() ([]*OperatorShareExpectedResult, error) {
-	contents, err := testData.ReadFile("testdata/operatorShareSnapshots/operatorSnapshotExpectedResults.json")
-
-	if err != nil {
-		return nil, err
-	}
-
-	output := make([]*OperatorShareExpectedResult, 0)
-	if err = json.Unmarshal(contents, &output); err != nil {
-		return nil, err
-	}
-	return output, nil
+	return getExpectedResultsJsonFile[OperatorShareExpectedResult]("testdata/operatorShareSnapshots/operatorSnapshotExpectedResults.json")
 }
