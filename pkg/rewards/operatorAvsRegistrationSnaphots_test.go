@@ -86,7 +86,7 @@ func hydrateBlocksTable(grm *gorm.DB, l *zap.Logger) (int, error) {
 	return len(contents), err
 }
 
-func Test_OperatorAvsRegistrationWindows(t *testing.T) {
+func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 	cfg, grm, l, err := setupOperatorAvsRegistrationSnapshot()
 
 	if err != nil {
