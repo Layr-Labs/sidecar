@@ -212,29 +212,6 @@ func (osm *OperatorSharesModel) HandleStateChange(log *storage.TransactionLog) (
 	return nil, nil //nolint:nilnil
 }
 
-func (osm *OperatorSharesModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
-	query := `
-		insert into operator_shares (operator, strategy, shares, block_number)
-			select
-				operator,
-				strategy,
-				shares,
-				@currentBlock as block_number
-			from operator_shares
-			where block_number = @previousBlock
-	`
-	res := osm.DB.Exec(query,
-		sql.Named("currentBlock", blockNumber),
-		sql.Named("previousBlock", blockNumber-1),
-	)
-
-	if res.Error != nil {
-		osm.logger.Sugar().Errorw("Failed to clone previous block state to new block", zap.Error(res.Error))
-		return res.Error
-	}
-	return nil
-}
-
 // prepareState prepares the state for commit by adding the new state to the existing state.
 func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorSharesDiff, error) {
 	preparedState := make([]OperatorSharesDiff, 0)
@@ -253,19 +230,28 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 
 	// Find only the records from the previous block, that are modified in this block
 	query := `
+		with ranked_rows as (
+			select
+				operator,
+				strategy,
+				shares,
+				block_number,
+				ROW_NUMBER() OVER (PARTITION BY operator, strategy ORDER BY block_number desc) as rn
+			from operator_shares
+			where
+				concat(operator, '_', strategy) in @slotIds
+		)
 		select
-			operator,
-			strategy,
-			shares
-		from operator_shares
-		where
-			block_number = @previousBlock
-			and concat(operator, '_', strategy) in @slotIds
+			lb.operator,
+			lb.strategy,
+			lb.shares,
+			lb.block_number
+		from ranked_rows as lb
+		where rn = 1
 	`
 	existingRecords := make([]OperatorShares, 0)
 	res := osm.DB.Model(&OperatorShares{}).
 		Raw(query,
-			sql.Named("previousBlock", blockNumber-1),
 			sql.Named("slotIds", slotIds),
 		).
 		Scan(&existingRecords)
@@ -316,12 +302,6 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 }
 
 func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
-	// Clone the previous block state to give us a reference point.
-	err := osm.clonePreviousBlocksToNewBlock(blockNumber)
-	if err != nil {
-		return err
-	}
-
 	records, err := osm.prepareState(blockNumber)
 	if err != nil {
 		return err

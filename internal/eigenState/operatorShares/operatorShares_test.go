@@ -40,7 +40,6 @@ func setup() (
 }
 
 func teardown(model *OperatorSharesModel) {
-	model.DB.Exec("delete from operator_share_changes")
 	model.DB.Exec("delete from operator_shares")
 }
 
