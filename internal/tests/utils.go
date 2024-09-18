@@ -42,7 +42,7 @@ func RestoreEnv(previousValues map[string]string) {
 var testData embed.FS
 
 func GetOperatorAvsRegistrationsSqlFile() ([]string, error) {
-	contents, err := testData.ReadFile("testdata/operatorAvsRegistrations.sql")
+	contents, err := testData.ReadFile("testdata/operatorAvsRegistrationSnapshots/operatorAvsRegistrations.sql")
 
 	if err != nil {
 		return nil, err
@@ -52,17 +52,7 @@ func GetOperatorAvsRegistrationsSqlFile() ([]string, error) {
 }
 
 func GetOperatorAvsRegistrationsBlocksSqlFile() ([]string, error) {
-	contents, err := testData.ReadFile("testdata/operatorAvsRegistrationsBlocks.sql")
-
-	if err != nil {
-		return nil, err
-	}
-
-	return strings.Split(strings.Trim(string(contents), "\n"), "\n"), nil
-}
-
-func GetOperatorAvsRestakedStrategiesSqlFile() ([]string, error) {
-	contents, err := testData.ReadFile("testdata/operatorAvsRestakedStrategies.sql")
+	contents, err := testData.ReadFile("testdata/operatorAvsRegistrationSnapshots/operatorAvsRegistrationsBlocks.sql")
 
 	if err != nil {
 		return nil, err
@@ -78,7 +68,7 @@ type ExpectedOperatorAvsRegistrationSnapshot struct {
 }
 
 func GetExpectedOperatorAvsSnapshotResults() ([]*ExpectedOperatorAvsRegistrationSnapshot, error) {
-	contents, err := testData.ReadFile("testdata/operatorAvsSnapshotResults.json")
+	contents, err := testData.ReadFile("testdata/operatorAvsRegistrationSnapshots/operatorAvsSnapshotResults.json")
 
 	if err != nil {
 		return nil, err
@@ -91,6 +81,16 @@ func GetExpectedOperatorAvsSnapshotResults() ([]*ExpectedOperatorAvsRegistration
 	return output, nil
 }
 
+func GetOperatorAvsRestakedStrategiesSqlFile() ([]string, error) {
+	contents, err := testData.ReadFile("testdata/operatorRestakedStrategies/operatorAvsRestakedStrategies.sql")
+
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.Split(strings.Trim(string(contents), "\n"), "\n"), nil
+}
+
 type ExpectedOperatorAvsSnapshot struct {
 	Operator string
 	Avs      string
@@ -99,7 +99,7 @@ type ExpectedOperatorAvsSnapshot struct {
 }
 
 func GetExpectedOperatorAvsSnapshots() ([]*ExpectedOperatorAvsSnapshot, error) {
-	contents, err := testData.ReadFile("testdata/operatorAvsStrategySnapshotsExpectedResults.json")
+	contents, err := testData.ReadFile("testdata/operatorRestakedStrategies/operatorAvsStrategySnapshotsExpectedResults.json")
 
 	if err != nil {
 		return nil, err
