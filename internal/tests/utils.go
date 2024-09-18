@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	sqlite2 "github.com/Layr-Labs/go-sidecar/internal/sqlite"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"os"
 	"strings"
@@ -16,8 +17,8 @@ func GetConfig() *config.Config {
 
 const sqliteInMemoryPath = "file::memory:?cache=shared"
 
-func GetSqliteDatabaseConnection() (*gorm.DB, error) {
-	db, err := sqlite2.NewGormSqliteFromSqlite(sqlite2.NewSqlite(sqliteInMemoryPath))
+func GetSqliteDatabaseConnection(l *zap.Logger) (*gorm.DB, error) {
+	db, err := sqlite2.NewGormSqliteFromSqlite(sqlite2.NewSqlite(sqliteInMemoryPath, l))
 	if err != nil {
 		panic(err)
 	}

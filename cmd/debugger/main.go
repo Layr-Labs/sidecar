@@ -44,7 +44,7 @@ func main() {
 	etherscanClient := etherscan.NewEtherscanClient(cfg, l)
 	client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
 
-	db := sqlite.NewSqlite(cfg.SqliteConfig.GetSqlitePath())
+	db := sqlite.NewSqlite(cfg.SqliteConfig.GetSqlitePath(), l)
 
 	grm, err := sqlite.NewGormSqliteFromSqlite(db)
 	if err != nil {

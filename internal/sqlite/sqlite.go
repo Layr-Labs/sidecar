@@ -5,6 +5,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
+	"go.uber.org/zap"
+	"math/big"
 	"regexp"
 
 	goSqlite "github.com/mattn/go-sqlite3"
@@ -26,13 +29,42 @@ func bytesToHex(jsonByteArray string) (string, error) {
 	return hex.EncodeToString(jsonBytes), nil
 }
 
+type SumBigNumbers struct {
+	total *big.Int
+}
+
+func NewSumBigNumbers() *SumBigNumbers {
+	zero, _ := numbers.NewBig257().SetString("0", 10)
+	return &SumBigNumbers{total: zero}
+}
+
+func (s *SumBigNumbers) Step(value any) {
+	bigValue, success := numbers.NewBig257().SetString(value.(string), 10)
+	if !success {
+		return
+	}
+	s.total.Add(s.total, bigValue)
+}
+
+func (s *SumBigNumbers) Done() (string, error) {
+	return s.total.String(), nil
+}
+
 var hasRegisteredExtensions = false
 
-func NewSqlite(path string) gorm.Dialector {
+func NewSqlite(path string, l *zap.Logger) gorm.Dialector {
 	if !hasRegisteredExtensions {
 		sql.Register("sqlite3_with_extensions", &goSqlite.SQLiteDriver{
 			ConnectHook: func(conn *goSqlite.SQLiteConn) error {
-				return conn.RegisterFunc("bytes_to_hex", bytesToHex, true)
+				if err := conn.RegisterAggregator("sum_big", NewSumBigNumbers, true); err != nil {
+					l.Sugar().Errorw("Failed to register aggregator sum_big", "error", err)
+					return err
+				}
+				if err := conn.RegisterFunc("bytes_to_hex", bytesToHex, true); err != nil {
+					l.Sugar().Errorw("Failed to register function bytes_to_hex", "error", err)
+					return err
+				}
+				return nil
 			},
 		})
 		hasRegisteredExtensions = true

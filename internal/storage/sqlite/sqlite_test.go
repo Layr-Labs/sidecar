@@ -20,7 +20,7 @@ import (
 func setup() (*gorm.DB, *zap.Logger, *config.Config) {
 	cfg := config.NewConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
-	db, err := tests.GetSqliteDatabaseConnection()
+	db, err := tests.GetSqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}

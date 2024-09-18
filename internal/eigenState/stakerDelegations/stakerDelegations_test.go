@@ -24,7 +24,7 @@ func setup() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	db, err := tests.GetSqliteDatabaseConnection()
+	db, err := tests.GetSqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}

@@ -78,7 +78,7 @@ func setup() (
 	client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
 
 	// database
-	grm, err := tests.GetSqliteDatabaseConnection()
+	grm, err := tests.GetSqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}
