@@ -2,14 +2,10 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
 )
 
 type EnvScope string
-
-const ENV_VAR_PREFIX = "SIDECAR"
 
 type Network uint
 type Environment int
@@ -21,57 +17,68 @@ const (
 	Environment_PreProd Environment = 1
 	Environment_Testnet Environment = 2
 	Environment_Mainnet Environment = 3
+	Environment_Local   Environment = 4
 )
 
-func ParseNetwork(n string) Network {
+func ParseNetwork(n string) (Network, error) {
+	if n == "" {
+		return Network_Holesky, fmt.Errorf("network not found")
+	}
 	switch n {
 	case "mainnet":
-		return Network_Ethereum
+		return Network_Ethereum, nil
+	case "holesky":
+		return Network_Holesky, nil
 	default:
-		return Network_Holesky
+		return Network_Holesky, fmt.Errorf("unsupported network %s", n)
 	}
 }
 
-func parseEnvironment(env string) Environment {
+func parseEnvironment(env string) (Environment, error) {
+	if env == "" {
+		return Environment_PreProd, fmt.Errorf("environment not found")
+	}
 	switch env {
 	case "preprod":
-		return Environment_PreProd
+		return Environment_PreProd, nil
 	case "testnet":
-		return Environment_Testnet
+		return Environment_Testnet, nil
 	case "mainnet":
-		return Environment_Mainnet
+		return Environment_Mainnet, nil
+	case "local":
+		return Environment_Local, nil
 	default:
-		return Environment_PreProd
+		return Environment_PreProd, fmt.Errorf("unsupported environment %s", env)
 	}
 }
 
-func GetEnvironment(e Environment) string {
+func GetEnvironmentAsString(e Environment) (string, error) {
 	switch e {
 	case Environment_PreProd:
-		return "preprod"
+		return "preprod", nil
 	case Environment_Testnet:
-		return "testnet"
+		return "testnet", nil
 	case Environment_Mainnet:
-		return "mainnet"
+		return "mainnet", nil
+	case Environment_Local:
+		return "local", nil
 	default:
-		return "local"
+		return "", fmt.Errorf("unsupported environment %d", e)
 	}
 }
 
-func GetNetwork(n Network) string {
+func GetNetworkAsString(n Network) (string, error) {
 	switch n {
 	case Network_Ethereum:
-		return "ethereum"
+		return "ethereum", nil
+	case Network_Holesky:
+		return "holesky", nil
 	default:
-		return "holesky"
+		return "", fmt.Errorf("unsupported network %d", n)
 	}
 }
 
-func getPrefixedEnvVar(key string) string {
-	return os.Getenv(ENV_VAR_PREFIX + "_" + key)
-}
-
-func parseListEnvVar(envVar string) []string {
+func parseStringAsList(envVar string) []string {
 	if envVar == "" {
 		return []string{}
 	}
@@ -88,21 +95,6 @@ func parseListEnvVar(envVar string) []string {
 		}
 	}
 	return l
-}
-
-func parseBooleanEnvVar(envVar string) bool {
-	return envVar == "true"
-}
-
-func parseIntEnvVar(envVar string, defaultVal int) int {
-	if envVar == "" {
-		return defaultVal
-	}
-	val, err := strconv.Atoi(envVar)
-	if err != nil {
-		return defaultVal
-	}
-	return val
 }
 
 type Config struct {
@@ -142,30 +134,38 @@ func (s *SqliteConfig) GetSqlitePath() string {
 	return s.DbFilePath
 }
 
-func NewConfig() *Config {
+func NewConfig(options *Options) *Config {
+	network, err := ParseNetwork(options.Network)
+	if err != nil {
+		panic(err)
+	}
+	environment, err := parseEnvironment(options.Environment)
+	if err != nil {
+		panic(err)
+	}
 	return &Config{
-		Network:     ParseNetwork(getPrefixedEnvVar("NETWORK")),
-		Environment: parseEnvironment(getPrefixedEnvVar("ENVIRONMENT")),
-		Debug:       parseBooleanEnvVar(getPrefixedEnvVar("DEBUG")),
-		StatsdUrl:   getPrefixedEnvVar("STATSD_URL"),
+		Network:     network,
+		Environment: environment,
+		Debug:       options.Debug,
+		StatsdUrl:   options.StatsdUrl,
 
 		EthereumRpcConfig: EthereumRpcConfig{
-			BaseUrl: getPrefixedEnvVar("ETHEREUM_RPC_BASE_URL"),
-			WsUrl:   getPrefixedEnvVar("ETHEREUM_WS_URL"),
+			BaseUrl: options.EthereumRPCBaseURL,
+			WsUrl:   options.EthereumWSURL,
 		},
 
 		EtherscanConfig: EtherscanConfig{
-			ApiKeys: parseListEnvVar(getPrefixedEnvVar("ETHERSCAN_API_KEYS")),
+			ApiKeys: parseStringAsList(options.EtherscanAPIKeys),
 		},
 
 		SqliteConfig: SqliteConfig{
-			InMemory:   parseBooleanEnvVar(getPrefixedEnvVar("SQLITE_IN_MEMORY")),
-			DbFilePath: getPrefixedEnvVar("SQLITE_DB_FILE_PATH"),
+			InMemory:   options.SqliteInMemory,
+			DbFilePath: options.SqliteDBFilePath,
 		},
 
 		RpcConfig: RpcConfig{
-			GrpcPort: parseIntEnvVar(getPrefixedEnvVar("RPC_GRPC_PORT"), 7100),
-			HttpPort: parseIntEnvVar(getPrefixedEnvVar("RPC_HTTP_PORT"), 7101),
+			GrpcPort: options.RPCGRPCPort,
+			HttpPort: options.RPCHTTPPort,
 		},
 	}
 }

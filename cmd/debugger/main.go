@@ -7,7 +7,6 @@ import (
 
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"
-	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/internal/contractManager"
 	"github.com/Layr-Labs/go-sidecar/internal/contractStore/sqliteContractStore"
@@ -25,12 +24,13 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	sqliteBlockStore "github.com/Layr-Labs/go-sidecar/internal/storage/sqlite"
+	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"go.uber.org/zap"
 )
 
 func main() {
 	ctx := context.Background()
-	cfg := config.NewConfig()
+	cfg := tests.GetConfig()
 
 	fmt.Printf("Config: %+v\n", cfg)
 

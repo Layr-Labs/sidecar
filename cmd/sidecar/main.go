@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
@@ -33,10 +34,25 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
-	cfg := config.NewConfig()
+	cfg, err := config.ParseArgs(os.Args[1:], config.GetEnvAsMap())
+	if err != nil {
+		log.Fatalf("Error parsing arguments: %v", err)
+		os.Exit(1)
+	}
 
+	if cfg != nil {
+		if err := start(cfg); err != nil {
+			log.Fatalf("Error starting sidecar: %v", err)
+			os.Exit(1)
+		}
+	}
+	os.Exit(0)
+}
+
+func start(cfg *config.Config) error {
 	fmt.Printf("Config: %+v\n", cfg)
+
+	ctx := context.Background()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
@@ -127,4 +143,6 @@ func main() {
 		rpcChannel <- true
 		sidecar.ShutdownChan <- true
 	}, time.Second*5, l)
+
+	return nil
 }

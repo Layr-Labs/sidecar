@@ -1,6 +1,9 @@
 package sqliteContractStore
 
 import (
+	"os"
+	"testing"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/contractStore"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
@@ -9,8 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"os"
-	"testing"
 )
 
 func setup() (
@@ -36,7 +37,7 @@ func setup() (
 
 func Test_SqliteContractStore(t *testing.T) {
 	os.Setenv("SIDECAR_ENVIRONMENT", "testnet")
-	cfg := config.NewConfig()
+	cfg := tests.GetConfig()
 	_, db, l, err := setup()
 
 	if err != nil {

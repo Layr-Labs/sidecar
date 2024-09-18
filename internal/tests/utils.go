@@ -8,8 +8,19 @@ import (
 	"gorm.io/gorm"
 )
 
+func GetConfigFromOptions(options *config.Options) *config.Config {
+	cfg := config.NewConfig(options)
+	return cfg
+}
+
 func GetConfig() *config.Config {
-	return config.NewConfig()
+	testOpts := &config.Options{
+		Network:     "holesky",
+		Environment: "testnet",
+	}
+
+	cfg := config.NewConfig(testOpts)
+	return cfg
 }
 
 const sqliteInMemoryPath = "file::memory:?cache=shared"

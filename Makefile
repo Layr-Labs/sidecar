@@ -10,14 +10,18 @@ deps/go:
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
 	go get \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
-		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
-		google.golang.org/protobuf/cmd/protoc-gen-go \
+		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2
+	go get \
+		google.golang.org/protobuf/cmd/protoc-gen-go
+	go get \
 		google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	go install \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
 		google.golang.org/protobuf/cmd/protoc-gen-go \
 		google.golang.org/grpc/cmd/protoc-gen-go-grpc
+	go get \
+		github.com/spf13/cobra@v1.8.1
 	go mod tidy
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.61.0
 
