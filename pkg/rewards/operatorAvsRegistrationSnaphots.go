@@ -140,3 +140,16 @@ func (r *RewardsCalculator) GenerateOperatorAvsRegistrationSnapshots(snapshotDat
 	}
 	return results, nil
 }
+
+func (r *RewardsCalculator) CreateOperatorAvsRegistrationSnapshotsTable() error {
+	res := r.calculationDB.Exec(`CREATE TABLE IF NOT EXISTS operator_avs_registration_snapshots (
+		avs TEXT,
+		operator TEXT,
+		snapshot TEXT
+	)`)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to create operator_avs_registration_snapshots table", "error", res.Error)
+		return res.Error
+	}
+	return nil
+}

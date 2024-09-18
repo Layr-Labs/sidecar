@@ -197,3 +197,19 @@ func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(snapshotDate st
 	}
 	return results, nil
 }
+
+func (r *RewardsCalculator) CreateOperatorAvsStrategySnapshotsTable() error {
+	res := r.calculationDB.Exec(`
+		CREATE TABLE IF NOT EXISTS operator_avs_strategy_snapshots (
+			operator VARCHAR(42) NOT NULL,
+			avs VARCHAR(42) NOT NULL,
+			strategy VARCHAR(42) NOT NULL,
+			snapshot DATE NOT NULL
+		);
+	`)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to create operator_avs_strategy_snapshots table", "error", res.Error)
+		return res.Error
+	}
+	return nil
+}

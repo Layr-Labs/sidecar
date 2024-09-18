@@ -54,6 +54,15 @@ var hasRegisteredExtensions = false
 
 const SqliteInMemoryPath = "file::memory:?cache=shared"
 
+func NewInMemorySqlite(l *zap.Logger) gorm.Dialector {
+	return NewSqlite(SqliteInMemoryPath, l)
+}
+
+func NewInMemorySqliteWithName(name string, l *zap.Logger) gorm.Dialector {
+	path := fmt.Sprintf("file:%s?mode=memory&cache=shared", name)
+	return NewSqlite(path, l)
+}
+
 func NewSqlite(path string, l *zap.Logger) gorm.Dialector {
 	if !hasRegisteredExtensions {
 		sql.Register("sqlite3_with_extensions", &goSqlite.SQLiteDriver{

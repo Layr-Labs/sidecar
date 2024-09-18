@@ -1,7 +1,6 @@
 package rewards
 
 import (
-	"errors"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/submittedDistributionRoots"
@@ -26,19 +25,25 @@ func NewRewardsCalculator(
 	grm *gorm.DB,
 	cfg *config.Config,
 ) (*RewardsCalculator, error) {
-	inMemSqlite := sqlite.NewSqlite(sqlite.SqliteInMemoryPath, l)
+	inMemSqlite := sqlite.NewInMemorySqliteWithName("rewards", l)
 	db, err := sqlite.NewGormSqliteFromSqlite(inMemSqlite)
 	if err != nil {
 		l.Sugar().Fatalw("Failed to create in memory sqlite", zap.Error(err))
 		return nil, err
 	}
-	return &RewardsCalculator{
+	rc := &RewardsCalculator{
 		logger:        l,
 		bs:            bs,
 		grm:           grm,
 		globalConfig:  cfg,
 		calculationDB: db,
-	}, nil
+	}
+
+	if err = rc.initializeRewardsSchema(); err != nil {
+		l.Sugar().Errorw("Failed to initialize rewards schema", zap.Error(err))
+		return nil, err
+	}
+	return rc, nil
 }
 
 // CalculateRewardsForSnapshot calculates the rewards for a given snapshot date.
@@ -53,7 +58,7 @@ func (rc *RewardsCalculator) CalculateRewardsForSnapshot(desiredSnapshotDate uin
 	snapshotDate := time.Unix(int64(desiredSnapshotDate), 0).UTC()
 
 	if !rc.isValidSnapshotDate(snapshotDate) {
-		return errors.New(fmt.Sprintf("invalid snapshot date '%s'", snapshotDate.String()))
+		return fmt.Errorf("invalid snapshot date '%s'", snapshotDate.String())
 	}
 
 	// Get the last snapshot date published on-chain.
@@ -111,6 +116,23 @@ func (rc *RewardsCalculator) getMostRecentDistributionRoot() (*submittedDistribu
 	return distributionRoot, nil
 }
 
+func (rc *RewardsCalculator) initializeRewardsSchema() error {
+	funcs := []func() error{
+		rc.CreateOperatorAvsRegistrationSnapshotsTable,
+		rc.CreateOperatorAvsStrategySnapshotsTable,
+		rc.CreateOperatorSharesSnapshotsTable,
+		rc.CreateStakerShareSnapshotsTable,
+		rc.CreateStakerDelegationSnapshotsTable,
+	}
+	for _, f := range funcs {
+		if err := f(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (rc *RewardsCalculator) calculateRewards(lowerBoundBlock *storage.Block, snapshotDate time.Time) error {
+
 	return nil
 }

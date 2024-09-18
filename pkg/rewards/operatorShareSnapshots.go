@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"database/sql"
+	"go.uber.org/zap"
 )
 
 const operatorShareSnapshotsQuery = `
@@ -95,4 +96,20 @@ func (r *RewardsCalculator) GenerateOperatorShareSnapshots(snapshotDate string) 
 		return nil, res.Error
 	}
 	return results, nil
+}
+
+func (r *RewardsCalculator) CreateOperatorSharesSnapshotsTable() error {
+	res := r.calculationDB.Exec(`
+		CREATE TABLE IF NOT EXISTS operator_share_snapshots (
+			operator TEXT,
+			strategy TEXT,
+			shares TEXT,
+			snapshot TEXT
+		)
+	`)
+	if res.Error != nil {
+		r.logger.Error("Failed to create operator share snapshots table", zap.Error(res.Error))
+		return res.Error
+	}
+	return nil
 }

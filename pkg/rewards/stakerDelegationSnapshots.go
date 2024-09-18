@@ -90,3 +90,18 @@ func (r *RewardsCalculator) GenerateStakerDelegationSnapshots(snapshotDate strin
 	}
 	return results, nil
 }
+
+func (r *RewardsCalculator) CreateStakerDelegationSnapshotsTable() error {
+	res := r.calculationDB.Exec(`
+		CREATE TABLE IF NOT EXISTS staker_delegation_snapshots (
+			staker TEXT,
+			operator TEXT,
+			snapshot TEXT
+		)
+	`)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to create staker delegation snapshots table", "error", res.Error)
+		return res.Error
+	}
+	return nil
+}

@@ -93,3 +93,19 @@ func (r *RewardsCalculator) GenerateStakerShareSnapshots(snapshotDate string) ([
 	}
 	return results, nil
 }
+
+func (r *RewardsCalculator) CreateStakerShareSnapshotsTable() error {
+	res := r.calculationDB.Exec(`
+		CREATE TABLE IF NOT EXISTS staker_share_snapshots (
+			staker TEXT,
+			strategy TEXT,
+			shares TEXT,
+			snapshot TEXT
+		)
+	`)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to create staker share snapshots table", "error", res.Error)
+		return res.Error
+	}
+	return nil
+}
