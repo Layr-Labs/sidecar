@@ -18,6 +18,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
+	pkgUtils "github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -484,32 +485,9 @@ func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (int
 	return nil, nil
 }
 
-func (ss *StakerSharesModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
-	query := `
-		insert into staker_shares (staker, strategy, shares, block_number)
-			select
-				staker,
-				strategy,
-				shares,
-				@currentBlock as block_number
-			from staker_shares
-			where block_number = @previousBlock
-	`
-	res := ss.DB.Exec(query,
-		sql.Named("currentBlock", blockNumber),
-		sql.Named("previousBlock", blockNumber-1),
-	)
-
-	if res.Error != nil {
-		ss.logger.Sugar().Errorw("Failed to clone previous block state to new block", zap.Error(res.Error))
-		return res.Error
-	}
-	return nil
-}
-
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDiff, error) {
-	preparedState := make([]StakerSharesDiff, 0)
+func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerSharesDiff, error) {
+	preparedState := make([]*StakerSharesDiff, 0)
 
 	accumulatedState, ok := ss.stateAccumulator[blockNumber]
 	if !ok {
@@ -525,19 +503,28 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 
 	// Find only the records from the previous block, that are modified in this block
 	query := `
+		with ranked_rows as (
+			select
+				staker,
+				strategy,
+				shares,
+				block_number,
+				ROW_NUMBER() OVER (PARTITION BY staker, strategy ORDER BY block_number desc) as rn
+			from staker_shares
+			where
+				concat(staker, '_', strategy) in @slotIds
+		)
 		select
-			staker,
-			strategy,
-			shares
-		from staker_shares
-		where
-			block_number = @previousBlock
-			and concat(staker, '_', strategy) in @slotIds
+			rr.staker,
+			rr.strategy,
+			rr.shares,
+			rr.block_number
+		from ranked_rows as rr
+		where rn = 1
 	`
 	existingRecords := make([]StakerShares, 0)
 	res := ss.DB.Model(&StakerShares{}).
 		Raw(query,
-			sql.Named("previousBlock", blockNumber-1),
 			sql.Named("slotIds", slotIds),
 		).
 		Scan(&existingRecords)
@@ -557,12 +544,11 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 	// Loop over our new state changes.
 	// If the record exists in the previous block, add the shares to the existing shares
 	for slotId, newState := range accumulatedState {
-		prepared := StakerSharesDiff{
+		prepared := &StakerSharesDiff{
 			Staker:      newState.Staker,
 			Strategy:    newState.Strategy,
 			Shares:      newState.Shares,
 			BlockNumber: blockNumber,
-			IsNew:       false,
 		}
 
 		if existingRecord, ok := mappedRecords[slotId]; ok {
@@ -577,9 +563,6 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 				continue
 			}
 			prepared.Shares = existingShares.Add(existingShares, newState.Shares)
-		} else {
-			// SlotID was not found in the previous block, so this is a new record
-			prepared.IsNew = true
 		}
 
 		preparedState = append(preparedState, prepared)
@@ -588,54 +571,25 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 }
 
 func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
-	// Clone the previous block state to give us a reference point.
-	err := ss.clonePreviousBlocksToNewBlock(blockNumber)
-	if err != nil {
-		return err
-	}
-
 	records, err := ss.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
-	newRecords := make([]StakerShares, 0)
-	updateRecords := make([]StakerShares, 0)
-
-	for _, record := range records {
-		r := &StakerShares{
-			Staker:      record.Staker,
-			Strategy:    record.Strategy,
-			Shares:      record.Shares.String(),
-			BlockNumber: record.BlockNumber,
+	recordsToInsert := pkgUtils.Map(records, func(r *StakerSharesDiff, i uint64) *StakerShares {
+		return &StakerShares{
+			Staker:      r.Staker,
+			Strategy:    r.Strategy,
+			Shares:      r.Shares.String(),
+			BlockNumber: blockNumber,
 		}
-		if record.IsNew {
-			newRecords = append(newRecords, *r)
-		} else {
-			updateRecords = append(updateRecords, *r)
-		}
-	}
+	})
 
-	// Batch insert new records
-	if len(newRecords) > 0 {
-		res := ss.DB.Model(&StakerShares{}).Clauses(clause.Returning{}).Create(&newRecords)
+	if len(recordsToInsert) > 0 {
+		res := ss.DB.Model(&StakerShares{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
 		if res.Error != nil {
 			ss.logger.Sugar().Errorw("Failed to create new operator_shares records", zap.Error(res.Error))
 			return res.Error
-		}
-	}
-	// Update existing records that were cloned from the previous block
-	if len(updateRecords) > 0 {
-		for _, record := range updateRecords {
-			res := ss.DB.Model(&StakerShares{}).
-				Where("staker = ? and strategy = ? and block_number = ?", record.Staker, record.Strategy, record.BlockNumber).
-				Updates(map[string]interface{}{
-					"shares": record.Shares,
-				})
-			if res.Error != nil {
-				ss.logger.Sugar().Errorw("Failed to update operator_shares record", zap.Error(res.Error))
-				return res.Error
-			}
 		}
 	}
 
@@ -662,7 +616,7 @@ func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateR
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []StakerSharesDiff) []*base.MerkleTreeInput {
+func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerSharesDiff) []*base.MerkleTreeInput {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, diff := range diffs {
 		inputs = append(inputs, &base.MerkleTreeInput{

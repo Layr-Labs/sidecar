@@ -313,9 +313,6 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", preparedChange[0].Strategy)
 		assert.Equal(t, "246393621132195985", preparedChange[0].Shares.String())
 
-		err = model.clonePreviousBlocksToNewBlock(blockNumber)
-		assert.Nil(t, err)
-
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
