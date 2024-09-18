@@ -46,23 +46,9 @@ func teardownStakerDelegationSnapshot(grm *gorm.DB) {
 	}
 }
 
-func hydrateStakerDelegationSnapshotBlocks(grm *gorm.DB, l *zap.Logger) (int, error) {
-	contents, err := tests.GetStakerDelegationsBlocksSqlFile()
-
-	if err != nil {
-		return 0, err
-	}
-
-	res := grm.Exec(contents)
-	if res.Error != nil {
-		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error), zap.String("query", contents))
-		return 0, res.Error
-	}
-	return len(contents), err
-}
-
 func hydrateStakerDelegations(grm *gorm.DB, l *zap.Logger) (int, error) {
-	contents, err := tests.GetStakerDelegationsSqlFile()
+	projectRoot := getProjectRootPath()
+	contents, err := tests.GetStakerDelegationsSqlFile(projectRoot)
 
 	if err != nil {
 		return 0, err
@@ -77,6 +63,7 @@ func hydrateStakerDelegations(grm *gorm.DB, l *zap.Logger) (int, error) {
 }
 
 func Test_StakerDelegationSnapshots(t *testing.T) {
+	projectRoot := getProjectRootPath()
 	cfg, grm, l, err := setupStakerDelegationSnapshot()
 
 	if err != nil {
@@ -86,7 +73,7 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 	snapshotDate := "2024-09-01"
 
 	t.Run("Should hydrate dependency tables", func(t *testing.T) {
-		if _, err := hydrateStakerDelegationSnapshotBlocks(grm, l); err != nil {
+		if err := hydrateAllBlocksTable(grm, l); err != nil {
 			t.Error(err)
 		}
 		if _, err := hydrateStakerDelegations(grm, l); err != nil {
@@ -99,7 +86,7 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 		snapshots, err := rewards.GenerateStakerDelegationSnapshots(snapshotDate)
 		assert.Nil(t, err)
 
-		expectedResults, err := tests.GetStakerDelegationExpectedResults()
+		expectedResults, err := tests.GetStakerDelegationExpectedResults(projectRoot)
 		assert.Nil(t, err)
 
 		assert.Equal(t, len(expectedResults), len(snapshots))

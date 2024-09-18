@@ -1,13 +1,15 @@
 package tests
 
 import (
-	"embed"
 	"encoding/json"
+	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	sqlite2 "github.com/Layr-Labs/go-sidecar/internal/sqlite"
+	"github.com/gocarina/gocsv"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -36,11 +38,16 @@ func RestoreEnv(previousValues map[string]string) {
 	}
 }
 
-//go:embed testdata
-var testData embed.FS
+func getTestdataPathFromProjectRoot(projectRoot string, fileName string) string {
+	p, err := filepath.Abs(fmt.Sprintf("%s/internal/tests/testdata%s", projectRoot, fileName))
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
 
-func getSqlFile(name string) (string, error) {
-	contents, err := testData.ReadFile(name)
+func getSqlFile(filePath string) (string, error) {
+	contents, err := os.ReadFile(filePath)
 
 	if err != nil {
 		return "", err
@@ -49,8 +56,8 @@ func getSqlFile(name string) (string, error) {
 	return strings.Trim(string(contents), "\n"), nil
 }
 
-func getMultilineInsertSqlFile(name string) ([]string, error) {
-	contents, err := getSqlFile(name)
+func getMultilineInsertSqlFile(filePath string) ([]string, error) {
+	contents, err := getSqlFile(filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -58,8 +65,8 @@ func getMultilineInsertSqlFile(name string) ([]string, error) {
 	return strings.Split(contents, "\n"), nil
 }
 
-func getExpectedResultsJsonFile[T any](name string) ([]*T, error) {
-	contents, err := testData.ReadFile(name)
+func getExpectedResultsJsonFile[T any](filePath string) ([]*T, error) {
+	contents, err := os.ReadFile(filePath)
 
 	if err != nil {
 		return nil, err
@@ -71,13 +78,29 @@ func getExpectedResultsJsonFile[T any](name string) ([]*T, error) {
 	}
 	return output, nil
 }
+func getExpectedResultsCsvFile[T any](filePath string) ([]*T, error) {
+	results := make([]*T, 0)
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
 
-func GetOperatorAvsRegistrationsSqlFile() ([]string, error) {
-	return getMultilineInsertSqlFile("testdata/operatorAvsRegistrationSnapshots/operatorAvsRegistrations.sql")
+	if err := gocsv.UnmarshalFile(file, &results); err != nil {
+		panic(err)
+	}
+	return results, nil
 }
 
-func GetOperatorAvsRegistrationsBlocksSqlFile() ([]string, error) {
-	return getMultilineInsertSqlFile("testdata/operatorAvsRegistrationSnapshots/operatorAvsRegistrationsBlocks.sql")
+func GetAllBlocksSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/allBlocks.sql")
+	fmt.Printf("Path: %v\n", path)
+	return getSqlFile(path)
+}
+
+func GetOperatorAvsRegistrationsSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorAvsRegistrationSnapshots/operatorAvsRegistrations.sql")
+	return getSqlFile(path)
 }
 
 type ExpectedOperatorAvsRegistrationSnapshot struct {
@@ -86,52 +109,50 @@ type ExpectedOperatorAvsRegistrationSnapshot struct {
 	Snapshot string
 }
 
-func GetExpectedOperatorAvsSnapshotResults() ([]*ExpectedOperatorAvsRegistrationSnapshot, error) {
-	return getExpectedResultsJsonFile[ExpectedOperatorAvsRegistrationSnapshot]("testdata/operatorAvsRegistrationSnapshots/operatorAvsSnapshotResults.json")
+func GetExpectedOperatorAvsSnapshotResults(projectBase string) ([]*ExpectedOperatorAvsRegistrationSnapshot, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorAvsRegistrationSnapshots/operatorAvsSnapshotResults.json")
+	return getExpectedResultsJsonFile[ExpectedOperatorAvsRegistrationSnapshot](path)
 }
 
-func GetOperatorAvsRestakedStrategiesSqlFile() ([]string, error) {
-	return getMultilineInsertSqlFile("testdata/operatorRestakedStrategies/operatorAvsRestakedStrategies.sql")
+func GetOperatorAvsRestakedStrategiesSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorRestakedStrategies/operatorAvsRestakedStrategies.sql")
+	return getSqlFile(path)
 }
 
 type ExpectedOperatorAvsSnapshot struct {
-	Operator string
-	Avs      string
-	Strategy string
-	Snapshot string
+	Operator string `csv:"operator"`
+	Avs      string `csv:"avs"`
+	Strategy string `csv:"strategy"`
+	Snapshot string `csv:"snapshot"`
 }
 
-func GetExpectedOperatorAvsSnapshots() ([]*ExpectedOperatorAvsSnapshot, error) {
-	return getExpectedResultsJsonFile[ExpectedOperatorAvsSnapshot]("testdata/operatorRestakedStrategies/operatorAvsStrategySnapshotsExpectedResults.json")
+func GetExpectedOperatorAvsSnapshots(projectBase string) ([]*ExpectedOperatorAvsSnapshot, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorRestakedStrategies/operatorAvsStrategySnapshotsExpectedResults.csv")
+	return getExpectedResultsCsvFile[ExpectedOperatorAvsSnapshot](path)
 }
 
 // OperatorShares snapshots
-func GetOperatorSharesSqlFile() ([]string, error) {
-	return getMultilineInsertSqlFile("testdata/operatorShareSnapshots/operatorShares.sql")
-}
-
-func GetOperatorSharesBlocksSqlFile() (string, error) {
-	return getSqlFile("testdata/operatorShareSnapshots/operatorSharesBlocks.sql")
+func GetOperatorSharesSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorShareSnapshots/operatorShares.sql")
+	return getSqlFile(path)
 }
 
 type OperatorShareExpectedResult struct {
-	Operator string
-	Strategy string
-	Snapshot string
-	Shares   string
+	Operator string `csv:"operator"`
+	Strategy string `csv:"strategy"`
+	Snapshot string `csv:"snapshot"`
+	Shares   string `csv:"shares"`
 }
 
-func GetOperatorSharesExpectedResults() ([]*OperatorShareExpectedResult, error) {
-	return getExpectedResultsJsonFile[OperatorShareExpectedResult]("testdata/operatorShareSnapshots/operatorSnapshotExpectedResults.json")
+func GetOperatorSharesExpectedResults(projectBase string) ([]*OperatorShareExpectedResult, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorShareSnapshots/operatorSharesSnapshotExpectedResults.csv")
+	return getExpectedResultsCsvFile[OperatorShareExpectedResult](path)
 }
 
 // StakerShareSnapshots
-func GetStakerSharesSqlFile() (string, error) {
-	return getSqlFile("testdata/stakerShareSnapshots/stakerShares.sql")
-}
-
-func GetStakerSharesBlocksSqlFile() (string, error) {
-	return getSqlFile("testdata/stakerShareSnapshots/stakerSharesBlocks.sql")
+func GetStakerSharesSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/stakerShareSnapshots/stakerShares.sql")
+	return getSqlFile(path)
 }
 
 type StakerShareExpectedResult struct {
@@ -141,17 +162,15 @@ type StakerShareExpectedResult struct {
 	Shares   string
 }
 
-func GetStakerSharesExpectedResults() ([]*StakerShareExpectedResult, error) {
-	return getExpectedResultsJsonFile[StakerShareExpectedResult]("testdata/stakerShareSnapshots/stakerSharesExpectedResults.json")
+func GetStakerSharesExpectedResults(projectBase string) ([]*StakerShareExpectedResult, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/stakerShareSnapshots/stakerSharesExpectedResults.json")
+	return getExpectedResultsJsonFile[StakerShareExpectedResult](path)
 }
 
 // StakerDelegationSnapshots
-func GetStakerDelegationsSqlFile() (string, error) {
-	return getSqlFile("testdata/stakerDelegationSnapshots/stakerDelegations.sql")
-}
-
-func GetStakerDelegationsBlocksSqlFile() (string, error) {
-	return getSqlFile("testdata/stakerDelegationSnapshots/stakerDelegationBlocks.sql")
+func GetStakerDelegationsSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/stakerDelegationSnapshots/stakerDelegations.sql")
+	return getSqlFile(path)
 }
 
 type StakerDelegationExpectedResult struct {
@@ -160,6 +179,7 @@ type StakerDelegationExpectedResult struct {
 	Snapshot string
 }
 
-func GetStakerDelegationExpectedResults() ([]*StakerDelegationExpectedResult, error) {
-	return getExpectedResultsJsonFile[StakerDelegationExpectedResult]("testdata/stakerDelegationSnapshots/stakerDelegationExpectedResults.json")
+func GetStakerDelegationExpectedResults(projectBase string) ([]*StakerDelegationExpectedResult, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/stakerDelegationSnapshots/stakerDelegationExpectedResults.json")
+	return getExpectedResultsJsonFile[StakerDelegationExpectedResult](path)
 }

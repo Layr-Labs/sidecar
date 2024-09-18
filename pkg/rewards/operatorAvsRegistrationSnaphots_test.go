@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/Layr-Labs/go-sidecar/pkg/utils"
@@ -48,45 +47,23 @@ func teardownOperatorAvsRegistrationSnapshot(grm *gorm.DB) {
 }
 
 func hydrateOperatorAvsStateChangesTable(grm *gorm.DB, l *zap.Logger) (int, error) {
-	contents, err := tests.GetOperatorAvsRegistrationsSqlFile()
+	projectRoot := getProjectRootPath()
+	contents, err := tests.GetOperatorAvsRegistrationsSqlFile(projectRoot)
 
 	if err != nil {
 		return 0, err
 	}
 
-	_, err = sqlite.WrapTxAndCommit[interface{}](func(tx *gorm.DB) (interface{}, error) {
-		for i, content := range contents {
-			res := grm.Exec(content)
-			if res.Error != nil {
-				l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error), zap.String("query", content), zap.Int("lineNumber", i))
-				return nil, res.Error
-			}
-		}
-		return nil, nil
-	}, grm, nil)
-	return len(contents), err
-}
-func hydrateBlocksTable(grm *gorm.DB, l *zap.Logger) (int, error) {
-	contents, err := tests.GetOperatorAvsRegistrationsBlocksSqlFile()
-
-	if err != nil {
-		return 0, err
+	res := grm.Exec(contents)
+	if res.Error != nil {
+		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
+		return 0, res.Error
 	}
-
-	_, err = sqlite.WrapTxAndCommit[interface{}](func(tx *gorm.DB) (interface{}, error) {
-		for i, content := range contents {
-			res := grm.Exec(content)
-			if res.Error != nil {
-				l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error), zap.String("query", content), zap.Int("lineNumber", i))
-				return nil, res.Error
-			}
-		}
-		return nil, nil
-	}, grm, nil)
 	return len(contents), err
 }
 
 func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
+	projectRoot := getProjectRootPath()
 	cfg, grm, l, err := setupOperatorAvsRegistrationSnapshot()
 
 	if err != nil {
@@ -96,7 +73,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 	snapshotDate := "2024-09-01"
 
 	t.Run("Should hydrate blocks and operatorAvsStateChanges tables", func(t *testing.T) {
-		insertedBlockCount, err := hydrateBlocksTable(grm, l)
+		err := hydrateAllBlocksTable(grm, l)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -105,9 +82,9 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		var count int
 		res := grm.Raw(query).Scan(&count)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, insertedBlockCount, count)
+		assert.Equal(t, TOTAL_BLOCK_COUNT, count)
 
-		insertedRowCount, err := hydrateOperatorAvsStateChangesTable(grm, l)
+		_, err = hydrateOperatorAvsStateChangesTable(grm, l)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -115,7 +92,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		query = "select count(*) from avs_operator_state_changes"
 		res = grm.Raw(query).Scan(&count)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, insertedRowCount, count)
+		assert.Equal(t, 20442, count)
 	})
 	t.Run("Should generate the proper operatorAvsRegistrationWindows", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, nil, grm, cfg)
@@ -126,7 +103,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 
 		t.Logf("Generated %d snapshots", len(snapshots))
 
-		expectedResults, err := tests.GetExpectedOperatorAvsSnapshotResults()
+		expectedResults, err := tests.GetExpectedOperatorAvsSnapshotResults(projectRoot)
 		assert.Nil(t, err)
 
 		t.Logf("Expected %d snapshots", len(expectedResults))

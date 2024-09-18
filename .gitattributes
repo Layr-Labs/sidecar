@@ -1,0 +1,13 @@
+internal/tests/testdata/allBlocks.sql filter=lfs diff=lfs merge=lfs -text
+internal/tests/testdata/stakerShareSnapshots/stakerShares.sql filter=lfs diff=lfs merge=lfs -text
+internal/tests/testdata/operatorAvsRegistrationSnapshots/operatorAvsRegistrations.sql filter=lfs diff=lfs merge=lfs -text
+internal/tests/testdata/operatorRestakedStrategies/generateExpectedResults.sql filter=lfs diff=lfs merge=lfs -text
+internal/tests/testdata/operatorRestakedStrategies/operatorAvsRestakedStrategies.sql filter=lfs diff=lfs merge=lfs -text
+internal/tests/testdata/operatorShareSnapshots/generateExpectedResults.sql filter=lfs diff=lfs merge=lfs -text
+internal/tests/testdata/operatorShareSnapshots/operatorShares.sql filter=lfs diff=lfs merge=lfs -text
+internal/tests/testdata/stakerDelegationSnapshots/stakerDelegations.sql filter=lfs diff=lfs merge=lfs -text
+internal/tests/testdata/operatorRestakedStrategies/operatorAvsStrategySnapshotsExpectedResults.csv filter=lfs diff=lfs merge=lfs -text
+internal/tests/testdata/operatorShareSnapshots/operatorSharesSnapshotExpectedResults.csv filter=lfs diff=lfs merge=lfs -text
+internal/tests/testdata/operatorAvsRegistrationSnapshots/operatorAvsSnapshotResults.json filter=lfs diff=lfs merge=lfs -text
+internal/tests/testdata/stakerDelegationSnapshots/stakerDelegationExpectedResults.json filter=lfs diff=lfs merge=lfs -text
+internal/tests/testdata/stakerShareSnapshots/stakerSharesExpectedResults.json filter=lfs diff=lfs merge=lfs -text

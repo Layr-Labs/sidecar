@@ -9,3 +9,4 @@ sidecar.db*
 /sqlite
 /sqlite*
 go-sidecar
+/internal/tests/testdata/

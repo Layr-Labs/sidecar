@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -47,42 +45,24 @@ func teardownOperatorShareSnapshot(grm *gorm.DB) {
 	}
 }
 
-func hydrateOperatorShareSnapshotBlocks(grm *gorm.DB, l *zap.Logger) (int, error) {
-	contents, err := tests.GetOperatorSharesBlocksSqlFile()
+func hydrateOperatorShares(grm *gorm.DB, l *zap.Logger) error {
+	projectRoot := getProjectRootPath()
+	contents, err := tests.GetOperatorSharesSqlFile(projectRoot)
 
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	res := grm.Exec(contents)
 	if res.Error != nil {
-		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error), zap.String("query", contents))
-		return 0, res.Error
+		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
+		return res.Error
 	}
-	return len(contents), err
-}
-
-func hydrateOperatorShares(grm *gorm.DB, l *zap.Logger) (int, error) {
-	contents, err := tests.GetOperatorSharesSqlFile()
-
-	if err != nil {
-		return 0, err
-	}
-
-	_, err = sqlite.WrapTxAndCommit[interface{}](func(tx *gorm.DB) (interface{}, error) {
-		for i, content := range contents {
-			res := grm.Exec(content)
-			if res.Error != nil {
-				l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error), zap.String("query", content), zap.Int("lineNumber", i))
-				return nil, res.Error
-			}
-		}
-		return nil, nil
-	}, grm, nil)
-	return len(contents), err
+	return nil
 }
 
 func Test_OperatorShareSnapshots(t *testing.T) {
+	projectRoot := getProjectRootPath()
 	cfg, grm, l, err := setupOperatorShareSnapshot()
 
 	if err != nil {
@@ -92,23 +72,32 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 	snapshotDate := "2024-09-01"
 
 	t.Run("Should hydrate dependency tables", func(t *testing.T) {
-		if _, err := hydrateOperatorShareSnapshotBlocks(grm, l); err != nil {
+		if err = hydrateAllBlocksTable(grm, l); err != nil {
 			t.Error(err)
 		}
-		if _, err := hydrateOperatorShares(grm, l); err != nil {
+		if err = hydrateOperatorShares(grm, l); err != nil {
 			t.Error(err)
 		}
 	})
 	t.Run("Should generate operator share snapshots", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, nil, grm, cfg)
 
+		t.Log("Generating operator share snapshots")
 		snapshots, err := rewards.GenerateOperatorShareSnapshots(snapshotDate)
 		assert.Nil(t, err)
 
-		expectedResults, err := tests.GetOperatorSharesExpectedResults()
+		t.Log("Loading expected results")
+		expectedResults, err := tests.GetOperatorSharesExpectedResults(projectRoot)
 		assert.Nil(t, err)
 
 		assert.Equal(t, len(expectedResults), len(snapshots))
+
+		mappedExpectedResults := make(map[string]string)
+
+		for _, expectedResult := range expectedResults {
+			slotId := fmt.Sprintf("%s_%s_%s", expectedResult.Operator, expectedResult.Strategy, expectedResult.Snapshot)
+			mappedExpectedResults[slotId] = expectedResult.Shares
+		}
 
 		if len(expectedResults) != len(snapshots) {
 			t.Errorf("Expected %d snapshots, got %d", len(expectedResults), len(snapshots))
@@ -117,18 +106,17 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 			// Go line-by-line in the snapshot results and find the corresponding line in the expected results.
 			// If one doesnt exist, add it to the missing list.
 			for _, snapshot := range snapshots {
-				match := utils.Find(expectedResults, func(expected *tests.OperatorShareExpectedResult) bool {
-					if expected.Operator == snapshot.Operator &&
-						expected.Strategy == snapshot.Strategy &&
-						expected.Snapshot == snapshot.Snapshot &&
-						expected.Shares == snapshot.Shares {
 
-						return true
-					}
+				slotId := fmt.Sprintf("%s_%s_%s", snapshot.Operator, snapshot.Strategy, snapshot.Snapshot)
 
-					return false
-				})
-				if match == nil {
+				found, ok := mappedExpectedResults[slotId]
+				if !ok {
+					t.Logf("Record not found %+v", snapshot)
+					lacksExpectedResult = append(lacksExpectedResult, snapshot)
+					continue
+				}
+				if found != snapshot.Shares {
+					t.Logf("Expected: %s, Got: %s for %+v", found, snapshot.Shares, snapshot)
 					lacksExpectedResult = append(lacksExpectedResult, snapshot)
 				}
 			}

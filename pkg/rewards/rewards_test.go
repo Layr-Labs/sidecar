@@ -1,6 +1,7 @@
 package rewards
 
 import (
+	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
@@ -8,8 +9,40 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"os"
+	"path/filepath"
 	"testing"
 )
+
+const TOTAL_BLOCK_COUNT = 1209198
+
+func getProjectRootPath() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	p, err := filepath.Abs(fmt.Sprintf("%s/../..", wd))
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
+func hydrateAllBlocksTable(grm *gorm.DB, l *zap.Logger) error {
+	projectRoot := getProjectRootPath()
+	contents, err := tests.GetAllBlocksSqlFile(projectRoot)
+
+	if err != nil {
+		return err
+	}
+
+	res := grm.Exec(contents)
+	if res.Error != nil {
+		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
+		return res.Error
+	}
+	return nil
+}
 
 func setupRewards() (
 	*config.Config,

@@ -5,6 +5,7 @@ go 1.22.2
 require (
 	github.com/DataDog/datadog-go/v5 v5.5.0
 	github.com/ethereum/go-ethereum v1.14.0
+	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0
 	github.com/mattn/go-sqlite3 v1.14.23
