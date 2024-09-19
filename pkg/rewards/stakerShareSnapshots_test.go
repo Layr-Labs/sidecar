@@ -6,7 +6,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -83,13 +82,22 @@ func Test_StakerShareSnapshots(t *testing.T) {
 	t.Run("Should generate staker share snapshots", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, nil, grm, cfg)
 
+		t.Log("Generating staker share snapshots")
 		snapshots, err := rewards.GenerateStakerShareSnapshots(snapshotDate)
 		assert.Nil(t, err)
 
+		t.Log("Getting expected results")
 		expectedResults, err := tests.GetStakerSharesExpectedResults(projectRoot)
 		assert.Nil(t, err)
 
 		assert.Equal(t, len(expectedResults), len(snapshots))
+
+		t.Log("Comparing results")
+		mappedExpectedResults := make(map[string]string)
+		for _, expectedResult := range expectedResults {
+			slotId := fmt.Sprintf("%s_%s_%s", expectedResult.Staker, expectedResult.Strategy, expectedResult.Snapshot)
+			mappedExpectedResults[slotId] = expectedResult.Shares
+		}
 
 		if len(expectedResults) != len(snapshots) {
 			t.Errorf("Expected %d snapshots, got %d", len(expectedResults), len(snapshots))
@@ -98,18 +106,15 @@ func Test_StakerShareSnapshots(t *testing.T) {
 			// Go line-by-line in the snapshot results and find the corresponding line in the expected results.
 			// If one doesnt exist, add it to the missing list.
 			for _, snapshot := range snapshots {
-				match := utils.Find(expectedResults, func(expected *tests.StakerShareExpectedResult) bool {
-					if expected.Staker == snapshot.Staker &&
-						expected.Strategy == snapshot.Strategy &&
-						expected.Snapshot == snapshot.Snapshot &&
-						expected.Shares == snapshot.Shares {
+				slotId := fmt.Sprintf("%s_%s_%s", snapshot.Staker, snapshot.Strategy, snapshot.Snapshot)
 
-						return true
-					}
-
-					return false
-				})
-				if match == nil {
+				found, ok := mappedExpectedResults[slotId]
+				if !ok {
+					lacksExpectedResult = append(lacksExpectedResult, snapshot)
+					continue
+				}
+				if found != snapshot.Shares {
+					t.Logf("Record found, but shares dont match. Expected %s, got %+v", found, snapshot)
 					lacksExpectedResult = append(lacksExpectedResult, snapshot)
 				}
 			}

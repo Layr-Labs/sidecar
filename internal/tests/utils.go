@@ -156,15 +156,15 @@ func GetStakerSharesSqlFile(projectBase string) (string, error) {
 }
 
 type StakerShareExpectedResult struct {
-	Staker   string
-	Strategy string
-	Snapshot string
-	Shares   string
+	Staker   string `csv:"staker"`
+	Strategy string `csv:"strategy"`
+	Snapshot string `csv:"snapshot"`
+	Shares   string `csv:"shares"`
 }
 
 func GetStakerSharesExpectedResults(projectBase string) ([]*StakerShareExpectedResult, error) {
-	path := getTestdataPathFromProjectRoot(projectBase, "/stakerShareSnapshots/stakerSharesExpectedResults.json")
-	return getExpectedResultsJsonFile[StakerShareExpectedResult](path)
+	path := getTestdataPathFromProjectRoot(projectBase, "/stakerShareSnapshots/stakerSharesExpectedResults.csv")
+	return getExpectedResultsCsvFile[StakerShareExpectedResult](path)
 }
 
 // StakerDelegationSnapshots
