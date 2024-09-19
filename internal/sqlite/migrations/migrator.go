@@ -5,6 +5,7 @@ import (
 	"fmt"
 	_202409161057_avsOperatorDeltas "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409161057_avsOperatorDeltas"
 	_202409181340_stakerDelegationDelta "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409181340_stakerDelegationDelta"
+	_202409191425_addRewardTypeColumn "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409191425_addRewardTypeColumn"
 	"time"
 
 	_202409061249_bootstrapDb "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409061249_bootstrapDb"
@@ -56,6 +57,7 @@ func (m *SqliteMigrator) MigrateAll() error {
 		&_202409111509_removeOperatorRestakedStrategiesBlockConstraint.SqliteMigration{},
 		&_202409161057_avsOperatorDeltas.SqliteMigration{},
 		&_202409181340_stakerDelegationDelta.SqliteMigration{},
+		&_202409191425_addRewardTypeColumn.SqliteMigration{},
 	}
 
 	m.Logger.Sugar().Info("Running migrations")

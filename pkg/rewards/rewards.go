@@ -123,6 +123,7 @@ func (rc *RewardsCalculator) initializeRewardsSchema() error {
 		rc.CreateOperatorSharesSnapshotsTable,
 		rc.CreateStakerShareSnapshotsTable,
 		rc.CreateStakerDelegationSnapshotsTable,
+		rc.CreateCombinedRewardsTable,
 	}
 	for _, f := range funcs {
 		if err := f(); err != nil {
@@ -159,6 +160,12 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 		rc.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", err)
 		return err
 	}
+
+	if err = rc.GenerateAndInsertCombinedRewards(); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate combined rewards", "error", err)
+		return err
+	}
+
 	return nil
 }
 

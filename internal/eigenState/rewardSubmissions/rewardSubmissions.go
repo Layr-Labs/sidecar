@@ -34,7 +34,7 @@ type RewardSubmission struct {
 	EndTimestamp   *time.Time `gorm:"type:DATETIME"`
 	Duration       uint64
 	BlockNumber    uint64
-	IsForAll       bool
+	RewardType     string // avs, all_stakers, all_earners
 }
 
 type RewardSubmissionDiff struct {
@@ -151,6 +151,15 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 			return nil, xerrors.Errorf("Failed to parse multiplier to Big257: %s", actualOuputData.Amount.String())
 		}
 
+		var rewardType string
+		if log.EventName == "RewardsSubmissionForAllCreated" || log.EventName == "RangePaymentForAllCreated" {
+			rewardType = "all_stakers"
+		} else if log.EventName == "RangePaymentCreated" || log.EventName == "AVSRewardsSubmissionCreated" {
+			rewardType = "avs"
+		} else {
+			return nil, xerrors.Errorf("Unknown event name: %s", log.EventName)
+		}
+
 		rewardSubmission := &RewardSubmission{
 			Avs:            strings.ToLower(arguments[0].Value.(string)),
 			RewardHash:     strings.ToLower(arguments[2].Value.(string)),
@@ -162,7 +171,7 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 			EndTimestamp:   &endTimestamp,
 			Duration:       actualOuputData.Duration,
 			BlockNumber:    log.BlockNumber,
-			IsForAll:       log.EventName == "RewardsSubmissionForAllCreated" || log.EventName == "RangePaymentForAllCreated",
+			RewardType:     rewardType,
 		}
 		rewardSubmissions = append(rewardSubmissions, rewardSubmission)
 	}
@@ -252,7 +261,7 @@ func (rs *RewardSubmissionsModel) HandleStateChange(log *storage.TransactionLog)
 
 func (rs *RewardSubmissionsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
 	query := `
-		insert into reward_submissions(avs, reward_hash, token, amount, strategy, strategy_index, multiplier, start_timestamp, end_timestamp, duration, is_for_all, block_number)
+		insert into reward_submissions(avs, reward_hash, token, amount, strategy, strategy_index, multiplier, start_timestamp, end_timestamp, duration, reward_type, block_number)
 			select
 				avs,
 				reward_hash,
@@ -264,7 +273,7 @@ func (rs *RewardSubmissionsModel) clonePreviousBlocksToNewBlock(blockNumber uint
 				start_timestamp,
 				end_timestamp,
 				duration,
-				is_for_all,
+				reward_type,
 				@currentBlock as block_number
 			from reward_submissions
 			where block_number = @previousBlock
