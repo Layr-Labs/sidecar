@@ -6,10 +6,10 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"slices"
 	"testing"
 )
 
@@ -56,7 +56,7 @@ func hydrateStakerDelegations(grm *gorm.DB, l *zap.Logger) (int, error) {
 
 	res := grm.Exec(contents)
 	if res.Error != nil {
-		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error), zap.String("query", contents))
+		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
 		return 0, res.Error
 	}
 	return len(contents), err
@@ -83,13 +83,24 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 	t.Run("Should generate staker share snapshots", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, nil, grm, cfg)
 
+		t.Log("Generating staker delegation snapshots")
 		snapshots, err := rewards.GenerateStakerDelegationSnapshots(snapshotDate)
 		assert.Nil(t, err)
 
+		t.Log("Getting expected results")
 		expectedResults, err := tests.GetStakerDelegationExpectedResults(projectRoot)
 		assert.Nil(t, err)
 
 		assert.Equal(t, len(expectedResults), len(snapshots))
+
+		mappedExpectedResults := make(map[string][]string)
+		for _, expectedResult := range expectedResults {
+			slotId := fmt.Sprintf("%s_%s", expectedResult.Staker, expectedResult.Operator)
+			if _, ok := mappedExpectedResults[slotId]; !ok {
+				mappedExpectedResults[slotId] = make([]string, 0)
+			}
+			mappedExpectedResults[slotId] = append(mappedExpectedResults[slotId], expectedResult.Snapshot)
+		}
 
 		if len(expectedResults) != len(snapshots) {
 			t.Errorf("Expected %d snapshots, got %d", len(expectedResults), len(snapshots))
@@ -98,18 +109,16 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 			// Go line-by-line in the snapshot results and find the corresponding line in the expected results.
 			// If one doesnt exist, add it to the missing list.
 			for _, snapshot := range snapshots {
-				match := utils.Find(expectedResults, func(expected *tests.StakerDelegationExpectedResult) bool {
-					if expected.Staker == snapshot.Staker &&
-						expected.Operator == snapshot.Operator &&
-						expected.Snapshot == snapshot.Snapshot {
-
-						return true
-					}
-
-					return false
-				})
-				if match == nil {
+				slotId := fmt.Sprintf("%s_%s", snapshot.Staker, snapshot.Operator)
+				found, ok := mappedExpectedResults[slotId]
+				if !ok {
+					t.Logf("Staker/operator not found in results: %+v\n", snapshot)
 					lacksExpectedResult = append(lacksExpectedResult, snapshot)
+				} else {
+					if !slices.Contains(found, snapshot.Snapshot) {
+						t.Logf("Found staker operator, but no snapshot: %+v - %+v\n", snapshot, found)
+						lacksExpectedResult = append(lacksExpectedResult, snapshot)
+					}
 				}
 			}
 			assert.Equal(t, 0, len(lacksExpectedResult))

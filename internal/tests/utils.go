@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	sqlite2 "github.com/Layr-Labs/go-sidecar/internal/sqlite"
@@ -55,29 +54,6 @@ func getSqlFile(filePath string) (string, error) {
 
 	return strings.Trim(string(contents), "\n"), nil
 }
-
-func getMultilineInsertSqlFile(filePath string) ([]string, error) {
-	contents, err := getSqlFile(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	return strings.Split(contents, "\n"), nil
-}
-
-func getExpectedResultsJsonFile[T any](filePath string) ([]*T, error) {
-	contents, err := os.ReadFile(filePath)
-
-	if err != nil {
-		return nil, err
-	}
-
-	output := make([]*T, 0)
-	if err = json.Unmarshal(contents, &output); err != nil {
-		return nil, err
-	}
-	return output, nil
-}
 func getExpectedResultsCsvFile[T any](filePath string) ([]*T, error) {
 	results := make([]*T, 0)
 	file, err := os.Open(filePath)
@@ -104,14 +80,14 @@ func GetOperatorAvsRegistrationsSqlFile(projectBase string) (string, error) {
 }
 
 type ExpectedOperatorAvsRegistrationSnapshot struct {
-	Operator string
-	Avs      string
-	Snapshot string
+	Operator string `csv:"operator"`
+	Avs      string `csv:"avs"`
+	Snapshot string `csv:"snapshot"`
 }
 
 func GetExpectedOperatorAvsSnapshotResults(projectBase string) ([]*ExpectedOperatorAvsRegistrationSnapshot, error) {
-	path := getTestdataPathFromProjectRoot(projectBase, "/operatorAvsRegistrationSnapshots/operatorAvsSnapshotResults.json")
-	return getExpectedResultsJsonFile[ExpectedOperatorAvsRegistrationSnapshot](path)
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorAvsRegistrationSnapshots/operatorAvsSnapshotResults.csv")
+	return getExpectedResultsCsvFile[ExpectedOperatorAvsRegistrationSnapshot](path)
 }
 
 func GetOperatorAvsRestakedStrategiesSqlFile(projectBase string) (string, error) {
@@ -174,12 +150,12 @@ func GetStakerDelegationsSqlFile(projectBase string) (string, error) {
 }
 
 type StakerDelegationExpectedResult struct {
-	Staker   string
-	Operator string
-	Snapshot string
+	Staker   string `csv:"staker"`
+	Operator string `csv:"operator"`
+	Snapshot string `csv:"snapshot"`
 }
 
 func GetStakerDelegationExpectedResults(projectBase string) ([]*StakerDelegationExpectedResult, error) {
-	path := getTestdataPathFromProjectRoot(projectBase, "/stakerDelegationSnapshots/stakerDelegationExpectedResults.json")
-	return getExpectedResultsJsonFile[StakerDelegationExpectedResult](path)
+	path := getTestdataPathFromProjectRoot(projectBase, "/stakerDelegationSnapshots/stakerDelegationExpectedResults.csv")
+	return getExpectedResultsCsvFile[StakerDelegationExpectedResult](path)
 }

@@ -6,10 +6,10 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"slices"
 	"testing"
 )
 
@@ -111,19 +111,30 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 
 		lacksExpectedResult := make([]*OperatorAvsRegistrationSnapshots, 0)
 
+		mappedExpectedResults := make(map[string][]string)
+		for _, expectedResult := range expectedResults {
+			slotId := fmt.Sprintf("%s_%s", expectedResult.Operator, expectedResult.Avs)
+			if _, ok := mappedExpectedResults[slotId]; !ok {
+				mappedExpectedResults[slotId] = make([]string, 0)
+			}
+			mappedExpectedResults[slotId] = append(mappedExpectedResults[slotId], expectedResult.Snapshot)
+		}
+
 		// If the two result sets are different lengths, we need to find out why.
 		if len(expectedResults) != len(snapshots) {
 			// Go line-by-line in the window results and find the corresponding line in the expected results.
 			// If one doesnt exist, add it to the missing list.
 			for _, window := range snapshots {
-				match := utils.Find(expectedResults, func(expected *tests.ExpectedOperatorAvsRegistrationSnapshot) bool {
-					if expected.Operator == window.Operator && expected.Avs == window.Avs && expected.Snapshot == window.Snapshot {
-						return true
-					}
-					return false
-				})
-				if match == nil {
+				slotId := fmt.Sprintf("%s_%s", window.Operator, window.Avs)
+				found, ok := mappedExpectedResults[slotId]
+				if !ok {
+					t.Logf("Operator/AVS not found in results: %+v\n", window)
 					lacksExpectedResult = append(lacksExpectedResult, window)
+				} else {
+					if !slices.Contains(found, window.Snapshot) {
+						t.Logf("Found operator/AVS, but no snapshot: %+v - %+v\n", window, found)
+						lacksExpectedResult = append(lacksExpectedResult, window)
+					}
 				}
 			}
 			assert.Equal(t, 0, len(lacksExpectedResult))
