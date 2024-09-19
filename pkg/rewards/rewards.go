@@ -132,6 +132,36 @@ func (rc *RewardsCalculator) initializeRewardsSchema() error {
 	return nil
 }
 
+func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
+	var err error
+
+	if err = rc.GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator AVS registration snapshots", "error", err)
+		return err
+	}
+
+	if err = rc.GenerateAndInsertOperatorAvsStrategySnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator AVS strategy snapshots", "error", err)
+		return err
+	}
+
+	if err = rc.GenerateAndInsertOperatorShareSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", err)
+		return err
+	}
+
+	if err = rc.GenerateAndInsertStakerShareSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", err)
+		return err
+	}
+
+	if err = rc.GenerateAndInsertStakerDelegationSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", err)
+		return err
+	}
+	return nil
+}
+
 func (rc *RewardsCalculator) calculateRewards(lowerBoundBlock *storage.Block, snapshotDate time.Time) error {
 
 	return nil

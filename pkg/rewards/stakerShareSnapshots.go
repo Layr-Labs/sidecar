@@ -94,6 +94,22 @@ func (r *RewardsCalculator) GenerateStakerShareSnapshots(snapshotDate string) ([
 	return results, nil
 }
 
+func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(snapshotDate string) error {
+	snapshots, err := r.GenerateStakerShareSnapshots(snapshotDate)
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", err)
+		return err
+	}
+
+	r.logger.Sugar().Infow("Inserting staker share snapshots", "count", len(snapshots))
+	res := r.calculationDB.Model(&StakerShareSnapshot{}).CreateInBatches(snapshots, 100)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to insert staker share snapshots", "error", res.Error)
+		return res.Error
+	}
+	return nil
+}
+
 func (r *RewardsCalculator) CreateStakerShareSnapshotsTable() error {
 	res := r.calculationDB.Exec(`
 		CREATE TABLE IF NOT EXISTS staker_share_snapshots (

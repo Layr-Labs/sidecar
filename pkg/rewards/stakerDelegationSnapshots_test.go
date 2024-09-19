@@ -46,20 +46,20 @@ func teardownStakerDelegationSnapshot(grm *gorm.DB) {
 	}
 }
 
-func hydrateStakerDelegations(grm *gorm.DB, l *zap.Logger) (int, error) {
+func hydrateStakerDelegations(grm *gorm.DB, l *zap.Logger) error {
 	projectRoot := getProjectRootPath()
 	contents, err := tests.GetStakerDelegationsSqlFile(projectRoot)
 
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	res := grm.Exec(contents)
 	if res.Error != nil {
 		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
-		return 0, res.Error
+		return res.Error
 	}
-	return len(contents), err
+	return nil
 }
 
 func Test_StakerDelegationSnapshots(t *testing.T) {
@@ -76,7 +76,7 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 		if err := hydrateAllBlocksTable(grm, l); err != nil {
 			t.Error(err)
 		}
-		if _, err := hydrateStakerDelegations(grm, l); err != nil {
+		if err := hydrateStakerDelegations(grm, l); err != nil {
 			t.Error(err)
 		}
 	})

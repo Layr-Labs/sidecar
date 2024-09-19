@@ -91,6 +91,23 @@ func (r *RewardsCalculator) GenerateStakerDelegationSnapshots(snapshotDate strin
 	return results, nil
 }
 
+func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(snapshotDate string) error {
+	snapshots, err := r.GenerateStakerDelegationSnapshots(snapshotDate)
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", err)
+		return err
+	}
+
+	r.logger.Sugar().Infow("Inserting staker delegation snapshots", "count", len(snapshots))
+	res := r.calculationDB.Model(&StakerDelegationSnapshot{}).CreateInBatches(snapshots, 100)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to insert staker delegation snapshots", "error", res.Error)
+		return res.Error
+	}
+
+	return nil
+}
+
 func (r *RewardsCalculator) CreateStakerDelegationSnapshotsTable() error {
 	res := r.calculationDB.Exec(`
 		CREATE TABLE IF NOT EXISTS staker_delegation_snapshots (

@@ -65,8 +65,12 @@ func setupRewards() (
 	return cfg, db, l, err
 }
 
-func teardownRewards() {
-
+func teardownRewards(grm *gorm.DB) {
+	teardownOperatorAvsRegistrationSnapshot(grm)
+	teardownOperatorAvsStrategyWindows(grm)
+	teardownOperatorShareSnapshot(grm)
+	teardownStakerDelegationSnapshot(grm)
+	teardownStakerShareSnapshot(grm)
 }
 
 func Test_Rewards(t *testing.T) {
@@ -76,7 +80,7 @@ func Test_Rewards(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// snapshotDate := "2024-09-01"
+	snapshotDate := "2024-09-01"
 
 	t.Run("Should initialize the rewards calculator with an in-memory db", func(t *testing.T) {
 		rc, err := NewRewardsCalculator(l, nil, grm, cfg)
@@ -100,5 +104,37 @@ func Test_Rewards(t *testing.T) {
 		for i, table := range tables {
 			assert.Equal(t, expectedTables[i], table.Name)
 		}
+
+		// Setup all tables
+		err = hydrateAllBlocksTable(grm, l)
+		assert.Nil(t, err)
+
+		err = hydrateOperatorAvsStateChangesTable(grm, l)
+		assert.Nil(t, err)
+
+		err = hydrateOperatorAvsRestakedStrategies(grm, l)
+		assert.Nil(t, err)
+
+		err = hydrateOperatorShares(grm, l)
+		assert.Nil(t, err)
+
+		err = hydrateStakerDelegations(grm, l)
+		assert.Nil(t, err)
+
+		err = hydrateStakerShares(grm, l)
+		assert.Nil(t, err)
+
+		t.Log("Hydrated tables")
+
+		// Generate snapshots
+
+		err = rc.generateSnapshotData(snapshotDate)
+		assert.Nil(t, err)
+
+		t.Log("Generated and inserted snapshots")
+
+		t.Cleanup(func() {
+			teardownRewards(grm)
+		})
 	})
 }

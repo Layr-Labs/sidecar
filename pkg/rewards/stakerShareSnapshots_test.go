@@ -45,20 +45,20 @@ func teardownStakerShareSnapshot(grm *gorm.DB) {
 	}
 }
 
-func hydrateStakerShares(grm *gorm.DB, l *zap.Logger) (int, error) {
+func hydrateStakerShares(grm *gorm.DB, l *zap.Logger) error {
 	projectRoot := getProjectRootPath()
 	contents, err := tests.GetStakerSharesSqlFile(projectRoot)
 
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	res := grm.Exec(contents)
 	if res.Error != nil {
 		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error), zap.String("query", contents))
-		return 0, res.Error
+		return res.Error
 	}
-	return len(contents), err
+	return nil
 }
 
 func Test_StakerShareSnapshots(t *testing.T) {
@@ -72,10 +72,10 @@ func Test_StakerShareSnapshots(t *testing.T) {
 	snapshotDate := "2024-09-01"
 
 	t.Run("Should hydrate dependency tables", func(t *testing.T) {
-		if err := hydrateAllBlocksTable(grm, l); err != nil {
+		if err = hydrateAllBlocksTable(grm, l); err != nil {
 			t.Error(err)
 		}
-		if _, err := hydrateStakerShares(grm, l); err != nil {
+		if err = hydrateStakerShares(grm, l); err != nil {
 			t.Error(err)
 		}
 	})

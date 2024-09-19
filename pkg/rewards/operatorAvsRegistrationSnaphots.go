@@ -141,6 +141,23 @@ func (r *RewardsCalculator) GenerateOperatorAvsRegistrationSnapshots(snapshotDat
 	return results, nil
 }
 
+func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate string) error {
+	snapshots, err := r.GenerateOperatorAvsRegistrationSnapshots(snapshotDate)
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to generate operator AVS registration snapshots", "error", err)
+		return err
+	}
+
+	r.logger.Sugar().Infow("Inserting operator AVS registration snapshots", "count", len(snapshots))
+
+	res := r.calculationDB.Model(&OperatorAvsRegistrationSnapshots{}).CreateInBatches(snapshots, 100)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to insert operator AVS registration snapshots", "error", res.Error)
+		return err
+	}
+	return nil
+}
+
 func (r *RewardsCalculator) CreateOperatorAvsRegistrationSnapshotsTable() error {
 	res := r.calculationDB.Exec(`CREATE TABLE IF NOT EXISTS operator_avs_registration_snapshots (
 		avs TEXT,

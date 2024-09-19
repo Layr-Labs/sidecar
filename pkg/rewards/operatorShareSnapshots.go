@@ -98,6 +98,23 @@ func (r *RewardsCalculator) GenerateOperatorShareSnapshots(snapshotDate string) 
 	return results, nil
 }
 
+func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(snapshotDate string) error {
+	snapshots, err := r.GenerateOperatorShareSnapshots(snapshotDate)
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", err)
+		return err
+	}
+
+	r.logger.Sugar().Infow("Inserting operator share snapshots", "count", len(snapshots))
+	res := r.calculationDB.Model(&OperatorShareSnapshots{}).CreateInBatches(snapshots, 100)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to insert operator share snapshots", "error", res.Error)
+		return res.Error
+	}
+
+	return nil
+}
+
 func (r *RewardsCalculator) CreateOperatorSharesSnapshotsTable() error {
 	res := r.calculationDB.Exec(`
 		CREATE TABLE IF NOT EXISTS operator_share_snapshots (

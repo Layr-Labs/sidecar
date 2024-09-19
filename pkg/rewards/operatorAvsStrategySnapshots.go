@@ -198,6 +198,22 @@ func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(snapshotDate st
 	return results, nil
 }
 
+func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(snapshotDate string) error {
+	snapshots, err := r.GenerateOperatorAvsStrategySnapshots(snapshotDate)
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to generate operator AVS strategy snapshots", "error", err)
+		return err
+	}
+
+	r.logger.Sugar().Infow("Inserting operator AVS strategy snapshots", "count", len(snapshots))
+	res := r.calculationDB.Model(&OperatorAvsStrategySnapshot{}).CreateInBatches(snapshots, 100)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to insert operator AVS strategy snapshots", "error", res.Error)
+		return res.Error
+	}
+	return nil
+}
+
 func (r *RewardsCalculator) CreateOperatorAvsStrategySnapshotsTable() error {
 	res := r.calculationDB.Exec(`
 		CREATE TABLE IF NOT EXISTS operator_avs_strategy_snapshots (

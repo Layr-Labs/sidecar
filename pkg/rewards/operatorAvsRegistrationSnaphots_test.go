@@ -46,20 +46,20 @@ func teardownOperatorAvsRegistrationSnapshot(grm *gorm.DB) {
 	}
 }
 
-func hydrateOperatorAvsStateChangesTable(grm *gorm.DB, l *zap.Logger) (int, error) {
+func hydrateOperatorAvsStateChangesTable(grm *gorm.DB, l *zap.Logger) error {
 	projectRoot := getProjectRootPath()
 	contents, err := tests.GetOperatorAvsRegistrationsSqlFile(projectRoot)
 
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	res := grm.Exec(contents)
 	if res.Error != nil {
 		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
-		return 0, res.Error
+		return res.Error
 	}
-	return len(contents), err
+	return nil
 }
 
 func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
@@ -84,7 +84,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		assert.Nil(t, res.Error)
 		assert.Equal(t, TOTAL_BLOCK_COUNT, count)
 
-		_, err = hydrateOperatorAvsStateChangesTable(grm, l)
+		err = hydrateOperatorAvsStateChangesTable(grm, l)
 		if err != nil {
 			t.Fatal(err)
 		}
