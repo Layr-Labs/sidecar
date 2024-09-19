@@ -94,6 +94,7 @@ func Test_Rewards(t *testing.T) {
 		assert.Nil(t, res.Error)
 
 		expectedTables := []string{
+			"combined_rewards",
 			"operator_avs_registration_snapshots",
 			"operator_avs_strategy_snapshots",
 			"operator_share_snapshots",
@@ -122,6 +123,9 @@ func Test_Rewards(t *testing.T) {
 		assert.Nil(t, err)
 
 		err = hydrateStakerShares(grm, l)
+		assert.Nil(t, err)
+
+		err = hydrateRewardSubmissionsTable(grm, l)
 		assert.Nil(t, err)
 
 		t.Log("Hydrated tables")

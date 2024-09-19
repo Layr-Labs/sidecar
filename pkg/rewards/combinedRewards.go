@@ -24,7 +24,7 @@ const rewardsCombinedQuery = `
 	where rn = 1
 `
 
-type RewardsCombined struct {
+type CombinedRewards struct {
 	Avs            string
 	RewardHash     string
 	Token          string
@@ -39,8 +39,8 @@ type RewardsCombined struct {
 	RewardType     string // avs, all_stakers, all_earners
 }
 
-func (r *RewardsCalculator) GenerateCombinedRewards() ([]*RewardsCombined, error) {
-	combinedRewards := make([]*RewardsCombined, 0)
+func (r *RewardsCalculator) GenerateCombinedRewards() ([]*CombinedRewards, error) {
+	combinedRewards := make([]*CombinedRewards, 0)
 
 	res := r.grm.Raw(rewardsCombinedQuery).Scan(&combinedRewards)
 	if res.Error != nil {
@@ -57,7 +57,7 @@ func (r *RewardsCalculator) GenerateAndInsertCombinedRewards() error {
 		return err
 	}
 
-	res := r.calculationDB.Model(&RewardsCombined{}).CreateInBatches(combinedRewards, 100)
+	res := r.calculationDB.Model(&CombinedRewards{}).CreateInBatches(combinedRewards, 100)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to insert combined rewards", "error", res.Error)
 		return res.Error
