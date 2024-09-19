@@ -16,11 +16,7 @@ const rewardsCombinedQuery = `
 			end_timestamp,
 			duration,
 			block_number,
-			CASE is_for_all
-				WHEN 1 THEN 'avs'
-				WHEN 0 THEN 'all_stakers'
-				ELSE 'all_earners'
-			END as reward_type,
+			reward_type,
 			ROW_NUMBER() OVER (PARTITION BY reward_hash, strategy_index ORDER BY block_number asc) as rn
 		from reward_submissions
 	)

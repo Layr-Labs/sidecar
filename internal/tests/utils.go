@@ -159,3 +159,9 @@ func GetStakerDelegationExpectedResults(projectBase string) ([]*StakerDelegation
 	path := getTestdataPathFromProjectRoot(projectBase, "/stakerDelegationSnapshots/stakerDelegationExpectedResults.csv")
 	return getExpectedResultsCsvFile[StakerDelegationExpectedResult](path)
 }
+
+// CombinedRewards
+func GetCombinedRewardsSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/combinedRewards/combinedRewards.sql")
+	return getSqlFile(path)
+}
