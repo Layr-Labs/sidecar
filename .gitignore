@@ -14,3 +14,4 @@ go-sidecar
 /internal/tests/testdata/**/*.json
 /internal/tests/testdata/*.sql
 !/internal/tests/testdata/**/generateExpectedResults.sql
+/*.tar
