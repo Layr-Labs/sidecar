@@ -71,6 +71,18 @@ func NewSqlite(path string, l *zap.Logger) gorm.Dialector {
 					l.Sugar().Errorw("Failed to register aggregator sum_big", "error", err)
 					return err
 				}
+				if err := conn.RegisterFunc("calc_raw_tokens_per_day", numbers.CalcRawTokensPerDay, true); err != nil {
+					l.Sugar().Errorw("Failed to register function calc_raw_tokens_per_day", "error", err)
+					return err
+				}
+				if err := conn.RegisterFunc("PostNileTokensPerDay", numbers.PostNileTokensPerDay, true); err != nil {
+					l.Sugar().Errorw("Failed to register function PostNileTokensPerDay", "error", err)
+					return err
+				}
+				if err := conn.RegisterFunc("PreNileTokensPerDay", numbers.PreNileTokensPerDay, true); err != nil {
+					l.Sugar().Errorw("Failed to register function PreNileTokensPerDay", "error", err)
+					return err
+				}
 				if err := conn.RegisterFunc("bytes_to_hex", bytesToHex, true); err != nil {
 					l.Sugar().Errorw("Failed to register function bytes_to_hex", "error", err)
 					return err

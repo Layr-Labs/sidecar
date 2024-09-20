@@ -108,16 +108,16 @@ day_series AS (
 		SELECT DATE(day, '+1 day')
 		FROM day_series_inner
 		WHERE day < (SELECT max_end FROM date_bounds)
-)
-select * from day_series_inner
+	)
+	select * from day_series_inner
 ),
 final_results as (
-select
-operator,
-avs,
-day as snapshot
-from cleaned_records
-cross join day_series
+	select
+		operator,
+		avs,
+		day as snapshot
+	from cleaned_records
+	cross join day_series
 where DATE(day) between DATE(start_time) and DATE(end_time, '-1 day')
 )
 select * from final_results

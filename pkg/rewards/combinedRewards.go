@@ -1,6 +1,13 @@
 package rewards
 
-import "time"
+import (
+	"errors"
+	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
+	"go.uber.org/zap"
+	"math"
+	"math/big"
+	"time"
+)
 
 const rewardsCombinedQuery = `
 	with combined_rewards as (
@@ -25,18 +32,20 @@ const rewardsCombinedQuery = `
 `
 
 type CombinedRewards struct {
-	Avs            string
-	RewardHash     string
-	Token          string
-	Amount         string
-	Strategy       string
-	StrategyIndex  uint64
-	Multiplier     string
-	StartTimestamp *time.Time `gorm:"type:DATETIME"`
-	EndTimestamp   *time.Time `gorm:"type:DATETIME"`
-	Duration       uint64
-	BlockNumber    uint64
-	RewardType     string // avs, all_stakers, all_earners
+	Avs                 string
+	RewardHash          string
+	Token               string
+	Amount              string
+	Strategy            string
+	StrategyIndex       uint64
+	Multiplier          string
+	StartTimestamp      *time.Time `gorm:"type:DATETIME"`
+	EndTimestamp        *time.Time `gorm:"type:DATETIME"`
+	Duration            uint64
+	BlockNumber         uint64
+	RewardType          string // avs, all_stakers, all_earners
+	TokensPerDay        string
+	TokensPerDayDecimal string
 }
 
 func (r *RewardsCalculator) GenerateCombinedRewards() ([]*CombinedRewards, error) {
@@ -55,6 +64,32 @@ func (r *RewardsCalculator) GenerateAndInsertCombinedRewards() error {
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate combined rewards", "error", err)
 		return err
+	}
+
+	for _, combinedReward := range combinedRewards {
+		amount := big.NewFloat(0)
+		amount, _, err := amount.Parse(combinedReward.Amount, 10)
+		if err != nil {
+			r.logger.Sugar().Errorw("Failed to parse amount",
+				zap.String("amount", combinedReward.Amount),
+				zap.String("reward_hash", combinedReward.RewardHash),
+			)
+			return errors.New("failed to parse amount")
+		}
+		// float64(combinedReward.Duration) / 86400
+		tokensPerDay := amount.Quo(amount, big.NewFloat(float64(combinedReward.Duration)/86400))
+
+		precision := (math.Pow(10, 15) - float64(1)) / math.Pow(10, 15)
+
+		// Round down to 15 sigfigs for double precision, ensuring know errouneous round up or down
+		tokensPerDayDecimal := tokensPerDay.Mul(tokensPerDay, big.NewFloat(precision))
+
+		// We use floor to ensure we are always underesimating total tokens per day
+		tokensPerDayFloored := numbers.NewBig257()
+		tokensPerDayFloored, _ = tokensPerDay.Int(tokensPerDayFloored)
+
+		combinedReward.TokensPerDay = tokensPerDayFloored.String()
+		combinedReward.TokensPerDayDecimal = tokensPerDayDecimal.String()
 	}
 
 	res := r.calculationDB.Model(&CombinedRewards{}).CreateInBatches(combinedRewards, 100)
