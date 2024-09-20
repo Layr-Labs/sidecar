@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-const TOTAL_BLOCK_COUNT = 1209198
+const TOTAL_BLOCK_COUNT = 1229187
 
 func getProjectRootPath() string {
 	wd, err := os.Getwd()

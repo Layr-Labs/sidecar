@@ -86,12 +86,12 @@ type ExpectedOperatorAvsRegistrationSnapshot struct {
 }
 
 func GetExpectedOperatorAvsSnapshotResults(projectBase string) ([]*ExpectedOperatorAvsRegistrationSnapshot, error) {
-	path := getTestdataPathFromProjectRoot(projectBase, "/operatorAvsRegistrationSnapshots/operatorAvsSnapshotResults.csv")
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorAvsRegistrationSnapshots/expectedResults.csv")
 	return getExpectedResultsCsvFile[ExpectedOperatorAvsRegistrationSnapshot](path)
 }
 
 func GetOperatorAvsRestakedStrategiesSqlFile(projectBase string) (string, error) {
-	path := getTestdataPathFromProjectRoot(projectBase, "/operatorRestakedStrategies/operatorAvsRestakedStrategies.sql")
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorRestakedStrategies/operatorRestakedStrategies.sql")
 	return getSqlFile(path)
 }
 
@@ -103,7 +103,7 @@ type ExpectedOperatorAvsSnapshot struct {
 }
 
 func GetExpectedOperatorAvsSnapshots(projectBase string) ([]*ExpectedOperatorAvsSnapshot, error) {
-	path := getTestdataPathFromProjectRoot(projectBase, "/operatorRestakedStrategies/operatorAvsStrategySnapshotsExpectedResults.csv")
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorRestakedStrategies/expectedResults.csv")
 	return getExpectedResultsCsvFile[ExpectedOperatorAvsSnapshot](path)
 }
 
@@ -121,7 +121,7 @@ type OperatorShareExpectedResult struct {
 }
 
 func GetOperatorSharesExpectedResults(projectBase string) ([]*OperatorShareExpectedResult, error) {
-	path := getTestdataPathFromProjectRoot(projectBase, "/operatorShareSnapshots/operatorSharesSnapshotExpectedResults.csv")
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorShareSnapshots/expectedResults.csv")
 	return getExpectedResultsCsvFile[OperatorShareExpectedResult](path)
 }
 
@@ -139,7 +139,7 @@ type StakerShareExpectedResult struct {
 }
 
 func GetStakerSharesExpectedResults(projectBase string) ([]*StakerShareExpectedResult, error) {
-	path := getTestdataPathFromProjectRoot(projectBase, "/stakerShareSnapshots/stakerSharesExpectedResults.csv")
+	path := getTestdataPathFromProjectRoot(projectBase, "/stakerShareSnapshots/expectedResults.csv")
 	return getExpectedResultsCsvFile[StakerShareExpectedResult](path)
 }
 
@@ -156,7 +156,7 @@ type StakerDelegationExpectedResult struct {
 }
 
 func GetStakerDelegationExpectedResults(projectBase string) ([]*StakerDelegationExpectedResult, error) {
-	path := getTestdataPathFromProjectRoot(projectBase, "/stakerDelegationSnapshots/stakerDelegationExpectedResults.csv")
+	path := getTestdataPathFromProjectRoot(projectBase, "/stakerDelegationSnapshots/expectedResults.csv")
 	return getExpectedResultsCsvFile[StakerDelegationExpectedResult](path)
 }
 
