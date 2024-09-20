@@ -137,6 +137,10 @@ func Test_Rewards(t *testing.T) {
 
 		t.Log("Generated and inserted snapshots")
 
+		if err := rc.GenerateActiveRewards(snapshotDate); err != nil {
+			t.Fatal(err)
+		}
+
 		t.Cleanup(func() {
 			teardownRewards(grm)
 		})

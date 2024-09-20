@@ -44,8 +44,7 @@ func PreNileTokensPerDay(tokensPerDay string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	one := (decimal.NewFromInt(10).Pow(decimal.NewFromInt(15))).Sub(decimal.NewFromInt(1))
-	two := decimal.NewFromInt(10).Pow(decimal.NewFromInt(15))
 
-	return tpd.Mul(one.Div(two)).BigInt().String(), nil
+	res := decimal.NewFromFloat(0.999999999999999).Mul(tpd)
+	return res.BigInt().String(), nil
 }

@@ -3,13 +3,14 @@ package rewards
 import "database/sql"
 
 var _1_goldActiveRewardsQuery = `
+create table active_rewards as 
 WITH active_rewards_modified as (
 	SELECT
 		*,
 		calc_raw_tokens_per_day(amount, duration) as tokens_per_day,
 		DATETIME(@cutoffDate) as global_end_inclusive -- Inclusive means we DO USE this day as a snapshot
 	FROM combined_rewards
-	WHERE end_timestamp >= TIMESTAMP @rewardsStart and start_timestamp <= TIMESTAMP @cutoffDate
+	WHERE end_timestamp >= DATETIME(@rewardsStart) and start_timestamp <= DATETIME(@cutoffDate)
 ),
 -- Cut each reward's start and end windows to handle the global range
 active_rewards_updated_end_timestamps as (
@@ -96,12 +97,15 @@ active_reward_ranges AS (
          WHERE day != reward_start_exclusive
      )
 select * from active_rewards_final
-
 `
 
 func (r *RewardsCalculator) GenerateActiveRewards(snapshotDate string) error {
-	res := r.calculationDB.Exec(_1_goldActiveRewardsQuery, sql.Named("snapshotDate", snapshotDate))
+	res := r.calculationDB.Exec(_1_goldActiveRewardsQuery,
+		sql.Named("snapshotDate", snapshotDate),
+		sql.Named("rewardsStart", "1970-01-01"),
+	)
 	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to generate active rewards", "error", res.Error)
 		return res.Error
 	}
 	return nil
