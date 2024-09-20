@@ -76,9 +76,12 @@ active_reward_ranges AS (
 	),
 -- Explode out the ranges for a day per inclusive date
      exploded_active_range_rewards AS (
-         SELECT * FROM active_reward_ranges
+         SELECT
+         	arr.*,
+         	day_series.day as day
+         FROM active_reward_ranges as arr
 		 cross join day_series
-		 where DATE(day) between DATE(reward_start_exclusive) and DATE(reward_end_inclusive) as day
+		 where DATE(day_series.day) between DATE(reward_start_exclusive) and DATE(reward_end_inclusive)
      ),
      active_rewards_final AS (
          SELECT
