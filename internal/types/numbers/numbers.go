@@ -1,5 +1,6 @@
 package numbers
 
+import "C"
 import (
 	"github.com/shopspring/decimal"
 	"math/big"
@@ -34,17 +35,4 @@ func PostNileTokensPerDay(tokensPerDay string) (string, error) {
 	}
 
 	return tpd.BigInt().String(), nil
-}
-
-// PreNileTokensPerDay calculates the tokens per day for pre-nile rewards, rounded to 15 sigfigs
-//
-// NOTE: this value is different than postgres and needs more work
-func PreNileTokensPerDay(tokensPerDay string) (string, error) {
-	tpd, err := decimal.NewFromString(tokensPerDay)
-	if err != nil {
-		return "", err
-	}
-
-	res := decimal.NewFromFloat(0.999999999999999).Mul(tpd)
-	return res.BigInt().String(), nil
 }
