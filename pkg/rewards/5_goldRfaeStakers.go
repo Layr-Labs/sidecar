@@ -57,8 +57,9 @@ staker_weights_grouped as (
 		staker,
 		reward_hash,
 		snapshot,
-		sum_big(numeric_multiply(multiplier, shares)) as staker_weight
+		sum_big(staker_weight(multiplier, shares)) as staker_weight
 	from staker_strategy_shares
+	group by staker, reward_hash, snapshot
 ),
 staker_weights AS (
   SELECT
@@ -106,7 +107,7 @@ staker_weight_sum AS (
 -- Calculate staker proportion of tokens for each reward and snapshot
 staker_proportion AS (
   SELECT *,
-    calc_staker_proportion(staker_weight, total_weight) as staker_proportion
+    staker_proportion(staker_weight, total_weight) as staker_proportion
   FROM staker_weight_sum
 ),
 -- Calculate total tokens to the (staker, operator) pair
@@ -118,8 +119,8 @@ staker_operator_total_tokens AS (
 -- Calculate the token breakdown for each (staker, operator) pair
 token_breakdowns AS (
   SELECT *,
-    post_nile_operator_tokens(total_staker_operator_payout) as operator_tokens,
-    subtract_big(total_staker_operator_payout, post_nile_operator_tokens(total_staker_operator_payout)) as staker_tokens
+    operator_token_rewards(total_staker_operator_payout) as operator_tokens,
+    subtract_big(total_staker_operator_payout, operator_token_rewards(total_staker_operator_payout)) as staker_tokens
   FROM staker_operator_total_tokens
 )
 SELECT * from token_breakdowns

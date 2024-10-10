@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
@@ -84,11 +83,15 @@ func SumBigWindowed(values ...any) (string, error) {
 
 var hasRegisteredExtensions = false
 
-const SqliteInMemoryPath = "file::memory:?cache=shared"
+const SqliteInMemoryPath = "file::memory:"
 
 type SqliteConfig struct {
 	Path           string
 	ExtensionsPath []string
+}
+
+func SqliteInMemoryWithName(name string) string {
+	return fmt.Sprintf("file:%s?mode=memory", name)
 }
 
 func NewSqlite(cfg *SqliteConfig, l *zap.Logger) gorm.Dialector {
@@ -97,50 +100,8 @@ func NewSqlite(cfg *SqliteConfig, l *zap.Logger) gorm.Dialector {
 			Extensions: cfg.ExtensionsPath,
 			ConnectHook: func(conn *goSqlite.SQLiteConn) error {
 				// Generic functions
-				if err := conn.RegisterAggregator("sum_big", NewSumBigNumbers, true); err != nil {
-					l.Sugar().Errorw("Failed to register aggregator sum_big", "error", err)
-					return err
-				}
-				if err := conn.RegisterFunc("sum_big_windowed", SumBigWindowed, true); err != nil {
-					l.Sugar().Errorw("Failed to register aggregator sum_big_windowed", "error", err)
-					return err
-				}
-				if err := conn.RegisterFunc("subtract_big", numbers.SubtractBig, true); err != nil {
-					l.Sugar().Errorw("Failed to register function subtract_big", "error", err)
-					return err
-				}
-				if err := conn.RegisterFunc("numeric_multiply", numbers.NumericMultiply, true); err != nil {
-					l.Sugar().Errorw("Failed to register function NumericMultiply", "error", err)
-					return err
-				}
-				// if err := conn.RegisterFunc("big_gt", numbers.BigGreaterThan, true); err != nil {
-				// 	l.Sugar().Errorw("Failed to register function BigGreaterThan", "error", err)
-				// 	return err
-				// }
 				if err := conn.RegisterFunc("bytes_to_hex", bytesToHex, true); err != nil {
 					l.Sugar().Errorw("Failed to register function bytes_to_hex", "error", err)
-					return err
-				}
-				// Raw tokens per day
-				if err := conn.RegisterFunc("calc_raw_tokens_per_day", numbers.CalcRawTokensPerDay, true); err != nil {
-					l.Sugar().Errorw("Failed to register function calc_raw_tokens_per_day", "error", err)
-					return err
-				}
-				// Forked tokens per day
-				if err := conn.RegisterFunc("post_nile_tokens_per_day", numbers.PostNileTokensPerDay, true); err != nil {
-					l.Sugar().Errorw("Failed to register function PostNileTokensPerDay", "error", err)
-					return err
-				}
-				if err := conn.RegisterFunc("calc_staker_proportion", numbers.CalculateStakerProportion, true); err != nil {
-					l.Sugar().Errorw("Failed to register function CalculateStakerProportion", "error", err)
-					return err
-				}
-				if err := conn.RegisterFunc("calc_staker_weight", numbers.CalculateStakerWeight, true); err != nil {
-					l.Sugar().Errorw("Failed to register function CalculateStakerWeight", "error", err)
-					return err
-				}
-				if err := conn.RegisterFunc("post_nile_operator_tokens", numbers.CalculatePostNileOperatorTokens, true); err != nil {
-					l.Sugar().Errorw("Failed to register function CalculatePostNileOperatorTokens", "error", err)
 					return err
 				}
 				return nil

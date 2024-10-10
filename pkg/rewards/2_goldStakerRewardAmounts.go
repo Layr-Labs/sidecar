@@ -59,7 +59,7 @@ staker_avs_strategy_shares AS (
 	and sdo.snapshot = sss.snapshot
 	and sdo.strategy = sss.strategy
   -- Parse out negative shares and zero multiplier so there is no division by zero case
-  WHERE sss.shares > 0 and sdo.multiplier != 0
+  WHERE big_gt(sss.shares, '0') and sdo.multiplier != '0'
 ),
 -- Calculate the weight of a staker
 staker_weight_grouped as (
@@ -67,7 +67,7 @@ staker_weight_grouped as (
 		staker,
 	    reward_hash,
 	    snapshot,
-	    sum_big(numeric_multiply(multiplier, shares)) as staker_weight
+	    sum_big(staker_weight(multiplier, shares)) as staker_weight
 	from staker_avs_strategy_shares
 	group by staker, reward_hash, snapshot
 ),
@@ -114,7 +114,7 @@ staker_weight_sum AS (
 -- Calculate staker proportion of tokens for each reward and snapshot
 staker_proportion AS (
   SELECT *,
-	calc_staker_proportion(staker_weight, total_weight) as staker_proportion
+	staker_proportion(staker_weight, total_weight) as staker_proportion
   FROM staker_weight_sum
 ),
 -- Calculate total tokens to the (staker, operator) pair
@@ -126,7 +126,7 @@ staker_operator_total_tokens AS (
 	  WHEN snapshot < DATE(@nileHardforkDate) AND reward_submission_date < DATE(@nileHardforkDate) THEN
 		nile_staker_token_rewards(staker_proportion, tokens_per_day)
 	  ELSE
-		staker_token_rewards(staker_proportion, tokens_per_day)
+		staker_token_rewards(staker_proportion, tokens_per_day_decimal)
 	END as total_staker_operator_payout
   FROM staker_proportion
 ),
@@ -138,7 +138,7 @@ operator_tokens as (
 		  WHEN snapshot < DATE(@nileHardforkDate) AND reward_submission_date < DATE(@nileHardforkDate) THEN
 			nile_operator_token_rewards(total_staker_operator_payout)
 		  ELSE
-			post_nile_operator_tokens(total_staker_operator_payout)
+			operator_token_rewards(total_staker_operator_payout)
 		END as operator_tokens
 	from staker_operator_total_tokens
 ),

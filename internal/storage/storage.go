@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"encoding/json"
+	"golang.org/x/xerrors"
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/parser"
@@ -59,6 +61,36 @@ type TransactionLog struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	DeletedAt        time.Time
+}
+
+func (tl *TransactionLog) CombineArgs() ([]byte, error) {
+	combinedArgs := make(map[string]interface{})
+	parsedArgs := make([]parser.Argument, 0)
+	if err := json.Unmarshal([]byte(tl.Arguments), &parsedArgs); err != nil {
+		return nil, xerrors.Errorf("failed to unmarshal log arguments: %w", err)
+	}
+
+	parsedOutputs := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(tl.OutputData), &parsedOutputs); err != nil {
+		return nil, xerrors.Errorf("failed to unmarshal log output data: %w", err)
+	}
+
+	for _, arg := range parsedArgs {
+		if arg.Indexed {
+			combinedArgs[arg.Name] = arg.Value
+		} else {
+			val, ok := parsedOutputs[arg.Name]
+			if !ok {
+				return nil, xerrors.Errorf("missing output data for argument: %s", arg.Name)
+			}
+			combinedArgs[arg.Name] = val
+		}
+	}
+	combinedArgsJson, err := json.Marshal(combinedArgs)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to marshal combined args: %w", err)
+	}
+	return combinedArgsJson, nil
 }
 
 type BatchTransaction struct {

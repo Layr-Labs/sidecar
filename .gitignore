@@ -15,11 +15,10 @@ go-sidecar
 /internal/tests/testdata/*.sql
 !/internal/tests/testdata/**/generateExpectedResults.sql
 !/internal/tests/testdata/**/*generateExpectedResults.sql
-!sqlite-extensions
+sqlite-extensions
 /*.tar
 /sidecar-data
 __pycache__
 test-db
 *.dylib
 *.dylib.dSYM
-/sqlite-extensions/build
