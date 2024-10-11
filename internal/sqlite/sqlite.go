@@ -84,11 +84,15 @@ func SumBigWindowed(values ...any) (string, error) {
 
 var hasRegisteredExtensions = false
 
-const SqliteInMemoryPath = "file::memory:?cache=shared"
+const SqliteInMemoryPath = "file::memory:"
 
 type SqliteConfig struct {
 	Path           string
 	ExtensionsPath []string
+}
+
+func SqliteInMemoryWithName(name string) string {
+	return fmt.Sprintf("file:%s?mode=memory", name)
 }
 
 func NewSqlite(cfg *SqliteConfig, l *zap.Logger) gorm.Dialector {
@@ -97,18 +101,6 @@ func NewSqlite(cfg *SqliteConfig, l *zap.Logger) gorm.Dialector {
 			Extensions: cfg.ExtensionsPath,
 			ConnectHook: func(conn *goSqlite.SQLiteConn) error {
 				// Generic functions
-				if err := conn.RegisterAggregator("sum_big", NewSumBigNumbers, true); err != nil {
-					l.Sugar().Errorw("Failed to register aggregator sum_big", "error", err)
-					return err
-				}
-				if err := conn.RegisterFunc("sum_big_windowed", SumBigWindowed, true); err != nil {
-					l.Sugar().Errorw("Failed to register aggregator sum_big_windowed", "error", err)
-					return err
-				}
-				if err := conn.RegisterFunc("numeric_multiply", numbers.NumericMultiply, true); err != nil {
-					l.Sugar().Errorw("Failed to register function NumericMultiply", "error", err)
-					return err
-				}
 				if err := conn.RegisterFunc("bytes_to_hex", bytesToHex, true); err != nil {
 					l.Sugar().Errorw("Failed to register function bytes_to_hex", "error", err)
 					return err

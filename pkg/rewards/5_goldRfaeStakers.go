@@ -57,8 +57,9 @@ staker_weights_grouped as (
 		staker,
 		reward_hash,
 		snapshot,
-		sum_big(numeric_multiply(multiplier, shares)) as staker_weight
+		sum_big_c(numeric_multiply_c(multiplier, shares)) as staker_weight
 	from staker_strategy_shares
+	group by staker, reward_hash, snapshot
 ),
 staker_weights AS (
   SELECT
@@ -89,7 +90,7 @@ staker_weight_sum_groups as (
 	SELECT
 		reward_hash,
 		snapshot,
-		sum_big(staker_weight) as total_weight
+		sum_big_c(staker_weight) as total_weight
 	FROM distinct_stakers
 	GROUP BY reward_hash, snapshot
 ),

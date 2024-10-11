@@ -121,3 +121,28 @@ def calculateStakerProportion(stakerWeightStr: str, totalWeightStr: str) -> str:
 def subtractBig(a:str, b:str) -> str:
     diff = Decimal(a) - Decimal(b)
     return format(diff, 'f')
+
+def addBig(a:str, b:str) -> str:
+    diff = Decimal(a) + Decimal(b)
+    return format(diff, 'f')
+
+def calcTokensPerDay(amountStr:str, durationStr:str) -> str:
+    amount = Decimal(amountStr)
+    duration = int(durationStr)
+
+    perDay = Decimal(duration / 86400)
+
+    getcontext().prec = 22
+    tpd = Decimal(amount / perDay)
+
+    return "{}".format(tpd, 'f')
+
+def calcTokensPerDayDecimal(amountStr:str, durationStr:str) -> str:
+    amount = Decimal(amountStr)
+    duration = int(durationStr)
+
+    perDay = Decimal(duration / 86400)
+
+    tpd = Decimal(amount / perDay).quantize(Decimal('1'), rounding=ROUND_DOWN)
+
+    return "{}".format(tpd, 'f')

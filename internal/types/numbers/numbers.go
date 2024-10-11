@@ -14,46 +14,6 @@ func NewBig257() *big.Int {
 	return big.NewInt(257)
 }
 
-// NumericMultiply take two huge numbers, stored as strings, and multiplies them
-func NumericMultiply(a, b string) (string, error) {
-	na, err := decimal.NewFromString(a)
-	if err != nil {
-		return "", err
-	}
-	nb, err := decimal.NewFromString(b)
-	if err != nil {
-		return "", err
-	}
-
-	return na.Mul(nb).String(), nil
-}
-
-func SubtractBig(a, b string) (string, error) {
-	na, err := decimal.NewFromString(a)
-	if err != nil {
-		return "", err
-	}
-	nb, err := decimal.NewFromString(b)
-	if err != nil {
-		return "", err
-	}
-
-	return na.Sub(nb).String(), nil
-}
-
-func BigGreaterThan(a, b string) (bool, error) {
-	na, err := decimal.NewFromString(a)
-	if err != nil {
-		return false, err
-	}
-	nb, err := decimal.NewFromString(b)
-	if err != nil {
-		return false, err
-	}
-
-	return na.GreaterThan(nb), nil
-}
-
 // CalcRawTokensPerDay calculates the raw tokens per day for a given amount and duration
 // Returns the raw tokens per day in decimal format as a string
 func CalcRawTokensPerDay(amountStr string, duration uint64) (string, error) {

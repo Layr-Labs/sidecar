@@ -67,7 +67,7 @@ deduped_earners AS (
     snapshot,
     reward_hash,
     token,
-    sum_big(amount) as amount
+    sum_big_c(amount) as amount
   FROM combined_rewards
   GROUP BY
     earner,

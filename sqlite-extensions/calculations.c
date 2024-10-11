@@ -2,27 +2,47 @@
 #include <Python.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdatomic.h>
 #include "calculations.h"
 SQLITE_EXTENSION_INIT1
 
 static PyObject *pModule = NULL;
-static int python_initialized = 0;
+atomic_int python_initialized;
+
+void init_python_initialized(void) {
+    atomic_init(&python_initialized, 0);
+}
 
 int ensure_python_initialized() {
-    if (!python_initialized) {
+    int expected = 0;
+    if (atomic_compare_exchange_strong(&python_initialized, &expected, 1)) {
         Py_Initialize();
         // As of Python 3.7, the GIL is created automatically,
         // and threads are initialized by default
-        python_initialized = 1;
     }
-    return python_initialized;
+    return atomic_load(&python_initialized);
+    //if (!python_initialized) {
+    //    Py_Initialize();
+    //    // As of Python 3.7, the GIL is created automatically,
+    //    // and threads are initialized by default
+    //    python_initialized = 1;
+    //}
+    //return python_initialized;
 }
 
 void finalize_python() {
-    // Reacquire the GIL before finalizing
-    PyGILState_STATE gstate = PyGILState_Ensure();
-    Py_XDECREF(pModule);
-    Py_Finalize();
+    //// Reacquire the GIL before finalizing
+    //PyGILState_STATE gstate = PyGILState_Ensure();
+    //Py_XDECREF(pModule);
+    //Py_Finalize();
+    int expected = 1;
+    if (atomic_compare_exchange_strong(&python_initialized, &expected, 0)) {
+        // Reacquire the GIL before finalizing
+        PyGILState_STATE gstate = PyGILState_Ensure();
+        Py_XDECREF(pModule);
+        Py_Finalize();
+        PyGILState_Release(gstate);
+    }
 }
 
 char* call_python_func(const char* func_name, const char* arg1, const char* arg2) {
@@ -401,7 +421,7 @@ static void sum_big_step(sqlite3_context* context, int argc, sqlite3_value** arg
     SumContext* ctx = (SumContext*)sqlite3_aggregate_context(context, sizeof(SumContext));
 
     if (argc != 1) {
-        sqlite3_result_error(context, "sum_big() requires one argument", -1);
+        sqlite3_result_error(context, "sum_big_c() requires one argument", -1);
         return;
     }
 
@@ -490,8 +510,100 @@ void subtract_big(sqlite3_context *context, int argc, sqlite3_value **argv) {
     sqlite3_result_text(context, tokens, -1, SQLITE_TRANSIENT);
 }
 
+char* _add_big(const char* a, const char* b) {
+    return call_python_func("addBig", a, b);
+}
+
+void add_big(sqlite3_context *context, int argc, sqlite3_value **argv) {
+    if (argc != 2) {
+        sqlite3_result_error(context, "subtract_big() requires two arguments", -1);
+        return;
+    }
+    const char* a = (const char*)sqlite3_value_text(argv[0]);
+    if (!a) {
+        sqlite3_result_null(context);
+        return;
+    }
+
+    const char* b = (const char*)sqlite3_value_text(argv[1]);
+    if (!b) {
+        sqlite3_result_null(context);
+        return;
+    }
+
+    char* tokens = _add_big(a, b);
+    if (!tokens) {
+        sqlite3_result_null(context);
+        return;
+    }
+
+    sqlite3_result_text(context, tokens, -1, SQLITE_TRANSIENT);
+}
+
+char* _calc_tokens_per_day(const char* amount, const char* duration) {
+    return call_python_func("calcTokensPerDay", amount, duration);
+}
+
+void calc_tokens_per_day(sqlite3_context *context, int argc, sqlite3_value **argv) {
+    if (argc != 2) {
+        sqlite3_result_error(context, "calc_tokens_per_day() requires two arguments", -1);
+        return;
+    }
+    const char* amount = (const char*)sqlite3_value_text(argv[0]);
+    if (!amount) {
+        sqlite3_result_null(context);
+        return;
+    }
+
+    const char* duration = (const char*)sqlite3_value_text(argv[1]);
+    if (!duration) {
+        sqlite3_result_null(context);
+        return;
+    }
+
+    char* tokens = _calc_tokens_per_day(amount, duration);
+    if (!tokens) {
+        sqlite3_result_null(context);
+        return;
+    }
+
+    sqlite3_result_text(context, tokens, -1, SQLITE_TRANSIENT);
+}
+
+char* _calc_tokens_per_day_decimal(const char* amount, const char* duration) {
+    return call_python_func("calcTokensPerDayDecimal", amount, duration);
+}
+
+void calc_tokens_per_day_decimal(sqlite3_context *context, int argc, sqlite3_value **argv) {
+    if (argc != 2) {
+        sqlite3_result_error(context, "calc_tokens_per_day_decimal() requires two arguments", -1);
+        return;
+    }
+    const char* amount = (const char*)sqlite3_value_text(argv[0]);
+    if (!amount) {
+        sqlite3_result_null(context);
+        return;
+    }
+
+    const char* duration = (const char*)sqlite3_value_text(argv[1]);
+    if (!duration) {
+        sqlite3_result_null(context);
+        return;
+    }
+
+    char* tokens = _calc_tokens_per_day(amount, duration);
+    if (!tokens) {
+        sqlite3_result_null(context);
+        return;
+    }
+
+    sqlite3_result_text(context, tokens, -1, SQLITE_TRANSIENT);
+}
+
 int sqlite3_calculations_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi) {
     SQLITE_EXTENSION_INIT2(pApi);
+
+    init_python_initialized();
 
     int rc;
     rc = sqlite3_create_function(db, "pre_nile_tokens_per_day", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, 0, pre_nile_tokens_per_day, 0, 0);
@@ -561,6 +673,24 @@ int sqlite3_calculations_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_ro
     }
 
     rc = sqlite3_create_function(db, "subtract_big", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, 0, subtract_big, 0, 0);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Failed to create function: %s\n", sqlite3_errmsg(db));
+        return rc;
+    }
+
+    rc = sqlite3_create_function(db, "add_big", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, 0, add_big, 0, 0);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Failed to create function: %s\n", sqlite3_errmsg(db));
+        return rc;
+    }
+
+    rc = sqlite3_create_function(db, "calc_tokens_per_day", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, 0, calc_tokens_per_day, 0, 0);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Failed to create function: %s\n", sqlite3_errmsg(db));
+        return rc;
+    }
+
+    rc = sqlite3_create_function(db, "calc_tokens_per_day_decimal", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, 0, calc_tokens_per_day_decimal, 0, 0);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "Failed to create function: %s\n", sqlite3_errmsg(db));
         return rc;
