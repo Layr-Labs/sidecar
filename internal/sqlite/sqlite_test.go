@@ -148,7 +148,7 @@ func Test_Sqlite(t *testing.T) {
 				[]string{"59732833401321600000000", "5973283340132160000000", "53759550061189440000000"},
 			}
 
-			for _, v := range values[:20] {
+			for _, v := range values {
 				totalStakerOperatorPayout := v[0]
 				operatorTokens := v[1]
 				expectedResult := v[2]
@@ -492,7 +492,7 @@ func Test_Sqlite(t *testing.T) {
 				[]string{"39143637142857100", "3914363714285710", "35229273428571390"},
 			}
 
-			for _, v := range values[:20] {
+			for _, v := range values {
 				totalStakerOperatorPayout := v[0]
 				operatorTokens := v[1]
 				expectedResult := v[2]
@@ -732,7 +732,7 @@ func Test_Sqlite(t *testing.T) {
 				[]string{"278624576249", "27862457624"},
 			}
 
-			for _, v := range values[:20] {
+			for _, v := range values {
 				totalStakerOperatorPayout := v[0]
 				expectedResult := v[1]
 
@@ -1519,7 +1519,7 @@ func Test_Sqlite(t *testing.T) {
 			assert.Nil(t, res.Error)
 			assert.Equal(t, strings.ToLower(hex.EncodeToString(expectedBytes)), hexValue.WithdrawalHex)
 		})
-		t.Run("Should call add_big", func(t *testing.T) {
+		t.Run("Should call sum_big over a series of rows", func(t *testing.T) {
 			shares1 := "1670000000000000000000"
 			shares2 := "1670000000000000000000"
 
@@ -1549,7 +1549,7 @@ func Test_Sqlite(t *testing.T) {
 
 			query := `
 			select
-				add_big(shares) as total
+				sum_big(shares) as total
 			from shares
 		`
 			var total string
