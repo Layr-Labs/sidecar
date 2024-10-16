@@ -14,46 +14,6 @@ func NewBig257() *big.Int {
 	return big.NewInt(257)
 }
 
-// NumericMultiply take two huge numbers, stored as strings, and multiplies them
-func NumericMultiply(a, b string) (string, error) {
-	na, err := decimal.NewFromString(a)
-	if err != nil {
-		return "", err
-	}
-	nb, err := decimal.NewFromString(b)
-	if err != nil {
-		return "", err
-	}
-
-	return na.Mul(nb).String(), nil
-}
-
-func SubtractBig(a, b string) (string, error) {
-	na, err := decimal.NewFromString(a)
-	if err != nil {
-		return "", err
-	}
-	nb, err := decimal.NewFromString(b)
-	if err != nil {
-		return "", err
-	}
-
-	return na.Sub(nb).String(), nil
-}
-
-func BigGreaterThan(a, b string) (bool, error) {
-	na, err := decimal.NewFromString(a)
-	if err != nil {
-		return false, err
-	}
-	nb, err := decimal.NewFromString(b)
-	if err != nil {
-		return false, err
-	}
-
-	return na.GreaterThan(nb), nil
-}
-
 // CalcRawTokensPerDay calculates the raw tokens per day for a given amount and duration
 // Returns the raw tokens per day in decimal format as a string
 func CalcRawTokensPerDay(amountStr string, duration uint64) (string, error) {
@@ -80,21 +40,18 @@ func PostNileTokensPerDay(tokensPerDay string) (string, error) {
 	return tpd.BigInt().String(), nil
 }
 
-// CalculateStakerProportion calculates the staker weight for a given staker and total weight
-func CalculateStakerProportion(stakerWeightStr string, totalWeightStr string) (string, error) {
-	stakerWeight, err := decimal.NewFromString(stakerWeightStr)
+func StakerTokenRewards(stakerProportaion string, tokensPerDay string) (string, error) {
+	decimal.DivisionPrecision = 38
+	sp, err := decimal.NewFromString(stakerProportaion)
 	if err != nil {
 		return "", err
 	}
-	totalWeight, err := decimal.NewFromString(totalWeightStr)
+	tpd, err := decimal.NewFromString(tokensPerDay)
 	if err != nil {
 		return "", err
 	}
 
-	res := ((stakerWeight.Div(totalWeight)).Mul(decimal.NewFromInt(1000000000000000))).
-		Div(decimal.NewFromInt(1000000000000000)).
-		Floor()
-	return res.String(), nil
+	return sp.Mul(tpd).String(), nil
 }
 
 func CalculateStakerWeight(multiplier string, shares string) (string, error) {

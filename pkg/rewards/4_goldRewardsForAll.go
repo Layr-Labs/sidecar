@@ -29,7 +29,7 @@ staker_weights_grouped as (
 	  	staker,
 	    reward_hash,
 	    snapshot,
-	    sum_big(numeric_multiply(multiplier, shares)) as staker_weight
+	    sum_big_c(numeric_multiply_c(multiplier, shares)) as staker_weight
 	from reward_snapshot_stakers
 	group by staker, reward_hash, snapshot
 ),
@@ -62,7 +62,7 @@ staker_weight_sum_groups as (
 	SELECT
 		reward_hash,
 		snapshot,
-		sum_big(staker_weight) as total_staker_weight
+		sum_big_c(staker_weight) as total_staker_weight
 	FROM distinct_stakers
 	GROUP BY reward_hash, snapshot
 ),
@@ -79,7 +79,7 @@ staker_weight_sum AS (
 -- Calculate staker token proportion
 staker_proportion AS (
   SELECT *,
-    calc_staker_proportion(staker_weight, total_staker_weight) as staker_proportion
+    staker_weight(staker_weight, total_staker_weight) as staker_proportion
   FROM staker_weight_sum
 ),
 -- Calculate total tokens to staker

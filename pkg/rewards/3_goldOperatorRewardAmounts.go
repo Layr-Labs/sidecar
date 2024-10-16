@@ -7,7 +7,7 @@ with operator_token_groups as (
     operator,
     reward_hash,
     snapshot,
-    sum_big(operator_tokens) AS operator_tokens
+    sum_big_c(operator_tokens) AS operator_tokens
   FROM gold_2_staker_reward_amounts
   group by operator, reward_hash, snapshot
 ),

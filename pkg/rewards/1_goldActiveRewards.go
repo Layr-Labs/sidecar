@@ -9,7 +9,8 @@ insert into gold_1_active_rewards
 WITH active_rewards_modified as (
 	SELECT
 		*,
-		calc_raw_tokens_per_day(amount, duration) as tokens_per_day,
+		tokens_per_day(amount, duration) as tokens_per_day,
+		tokens_per_day_decimal(amount, duration) as tokens_per_day_decimal,
 		DATETIME(@cutoffDate) as global_end_inclusive -- Inclusive means we DO USE this day as a snapshot
 	FROM combined_rewards
 	WHERE
@@ -45,8 +46,6 @@ active_rewards_updated_start_timestamps as (
 		coalesce(MAX(DATE(g.snapshot)), DATE(ap.reward_start_exclusive)) as reward_start_exclusive,
 		ap.reward_end_inclusive,
 		ap.token,
-		post_nile_tokens_per_day(ap.tokens_per_day) as tokens_per_day_decimal,
-		pre_nile_tokens_per_day(ap.tokens_per_day) as tokens_per_day,
 		ap.multiplier,
 		ap.strategy,
 		ap.reward_hash,
