@@ -168,7 +168,7 @@ staker_weight_sum AS (
 -- Calculate staker proportion of tokens for each reward and snapshot
 staker_proportion AS (
   SELECT *,
-	calculate_staker_proportion(staker_weight, total_weight) as staker_proportion
+	staker_weight(staker_weight, total_weight) as staker_proportion
   FROM staker_weight_sum
 ),
 -- Calculate total tokens to the (staker, operator) pair

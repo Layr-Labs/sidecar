@@ -7,7 +7,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
-	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -135,10 +134,6 @@ func Test_Rewards(t *testing.T) {
 	if !rewardsTestsEnabled() {
 		t.Skipf("Skipping %s", t.Name())
 		return
-	}
-
-	if err := numbers.InitPython(); err != nil {
-		t.Fatal(err)
 	}
 
 	dbFileName, cfg, grm, l, err := setupRewards()
