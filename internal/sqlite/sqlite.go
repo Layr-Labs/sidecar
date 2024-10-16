@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
@@ -103,24 +102,6 @@ func NewSqlite(cfg *SqliteConfig, l *zap.Logger) gorm.Dialector {
 				// Generic functions
 				if err := conn.RegisterFunc("bytes_to_hex", bytesToHex, true); err != nil {
 					l.Sugar().Errorw("Failed to register function bytes_to_hex", "error", err)
-					return err
-				}
-				// Raw tokens per day
-				if err := conn.RegisterFunc("calc_raw_tokens_per_day", numbers.CalcRawTokensPerDay, true); err != nil {
-					l.Sugar().Errorw("Failed to register function calc_raw_tokens_per_day", "error", err)
-					return err
-				}
-				// Forked tokens per day
-				if err := conn.RegisterFunc("post_nile_tokens_per_day", numbers.PostNileTokensPerDay, true); err != nil {
-					l.Sugar().Errorw("Failed to register function PostNileTokensPerDay", "error", err)
-					return err
-				}
-				if err := conn.RegisterFunc("calc_staker_weight", numbers.CalculateStakerWeight, true); err != nil {
-					l.Sugar().Errorw("Failed to register function CalculateStakerWeight", "error", err)
-					return err
-				}
-				if err := conn.RegisterFunc("post_nile_operator_tokens", numbers.CalculatePostNileOperatorTokens, true); err != nil {
-					l.Sugar().Errorw("Failed to register function CalculatePostNileOperatorTokens", "error", err)
 					return err
 				}
 				return nil

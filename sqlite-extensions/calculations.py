@@ -23,6 +23,21 @@ def amazonStakerTokenRewards(sp:str, tpd:str) -> str:
     # Convert to string, ensuring no scientific notation
     return "{}".format(int(result))
 
+# Former sql query: cast(total_staker_operator_payout * 0.10 AS DECIMAL(38,0))
+# This is the same as the amazonStakerTokens function, just with different inputs
+def amazonOperatorTokenRewards(totalStakerOperatorTokens:str) -> str:
+    # Set precision to 38 to match DECIMAL(38,0)
+    getcontext().prec = 15
+
+    # Perform the multiplication
+    result = Decimal(totalStakerOperatorTokens) * Decimal('.1')
+
+    getcontext().prec = 38
+    res_floor = result.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+
+    # Convert to string, ensuring no scientific notation
+    return "{}".format(res_floor)
+
 # Former sql query: (staker_proportion * tokens_per_day)::text::decimal(38,0)
 def nileStakerTokenRewards(sp:str, tpd:str) -> str:
     getcontext().prec = 15
@@ -41,33 +56,6 @@ def nileStakerTokenRewards(sp:str, tpd:str) -> str:
     # Convert to string, ensuring no scientific notation
     return "{}".format(res_decimal, 'f')
 
-def stakerTokenRewards(sp:str, tpd:str) -> str:
-    getcontext().prec = 38
-    getcontext().rounding = ROUND_HALF_EVEN
-    stakerProportion = Decimal(sp)
-    tokensPerDay = Decimal(tpd)
-
-    decimal_res = stakerProportion * tokensPerDay
-
-    floored = decimal_res.quantize(Decimal('1'), rounding=ROUND_DOWN)
-    return "{}".format(floored, 'f')
-
-# Former sql query: cast(total_staker_operator_payout * 0.10 AS DECIMAL(38,0))
-# This is the same as the amazonStakerTokens function, just with different inputs
-def amazonOperatorTokenRewards(totalStakerOperatorTokens:str) -> str:
-    # Set precision to 38 to match DECIMAL(38,0)
-    getcontext().prec = 15
-
-    # Perform the multiplication
-    result = Decimal(totalStakerOperatorTokens) * Decimal('.1')
-
-    getcontext().prec = 38
-    res_floor = result.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
-
-    # Convert to string, ensuring no scientific notation
-    return "{}".format(res_floor)
-
-
 # Former sql query: (total_staker_operator_payout * 0.10)::text::decimal(38,0)
 # This is the same as the nileStakerTokenRewards function, just with different inputs
 def nileOperatorTokenRewards(tsot:str) -> str:
@@ -83,6 +71,17 @@ def nileOperatorTokenRewards(tsot:str) -> str:
 
     # Convert to string, ensuring no scientific notation
     return "{}".format(res_decimal, 'f')
+
+def stakerTokenRewards(sp:str, tpd:str) -> str:
+    getcontext().prec = 38
+    getcontext().rounding = ROUND_HALF_EVEN
+    stakerProportion = Decimal(sp)
+    tokensPerDay = Decimal(tpd)
+
+    decimal_res = stakerProportion * tokensPerDay
+
+    floored = decimal_res.quantize(Decimal('1'), rounding=ROUND_DOWN)
+    return "{}".format(floored, 'f')
 
 
 # Former sql query: floor(total_staker_operator_payout * 0.10)
@@ -131,6 +130,7 @@ def calcTokensPerDay(amountStr:str, durationStr:str) -> str:
     duration = int(durationStr)
 
     perDay = Decimal(duration / 86400)
+    print("perDay: {}".format(perDay))
 
     getcontext().prec = 22
     tpd = Decimal(amount / perDay)

@@ -138,7 +138,7 @@ operator_tokens as (
 		  WHEN snapshot < DATE(@nileHardforkDate) AND reward_submission_date < DATE(@nileHardforkDate) THEN
 			nile_operator_token_rewards(total_staker_operator_payout)
 		  ELSE
-			post_nile_operator_tokens(total_staker_operator_payout)
+			staker_token_rewards(total_staker_operator_payout)
 		END as operator_tokens
 	from staker_operator_total_tokens
 ),

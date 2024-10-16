@@ -1,10 +1,10 @@
 from calculations import *
 
-print("Actual  ", calcTokensPerDay('9999000000000000000000', '604800'))
-print("expected 1428428571428571428571")
-print("Actual  ", calcTokensPerDayDecimal('10000000', '1209600'))
-print("expected 714285")
-print('\n')
+print("Actual  ", calcTokensPerDay('10000000', '1209600'))
+print("expected 714285.714285714286")
+# print("Actual  ", calcTokensPerDayDecimal('10000000', '1209600'))
+# print("expected 714285")
+# print('\n')
 #print("Actual  ", nileStakerTokenRewards('0.013636363636363', '3571428571428568000000000000000000000'))
 #print("expected 48701298701296390000000000000000000")
 #exit()

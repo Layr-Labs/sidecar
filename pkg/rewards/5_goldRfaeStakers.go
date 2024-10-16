@@ -119,8 +119,8 @@ staker_operator_total_tokens AS (
 -- Calculate the token breakdown for each (staker, operator) pair
 token_breakdowns AS (
   SELECT *,
-    post_nile_operator_tokens(total_staker_operator_payout) as operator_tokens,
-    subtract_big(total_staker_operator_payout, post_nile_operator_tokens(total_staker_operator_payout)) as staker_tokens
+    staker_token_rewards(total_staker_operator_payout) as operator_tokens,
+    subtract_big(total_staker_operator_payout, staker_token_rewards(total_staker_operator_payout)) as staker_tokens
   FROM staker_operator_total_tokens
 )
 SELECT * from token_breakdowns
