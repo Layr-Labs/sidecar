@@ -357,7 +357,7 @@ func (ss *StakerSharesModel) GetStateTransitions() ([]uint64, types.StateTransit
 	stateChanges := make(types.StateTransitions)
 
 	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
-		var parsedRecords []*AccumulatedStateChange
+		parsedRecords := make([]*AccumulatedStateChange, 0)
 		var err error
 
 		contractAddresses := ss.globalConfig.GetContractsMapForChain()
@@ -397,9 +397,6 @@ func (ss *StakerSharesModel) GetStateTransitions() ([]uint64, types.StateTransit
 		}
 		if err != nil {
 			return nil, err
-		}
-		if parsedRecords == nil {
-			return nil, nil
 		}
 
 		// Sanity check to make sure we've got an initialized accumulator map for the block
