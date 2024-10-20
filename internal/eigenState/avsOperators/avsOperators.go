@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
-	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -34,14 +32,6 @@ type AccumulatedStateChange struct {
 	Operator    string
 	Registered  bool
 	BlockNumber uint64
-}
-
-// RegisteredAvsOperatorDiff represents the diff between the registered_avs_operators table and the accumulated state.
-type RegisteredAvsOperatorDiff struct {
-	Avs         string
-	Operator    string
-	BlockNumber uint64
-	Registered  bool
 }
 
 type AvsOperatorStateChange struct {
@@ -313,45 +303,21 @@ func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) (types.StateRo
 		return "", err
 	}
 
-	combinedResults := make([]*RegisteredAvsOperatorDiff, 0)
+	stateDiffs := make([]*base.StateDiff, 0)
 	for _, record := range inserts {
-		combinedResults = append(combinedResults, &RegisteredAvsOperatorDiff{
-			Avs:         record.Avs,
-			Operator:    record.Operator,
-			BlockNumber: record.BlockNumber,
-			Registered:  true,
+		stateDiffs = append(stateDiffs, &base.StateDiff{
+			SlotID: NewSlotID(record.Avs, record.Operator),
+			Value:  []byte("true"),
 		})
 	}
 	for _, record := range deletes {
-		combinedResults = append(combinedResults, &RegisteredAvsOperatorDiff{
-			Avs:         record.Avs,
-			Operator:    record.Operator,
-			BlockNumber: record.BlockNumber,
-			Registered:  false,
+		stateDiffs = append(stateDiffs, &base.StateDiff{
+			SlotID: NewSlotID(record.Avs, record.Operator),
+			Value:  []byte("false"),
 		})
 	}
 
-	inputs := a.sortValuesForMerkleTree(combinedResults)
-
-	fullTree, err := a.MerkleizeState(blockNumber, inputs)
-	if err != nil {
-		return "", err
-	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
-}
-
-func (a *AvsOperatorsModel) sortValuesForMerkleTree(diffs []*RegisteredAvsOperatorDiff) []*base.MerkleTreeInput {
-	inputs := make([]*base.MerkleTreeInput, 0)
-	for _, diff := range diffs {
-		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: NewSlotID(diff.Avs, diff.Operator),
-			Value:  []byte(fmt.Sprintf("%t", diff.Registered)),
-		})
-	}
-	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
-		return strings.Compare(string(i.SlotID), string(j.SlotID))
-	})
-	return inputs
+	return a.BaseEigenState.MerkleizeState(blockNumber, stateDiffs)
 }
 
 func (a *AvsOperatorsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

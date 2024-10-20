@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"slices"
 	"strings"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
-	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -39,14 +37,6 @@ type AccumulatedStateChange struct {
 	Strategy    string
 	Shares      *big.Int
 	BlockNumber uint64
-}
-
-type OperatorSharesDiff struct {
-	Operator    string
-	Strategy    string
-	Shares      *big.Int
-	BlockNumber uint64
-	IsNew       bool
 }
 
 func NewSlotID(operator string, strategy string) types.SlotID {
@@ -191,8 +181,8 @@ func (osm *OperatorSharesModel) HandleLog(log *storage.TransactionLog) (interfac
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]*OperatorSharesDiff, error) {
-	preparedState := make([]*OperatorSharesDiff, 0)
+func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]*AccumulatedStateChange, error) {
+	preparedState := make([]*AccumulatedStateChange, 0)
 
 	accumulatedState, ok := osm.stateAccumulator[blockNumber]
 	if !ok {
@@ -249,12 +239,11 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]*OperatorSha
 	// Loop over our new state changes.
 	// If the record exists in the previous block, add the shares to the existing shares
 	for slotID, newState := range accumulatedState {
-		prepared := &OperatorSharesDiff{
+		prepared := &AccumulatedStateChange{
 			Operator:    newState.Operator,
 			Strategy:    newState.Strategy,
 			Shares:      newState.Shares,
 			BlockNumber: blockNumber,
-			IsNew:       false,
 		}
 
 		if existingRecord, ok := mappedRecords[slotID]; ok {
@@ -269,9 +258,6 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]*OperatorSha
 				continue
 			}
 			prepared.Shares = existingShares.Add(existingShares, newState.Shares)
-		} else {
-			// SlotID was not found in the previous block, so this is a new record
-			prepared.IsNew = true
 		}
 
 		preparedState = append(preparedState, prepared)
@@ -285,7 +271,7 @@ func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
 		return err
 	}
 
-	recordToInsert := pkgUtils.Map(records, func(r *OperatorSharesDiff, i uint64) *OperatorShares {
+	recordToInsert := pkgUtils.Map(records, func(r *AccumulatedStateChange, i uint64) *OperatorShares {
 		return &OperatorShares{
 			Operator:    r.Operator,
 			Strategy:    r.Strategy,
@@ -311,27 +297,15 @@ func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) (types.Sta
 		return "", err
 	}
 
-	inputs := osm.sortValuesForMerkleTree(diffs)
-
-	fullTree, err := osm.MerkleizeState(blockNumber, inputs)
-	if err != nil {
-		return "", err
-	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
-}
-
-func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []*OperatorSharesDiff) []*base.MerkleTreeInput {
-	inputs := make([]*base.MerkleTreeInput, 0)
+	stateDiffs := make([]*base.StateDiff, 0)
 	for _, diff := range diffs {
-		inputs = append(inputs, &base.MerkleTreeInput{
+		stateDiffs = append(stateDiffs, &base.StateDiff{
 			SlotID: NewSlotID(diff.Operator, diff.Strategy),
 			Value:  diff.Shares.Bytes(),
 		})
 	}
-	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
-		return strings.Compare(string(i.SlotID), string(j.SlotID))
-	})
-	return inputs
+
+	return osm.BaseEigenState.MerkleizeState(blockNumber, stateDiffs)
 }
 
 func (osm *OperatorSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

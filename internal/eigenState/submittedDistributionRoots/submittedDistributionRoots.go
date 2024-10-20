@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
-	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -32,8 +30,8 @@ type SubmittedDistributionRoot struct {
 	CreatedAtBlockNumber      uint64
 }
 
-func NewSlotID(root string, rootIndex uint64) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%d", root, rootIndex))
+func NewSlotID(rootIndex uint64, root string) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%d_%s", rootIndex, root))
 }
 
 type SubmittedDistributionRootsModel struct {
@@ -142,7 +140,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() types.StateTra
 
 		activatedAt := outputData.ActivatedAt
 
-		slotId := NewSlotID(root, rootIndex)
+		slotId := NewSlotID(rootIndex, root)
 		_, ok := sdr.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := xerrors.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
@@ -312,34 +310,21 @@ func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64)
 	return nil
 }
 
-func (sdr *SubmittedDistributionRootsModel) sortValuesForMerkleTree(inputs []SubmittedDistributionRoot) []*base.MerkleTreeInput {
-	slices.SortFunc(inputs, func(i, j SubmittedDistributionRoot) int {
-		return int(i.RootIndex - j.RootIndex)
-	})
-
-	values := make([]*base.MerkleTreeInput, 0)
-	for _, input := range inputs {
-		values = append(values, &base.MerkleTreeInput{
-			SlotID: NewSlotID(input.Root, input.RootIndex),
-			Value:  []byte(input.Root),
-		})
-	}
-	return values
-}
-
 func (sdr *SubmittedDistributionRootsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
 	diffs, err := sdr.prepareState(blockNumber)
 	if err != nil {
 		return "", err
 	}
 
-	sortedInputs := sdr.sortValuesForMerkleTree(diffs)
-
-	fullTree, err := sdr.MerkleizeState(blockNumber, sortedInputs)
-	if err != nil {
-		return "", err
+	stateDiffs := make([]*base.StateDiff, 0)
+	for _, diff := range diffs {
+		stateDiffs = append(stateDiffs, &base.StateDiff{
+			SlotID: NewSlotID(diff.RootIndex, diff.Root),
+			Value:  []byte(diff.Root),
+		})
 	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
+
+	return sdr.BaseEigenState.MerkleizeState(blockNumber, stateDiffs)
 }
 
 func (sdr *SubmittedDistributionRootsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

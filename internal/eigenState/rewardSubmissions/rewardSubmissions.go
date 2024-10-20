@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
-	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -35,13 +33,6 @@ type RewardSubmission struct {
 	BlockNumber    uint64
 	RewardType     string // avs, all_stakers, all_earners
 }
-
-type RewardSubmissionDiff struct {
-	RewardSubmission *RewardSubmission
-	IsNew            bool
-	IsNoLongerActive bool
-}
-
 type RewardSubmissions struct {
 	Submissions []*RewardSubmission
 }
@@ -270,7 +261,7 @@ func (rs *RewardSubmissionsModel) clonePreviousBlocksToNewBlock(blockNumber uint
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSubmissionDiff, []*RewardSubmissionDiff, error) {
+func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSubmission, []*RewardSubmission, error) {
 	accumulatedState, ok := rs.stateAccumulator[blockNumber]
 	if !ok {
 		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
@@ -285,20 +276,17 @@ func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSub
 		return nil, nil, err
 	}
 
-	inserts := make([]*RewardSubmissionDiff, 0)
+	inserts := make([]*RewardSubmission, 0)
 	for _, change := range accumulatedState {
 		if change == nil {
 			continue
 		}
 
-		inserts = append(inserts, &RewardSubmissionDiff{
-			RewardSubmission: change,
-			IsNew:            true,
-		})
+		inserts = append(inserts, change)
 	}
 
-	// find all the records that are no longer active
-	noLongerActiveSubmissions := make([]*RewardSubmission, 0)
+	// find all the records that are no longer active and delete them
+	deletes := make([]*RewardSubmission, 0)
 	query := `
 		select
 			*
@@ -313,19 +301,11 @@ func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSub
 			sql.Named("previousBlock", blockNumber-1),
 			sql.Named("blockTime", currentBlock.BlockTime.Unix()),
 		).
-		Find(&noLongerActiveSubmissions)
+		Find(&deletes)
 
 	if res.Error != nil {
 		rs.logger.Sugar().Errorw("Failed to fetch no longer active submissions", zap.Error(res.Error))
 		return nil, nil, res.Error
-	}
-
-	deletes := make([]*RewardSubmissionDiff, 0)
-	for _, submission := range noLongerActiveSubmissions {
-		deletes = append(deletes, &RewardSubmissionDiff{
-			RewardSubmission: submission,
-			IsNoLongerActive: true,
-		})
 	}
 	return inserts, deletes, nil
 }
@@ -343,26 +323,22 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 	}
 
 	for _, record := range recordsToDelete {
-		res := rs.DB.Delete(&RewardSubmission{}, "reward_hash = ? and strategy = ? and block_number = ?", record.RewardSubmission.RewardHash, record.RewardSubmission.Strategy, blockNumber)
+		res := rs.DB.Delete(&RewardSubmission{}, "reward_hash = ? and strategy = ? and block_number = ?", record.RewardHash, record.Strategy, blockNumber)
 		if res.Error != nil {
 			rs.logger.Sugar().Errorw("Failed to delete record",
 				zap.Error(res.Error),
-				zap.String("rewardHash", record.RewardSubmission.RewardHash),
-				zap.String("strategy", record.RewardSubmission.Strategy),
+				zap.String("rewardHash", record.RewardHash),
+				zap.String("strategy", record.Strategy),
 				zap.Uint64("blockNumber", blockNumber),
 			)
 			return res.Error
 		}
 	}
 	if len(recordsToInsert) > 0 {
-		// records := make([]RewardSubmission, 0)
-		for _, record := range recordsToInsert {
-			res := rs.DB.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&record.RewardSubmission)
-			if res.Error != nil {
-				rs.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				fmt.Printf("\n\n%+v\n\n", record.RewardSubmission)
-				return res.Error
-			}
+		res := rs.DB.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
+		if res.Error != nil {
+			rs.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
+			return res.Error
 		}
 	}
 	return nil
@@ -375,38 +351,21 @@ func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.S
 		return "", err
 	}
 
-	combinedResults := make([]*RewardSubmissionDiff, 0)
-	combinedResults = append(combinedResults, inserts...)
-	combinedResults = append(combinedResults, deletes...)
-
-	inputs := rs.sortValuesForMerkleTree(combinedResults)
-
-	fullTree, err := rs.MerkleizeState(blockNumber, inputs)
-	if err != nil {
-		return "", err
+	stateDiffs := make([]*base.StateDiff, 0)
+	for _, record := range inserts {
+		stateDiffs = append(stateDiffs, &base.StateDiff{
+			SlotID: NewSlotID(record.RewardHash, record.Strategy),
+			Value:  []byte("added"),
+		})
 	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
-}
-
-func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardSubmissionDiff) []*base.MerkleTreeInput {
-	inputs := make([]*base.MerkleTreeInput, 0)
-	for _, submission := range submissions {
-		slotID := NewSlotID(submission.RewardSubmission.RewardHash, submission.RewardSubmission.Strategy)
-		value := "added"
-		if submission.IsNoLongerActive {
-			value = "removed"
-		}
-		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: slotID,
-			Value:  []byte(value),
+	for _, record := range deletes {
+		stateDiffs = append(stateDiffs, &base.StateDiff{
+			SlotID: NewSlotID(record.RewardHash, record.Strategy),
+			Value:  []byte("removed"),
 		})
 	}
 
-	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
-		return strings.Compare(string(i.SlotID), string(j.SlotID))
-	})
-
-	return inputs
+	return rs.BaseEigenState.MerkleizeState(blockNumber, stateDiffs)
 }
 
 func (rs *RewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

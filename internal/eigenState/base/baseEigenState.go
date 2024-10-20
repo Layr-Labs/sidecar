@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
+	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"github.com/wealdtech/go-merkletree/v2"
 	"github.com/wealdtech/go-merkletree/v2/keccak256"
-	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"golang.org/x/xerrors"
 
 	"github.com/Layr-Labs/go-sidecar/internal/parser"
@@ -58,16 +58,6 @@ func (b *BaseEigenState) ParseLogOutput(log *storage.TransactionLog) (map[string
 		return nil, err
 	}
 	return outputData, nil
-}
-
-// Include the block number as the first item in the tree.
-// This does two things:
-// 1. Ensures that the tree is always different for different blocks
-// 2. Allows us to have at least 1 value if there are no model changes for a block.
-func (b *BaseEigenState) InitializeMerkleTreeBaseStateWithBlock(blockNumber uint64) [][]byte {
-	return [][]byte{
-		[]byte(fmt.Sprintf("%d", blockNumber)),
-	}
 }
 
 func (b *BaseEigenState) IsInterestingLog(contractsEvents map[string][]string, log *storage.TransactionLog) bool {
@@ -137,40 +127,46 @@ func (b *BaseEigenState) DeleteState(tableName string, startBlockNumber uint64, 
 	return nil
 }
 
-type MerkleTreeInput struct {
+type StateDiff struct {
 	SlotID types.SlotID
 	Value  []byte
 }
 
-// MerkleizeState creates a merkle tree from the given inputs.
+// Include the block number as the first item in the tree.
+// This does two things:
+// 1. Ensures that the tree is always different for different blocks
+// 2. Allows us to have at least 1 value if there are no model changes for a block.
+func (b *BaseEigenState) InitializeStateTreeForBlock(blockNumber uint64) [][]byte {
+	return [][]byte{
+		[]byte(fmt.Sprintf("%d", blockNumber)),
+	}
+}
+
+// MerkleizeState creates a merkle tree from the given diffs.
 //
 // Each input includes a SlotID and a byte representation of the state that changed
-func (b *BaseEigenState) MerkleizeState(blockNumber uint64, inputs []*MerkleTreeInput) (*merkletree.MerkleTree, error) {
-	om := orderedmap.New[types.SlotID, []byte]()
+func (b *BaseEigenState) MerkleizeState(blockNumber uint64, stateDiffs []*StateDiff) (types.StateRoot, error) {
+	// sort by slotID
+	sortedDiffs := make([]*StateDiff, len(stateDiffs))
+	copy(sortedDiffs, stateDiffs)
+	slices.SortFunc(sortedDiffs, func(a, b *StateDiff) int {
+		return strings.Compare(string(a.SlotID), string(b.SlotID))
+	})
 
-	for _, input := range inputs {
-		_, found := om.Get(input.SlotID)
-		if !found {
-			om.Set(input.SlotID, input.Value)
-
-			prev := om.GetPair(input.SlotID).Prev()
-			if prev != nil && prev.Key > input.SlotID {
-				om.Delete(input.SlotID)
-				return nil, errors.New("slotIDs are not in order")
-			}
-		} else {
-			return nil, fmt.Errorf("duplicate slotID %s", input.SlotID)
-		}
+	leaves := b.InitializeStateTreeForBlock(blockNumber)
+	for _, diff := range sortedDiffs {
+		leaves = append(leaves, encodeMerkleLeaf(diff.SlotID, diff.Value))
 	}
 
-	leaves := b.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
-	for rootIndex := om.Oldest(); rootIndex != nil; rootIndex = rootIndex.Next() {
-		leaves = append(leaves, encodeMerkleLeaf(rootIndex.Key, rootIndex.Value))
-	}
-	return merkletree.NewTree(
+	tree, err := merkletree.NewTree(
 		merkletree.WithData(leaves),
 		merkletree.WithHashType(keccak256.New()),
 	)
+	if err != nil {
+		return "", err
+	}
+
+	return types.StateRoot(utils.ConvertBytesToString(tree.Root())), nil
 }
 
 func encodeMerkleLeaf(slotID types.SlotID, value []byte) []byte {

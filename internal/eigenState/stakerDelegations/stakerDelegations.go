@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
-	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -58,13 +56,6 @@ type StakerDelegationsModel struct {
 	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
 
 	deltaAccumulator map[uint64][]*StakerDelegationChange
-}
-
-type DelegatedStakersDiff struct {
-	Staker      string
-	Operator    string
-	Delegated   bool
-	BlockNumber uint64
 }
 
 func NewStakerDelegationsModel(
@@ -298,46 +289,21 @@ func (s *StakerDelegationsModel) GenerateStateRoot(blockNumber uint64) (types.St
 		return "", err
 	}
 
-	// Take all of the inserts and deletes and combine them into a single list
-	combinedResults := make([]DelegatedStakersDiff, 0)
+	stateDiffs := make([]*base.StateDiff, 0)
 	for _, record := range inserts {
-		combinedResults = append(combinedResults, DelegatedStakersDiff{
-			Staker:      record.Staker,
-			Operator:    record.Operator,
-			Delegated:   true,
-			BlockNumber: blockNumber,
+		stateDiffs = append(stateDiffs, &base.StateDiff{
+			SlotID: NewSlotID(record.Staker, record.Operator),
+			Value:  []byte("true"),
 		})
 	}
 	for _, record := range deletes {
-		combinedResults = append(combinedResults, DelegatedStakersDiff{
-			Staker:      record.Staker,
-			Operator:    record.Operator,
-			Delegated:   false,
-			BlockNumber: blockNumber,
+		stateDiffs = append(stateDiffs, &base.StateDiff{
+			SlotID: NewSlotID(record.Staker, record.Operator),
+			Value:  []byte("false"),
 		})
 	}
 
-	inputs := s.sortValuesForMerkleTree(combinedResults)
-
-	fullTree, err := s.MerkleizeState(blockNumber, inputs)
-	if err != nil {
-		return "", err
-	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
-}
-
-func (s *StakerDelegationsModel) sortValuesForMerkleTree(diffs []DelegatedStakersDiff) []*base.MerkleTreeInput {
-	inputs := make([]*base.MerkleTreeInput, 0)
-	for _, diff := range diffs {
-		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: NewSlotID(diff.Staker, diff.Operator),
-			Value:  []byte(fmt.Sprintf("%t", diff.Delegated)),
-		})
-	}
-	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
-		return strings.Compare(string(i.SlotID), string(j.SlotID))
-	})
-	return inputs
+	return s.BaseEigenState.MerkleizeState(blockNumber, stateDiffs)
 }
 
 func (s *StakerDelegationsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

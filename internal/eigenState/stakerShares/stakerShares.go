@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"slices"
 	"strings"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
-	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	pkgUtils "github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
@@ -37,14 +35,6 @@ type AccumulatedStateChange struct {
 	Strategy    string
 	Shares      *big.Int
 	BlockNumber uint64
-}
-
-type StakerSharesDiff struct {
-	Staker      string
-	Strategy    string
-	Shares      *big.Int
-	BlockNumber uint64
-	IsNew       bool
 }
 
 func NewSlotID(staker string, strategy string) types.SlotID {
@@ -461,8 +451,8 @@ func (ss *StakerSharesModel) HandleLog(log *storage.TransactionLog) (interface{}
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerSharesDiff, error) {
-	preparedState := make([]*StakerSharesDiff, 0)
+func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*AccumulatedStateChange, error) {
+	preparedState := make([]*AccumulatedStateChange, 0)
 
 	accumulatedState, ok := ss.stateAccumulator[blockNumber]
 	if !ok {
@@ -519,7 +509,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerSharesDi
 	// Loop over our new state changes.
 	// If the record exists in the previous block, add the shares to the existing shares
 	for slotId, newState := range accumulatedState {
-		prepared := &StakerSharesDiff{
+		prepared := &AccumulatedStateChange{
 			Staker:      newState.Staker,
 			Strategy:    newState.Strategy,
 			Shares:      newState.Shares,
@@ -551,7 +541,7 @@ func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
 		return err
 	}
 
-	recordsToInsert := pkgUtils.Map(records, func(r *StakerSharesDiff, i uint64) *StakerShares {
+	recordsToInsert := pkgUtils.Map(records, func(r *AccumulatedStateChange, i uint64) *StakerShares {
 		return &StakerShares{
 			Staker:      r.Staker,
 			Strategy:    r.Strategy,
@@ -577,28 +567,15 @@ func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateR
 		return "", err
 	}
 
-	inputs := ss.sortValuesForMerkleTree(diffs)
-
-	fullTree, err := ss.MerkleizeState(blockNumber, inputs)
-	if err != nil {
-		return "", err
-	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
-}
-
-func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerSharesDiff) []*base.MerkleTreeInput {
-	inputs := make([]*base.MerkleTreeInput, 0)
+	stateDiffs := make([]*base.StateDiff, 0)
 	for _, diff := range diffs {
-		inputs = append(inputs, &base.MerkleTreeInput{
+		stateDiffs = append(stateDiffs, &base.StateDiff{
 			SlotID: NewSlotID(diff.Staker, diff.Strategy),
 			Value:  diff.Shares.Bytes(),
 		})
 	}
-	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
-		return strings.Compare(string(i.SlotID), string(j.SlotID))
-	})
 
-	return inputs
+	return ss.BaseEigenState.MerkleizeState(blockNumber, stateDiffs)
 }
 
 func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
