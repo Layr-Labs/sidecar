@@ -3,6 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
@@ -30,8 +33,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"log"
-	"time"
 )
 
 var runCmd = &cobra.Command{
@@ -89,7 +90,7 @@ var runCmd = &cobra.Command{
 
 		sm := stateManager.NewEigenStateManager(l, grm)
 
-		if _, err := avsOperators.NewAvsOperators(sm, grm, l, cfg); err != nil {
+		if _, err := avsOperators.NewAvsOperatorsModel(sm, grm, l, cfg); err != nil {
 			l.Sugar().Fatalw("Failed to create AvsOperatorsModel", zap.Error(err))
 		}
 		if _, err := operatorShares.NewOperatorSharesModel(sm, grm, l, cfg); err != nil {
