@@ -34,7 +34,7 @@ type SubmittedDistributionRoots struct {
 }
 
 func NewSlotID(rootIndex uint64, root string) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%d", rootIndex, root))
+	return types.SlotID(fmt.Sprintf("%d_%s", rootIndex, root))
 }
 
 type SubmittedDistributionRootsBaseModel struct {
@@ -203,8 +203,13 @@ func (sdr *SubmittedDistributionRootsBaseModel) GetInterestingLogMap() map[strin
 	}
 }
 
-func (sdr *SubmittedDistributionRootsBaseModel) InitBlockProcessing(blockNumber uint64) error {
+func (sdr *SubmittedDistributionRootsBaseModel) InitBlock(blockNumber uint64) error {
 	sdr.stateAccumulator[blockNumber] = make(map[types.SlotID]*SubmittedDistributionRoots)
+	return nil
+}
+
+func (sdr *SubmittedDistributionRootsBaseModel) CleanupBlock(blockNumber uint64) error {
+	delete(sdr.stateAccumulator, blockNumber)
 	return nil
 }
 
@@ -340,11 +345,6 @@ func (sdr *SubmittedDistributionRootsBaseModel) CommitFinalState(blockNumber uin
 		}
 	}
 
-	return nil
-}
-
-func (sdr *SubmittedDistributionRootsBaseModel) ClearAccumulatedState(blockNumber uint64) error {
-	delete(sdr.stateAccumulator, blockNumber)
 	return nil
 }
 

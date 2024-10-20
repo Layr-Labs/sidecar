@@ -34,9 +34,13 @@ type IBaseEigenStateModel interface {
 	// Get the map of interesting logs for the model
 	GetInterestingLogMap() map[string][]string
 
-	// InitBlockProcessing
+	// InitBlock
 	// Perform any necessary setup for processing a block
-	InitBlockProcessing(blockNumber uint64) error
+	InitBlock(blockNumber uint64) error
+
+	// CleanupBlock
+	// Cleanup any state changes for the block
+	CleanupBlock(blockNumber uint64) error
 
 	// HandleStateChange
 	// Allow the state model to handle the state change
@@ -51,10 +55,6 @@ type IBaseEigenStateModel interface {
 	// GetStateDiffs
 	// Get the state diffs for the model
 	GetStateDiffs(blockNumber uint64) ([]StateDiff, error)
-
-	// ClearAccumulatedState
-	// Clear the accumulated state for the model to free up memory
-	ClearAccumulatedState(blockNumber uint64) error
 }
 
 type IEigenStateModel interface {

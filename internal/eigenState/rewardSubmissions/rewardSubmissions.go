@@ -245,8 +245,13 @@ func (rs *RewardSubmissionsBaseModel) GetInterestingLogMap() map[string][]string
 	}
 }
 
-func (rs *RewardSubmissionsBaseModel) InitBlockProcessing(blockNumber uint64) error {
+func (rs *RewardSubmissionsBaseModel) InitBlock(blockNumber uint64) error {
 	rs.stateAccumulator[blockNumber] = make(map[types.SlotID]*RewardSubmission)
+	return nil
+}
+
+func (rs *RewardSubmissionsBaseModel) CleanupBlock(blockNumber uint64) error {
+	delete(rs.stateAccumulator, blockNumber)
 	return nil
 }
 
@@ -397,11 +402,6 @@ func (rs *RewardSubmissionsBaseModel) CommitFinalState(blockNumber uint64) error
 			}
 		}
 	}
-	return nil
-}
-
-func (rs *RewardSubmissionsBaseModel) ClearAccumulatedState(blockNumber uint64) error {
-	delete(rs.stateAccumulator, blockNumber)
 	return nil
 }
 

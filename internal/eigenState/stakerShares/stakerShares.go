@@ -472,8 +472,13 @@ func (ss *StakerSharesBaseModel) GetInterestingLogMap() map[string][]string {
 	}
 }
 
-func (ss *StakerSharesBaseModel) InitBlockProcessing(blockNumber uint64) error {
+func (ss *StakerSharesBaseModel) InitBlock(blockNumber uint64) error {
 	ss.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
+	return nil
+}
+
+func (ss *StakerSharesBaseModel) CleanupBlock(blockNumber uint64) error {
+	delete(ss.stateAccumulator, blockNumber)
 	return nil
 }
 
@@ -605,11 +610,6 @@ func (ss *StakerSharesBaseModel) CommitFinalState(blockNumber uint64) error {
 		}
 	}
 
-	return nil
-}
-
-func (ss *StakerSharesBaseModel) ClearAccumulatedState(blockNumber uint64) error {
-	delete(ss.stateAccumulator, blockNumber)
 	return nil
 }
 

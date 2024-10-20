@@ -198,8 +198,13 @@ func (osm *OperatorSharesBaseModel) GetInterestingLogMap() map[string][]string {
 	}
 }
 
-func (osm *OperatorSharesBaseModel) InitBlockProcessing(blockNumber uint64) error {
+func (osm *OperatorSharesBaseModel) InitBlock(blockNumber uint64) error {
 	osm.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
+	return nil
+}
+
+func (osm *OperatorSharesBaseModel) CleanupBlock(blockNumber uint64) error {
+	delete(osm.stateAccumulator, blockNumber)
 	return nil
 }
 
@@ -335,11 +340,6 @@ func (osm *OperatorSharesBaseModel) CommitFinalState(blockNumber uint64) error {
 		}
 	}
 
-	return nil
-}
-
-func (osm *OperatorSharesBaseModel) ClearAccumulatedState(blockNumber uint64) error {
-	delete(osm.stateAccumulator, blockNumber)
 	return nil
 }
 

@@ -86,7 +86,7 @@ func Test_StakerSharesState(t *testing.T) {
 		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
-		err = model.InitBlockProcessing(blockNumber)
+		err = model.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		change, err := model.HandleStateChange(&log)
@@ -124,7 +124,7 @@ func Test_StakerSharesState(t *testing.T) {
 		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
-		err = model.InitBlockProcessing(blockNumber)
+		err = model.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		change, err := model.HandleStateChange(&log)
@@ -161,7 +161,7 @@ func Test_StakerSharesState(t *testing.T) {
 		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
-		err = model.InitBlockProcessing(blockNumber)
+		err = model.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		change, err := model.HandleStateChange(&log)
@@ -198,7 +198,7 @@ func Test_StakerSharesState(t *testing.T) {
 		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
-		err = model.InitBlockProcessing(blockNumber)
+		err = model.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		change, err := model.HandleStateChange(&log)
@@ -296,7 +296,7 @@ func Test_StakerSharesState(t *testing.T) {
 		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
-		err = model.InitBlockProcessing(blockNumber)
+		err = model.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		change, err := model.HandleStateChange(&log)
@@ -374,7 +374,7 @@ func Test_StakerSharesState(t *testing.T) {
 		}
 
 		// init processing for the M1 withdrawal
-		err = model.InitBlockProcessing(originBlockNumber)
+		err = model.InitBlock(originBlockNumber)
 		assert.Nil(t, err)
 
 		change, err := model.HandleStateChange(&shareWithdrawalQueued)
@@ -437,7 +437,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		// setup M2 migration
 		blockNumber := uint64(102)
-		err = model.InitBlockProcessing(blockNumber)
+		err = model.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		// M2 WithdrawalQueued comes before the M2 WithdrawalMigrated event

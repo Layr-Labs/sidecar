@@ -69,7 +69,7 @@ func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog) er
 func (e *EigenStateManager) InitProcessingForBlock(blockNumber uint64) error {
 	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
-		err := state.InitBlockProcessing(blockNumber)
+		err := state.InitBlock(blockNumber)
 		if err != nil {
 			return err
 		}
@@ -92,7 +92,7 @@ func (e *EigenStateManager) CommitFinalState(blockNumber uint64) error {
 func (e *EigenStateManager) CleanupBlock(blockNumber uint64) error {
 	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
-		err := state.ClearAccumulatedState(blockNumber)
+		err := state.CleanupBlock(blockNumber)
 		if err != nil {
 			return err
 		}

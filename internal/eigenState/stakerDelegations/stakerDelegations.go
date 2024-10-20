@@ -184,10 +184,17 @@ func (s *StakerDelegationsBaseModel) GetInterestingLogMap() map[string][]string 
 	}
 }
 
-// InitBlockProcessing initialize state accumulator for the block.
-func (s *StakerDelegationsBaseModel) InitBlockProcessing(blockNumber uint64) error {
+// InitBlock initialize state accumulator for the block.
+func (s *StakerDelegationsBaseModel) InitBlock(blockNumber uint64) error {
 	s.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	s.deltaAccumulator[blockNumber] = make([]*StakerDelegationChange, 0)
+	return nil
+}
+
+// CleanupBlock clears the accumulated state for the given block number to free up memory.
+func (s *StakerDelegationsBaseModel) CleanupBlock(blockNumber uint64) error {
+	delete(s.stateAccumulator, blockNumber)
+	delete(s.deltaAccumulator, blockNumber)
 	return nil
 }
 
@@ -317,13 +324,6 @@ func (s *StakerDelegationsBaseModel) CommitFinalState(blockNumber uint64) error 
 	if err = s.writeDeltaRecordsToDeltaTable(blockNumber); err != nil {
 		return err
 	}
-	return nil
-}
-
-// ClearAccumulatedState clears the accumulated state for the given block number to free up memory.
-func (s *StakerDelegationsBaseModel) ClearAccumulatedState(blockNumber uint64) error {
-	delete(s.stateAccumulator, blockNumber)
-	delete(s.deltaAccumulator, blockNumber)
 	return nil
 }
 

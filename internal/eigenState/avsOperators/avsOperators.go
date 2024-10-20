@@ -202,9 +202,15 @@ func (a *AvsOperatorsBaseModel) GetInterestingLogMap() map[string][]string {
 	}
 }
 
-func (a *AvsOperatorsBaseModel) InitBlockProcessing(blockNumber uint64) error {
+func (a *AvsOperatorsBaseModel) InitBlock(blockNumber uint64) error {
 	a.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	a.deltaAccumulator[blockNumber] = make([]*AvsOperatorStateChange, 0)
+	return nil
+}
+
+func (a *AvsOperatorsBaseModel) CleanupBlock(blockNumber uint64) error {
+	delete(a.stateAccumulator, blockNumber)
+	delete(a.deltaAccumulator, blockNumber)
 	return nil
 }
 
@@ -284,7 +290,7 @@ func (a *AvsOperatorsBaseModel) prepareState(blockNumber uint64) ([]RegisteredAv
 func (a *AvsOperatorsBaseModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) error {
 	records, ok := a.deltaAccumulator[blockNumber]
 	if !ok {
-		msg := "Delta accumulator was not initialized"
+		msg := "delta accumulator was not initialized"
 		a.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
 		return errors.New(msg)
 	}
@@ -335,12 +341,6 @@ func (a *AvsOperatorsBaseModel) CommitFinalState(blockNumber uint64) error {
 		return err
 	}
 
-	return nil
-}
-
-func (a *AvsOperatorsBaseModel) ClearAccumulatedState(blockNumber uint64) error {
-	delete(a.stateAccumulator, blockNumber)
-	delete(a.deltaAccumulator, blockNumber)
 	return nil
 }
 

@@ -99,7 +99,7 @@ func Test_RewardSubmissions(t *testing.T) {
 				OutputData:       `{"rangePayment": {"token": "0x94373a4919b3240d86ea41593d5eba789fef3848", "amount": 50000000000000000000, "duration": 2419200, "startTimestamp": 1712188800, "strategiesAndMultipliers": [{"strategy": "0x3c28437e610fb099cc3d6de4d9c707dfacd308ae", "multiplier": 1000000000000000000}, {"strategy": "0x3cb1fd19cfb178c1098f2fc1e11090a0642b2314", "multiplier": 2000000000000000000}, {"strategy": "0x5c8b55722f421556a2aafb7a3ea63d4c3e514312", "multiplier": 3000000000000000000}, {"strategy": "0x6dc6ce589f852f96ac86cb160ab0b15b9f56dedd", "multiplier": 4500000000000000000}, {"strategy": "0x87f6c7d24b109919eb38295e3f8298425e6331d9", "multiplier": 500000000000000000}, {"strategy": "0xd523267698c81a372191136e477fdebfa33d9fb4", "multiplier": 8000000000000000000}, {"strategy": "0xdccf401fd121d8c542e96bc1d0078884422afad2", "multiplier": 5000000000000000000}]}}`,
 			}
 
-			err = model.InitBlockProcessing(blockNumber)
+			err = model.InitBlock(blockNumber)
 			assert.Nil(t, err)
 
 			isInteresting := model.IsInterestingLog(log)
@@ -177,7 +177,7 @@ func Test_RewardSubmissions(t *testing.T) {
 				OutputData:       `{"rangePayment": {"token": "0x3f1c547b21f65e10480de3ad8e19faac46c95034", "amount": 11000000000000000000, "duration": 2419200, "startTimestamp": 1713398400, "strategiesAndMultipliers": [{"strategy": "0x5c8b55722f421556a2aafb7a3ea63d4c3e514312", "multiplier": 1000000000000000000}, {"strategy": "0x7fa77c321bf66e42eabc9b10129304f7f90c5585", "multiplier": 2000000000000000000}, {"strategy": "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", "multiplier": 3000000000000000000}, {"strategy": "0xd523267698c81a372191136e477fdebfa33d9fb4", "multiplier": 4500000000000000000}]}}`,
 			}
 
-			err = model.InitBlockProcessing(blockNumber)
+			err = model.InitBlock(blockNumber)
 			assert.Nil(t, err)
 
 			isInteresting := model.IsInterestingLog(log)
@@ -252,7 +252,7 @@ func Test_RewardSubmissions(t *testing.T) {
 				OutputData:       `{"rewardsSubmission": {"token": "0x0ddd9dc88e638aef6a8e42d0c98aaa6a48a98d24", "amount": 10000000000000000000000, "duration": 2419200, "startTimestamp": 1725494400, "strategiesAndMultipliers": [{"strategy": "0x5074dfd18e9498d9e006fb8d4f3fecdc9af90a2c", "multiplier": 1000000000000000000}]}}`,
 			}
 
-			err = model.InitBlockProcessing(blockNumber)
+			err = model.InitBlock(blockNumber)
 			assert.Nil(t, err)
 
 			isInteresting := model.IsInterestingLog(log)
@@ -324,7 +324,7 @@ func Test_RewardSubmissions(t *testing.T) {
 				OutputData:       `{"rewardsSubmission": {"token": "0x554c393923c753d146aa34608523ad7946b61662", "amount": 10000000000000000000, "duration": 1814400, "startTimestamp": 1717632000, "strategiesAndMultipliers": [{"strategy": "0xd523267698c81a372191136e477fdebfa33d9fb4", "multiplier": 1000000000000000000}, {"strategy": "0xdccf401fd121d8c542e96bc1d0078884422afad2", "multiplier": 2000000000000000000}]}}`,
 			}
 
-			err = model.InitBlockProcessing(blockNumber)
+			err = model.InitBlock(blockNumber)
 			assert.Nil(t, err)
 
 			isInteresting := model.IsInterestingLog(log)
@@ -397,7 +397,7 @@ func Test_RewardSubmissions(t *testing.T) {
 				OutputData:       `{"rewardsSubmission": {"token": "0x3b78576f7d6837500ba3de27a60c7f594934027e", "amount": 321855128516280769230770, "duration": 604800, "startTimestamp": 1725494400, "strategiesAndMultipliers": [{"strategy": "0x43252609bff8a13dfe5e057097f2f45a24387a84", "multiplier": 1000000000000000000}]}}`,
 			}
 
-			err = model.InitBlockProcessing(blockNumber)
+			err = model.InitBlock(blockNumber)
 			assert.Nil(t, err)
 
 			isInteresting := model.IsInterestingLog(log)
@@ -482,7 +482,7 @@ func Test_RewardSubmissions(t *testing.T) {
 			OutputData:       `{"rangePayment": {"token": "0x94373a4919b3240d86ea41593d5eba789fef3848", "amount": 50000000000000000000, "duration": 2419200, "startTimestamp": 1712188800, "strategiesAndMultipliers": [{"strategy": "0x3c28437e610fb099cc3d6de4d9c707dfacd308ae", "multiplier": 1000000000000000000}, {"strategy": "0x3cb1fd19cfb178c1098f2fc1e11090a0642b2314", "multiplier": 2000000000000000000}, {"strategy": "0x5c8b55722f421556a2aafb7a3ea63d4c3e514312", "multiplier": 3000000000000000000}, {"strategy": "0x6dc6ce589f852f96ac86cb160ab0b15b9f56dedd", "multiplier": 4500000000000000000}, {"strategy": "0x87f6c7d24b109919eb38295e3f8298425e6331d9", "multiplier": 500000000000000000}, {"strategy": "0xd523267698c81a372191136e477fdebfa33d9fb4", "multiplier": 8000000000000000000}, {"strategy": "0xdccf401fd121d8c542e96bc1d0078884422afad2", "multiplier": 5000000000000000000}]}}`,
 		}
 
-		err = model.InitBlockProcessing(blockNumber)
+		err = model.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		isInteresting := model.IsInterestingLog(log)
@@ -530,7 +530,7 @@ func Test_RewardSubmissions(t *testing.T) {
 			OutputData:       `{"rangePayment": {"token": "0x3f1c547b21f65e10480de3ad8e19faac46c95034", "amount": 11000000000000000000, "duration": 2419200, "startTimestamp": 1713398400, "strategiesAndMultipliers": [{"strategy": "0x5c8b55722f421556a2aafb7a3ea63d4c3e514312", "multiplier": 1000000000000000000}, {"strategy": "0x7fa77c321bf66e42eabc9b10129304f7f90c5585", "multiplier": 2000000000000000000}, {"strategy": "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", "multiplier": 3000000000000000000}, {"strategy": "0xd523267698c81a372191136e477fdebfa33d9fb4", "multiplier": 4500000000000000000}]}}`,
 		}
 
-		err = model.InitBlockProcessing(blockNumber)
+		err = model.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		isInteresting = model.IsInterestingLog(log)
@@ -576,7 +576,7 @@ func Test_RewardSubmissions(t *testing.T) {
 			OutputData:       `{"rewardsSubmission": {"token": "0x0ddd9dc88e638aef6a8e42d0c98aaa6a48a98d24", "amount": 10000000000000000000000, "duration": 2419200, "startTimestamp": 1725494400, "strategiesAndMultipliers": [{"strategy": "0x5074dfd18e9498d9e006fb8d4f3fecdc9af90a2c", "multiplier": 1000000000000000000}]}}`,
 		}
 
-		err = model.InitBlockProcessing(blockNumber)
+		err = model.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		isInteresting = model.IsInterestingLog(log)
@@ -622,7 +622,7 @@ func Test_RewardSubmissions(t *testing.T) {
 			OutputData:       `{"rewardsSubmission": {"token": "0x554c393923c753d146aa34608523ad7946b61662", "amount": 10000000000000000000, "duration": 1814400, "startTimestamp": 1717632000, "strategiesAndMultipliers": [{"strategy": "0xd523267698c81a372191136e477fdebfa33d9fb4", "multiplier": 1000000000000000000}, {"strategy": "0xdccf401fd121d8c542e96bc1d0078884422afad2", "multiplier": 2000000000000000000}]}}`,
 		}
 
-		err = model.InitBlockProcessing(blockNumber)
+		err = model.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		isInteresting = model.IsInterestingLog(log)
@@ -668,7 +668,7 @@ func Test_RewardSubmissions(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = model.InitBlockProcessing(blockNumber)
+		err = model.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		handleLog := func(log *storage.TransactionLog) {
