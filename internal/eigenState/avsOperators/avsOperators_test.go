@@ -45,17 +45,17 @@ func teardown(model *eigenStateModel.EigenStateModel) {
 	model.DB().Exec("delete from avs_operator_state_changes")
 }
 
-func getInsertedDeltaRecordsForBlock(blockNumber uint64, model *eigenStateModel.EigenStateModel) ([]*AvsOperatorStateChange, error) {
-	results := []*AvsOperatorStateChange{}
+func getInsertedDeltaRecordsForBlock(blockNumber uint64, model *eigenStateModel.EigenStateModel) ([]*AvsOperatorRegistrationDelta, error) {
+	results := []*AvsOperatorRegistrationDelta{}
 
-	res := model.DB().Model(&AvsOperatorStateChange{}).Where("block_number = ?", blockNumber).Find(&results)
+	res := model.DB().Model(&AvsOperatorRegistrationDelta{}).Where("block_number = ?", blockNumber).Find(&results)
 	return results, res.Error
 }
 
-func getInsertedDeltaRecords(model *eigenStateModel.EigenStateModel) ([]*AvsOperatorStateChange, error) {
-	results := []*AvsOperatorStateChange{}
+func getInsertedDeltaRecords(model *eigenStateModel.EigenStateModel) ([]*AvsOperatorRegistrationDelta, error) {
+	results := []*AvsOperatorRegistrationDelta{}
 
-	res := model.DB().Model(&AvsOperatorStateChange{}).Order("block_number asc").Find(&results)
+	res := model.DB().Model(&AvsOperatorRegistrationDelta{}).Order("block_number asc").Find(&results)
 	return results, res.Error
 }
 
@@ -151,9 +151,9 @@ func Test_AvsOperatorState(t *testing.T) {
 		err = avsOperatorState.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
-		states := []RegisteredAvsOperators{}
+		states := []AvsOperatorRegistrationRecord{}
 		statesRes := avsOperatorState.DB().
-			Model(&RegisteredAvsOperators{}).
+			Model(&AvsOperatorRegistrationRecord{}).
 			Raw("select * from registered_avs_operators where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
 			Scan(&states)
 
@@ -222,9 +222,9 @@ func Test_AvsOperatorState(t *testing.T) {
 			err = avsOperatorState.CommitFinalState(log.BlockNumber)
 			assert.Nil(t, err)
 
-			states := []RegisteredAvsOperators{}
+			states := []AvsOperatorRegistrationRecord{}
 			statesRes := avsOperatorState.DB().
-				Model(&RegisteredAvsOperators{}).
+				Model(&AvsOperatorRegistrationRecord{}).
 				Raw("select * from registered_avs_operators where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
 				Scan(&states)
 

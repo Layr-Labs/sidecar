@@ -26,7 +26,7 @@ import (
 )
 
 // OperatorShares represents the state of an operator's shares in a strategy at a given block number.
-type OperatorShares struct {
+type OperatorSharesRecord struct {
 	Operator    string
 	Strategy    string
 	Shares      string
@@ -34,20 +34,11 @@ type OperatorShares struct {
 	CreatedAt   time.Time
 }
 
-// AccumulatedStateChange represents the accumulated state change for an operator's shares in a strategy at a given block number.
-type AccumulatedStateChange struct {
+type OperatorSharesState struct {
 	Operator    string
 	Strategy    string
 	Shares      *big.Int
 	BlockNumber uint64
-}
-
-type OperatorSharesDiff struct {
-	Operator    string
-	Strategy    string
-	Shares      *big.Int
-	BlockNumber uint64
-	IsNew       bool
 }
 
 func NewSlotID(operator string, strategy string) types.SlotID {
@@ -61,7 +52,7 @@ type OperatorSharesBaseModel struct {
 	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
+	stateAccumulator map[uint64]map[types.SlotID]*OperatorSharesState
 }
 
 func NewOperatorSharesModel(
@@ -75,7 +66,7 @@ func NewOperatorSharesModel(
 		db:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
+		stateAccumulator: make(map[uint64]map[types.SlotID]*OperatorSharesState),
 	}
 	m := eigenStateModel.NewEigenStateModel(base)
 
@@ -160,7 +151,7 @@ func (osm *OperatorSharesBaseModel) GetStateTransitions() (types.StateTransition
 		slotID := NewSlotID(operator, outputData.Strategy)
 		record, ok := osm.stateAccumulator[log.BlockNumber][slotID]
 		if !ok {
-			record = &AccumulatedStateChange{
+			record = &OperatorSharesState{
 				Operator:    operator,
 				Strategy:    outputData.Strategy,
 				Shares:      shares,
@@ -198,7 +189,7 @@ func (osm *OperatorSharesBaseModel) GetInterestingLogMap() map[string][]string {
 }
 
 func (osm *OperatorSharesBaseModel) InitBlock(blockNumber uint64) error {
-	osm.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
+	osm.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorSharesState)
 	return nil
 }
 
@@ -208,8 +199,8 @@ func (osm *OperatorSharesBaseModel) CleanupBlock(blockNumber uint64) error {
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (osm *OperatorSharesBaseModel) prepareState(blockNumber uint64) ([]*OperatorSharesDiff, error) {
-	preparedState := make([]*OperatorSharesDiff, 0)
+func (osm *OperatorSharesBaseModel) prepareState(blockNumber uint64) ([]*OperatorSharesState, error) {
+	preparedState := make([]*OperatorSharesState, 0)
 
 	accumulatedState, ok := osm.stateAccumulator[blockNumber]
 	if !ok {
@@ -244,8 +235,8 @@ func (osm *OperatorSharesBaseModel) prepareState(blockNumber uint64) ([]*Operato
 		from ranked_rows as lb
 		where rn = 1
 	`
-	existingRecords := make([]*OperatorShares, 0)
-	res := osm.db.Model(&OperatorShares{}).
+	existingRecords := make([]*OperatorSharesRecord, 0)
+	res := osm.db.Model(&OperatorSharesRecord{}).
 		Raw(query,
 			sql.Named("slotIds", slotIds),
 		).
@@ -257,7 +248,7 @@ func (osm *OperatorSharesBaseModel) prepareState(blockNumber uint64) ([]*Operato
 	}
 
 	// Map the existing records to a map for easier lookup
-	mappedRecords := make(map[types.SlotID]*OperatorShares)
+	mappedRecords := make(map[types.SlotID]*OperatorSharesRecord)
 	for _, record := range existingRecords {
 		slotID := NewSlotID(record.Operator, record.Strategy)
 		mappedRecords[slotID] = record
@@ -266,12 +257,11 @@ func (osm *OperatorSharesBaseModel) prepareState(blockNumber uint64) ([]*Operato
 	// Loop over our new state changes.
 	// If the record exists in the previous block, add the shares to the existing shares
 	for slotID, newState := range accumulatedState {
-		prepared := &OperatorSharesDiff{
+		prepared := &OperatorSharesState{
 			Operator:    newState.Operator,
 			Strategy:    newState.Strategy,
 			Shares:      newState.Shares,
 			BlockNumber: blockNumber,
-			IsNew:       false,
 		}
 
 		if existingRecord, ok := mappedRecords[slotID]; ok {
@@ -286,9 +276,6 @@ func (osm *OperatorSharesBaseModel) prepareState(blockNumber uint64) ([]*Operato
 				continue
 			}
 			prepared.Shares = existingShares.Add(existingShares, newState.Shares)
-		} else {
-			// SlotID was not found in the previous block, so this is a new record
-			prepared.IsNew = true
 		}
 
 		preparedState = append(preparedState, prepared)
@@ -302,8 +289,8 @@ func (osm *OperatorSharesBaseModel) CommitFinalState(blockNumber uint64) error {
 		return err
 	}
 
-	recordToInsert := pkgUtils.Map(records, func(r *OperatorSharesDiff, i uint64) *OperatorShares {
-		return &OperatorShares{
+	recordToInsert := pkgUtils.Map(records, func(r *OperatorSharesState, i uint64) *OperatorSharesRecord {
+		return &OperatorSharesRecord{
 			Operator:    r.Operator,
 			Strategy:    r.Strategy,
 			Shares:      r.Shares.String(),
@@ -312,7 +299,7 @@ func (osm *OperatorSharesBaseModel) CommitFinalState(blockNumber uint64) error {
 	})
 
 	if len(recordToInsert) > 0 {
-		res := osm.db.Model(&OperatorShares{}).Clauses(clause.Returning{}).Create(&recordToInsert)
+		res := osm.db.Model(&OperatorSharesRecord{}).Clauses(clause.Returning{}).Create(&recordToInsert)
 		if res.Error != nil {
 			osm.logger.Sugar().Errorw("Failed to create new operator_shares records", zap.Error(res.Error))
 			return res.Error

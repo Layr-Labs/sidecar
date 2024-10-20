@@ -87,7 +87,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
 
-		typedChange := res.(*AccumulatedStateChange)
+		typedChange := res.(*StakerDelegationDelta)
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Staker)
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Operator)
 
@@ -123,16 +123,16 @@ func Test_DelegatedStakersState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, stateChange)
 
-		typedChange := stateChange.(*AccumulatedStateChange)
+		typedChange := stateChange.(*StakerDelegationDelta)
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Staker)
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Operator)
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
-		states := []DelegatedStakers{}
+		states := []StakerDelegationRecord{}
 		statesRes := model.DB().
-			Model(&DelegatedStakers{}).
+			Model(&StakerDelegationRecord{}).
 			Raw("select * from delegated_stakers where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
 			Scan(&states)
 
@@ -199,9 +199,9 @@ func Test_DelegatedStakersState(t *testing.T) {
 			err = model.CommitFinalState(log.BlockNumber)
 			assert.Nil(t, err)
 
-			states := []DelegatedStakers{}
+			states := []StakerDelegationRecord{}
 			statesRes := model.DB().
-				Model(&DelegatedStakers{}).
+				Model(&StakerDelegationRecord{}).
 				Raw("select * from delegated_stakers where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
 				Scan(&states)
 

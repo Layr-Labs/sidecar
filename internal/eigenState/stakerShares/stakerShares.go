@@ -25,27 +25,18 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type StakerShares struct {
+type StakerSharesRecord struct {
 	Staker      string
 	Strategy    string
 	Shares      string
 	BlockNumber uint64
 	CreatedAt   time.Time
 }
-
-type AccumulatedStateChange struct {
+type StakerSharesDelta struct {
 	Staker      string
 	Strategy    string
 	Shares      *big.Int
 	BlockNumber uint64
-}
-
-type StakerSharesDiff struct {
-	Staker      string
-	Strategy    string
-	Shares      *big.Int
-	BlockNumber uint64
-	IsNew       bool
 }
 
 func NewSlotID(staker string, strategy string) types.SlotID {
@@ -53,13 +44,11 @@ func NewSlotID(staker string, strategy string) types.SlotID {
 }
 
 type StakerSharesBaseModel struct {
-	StateTransitions types.StateTransitions
-	db               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	db           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
-	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
+	deltaAccumulator map[uint64][]*StakerSharesDelta
 }
 
 var _ types.IBaseEigenStateModel = (*StakerSharesBaseModel)(nil)
@@ -74,7 +63,7 @@ func NewStakerSharesModel(
 		db:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
+		deltaAccumulator: make(map[uint64][]*StakerSharesDelta),
 	}
 	m := eigenStateModel.NewEigenStateModel(base)
 
@@ -128,7 +117,7 @@ func parseLogOutputForDepositEvent(outputDataStr string) (*depositOutputData, er
 	return outputData, err
 }
 
-func (ss *StakerSharesBaseModel) handleStakerDepositEvent(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
+func (ss *StakerSharesBaseModel) handleStakerDepositEvent(log *storage.TransactionLog) (*StakerSharesDelta, error) {
 	outputData, err := parseLogOutputForDepositEvent(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -151,7 +140,7 @@ func (ss *StakerSharesBaseModel) handleStakerDepositEvent(log *storage.Transacti
 		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Shares)
 	}
 
-	return &AccumulatedStateChange{
+	return &StakerSharesDelta{
 		Staker:      stakerAddress,
 		Strategy:    outputData.Strategy,
 		Shares:      shares,
@@ -175,7 +164,7 @@ func parseLogOutputForPodSharesUpdatedEvent(outputDataStr string) (*podSharesUpd
 	return outputData, err
 }
 
-func (ss *StakerSharesBaseModel) handlePodSharesUpdatedEvent(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
+func (ss *StakerSharesBaseModel) handlePodSharesUpdatedEvent(log *storage.TransactionLog) (*StakerSharesDelta, error) {
 	arguments, err := utils.ParseLogArguments(ss.logger, log)
 	if err != nil {
 		return nil, err
@@ -194,7 +183,7 @@ func (ss *StakerSharesBaseModel) handlePodSharesUpdatedEvent(log *storage.Transa
 		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", sharesDelta)
 	}
 
-	return &AccumulatedStateChange{
+	return &StakerSharesDelta{
 		Staker:      staker,
 		Strategy:    "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0",
 		Shares:      sharesDelta,
@@ -202,7 +191,7 @@ func (ss *StakerSharesBaseModel) handlePodSharesUpdatedEvent(log *storage.Transa
 	}, nil
 }
 
-func (ss *StakerSharesBaseModel) handleM1StakerWithdrawals(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
+func (ss *StakerSharesBaseModel) handleM1StakerWithdrawals(log *storage.TransactionLog) (*StakerSharesDelta, error) {
 	outputData, err := parseLogOutputForDepositEvent(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -225,7 +214,7 @@ func (ss *StakerSharesBaseModel) handleM1StakerWithdrawals(log *storage.Transact
 		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Shares)
 	}
 
-	return &AccumulatedStateChange{
+	return &StakerSharesDelta{
 		Staker:      stakerAddress,
 		Strategy:    outputData.Strategy,
 		Shares:      shares.Mul(shares, big.NewInt(-1)),
@@ -256,7 +245,7 @@ func parseLogOutputForM2MigrationEvent(outputDataStr string) (*m2MigrationOutput
 // Since we have already counted M1 withdrawals due to processing events block-by-block, we need to handle not double subtracting.
 // Assuming that M2 WithdrawalQueued events always result in a subtraction, if we encounter a migration event, we need
 // to add the amount back to the shares to get the correct final state.
-func (ss *StakerSharesBaseModel) handleMigratedM2StakerWithdrawals(log *storage.TransactionLog) ([]*AccumulatedStateChange, error) {
+func (ss *StakerSharesBaseModel) handleMigratedM2StakerWithdrawals(log *storage.TransactionLog) ([]*StakerSharesDelta, error) {
 	outputData, err := parseLogOutputForM2MigrationEvent(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -304,7 +293,7 @@ func (ss *StakerSharesBaseModel) handleMigratedM2StakerWithdrawals(log *storage.
 		return nil, res.Error
 	}
 
-	changes := make([]*AccumulatedStateChange, 0)
+	changes := make([]*StakerSharesDelta, 0)
 	for _, l := range logs {
 		c, err := ss.handleStakerDepositEvent(&l)
 		if err != nil {
@@ -343,20 +332,20 @@ func parseLogOutputForM2WithdrawalEvent(outputDataStr string) (*m2WithdrawalOutp
 }
 
 // handleM2QueuedWithdrawal handles the WithdrawalQueued event from the DelegationManager contract for M2.
-func (ss *StakerSharesBaseModel) handleM2QueuedWithdrawal(log *storage.TransactionLog) ([]*AccumulatedStateChange, error) {
+func (ss *StakerSharesBaseModel) handleM2QueuedWithdrawal(log *storage.TransactionLog) ([]*StakerSharesDelta, error) {
 	outputData, err := parseLogOutputForM2WithdrawalEvent(log.OutputData)
 	if err != nil {
 		return nil, err
 	}
 
-	records := make([]*AccumulatedStateChange, 0)
+	records := make([]*StakerSharesDelta, 0)
 
 	for i, strategy := range outputData.Withdrawal.Strategies {
 		shares, success := numbers.NewBig257().SetString(outputData.Withdrawal.Shares[i].String(), 10)
 		if !success {
 			return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Withdrawal.Shares[i])
 		}
-		r := &AccumulatedStateChange{
+		r := &StakerSharesDelta{
 			Staker:      outputData.Withdrawal.Staker,
 			Strategy:    strategy,
 			Shares:      shares.Mul(shares, big.NewInt(-1)),
@@ -367,15 +356,11 @@ func (ss *StakerSharesBaseModel) handleM2QueuedWithdrawal(log *storage.Transacti
 	return records, nil
 }
 
-type AccumulatedStateChanges struct {
-	Changes []*AccumulatedStateChange
-}
-
 func (ss *StakerSharesBaseModel) GetStateTransitions() (types.StateTransitions, []uint64) {
 	stateChanges := make(types.StateTransitions)
 
 	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
-		var parsedRecords []*AccumulatedStateChange
+		var parsedRecords []*StakerSharesDelta
 		var err error
 
 		contractAddresses := ss.globalConfig.GetContractsMapForChain()
@@ -416,30 +401,8 @@ func (ss *StakerSharesBaseModel) GetStateTransitions() (types.StateTransitions, 
 		if err != nil {
 			return nil, err
 		}
-		if parsedRecords == nil {
-			return nil, nil
-		}
 
-		// Sanity check to make sure we've got an initialized accumulator map for the block
-		if _, ok := ss.stateAccumulator[log.BlockNumber]; !ok {
-			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
-		}
-
-		for _, parsedRecord := range parsedRecords {
-			if parsedRecord == nil {
-				continue
-			}
-			slotId := NewSlotID(parsedRecord.Staker, parsedRecord.Strategy)
-			record, ok := ss.stateAccumulator[log.BlockNumber][slotId]
-			if !ok {
-				record = parsedRecord
-				ss.stateAccumulator[log.BlockNumber][slotId] = record
-			} else {
-				record.Shares = record.Shares.Add(record.Shares, parsedRecord.Shares)
-			}
-		}
-
-		return &AccumulatedStateChanges{Changes: parsedRecords}, nil
+		return parsedRecords, nil
 	}
 
 	// Create an ordered list of block numbers
@@ -473,20 +436,20 @@ func (ss *StakerSharesBaseModel) GetInterestingLogMap() map[string][]string {
 }
 
 func (ss *StakerSharesBaseModel) InitBlock(blockNumber uint64) error {
-	ss.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
+	ss.deltaAccumulator[blockNumber] = make([]*StakerSharesDelta, 0)
 	return nil
 }
 
 func (ss *StakerSharesBaseModel) CleanupBlock(blockNumber uint64) error {
-	delete(ss.stateAccumulator, blockNumber)
+	delete(ss.deltaAccumulator, blockNumber)
 	return nil
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (ss *StakerSharesBaseModel) prepareState(blockNumber uint64) ([]*StakerSharesDiff, error) {
-	preparedState := make([]*StakerSharesDiff, 0)
+func (ss *StakerSharesBaseModel) prepareState(blockNumber uint64) ([]*StakerSharesDelta, error) {
+	preparedState := make([]*StakerSharesDelta, 0)
 
-	accumulatedState, ok := ss.stateAccumulator[blockNumber]
+	accumulatedDeltas, ok := ss.deltaAccumulator[blockNumber]
 	if !ok {
 		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
 		ss.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
@@ -494,8 +457,8 @@ func (ss *StakerSharesBaseModel) prepareState(blockNumber uint64) ([]*StakerShar
 	}
 
 	slotIds := make([]types.SlotID, 0)
-	for slotId := range accumulatedState {
-		slotIds = append(slotIds, slotId)
+	for _, delta := range accumulatedDeltas {
+		slotIds = append(slotIds, NewSlotID(delta.Staker, delta.Strategy))
 	}
 
 	// Find only the records from the previous block, that are modified in this block
@@ -519,8 +482,8 @@ func (ss *StakerSharesBaseModel) prepareState(blockNumber uint64) ([]*StakerShar
 		from ranked_rows as rr
 		where rn = 1
 	`
-	existingRecords := make([]StakerShares, 0)
-	res := ss.db.Model(&StakerShares{}).
+	existingRecords := make([]StakerSharesRecord, 0)
+	res := ss.db.Model(&StakerSharesRecord{}).
 		Raw(query,
 			sql.Named("slotIds", slotIds),
 		).
@@ -532,7 +495,7 @@ func (ss *StakerSharesBaseModel) prepareState(blockNumber uint64) ([]*StakerShar
 	}
 
 	// Map the existing records to a map for easier lookup
-	mappedRecords := make(map[types.SlotID]StakerShares)
+	mappedRecords := make(map[types.SlotID]StakerSharesRecord)
 	for _, record := range existingRecords {
 		slotId := NewSlotID(record.Staker, record.Strategy)
 		mappedRecords[slotId] = record
@@ -540,15 +503,15 @@ func (ss *StakerSharesBaseModel) prepareState(blockNumber uint64) ([]*StakerShar
 
 	// Loop over our new state changes.
 	// If the record exists in the previous block, add the shares to the existing shares
-	for slotId, newState := range accumulatedState {
-		prepared := &StakerSharesDiff{
-			Staker:      newState.Staker,
-			Strategy:    newState.Strategy,
-			Shares:      newState.Shares,
+	for i, delta := range accumulatedDeltas {
+		prepared := &StakerSharesDelta{
+			Staker:      delta.Staker,
+			Strategy:    delta.Strategy,
+			Shares:      delta.Shares,
 			BlockNumber: blockNumber,
 		}
 
-		if existingRecord, ok := mappedRecords[slotId]; ok {
+		if existingRecord, ok := mappedRecords[slotIds[i]]; ok {
 			existingShares, success := numbers.NewBig257().SetString(existingRecord.Shares, 10)
 			if !success {
 				ss.logger.Sugar().Errorw("Failed to convert existing shares to big.Int",
@@ -559,7 +522,7 @@ func (ss *StakerSharesBaseModel) prepareState(blockNumber uint64) ([]*StakerShar
 				)
 				continue
 			}
-			prepared.Shares = existingShares.Add(existingShares, newState.Shares)
+			prepared.Shares = existingShares.Add(existingShares, delta.Shares)
 		}
 
 		preparedState = append(preparedState, prepared)
@@ -573,8 +536,8 @@ func (ss *StakerSharesBaseModel) CommitFinalState(blockNumber uint64) error {
 		return err
 	}
 
-	recordsToInsert := pkgUtils.Map(records, func(r *StakerSharesDiff, i uint64) *StakerShares {
-		return &StakerShares{
+	recordsToInsert := pkgUtils.Map(records, func(r *StakerSharesDelta, i uint64) *StakerSharesRecord {
+		return &StakerSharesRecord{
 			Staker:      r.Staker,
 			Strategy:    r.Strategy,
 			Shares:      r.Shares.String(),
@@ -583,7 +546,7 @@ func (ss *StakerSharesBaseModel) CommitFinalState(blockNumber uint64) error {
 	})
 
 	if len(recordsToInsert) > 0 {
-		res := ss.db.Model(&StakerShares{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
+		res := ss.db.Model(&StakerSharesRecord{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
 		if res.Error != nil {
 			ss.logger.Sugar().Errorw("Failed to create new operator_shares records", zap.Error(res.Error))
 			return res.Error

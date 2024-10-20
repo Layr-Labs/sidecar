@@ -21,23 +21,15 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// DelegatedStakers State model for staker delegations at block_number.
-type DelegatedStakers struct {
+// StakerDelegationRecord record for staker delegations at block_number.
+type StakerDelegationRecord struct {
 	Staker      string
 	Operator    string
 	BlockNumber uint64
 	CreatedAt   time.Time
 }
 
-// AccumulatedStateChange represents the accumulated state change for a staker/operator pair.
-type AccumulatedStateChange struct {
-	Staker      string
-	Operator    string
-	BlockNumber uint64
-	Delegated   bool
-}
-
-type StakerDelegationChange struct {
+type StakerDelegationDelta struct {
 	Staker      string
 	Operator    string
 	BlockNumber uint64
@@ -54,13 +46,10 @@ type StakerDelegationsBaseModel struct {
 	logger       *zap.Logger
 	globalConfig *config.Config
 
-	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
-
-	deltaAccumulator map[uint64][]*StakerDelegationChange
+	deltaAccumulator map[uint64][]*StakerDelegationDelta
 }
 
-type DelegatedStakersDiff struct {
+type StakerDelegationStateDiff struct {
 	Staker      string
 	Operator    string
 	Delegated   bool
@@ -74,12 +63,11 @@ func NewStakerDelegationsModel(
 	globalConfig *config.Config,
 ) (*eigenStateModel.EigenStateModel, error) {
 	base := &StakerDelegationsBaseModel{
-		db:               grm,
-		logger:           logger,
-		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
+		db:           grm,
+		logger:       logger,
+		globalConfig: globalConfig,
 
-		deltaAccumulator: make(map[uint64][]*StakerDelegationChange),
+		deltaAccumulator: make(map[uint64][]*StakerDelegationDelta),
 	}
 	m := eigenStateModel.NewEigenStateModel(base)
 
@@ -116,48 +104,19 @@ func (s *StakerDelegationsBaseModel) GetStateTransitions() (types.StateTransitio
 			return nil, err
 		}
 
-		// Sanity check to make sure we've got an initialized accumulator map for the block
-		if _, ok := s.stateAccumulator[log.BlockNumber]; !ok {
-			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
-		}
-
 		staker := strings.ToLower(arguments[0].Value.(string))
 		operator := strings.ToLower(arguments[1].Value.(string))
 
-		slotID := NewSlotID(staker, operator)
-		record, ok := s.stateAccumulator[log.BlockNumber][slotID]
-		if !ok {
-			// if the record doesn't exist, create a new one
-			record = &AccumulatedStateChange{
-				Staker:      staker,
-				Operator:    operator,
-				BlockNumber: log.BlockNumber,
-			}
-			s.stateAccumulator[log.BlockNumber][slotID] = record
-		}
-		if log.EventName == "StakerUndelegated" {
-			if ok {
-				// In this situation, we've encountered a delegate and undelegate in the same block
-				// which functionally results in no state change at all so we want to remove the record
-				// from the accumulated state.
-				delete(s.stateAccumulator[log.BlockNumber], slotID)
-				return nil, nil //nolint:nilnil
-			}
-			record.Delegated = false
-		} else if log.EventName == "StakerDelegated" {
-			record.Delegated = true
-		}
-
-		// Store the change in the delta accumulator
-		s.deltaAccumulator[log.BlockNumber] = append(s.deltaAccumulator[log.BlockNumber], &StakerDelegationChange{
+		delta := &StakerDelegationDelta{
 			Staker:      staker,
 			Operator:    operator,
 			BlockNumber: log.BlockNumber,
-			Delegated:   record.Delegated,
+			Delegated:   log.EventName == "StakerDelegated", // the event name determines if the staker was delegated or undelegated
 			LogIndex:    log.LogIndex,
-		})
-
-		return record, nil
+		}
+		// Store the change in the delta accumulator
+		s.deltaAccumulator[log.BlockNumber] = append(s.deltaAccumulator[log.BlockNumber], delta)
+		return delta, nil
 	}
 
 	// Create an ordered list of block numbers
@@ -185,14 +144,12 @@ func (s *StakerDelegationsBaseModel) GetInterestingLogMap() map[string][]string 
 
 // InitBlock initialize state accumulator for the block.
 func (s *StakerDelegationsBaseModel) InitBlock(blockNumber uint64) error {
-	s.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
-	s.deltaAccumulator[blockNumber] = make([]*StakerDelegationChange, 0)
+	s.deltaAccumulator[blockNumber] = make([]*StakerDelegationDelta, 0)
 	return nil
 }
 
 // CleanupBlock clears the accumulated state for the given block number to free up memory.
 func (s *StakerDelegationsBaseModel) CleanupBlock(blockNumber uint64) error {
-	delete(s.stateAccumulator, blockNumber)
 	delete(s.deltaAccumulator, blockNumber)
 	return nil
 }
@@ -221,28 +178,37 @@ func (s *StakerDelegationsBaseModel) clonePreviousBlocksToNewBlock(blockNumber u
 
 // prepareState prepares the state for the current block by comparing the accumulated state changes.
 // It separates out the changes into inserts and deletes.
-func (s *StakerDelegationsBaseModel) prepareState(blockNumber uint64) ([]DelegatedStakers, []DelegatedStakers, error) {
-	accumulatedState, ok := s.stateAccumulator[blockNumber]
+func (s *StakerDelegationsBaseModel) prepareState(blockNumber uint64) ([]StakerDelegationDelta, []StakerDelegationDelta, error) {
+	accumulatedDeltas, ok := s.deltaAccumulator[blockNumber]
 	if !ok {
-		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
+		err := xerrors.Errorf("No accumulated deltas found for block %d", blockNumber)
 		s.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, nil, err
 	}
 
-	inserts := make([]DelegatedStakers, 0)
-	deletes := make([]DelegatedStakers, 0)
-	for _, stateChange := range accumulatedState {
-		record := DelegatedStakers{
-			Staker:      stateChange.Staker,
-			Operator:    stateChange.Operator,
-			BlockNumber: blockNumber,
-		}
-		if stateChange.Delegated {
-			inserts = append(inserts, record)
+	deltaMap := make(map[types.SlotID]StakerDelegationDelta)
+	for _, delta := range accumulatedDeltas {
+		slotID := NewSlotID(delta.Staker, delta.Operator)
+		prevDelta, ok := deltaMap[slotID]
+		// if we have a previous delta for this slot, and it was delegated, and the current delta is not delegated
+		// then we can remove the slot from the map
+		if ok && prevDelta.Delegated && !delta.Delegated {
+			delete(deltaMap, slotID)
 		} else {
-			deletes = append(deletes, record)
+			deltaMap[slotID] = *delta
 		}
 	}
+
+	inserts := make([]StakerDelegationDelta, 0)
+	deletes := make([]StakerDelegationDelta, 0)
+	for _, delta := range deltaMap {
+		if delta.Delegated {
+			inserts = append(inserts, delta)
+		} else {
+			deletes = append(deletes, delta)
+		}
+	}
+
 	return inserts, deletes, nil
 }
 
@@ -255,7 +221,7 @@ func (s *StakerDelegationsBaseModel) writeDeltaRecordsToDeltaTable(blockNumber u
 	}
 
 	if len(records) > 0 {
-		res := s.db.Model(&StakerDelegationChange{}).Clauses(clause.Returning{}).Create(&records)
+		res := s.db.Model(&StakerDelegationDelta{}).Clauses(clause.Returning{}).Create(&records)
 		if res.Error != nil {
 			s.logger.Sugar().Errorw("Failed to insert delta records", zap.Error(res.Error))
 			return res.Error
@@ -281,7 +247,7 @@ func (s *StakerDelegationsBaseModel) CommitFinalState(blockNumber uint64) error 
 
 	// TODO(seanmcgary): should probably wrap the operations of this function in a db transaction
 	for _, record := range recordsToDelete {
-		res := s.db.Delete(&DelegatedStakers{}, "staker = ? and operator = ? and block_number = ?", record.Staker, record.Operator, blockNumber)
+		res := s.db.Delete(&StakerDelegationRecord{}, "staker = ? and operator = ? and block_number = ?", record.Staker, record.Operator, blockNumber)
 		if res.Error != nil {
 			s.logger.Sugar().Errorw("Failed to delete staker delegation",
 				zap.Error(res.Error),
@@ -293,7 +259,7 @@ func (s *StakerDelegationsBaseModel) CommitFinalState(blockNumber uint64) error 
 		}
 	}
 	if len(recordsToInsert) > 0 {
-		res := s.db.Model(&DelegatedStakers{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
+		res := s.db.Model(&StakerDelegationRecord{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
 		if res.Error != nil {
 			s.logger.Sugar().Errorw("Failed to insert staker delegations", zap.Error(res.Error))
 			return res.Error
@@ -313,9 +279,9 @@ func (s *StakerDelegationsBaseModel) GetStateDiffs(blockNumber uint64) ([]types.
 	}
 
 	// Take all of the inserts and deletes and combine them into a single list
-	diffs := make([]DelegatedStakersDiff, 0)
+	diffs := make([]StakerDelegationStateDiff, 0)
 	for _, record := range inserts {
-		diffs = append(diffs, DelegatedStakersDiff{
+		diffs = append(diffs, StakerDelegationStateDiff{
 			Staker:      record.Staker,
 			Operator:    record.Operator,
 			Delegated:   true,
@@ -323,7 +289,7 @@ func (s *StakerDelegationsBaseModel) GetStateDiffs(blockNumber uint64) ([]types.
 		})
 	}
 	for _, record := range deletes {
-		diffs = append(diffs, DelegatedStakersDiff{
+		diffs = append(diffs, StakerDelegationStateDiff{
 			Staker:      record.Staker,
 			Operator:    record.Operator,
 			Delegated:   false,

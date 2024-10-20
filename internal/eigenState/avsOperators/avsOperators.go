@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	pkgUtils "github.com/Layr-Labs/go-sidecar/pkg/utils"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/eigenStateModel"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
@@ -22,30 +24,14 @@ import (
 )
 
 // Schema for registered_avs_operators block state table.
-type RegisteredAvsOperators struct {
+type AvsOperatorRegistrationRecord struct {
 	Operator    string
 	Avs         string
 	BlockNumber uint64
 	CreatedAt   time.Time
 }
 
-// AccumulatedStateChange represents the accumulated state change for a given block.
-type AccumulatedStateChange struct {
-	Avs         string
-	Operator    string
-	Registered  bool
-	BlockNumber uint64
-}
-
-// RegisteredAvsOperatorDiff represents the diff between the registered_avs_operators table and the accumulated state.
-type RegisteredAvsOperatorDiff struct {
-	Avs         string
-	Operator    string
-	BlockNumber uint64
-	Registered  bool
-}
-
-type AvsOperatorStateChange struct {
+type AvsOperatorRegistrationDelta struct {
 	Avs         string
 	Operator    string
 	Registered  bool
@@ -63,11 +49,8 @@ type AvsOperatorsBaseModel struct {
 	logger       *zap.Logger
 	globalConfig *config.Config
 
-	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
-
 	// Keep track of each distinct change, rather than accumulated change, to add to the delta table
-	deltaAccumulator map[uint64][]*AvsOperatorStateChange
+	deltaAccumulator map[uint64][]*AvsOperatorRegistrationDelta
 }
 
 // NewAvsOperators creates a new AvsOperatorsBaseModel.
@@ -82,9 +65,7 @@ func NewAvsOperatorsModel(
 		logger:       logger,
 		globalConfig: globalConfig,
 
-		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
-
-		deltaAccumulator: make(map[uint64][]*AvsOperatorStateChange),
+		deltaAccumulator: make(map[uint64][]*AvsOperatorRegistrationDelta),
 	}
 	m := eigenStateModel.NewEigenStateModel(base)
 
@@ -134,11 +115,6 @@ func (a *AvsOperatorsBaseModel) GetStateTransitions() (types.StateTransitions, [
 			return nil, err
 		}
 
-		// Sanity check to make sure we've got an initialized accumulator map for the block
-		if _, ok := a.stateAccumulator[log.BlockNumber]; !ok {
-			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
-		}
-
 		avs := strings.ToLower(arguments[0].Value.(string))
 		operator := strings.ToLower(arguments[1].Value.(string))
 
@@ -148,34 +124,16 @@ func (a *AvsOperatorsBaseModel) GetStateTransitions() (types.StateTransitions, [
 		}
 
 		// Store the change in the delta accumulator
-		a.deltaAccumulator[log.BlockNumber] = append(a.deltaAccumulator[log.BlockNumber], &AvsOperatorStateChange{
+		delta := &AvsOperatorRegistrationDelta{
 			Avs:         avs,
 			Operator:    operator,
 			Registered:  registered,
 			LogIndex:    log.LogIndex,
 			BlockNumber: log.BlockNumber,
-		})
-
-		slotID := NewSlotID(avs, operator)
-		record, ok := a.stateAccumulator[log.BlockNumber][slotID]
-		if !ok {
-			record = &AccumulatedStateChange{
-				Avs:         avs,
-				Operator:    operator,
-				BlockNumber: log.BlockNumber,
-			}
-			a.stateAccumulator[log.BlockNumber][slotID] = record
 		}
-		if !registered && ok {
-			// In this situation, we've encountered a register and unregister in the same block
-			// which functionally results in no state change at all so we want to remove the record
-			// from the accumulated state.
-			delete(a.stateAccumulator[log.BlockNumber], slotID)
-			return nil, nil
-		}
-		record.Registered = registered
+		a.deltaAccumulator[log.BlockNumber] = append(a.deltaAccumulator[log.BlockNumber], delta)
 
-		return record, nil
+		return delta, nil
 	}
 
 	// Create an ordered list of block numbers
@@ -202,13 +160,11 @@ func (a *AvsOperatorsBaseModel) GetInterestingLogMap() map[string][]string {
 }
 
 func (a *AvsOperatorsBaseModel) InitBlock(blockNumber uint64) error {
-	a.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
-	a.deltaAccumulator[blockNumber] = make([]*AvsOperatorStateChange, 0)
+	a.deltaAccumulator[blockNumber] = make([]*AvsOperatorRegistrationDelta, 0)
 	return nil
 }
 
 func (a *AvsOperatorsBaseModel) CleanupBlock(blockNumber uint64) error {
-	delete(a.stateAccumulator, blockNumber)
 	delete(a.deltaAccumulator, blockNumber)
 	return nil
 }
@@ -237,28 +193,37 @@ func (a *AvsOperatorsBaseModel) clonePreviousBlocksToNewBlock(blockNumber uint64
 
 // prepareState prepares the state for the current block by comparing the accumulated state changes.
 // It separates out the changes into inserts and deletes.
-func (a *AvsOperatorsBaseModel) prepareState(blockNumber uint64) ([]RegisteredAvsOperators, []RegisteredAvsOperators, error) {
-	accumulatedState, ok := a.stateAccumulator[blockNumber]
+func (a *AvsOperatorsBaseModel) prepareState(blockNumber uint64) ([]AvsOperatorRegistrationDelta, []AvsOperatorRegistrationDelta, error) {
+	accumulatedDeltas, ok := a.deltaAccumulator[blockNumber]
 	if !ok {
-		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
-		a.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
-		return nil, nil, err
+		msg := "delta accumulator was not initialized"
+		a.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
+		return nil, nil, errors.New(msg)
 	}
 
-	inserts := make([]RegisteredAvsOperators, 0)
-	deletes := make([]RegisteredAvsOperators, 0)
-	for _, stateChange := range accumulatedState {
-		record := RegisteredAvsOperators{
-			Avs:         stateChange.Avs,
-			Operator:    stateChange.Operator,
-			BlockNumber: blockNumber,
-		}
-		if stateChange.Registered {
-			inserts = append(inserts, record)
+	deltaMap := make(map[types.SlotID]AvsOperatorRegistrationDelta)
+	for _, delta := range accumulatedDeltas {
+		slotID := NewSlotID(delta.Avs, delta.Operator)
+		prevDelta, ok := deltaMap[slotID]
+		// if we have a deregistration followed from a previous registration for the same avs/operator pair, we can ignore both
+		if ok && prevDelta.Registered && !delta.Registered {
+			delete(deltaMap, slotID)
 		} else {
-			deletes = append(deletes, record)
+			deltaMap[slotID] = *delta
 		}
 	}
+
+	inserts := make([]AvsOperatorRegistrationDelta, 0)
+	deletes := make([]AvsOperatorRegistrationDelta, 0)
+
+	for _, delta := range deltaMap {
+		if delta.Registered {
+			inserts = append(inserts, delta)
+		} else {
+			deletes = append(deletes, delta)
+		}
+	}
+
 	return inserts, deletes, nil
 }
 
@@ -271,7 +236,7 @@ func (a *AvsOperatorsBaseModel) writeDeltaRecordsToDeltaTable(blockNumber uint64
 	}
 
 	if len(records) > 0 {
-		res := a.db.Model(&AvsOperatorStateChange{}).Clauses(clause.Returning{}).Create(&records)
+		res := a.db.Model(&AvsOperatorRegistrationDelta{}).Clauses(clause.Returning{}).Create(&records)
 		if res.Error != nil {
 			a.logger.Sugar().Errorw("Failed to insert delta records", zap.Error(res.Error))
 			return res.Error
@@ -287,13 +252,13 @@ func (a *AvsOperatorsBaseModel) CommitFinalState(blockNumber uint64) error {
 		return err
 	}
 
-	recordsToInsert, recordsToDelete, err := a.prepareState(blockNumber)
+	inserts, deletes, err := a.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
-	for _, record := range recordsToDelete {
-		res := a.db.Delete(&RegisteredAvsOperators{}, "avs = ? and operator = ? and block_number = ?", record.Avs, record.Operator, record.BlockNumber)
+	for _, record := range deletes {
+		res := a.db.Delete(&AvsOperatorRegistrationRecord{}, "avs = ? and operator = ? and block_number = ?", record.Avs, record.Operator, record.BlockNumber)
 		if res.Error != nil {
 			a.logger.Sugar().Errorw("Failed to delete record",
 				zap.Error(res.Error),
@@ -304,8 +269,17 @@ func (a *AvsOperatorsBaseModel) CommitFinalState(blockNumber uint64) error {
 			return res.Error
 		}
 	}
-	if len(recordsToInsert) > 0 {
-		res := a.db.Model(&RegisteredAvsOperators{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
+
+	recordsToInsert := pkgUtils.Map(inserts, func(delta AvsOperatorRegistrationDelta, i uint64) AvsOperatorRegistrationRecord {
+		return AvsOperatorRegistrationRecord{
+			Avs:         delta.Avs,
+			Operator:    delta.Operator,
+			BlockNumber: blockNumber,
+		}
+	})
+
+	if len(inserts) > 0 {
+		res := a.db.Model(&AvsOperatorRegistrationRecord{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
 		if res.Error != nil {
 			a.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
 			return res.Error
@@ -325,29 +299,17 @@ func (a *AvsOperatorsBaseModel) GetStateDiffs(blockNumber uint64) ([]types.State
 		return nil, err
 	}
 
-	diffs := make([]*RegisteredAvsOperatorDiff, 0)
+	stateDiffs := make([]types.StateDiff, 0)
 	for _, record := range inserts {
-		diffs = append(diffs, &RegisteredAvsOperatorDiff{
-			Avs:         record.Avs,
-			Operator:    record.Operator,
-			BlockNumber: record.BlockNumber,
-			Registered:  true,
+		stateDiffs = append(stateDiffs, types.StateDiff{
+			SlotID: NewSlotID(record.Avs, record.Operator),
+			Value:  []byte(fmt.Sprintf("%t", true)),
 		})
 	}
 	for _, record := range deletes {
-		diffs = append(diffs, &RegisteredAvsOperatorDiff{
-			Avs:         record.Avs,
-			Operator:    record.Operator,
-			BlockNumber: record.BlockNumber,
-			Registered:  false,
-		})
-	}
-
-	stateDiffs := make([]types.StateDiff, 0)
-	for _, diff := range diffs {
 		stateDiffs = append(stateDiffs, types.StateDiff{
-			SlotID: NewSlotID(diff.Avs, diff.Operator),
-			Value:  []byte(fmt.Sprintf("%t", diff.Registered)),
+			SlotID: NewSlotID(record.Avs, record.Operator),
+			Value:  []byte(fmt.Sprintf("%t", false)),
 		})
 	}
 

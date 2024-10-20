@@ -37,16 +37,6 @@ type RewardSubmission struct {
 	RewardType     string // avs, all_stakers, all_earners
 }
 
-type RewardSubmissionDiff struct {
-	RewardSubmission *RewardSubmission
-	IsNew            bool
-	IsNoLongerActive bool
-}
-
-type RewardSubmissions struct {
-	Submissions []*RewardSubmission
-}
-
 func NewSlotID(rewardHash string, strategy string) types.SlotID {
 	return types.SlotID(fmt.Sprintf("%s_%s", rewardHash, strategy))
 }
@@ -129,7 +119,7 @@ func parseRewardSubmissionOutputData(outputDataStr string) (*rewardSubmissionOut
 	return outputData, err
 }
 
-func (rs *RewardSubmissionsBaseModel) handleRewardSubmissionCreatedEvent(log *storage.TransactionLog) (*RewardSubmissions, error) {
+func (rs *RewardSubmissionsBaseModel) handleRewardSubmissionCreatedEvent(log *storage.TransactionLog) ([]*RewardSubmission, error) {
 	arguments, err := utils.ParseLogArguments(rs.logger, log)
 	if err != nil {
 		return nil, err
@@ -190,7 +180,7 @@ func (rs *RewardSubmissionsBaseModel) handleRewardSubmissionCreatedEvent(log *st
 		rewardSubmissions = append(rewardSubmissions, rewardSubmission)
 	}
 
-	return &RewardSubmissions{Submissions: rewardSubmissions}, nil
+	return rewardSubmissions, nil
 }
 
 func (rs *RewardSubmissionsBaseModel) GetStateTransitions() (types.StateTransitions, []uint64) {
@@ -202,7 +192,7 @@ func (rs *RewardSubmissionsBaseModel) GetStateTransitions() (types.StateTransiti
 			return nil, err
 		}
 
-		for _, rewardSubmission := range rewardSubmissions.Submissions {
+		for _, rewardSubmission := range rewardSubmissions {
 			slotId := NewSlotID(rewardSubmission.RewardHash, rewardSubmission.Strategy)
 
 			_, ok := rs.stateAccumulator[log.BlockNumber][slotId]
@@ -286,7 +276,7 @@ func (rs *RewardSubmissionsBaseModel) clonePreviousBlocksToNewBlock(blockNumber 
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (rs *RewardSubmissionsBaseModel) prepareState(blockNumber uint64) ([]*RewardSubmissionDiff, []*RewardSubmissionDiff, error) {
+func (rs *RewardSubmissionsBaseModel) prepareState(blockNumber uint64) ([]*RewardSubmission, []*RewardSubmission, error) {
 	accumulatedState, ok := rs.stateAccumulator[blockNumber]
 	if !ok {
 		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
@@ -301,16 +291,14 @@ func (rs *RewardSubmissionsBaseModel) prepareState(blockNumber uint64) ([]*Rewar
 		return nil, nil, err
 	}
 
-	inserts := make([]*RewardSubmissionDiff, 0)
+	inserts := make([]*RewardSubmission, 0)
 	for _, change := range accumulatedState {
+		// why is this check necessary?
 		if change == nil {
 			continue
 		}
 
-		inserts = append(inserts, &RewardSubmissionDiff{
-			RewardSubmission: change,
-			IsNew:            true,
-		})
+		inserts = append(inserts, change)
 	}
 
 	// find all the records that are no longer active
@@ -336,12 +324,9 @@ func (rs *RewardSubmissionsBaseModel) prepareState(blockNumber uint64) ([]*Rewar
 		return nil, nil, res.Error
 	}
 
-	deletes := make([]*RewardSubmissionDiff, 0)
+	deletes := make([]*RewardSubmission, 0)
 	for _, submission := range noLongerActiveSubmissions {
-		deletes = append(deletes, &RewardSubmissionDiff{
-			RewardSubmission: submission,
-			IsNoLongerActive: true,
-		})
+		deletes = append(deletes, submission)
 	}
 	return inserts, deletes, nil
 }
@@ -359,12 +344,12 @@ func (rs *RewardSubmissionsBaseModel) CommitFinalState(blockNumber uint64) error
 	}
 
 	for _, record := range recordsToDelete {
-		res := rs.db.Delete(&RewardSubmission{}, "reward_hash = ? and strategy = ? and block_number = ?", record.RewardSubmission.RewardHash, record.RewardSubmission.Strategy, blockNumber)
+		res := rs.db.Delete(&RewardSubmission{}, "reward_hash = ? and strategy = ? and block_number = ?", record.RewardHash, record.Strategy, blockNumber)
 		if res.Error != nil {
 			rs.logger.Sugar().Errorw("Failed to delete record",
 				zap.Error(res.Error),
-				zap.String("rewardHash", record.RewardSubmission.RewardHash),
-				zap.String("strategy", record.RewardSubmission.Strategy),
+				zap.String("rewardHash", record.RewardHash),
+				zap.String("strategy", record.Strategy),
 				zap.Uint64("blockNumber", blockNumber),
 			)
 			return res.Error
@@ -372,13 +357,10 @@ func (rs *RewardSubmissionsBaseModel) CommitFinalState(blockNumber uint64) error
 	}
 	if len(recordsToInsert) > 0 {
 		// records := make([]RewardSubmission, 0)
-		for _, record := range recordsToInsert {
-			res := rs.db.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&record.RewardSubmission)
-			if res.Error != nil {
-				rs.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				fmt.Printf("\n\n%+v\n\n", record.RewardSubmission)
-				return res.Error
-			}
+		res := rs.db.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
+		if res.Error != nil {
+			rs.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
+			return res.Error
 		}
 	}
 	return nil
@@ -390,20 +372,20 @@ func (rs *RewardSubmissionsBaseModel) GetStateDiffs(blockNumber uint64) ([]types
 		return nil, err
 	}
 
-	diffs := make([]*RewardSubmissionDiff, 0)
-	diffs = append(diffs, inserts...)
-	diffs = append(diffs, deletes...)
-
 	stateDiffs := make([]types.StateDiff, 0)
-	for _, diff := range diffs {
-		slotID := NewSlotID(diff.RewardSubmission.RewardHash, diff.RewardSubmission.Strategy)
-		value := "added"
-		if diff.IsNoLongerActive {
-			value = "removed"
-		}
+	for _, diff := range inserts {
+		slotID := NewSlotID(diff.RewardHash, diff.Strategy)
 		stateDiffs = append(stateDiffs, types.StateDiff{
 			SlotID: slotID,
-			Value:  []byte(value),
+			Value:  []byte("added"),
+		})
+	}
+
+	for _, diff := range deletes {
+		slotID := NewSlotID(diff.RewardHash, diff.Strategy)
+		stateDiffs = append(stateDiffs, types.StateDiff{
+			SlotID: slotID,
+			Value:  []byte("removed"),
 		})
 	}
 

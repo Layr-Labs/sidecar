@@ -117,9 +117,9 @@ func Test_OperatorSharesState(t *testing.T) {
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
-		states := []OperatorShares{}
+		states := []OperatorSharesRecord{}
 		statesRes := model.DB().
-			Model(&OperatorShares{}).
+			Model(&OperatorSharesRecord{}).
 			Raw("select * from operator_shares where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
 			Scan(&states)
 
@@ -163,7 +163,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, stateChange)
 
-		stateChangeTyped := stateChange.(*AccumulatedStateChange)
+		stateChangeTyped := stateChange.(*OperatorSharesState)
 
 		assert.Equal(t, "-1670000000000000000000", stateChangeTyped.Shares.String())
 		assert.Equal(t, strings.ToLower("0x32f766cf7BC7dEE7F65573587BECd7AdB2a5CC7f"), stateChangeTyped.Operator)
