@@ -213,30 +213,6 @@ func (a *AvsOperatorsBaseModel) CleanupBlock(blockNumber uint64) error {
 	return nil
 }
 
-// Handle the state change for the given log
-//
-// Takes a log and iterates over the state transitions to determine which state change to apply based on block number.
-func (a *AvsOperatorsBaseModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := a.GetStateTransitions()
-
-	for _, blockNumber := range sortedBlockNumbers {
-		if log.BlockNumber >= blockNumber {
-			a.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
-
-			change, err := stateChanges[blockNumber](log)
-			if err != nil {
-				return nil, err
-			}
-
-			if change == nil {
-				return nil, xerrors.Errorf("No state change found for block %d", blockNumber)
-			}
-			return change, nil
-		}
-	}
-	return nil, nil
-}
-
 func (a *AvsOperatorsBaseModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
 	query := `
 		insert into registered_avs_operators (avs, operator, block_number)
