@@ -153,6 +153,13 @@ func (b *BaseEigenState) MerkleizeState(blockNumber uint64, stateDiffs []*StateD
 		return strings.Compare(string(a.SlotID), string(b.SlotID))
 	})
 
+	// check for duplicates
+	for i := 0; i < len(sortedDiffs)-1; i++ {
+		if sortedDiffs[i].SlotID == sortedDiffs[i+1].SlotID {
+			return "", xerrors.Errorf("Duplicate slotID found: %s", sortedDiffs[i].SlotID)
+		}
+	}
+
 	leaves := b.InitializeStateTreeForBlock(blockNumber)
 	for _, diff := range sortedDiffs {
 		leaves = append(leaves, encodeMerkleLeaf(diff.SlotID, diff.Value))
