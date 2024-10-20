@@ -59,10 +59,9 @@ func NewSlotID(avs string, operator string) types.SlotID {
 
 // EigenState model for AVS operators that implements IEigenStateModel.
 type AvsOperatorsBaseModel struct {
-	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	db               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	db           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
@@ -120,11 +119,11 @@ func (a *AvsOperatorsBaseModel) Base() interface{} {
 //
 // Returns the map and a reverse sorted list of block numbers that can be traversed when
 // processing a log to determine which state change to apply.
-func (a *AvsOperatorsBaseModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChange], []uint64) {
-	stateChanges := make(types.StateTransitions[AccumulatedStateChange])
+func (a *AvsOperatorsBaseModel) GetStateTransitions() (types.StateTransitions, []uint64) {
+	stateChanges := make(types.StateTransitions)
 
 	// TODO(seanmcgary): make this not a closure so this function doesnt get big an messy...
-	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
+	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		arguments, err := utils.ParseLogArguments(a.logger, log)
 		if err != nil {
 			return nil, err

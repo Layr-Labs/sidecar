@@ -50,10 +50,9 @@ func NewSlotID(staker string, operator string) types.SlotID {
 }
 
 type StakerDelegationsBaseModel struct {
-	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	db               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	db           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
@@ -108,10 +107,10 @@ func (s *StakerDelegationsBaseModel) Base() interface{} {
 	return s
 }
 
-func (s *StakerDelegationsBaseModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChange], []uint64) {
-	stateChanges := make(types.StateTransitions[AccumulatedStateChange])
+func (s *StakerDelegationsBaseModel) GetStateTransitions() (types.StateTransitions, []uint64) {
+	stateChanges := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
+	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		arguments, err := utils.ParseLogArguments(s.logger, log)
 		if err != nil {
 			return nil, err
@@ -198,26 +197,6 @@ func (s *StakerDelegationsBaseModel) CleanupBlock(blockNumber uint64) error {
 	return nil
 }
 
-func (s *StakerDelegationsBaseModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := s.GetStateTransitions()
-
-	for _, blockNumber := range sortedBlockNumbers {
-		if log.BlockNumber >= blockNumber {
-			s.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
-
-			change, err := stateChanges[blockNumber](log)
-			if err != nil {
-				return nil, err
-			}
-			if change == nil {
-				return nil, xerrors.Errorf("No state change found for block %d", blockNumber)
-			}
-			return change, nil
-		}
-	}
-	return nil, nil //nolint:nilnil
-}
-
 func (s *StakerDelegationsBaseModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
 	query := `
 		insert into delegated_stakers (staker, operator, block_number)
@@ -270,7 +249,7 @@ func (s *StakerDelegationsBaseModel) prepareState(blockNumber uint64) ([]Delegat
 func (s *StakerDelegationsBaseModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) error {
 	records, ok := s.deltaAccumulator[blockNumber]
 	if !ok {
-		msg := "Delta accumulator was not initialized"
+		msg := "delta accumulator was not initialized"
 		s.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
 		return errors.New(msg)
 	}

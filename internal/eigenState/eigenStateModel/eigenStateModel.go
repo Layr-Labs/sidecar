@@ -40,6 +40,26 @@ func (m *EigenStateModel) IsInterestingLog(log *storage.TransactionLog) bool {
 	return false
 }
 
+func (m *EigenStateModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
+	stateChanges, sortedBlockNumbers := m.GetStateTransitions()
+
+	for _, blockNumber := range sortedBlockNumbers {
+		if log.BlockNumber >= blockNumber {
+			m.Logger().Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
+
+			change, err := stateChanges[blockNumber](log)
+			if err != nil {
+				return nil, err
+			}
+			if change == nil {
+				return nil, fmt.Errorf("No state change found for block %d", blockNumber)
+			}
+			return change, nil
+		}
+	}
+	return nil, nil //nolint:nilnil
+}
+
 func (m *EigenStateModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	tableName := m.TableName()
 	if endBlockNumber != 0 && endBlockNumber < startBlockNumber {

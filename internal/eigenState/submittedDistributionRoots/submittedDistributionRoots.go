@@ -38,7 +38,7 @@ func NewSlotID(rootIndex uint64, root string) types.SlotID {
 }
 
 type SubmittedDistributionRootsBaseModel struct {
-	StateTransitions types.StateTransitions[SubmittedDistributionRoots]
+	StateTransitions types.StateTransitions
 	db               *gorm.DB
 	logger           *zap.Logger
 	globalConfig     *config.Config
@@ -100,10 +100,10 @@ func parseLogOutputForDistributionRootSubmitted(outputDataStr string) (*distribu
 	return outputData, err
 }
 
-func (sdr *SubmittedDistributionRootsBaseModel) GetStateTransitions() (types.StateTransitions[SubmittedDistributionRoots], []uint64) {
-	stateChanges := make(types.StateTransitions[SubmittedDistributionRoots])
+func (sdr *SubmittedDistributionRootsBaseModel) GetStateTransitions() (types.StateTransitions, []uint64) {
+	stateChanges := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*SubmittedDistributionRoots, error) {
+	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		arguments, err := utils.ParseLogArguments(sdr.logger, log)
 		if err != nil {
 			return nil, err
@@ -211,26 +211,6 @@ func (sdr *SubmittedDistributionRootsBaseModel) InitBlock(blockNumber uint64) er
 func (sdr *SubmittedDistributionRootsBaseModel) CleanupBlock(blockNumber uint64) error {
 	delete(sdr.stateAccumulator, blockNumber)
 	return nil
-}
-
-func (sdr *SubmittedDistributionRootsBaseModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := sdr.GetStateTransitions()
-
-	for _, blockNumber := range sortedBlockNumbers {
-		if log.BlockNumber >= blockNumber {
-			sdr.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
-
-			change, err := stateChanges[blockNumber](log)
-			if err != nil {
-				return nil, err
-			}
-			if change == nil {
-				return nil, xerrors.Errorf("No state change found for block %d", blockNumber)
-			}
-			return change, nil
-		}
-	}
-	return nil, nil
 }
 
 func (sdr *SubmittedDistributionRootsBaseModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {

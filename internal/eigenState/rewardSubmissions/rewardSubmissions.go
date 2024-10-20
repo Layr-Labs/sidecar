@@ -52,12 +52,11 @@ func NewSlotID(rewardHash string, strategy string) types.SlotID {
 }
 
 type RewardSubmissionsBaseModel struct {
-	StateTransitions types.StateTransitions[RewardSubmission]
-	db               *gorm.DB
-	Network          config.Network
-	Environment      config.Environment
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	db           *gorm.DB
+	Network      config.Network
+	Environment  config.Environment
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*RewardSubmission
@@ -194,10 +193,10 @@ func (rs *RewardSubmissionsBaseModel) handleRewardSubmissionCreatedEvent(log *st
 	return &RewardSubmissions{Submissions: rewardSubmissions}, nil
 }
 
-func (rs *RewardSubmissionsBaseModel) GetStateTransitions() (types.StateTransitions[RewardSubmissions], []uint64) {
-	stateChanges := make(types.StateTransitions[RewardSubmissions])
+func (rs *RewardSubmissionsBaseModel) GetStateTransitions() (types.StateTransitions, []uint64) {
+	stateChanges := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*RewardSubmissions, error) {
+	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		rewardSubmissions, err := rs.handleRewardSubmissionCreatedEvent(log)
 		if err != nil {
 			return nil, err
@@ -253,26 +252,6 @@ func (rs *RewardSubmissionsBaseModel) InitBlock(blockNumber uint64) error {
 func (rs *RewardSubmissionsBaseModel) CleanupBlock(blockNumber uint64) error {
 	delete(rs.stateAccumulator, blockNumber)
 	return nil
-}
-
-func (rs *RewardSubmissionsBaseModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := rs.GetStateTransitions()
-
-	for _, blockNumber := range sortedBlockNumbers {
-		if log.BlockNumber >= blockNumber {
-			rs.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
-
-			change, err := stateChanges[blockNumber](log)
-			if err != nil {
-				return nil, err
-			}
-			if change == nil {
-				return nil, nil
-			}
-			return change, nil
-		}
-	}
-	return nil, nil
 }
 
 func (rs *RewardSubmissionsBaseModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {

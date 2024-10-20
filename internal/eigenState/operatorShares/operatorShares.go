@@ -56,10 +56,9 @@ func NewSlotID(operator string, strategy string) types.SlotID {
 
 // Implements IEigenStateModel.
 type OperatorSharesBaseModel struct {
-	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	db               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	db           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
@@ -122,10 +121,10 @@ func parseLogOutputForOperatorShares(outputDataStr string) (*operatorSharesOutpu
 	return outputData, err
 }
 
-func (osm *OperatorSharesBaseModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChange], []uint64) {
-	stateChanges := make(types.StateTransitions[AccumulatedStateChange])
+func (osm *OperatorSharesBaseModel) GetStateTransitions() (types.StateTransitions, []uint64) {
+	stateChanges := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
+	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		arguments, err := utils.ParseLogArguments(osm.logger, log)
 		if err != nil {
 			return nil, err
@@ -206,26 +205,6 @@ func (osm *OperatorSharesBaseModel) InitBlock(blockNumber uint64) error {
 func (osm *OperatorSharesBaseModel) CleanupBlock(blockNumber uint64) error {
 	delete(osm.stateAccumulator, blockNumber)
 	return nil
-}
-
-func (osm *OperatorSharesBaseModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := osm.GetStateTransitions()
-
-	for _, blockNumber := range sortedBlockNumbers {
-		if log.BlockNumber >= blockNumber {
-			osm.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
-
-			change, err := stateChanges[blockNumber](log)
-			if err != nil {
-				return nil, err
-			}
-			if change == nil {
-				return nil, xerrors.Errorf("No state change found for block %d", blockNumber)
-			}
-			return change, nil
-		}
-	}
-	return nil, nil //nolint:nilnil
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.

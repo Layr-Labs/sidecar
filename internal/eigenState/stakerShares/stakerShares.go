@@ -53,7 +53,7 @@ func NewSlotID(staker string, strategy string) types.SlotID {
 }
 
 type StakerSharesBaseModel struct {
-	StateTransitions types.StateTransitions[AccumulatedStateChange]
+	StateTransitions types.StateTransitions
 	db               *gorm.DB
 	logger           *zap.Logger
 	globalConfig     *config.Config
@@ -371,10 +371,10 @@ type AccumulatedStateChanges struct {
 	Changes []*AccumulatedStateChange
 }
 
-func (ss *StakerSharesBaseModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChanges], []uint64) {
-	stateChanges := make(types.StateTransitions[AccumulatedStateChanges])
+func (ss *StakerSharesBaseModel) GetStateTransitions() (types.StateTransitions, []uint64) {
+	stateChanges := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChanges, error) {
+	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		var parsedRecords []*AccumulatedStateChange
 		var err error
 
@@ -480,26 +480,6 @@ func (ss *StakerSharesBaseModel) InitBlock(blockNumber uint64) error {
 func (ss *StakerSharesBaseModel) CleanupBlock(blockNumber uint64) error {
 	delete(ss.stateAccumulator, blockNumber)
 	return nil
-}
-
-func (ss *StakerSharesBaseModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := ss.GetStateTransitions()
-
-	for _, blockNumber := range sortedBlockNumbers {
-		if log.BlockNumber >= blockNumber {
-			ss.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
-
-			change, err := stateChanges[blockNumber](log)
-			if err != nil {
-				return nil, err
-			}
-			if change == nil {
-				return nil, nil
-			}
-			return change, nil
-		}
-	}
-	return nil, nil
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.

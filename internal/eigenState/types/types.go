@@ -42,11 +42,9 @@ type IBaseEigenStateModel interface {
 	// Cleanup any state changes for the block
 	CleanupBlock(blockNumber uint64) error
 
-	// HandleStateChange
-	// Allow the state model to handle the state change
-	//
-	// Returns the saved value. Listed as an interface because go generics suck
-	HandleStateChange(log *storage.TransactionLog) (interface{}, error)
+	// GetStateTransitions
+	// Get the state transitions for the model
+	GetStateTransitions() (StateTransitions, []uint64)
 
 	// CommitFinalState
 	// Once all state changes are processed, commit the final state to the database
@@ -64,6 +62,12 @@ type IEigenStateModel interface {
 	// Determine if the log is interesting to the state model
 	IsInterestingLog(log *storage.TransactionLog) bool
 
+	// HandleStateChange
+	// Allow the state model to handle the state change
+	//
+	// Returns the saved value. Listed as an interface because go generics suck
+	HandleStateChange(log *storage.TransactionLog) (interface{}, error)
+
 	// GenerateStateRoot
 	// Generate the state root for the model
 	GenerateStateRoot(blockNumber uint64) (StateRoot, error)
@@ -78,7 +82,7 @@ type IEigenStateModel interface {
 
 // StateTransitions
 // Map of block number to function that will transition the state to the next block.
-type StateTransitions[T interface{}] map[uint64]func(log *storage.TransactionLog) (*T, error)
+type StateTransitions map[uint64]func(log *storage.TransactionLog) (interface{}, error)
 
 type SlotID string
 
