@@ -1,6 +1,8 @@
 package eigenState
 
 import (
+	"testing"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/avsOperators"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/operatorShares"
@@ -12,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"testing"
 )
 
 func setup() (
@@ -54,7 +55,7 @@ func Test_EigenStateManager(t *testing.T) {
 	})
 	t.Run("Should create a state root with states from models", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		avsOperatorsModel, err := avsOperators.NewAvsOperators(esm, grm, l, cfg)
+		avsOperatorsModel, err := avsOperators.NewAvsOperatorsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, avsOperatorsModel)
 

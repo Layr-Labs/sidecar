@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/eigenStateModel"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
@@ -40,7 +41,7 @@ func setup() (
 	return cfg, db, l, err
 }
 
-func teardown(model *StakerSharesModel) {
+func teardown(model *eigenStateModel.EigenStateModel) {
 	queries := []string{
 		`delete from staker_shares`,
 		`delete from blocks`,
@@ -48,7 +49,7 @@ func teardown(model *StakerSharesModel) {
 		`delete from transaction_logs`,
 	}
 	for _, query := range queries {
-		model.DB.Raw(query)
+		model.DB().Raw(query)
 	}
 }
 
@@ -308,7 +309,7 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", typedChange.Changes[0].Strategy)
 		assert.Equal(t, "246393621132195985", typedChange.Changes[0].Shares.String())
 
-		preparedChange, err := model.prepareState(blockNumber)
+		preparedChange, err := model.Base().(*StakerSharesBaseModel).prepareState(blockNumber)
 		assert.Nil(t, err)
 		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", preparedChange[0].Staker)
 		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", preparedChange[0].Strategy)
@@ -319,7 +320,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		query := `select * from staker_shares where block_number = ?`
 		results := []*StakerShares{}
-		res = model.DB.Raw(query, blockNumber).Scan(&results)
+		res = model.DB().Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, len(results))
 
@@ -389,7 +390,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		slotId := NewSlotID(typedChange.Changes[0].Staker, typedChange.Changes[0].Strategy)
 
-		accumulatedState, ok := model.stateAccumulator[originBlockNumber][slotId]
+		accumulatedState, ok := model.Base().(*StakerSharesBaseModel).stateAccumulator[originBlockNumber][slotId]
 		assert.True(t, ok)
 		assert.NotNil(t, accumulatedState)
 		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", accumulatedState.Staker)
@@ -426,7 +427,7 @@ func Test_StakerSharesState(t *testing.T) {
 		// verify the M1 withdrawal was processed correctly
 		query := `select * from staker_shares where block_number = ?`
 		results := []*StakerShares{}
-		res = model.DB.Raw(query, originBlockNumber).Scan(&results)
+		res = model.DB().Raw(query, originBlockNumber).Scan(&results)
 
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, len(results))
@@ -491,7 +492,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		slotId = NewSlotID(typedChange.Changes[0].Staker, typedChange.Changes[0].Strategy)
 
-		accumulatedState, ok = model.stateAccumulator[blockNumber][slotId]
+		accumulatedState, ok = model.Base().(*StakerSharesBaseModel).stateAccumulator[blockNumber][slotId]
 		assert.True(t, ok)
 		assert.NotNil(t, accumulatedState)
 		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", accumulatedState.Staker)
@@ -507,7 +508,7 @@ func Test_StakerSharesState(t *testing.T) {
 			where block_number = ?
 		`
 		results = []*StakerShares{}
-		res = model.DB.Raw(query, blockNumber).Scan(&results)
+		res = model.DB().Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 
 		assert.Equal(t, 1, len(results))

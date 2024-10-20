@@ -11,11 +11,11 @@ import (
 	"strings"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/internal/eigenState/base"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/eigenStateModel"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/utils"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
-	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -33,14 +33,13 @@ type SubmittedDistributionRoots struct {
 	CreatedAtBlockNumber      uint64
 }
 
-func NewSlotID(root string, rootIndex uint64) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%d", root, rootIndex))
+func NewSlotID(rootIndex uint64, root string) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%d", rootIndex, root))
 }
 
-type SubmittedDistributionRootsModel struct {
-	base.BaseEigenState
+type SubmittedDistributionRootsBaseModel struct {
 	StateTransitions types.StateTransitions[SubmittedDistributionRoots]
-	DB               *gorm.DB
+	db               *gorm.DB
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
@@ -53,23 +52,36 @@ func NewSubmittedDistributionRootsModel(
 	grm *gorm.DB,
 	logger *zap.Logger,
 	globalConfig *config.Config,
-) (*SubmittedDistributionRootsModel, error) {
-	model := &SubmittedDistributionRootsModel{
-		BaseEigenState: base.BaseEigenState{
-			Logger: logger,
-		},
-		DB:               grm,
+) (*eigenStateModel.EigenStateModel, error) {
+	base := &SubmittedDistributionRootsBaseModel{
+		db:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*SubmittedDistributionRoots),
 	}
-
-	esm.RegisterState(model, 4)
-	return model, nil
+	m := eigenStateModel.NewEigenStateModel(base)
+	esm.RegisterState(m, 4)
+	return m, nil
 }
 
-func (sdr *SubmittedDistributionRootsModel) GetModelName() string {
-	return "SubmittedDistributionRootsModel"
+func (sdr *SubmittedDistributionRootsBaseModel) Logger() *zap.Logger {
+	return sdr.logger
+}
+
+func (sdr *SubmittedDistributionRootsBaseModel) ModelName() string {
+	return "SubmittedDistributionRootsBaseModel"
+}
+
+func (sdr *SubmittedDistributionRootsBaseModel) TableName() string {
+	return "submitted_distribution_roots"
+}
+
+func (sdr *SubmittedDistributionRootsBaseModel) DB() *gorm.DB {
+	return sdr.db
+}
+
+func (sdr *SubmittedDistributionRootsBaseModel) Base() interface{} {
+	return sdr
 }
 
 type distributionRootSubmittedOutput struct {
@@ -88,11 +100,11 @@ func parseLogOutputForDistributionRootSubmitted(outputDataStr string) (*distribu
 	return outputData, err
 }
 
-func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTransitions[SubmittedDistributionRoots], []uint64) {
+func (sdr *SubmittedDistributionRootsBaseModel) GetStateTransitions() (types.StateTransitions[SubmittedDistributionRoots], []uint64) {
 	stateChanges := make(types.StateTransitions[SubmittedDistributionRoots])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*SubmittedDistributionRoots, error) {
-		arguments, err := sdr.ParseLogArguments(log)
+		arguments, err := utils.ParseLogArguments(sdr.logger, log)
 		if err != nil {
 			return nil, err
 		}
@@ -146,7 +158,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 
 		activatedAt := outputData.ActivatedAt
 
-		slotId := NewSlotID(root, rootIndex)
+		slotId := NewSlotID(rootIndex, root)
 		_, ok := sdr.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := xerrors.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
@@ -182,7 +194,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 	return stateChanges, blockNumbers
 }
 
-func (sdr *SubmittedDistributionRootsModel) getContractAddressesForEnvironment() map[string][]string {
+func (sdr *SubmittedDistributionRootsBaseModel) GetInterestingLogMap() map[string][]string {
 	contracts := sdr.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.RewardsCoordinator: {
@@ -191,17 +203,12 @@ func (sdr *SubmittedDistributionRootsModel) getContractAddressesForEnvironment()
 	}
 }
 
-func (sdr *SubmittedDistributionRootsModel) IsInterestingLog(log *storage.TransactionLog) bool {
-	addresses := sdr.getContractAddressesForEnvironment()
-	return sdr.BaseEigenState.IsInterestingLog(addresses, log)
-}
-
-func (sdr *SubmittedDistributionRootsModel) InitBlockProcessing(blockNumber uint64) error {
+func (sdr *SubmittedDistributionRootsBaseModel) InitBlockProcessing(blockNumber uint64) error {
 	sdr.stateAccumulator[blockNumber] = make(map[types.SlotID]*SubmittedDistributionRoots)
 	return nil
 }
 
-func (sdr *SubmittedDistributionRootsModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
+func (sdr *SubmittedDistributionRootsBaseModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
 	stateChanges, sortedBlockNumbers := sdr.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
@@ -221,7 +228,7 @@ func (sdr *SubmittedDistributionRootsModel) HandleStateChange(log *storage.Trans
 	return nil, nil
 }
 
-func (sdr *SubmittedDistributionRootsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
+func (sdr *SubmittedDistributionRootsBaseModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
 	query := `
 		insert into submitted_distribution_roots (root, root_index, rewards_calculation_end, rewards_calculation_end_unit, activated_at, activated_at_unit, created_at_block_number, block_number)
 			select
@@ -236,7 +243,7 @@ func (sdr *SubmittedDistributionRootsModel) clonePreviousBlocksToNewBlock(blockN
 			from submitted_distribution_roots
 			where block_number = @previousBlock
 	`
-	res := sdr.DB.Exec(query,
+	res := sdr.db.Exec(query,
 		sql.Named("currentBlock", blockNumber),
 		sql.Named("previousBlock", blockNumber-1),
 	)
@@ -249,7 +256,7 @@ func (sdr *SubmittedDistributionRootsModel) clonePreviousBlocksToNewBlock(blockN
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]SubmittedDistributionRoots, error) {
+func (sdr *SubmittedDistributionRootsBaseModel) prepareState(blockNumber uint64) ([]SubmittedDistributionRoots, error) {
 	preparedState := make([]SubmittedDistributionRoots, 0)
 
 	accumulatedState, ok := sdr.stateAccumulator[blockNumber]
@@ -280,7 +287,7 @@ func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]
 			and concat(root, '_', root_index) in @slotIds
 	`
 	existingRecords := make([]SubmittedDistributionRoots, 0)
-	res := sdr.DB.Model(&SubmittedDistributionRoots{}).
+	res := sdr.db.Model(&SubmittedDistributionRoots{}).
 		Raw(query,
 			sql.Named("currentBlock", blockNumber),
 			sql.Named("slotIds", slotIds),
@@ -314,7 +321,7 @@ func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]
 	return preparedState, nil
 }
 
-func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64) error {
+func (sdr *SubmittedDistributionRootsBaseModel) CommitFinalState(blockNumber uint64) error {
 	err := sdr.clonePreviousBlocksToNewBlock(blockNumber)
 	if err != nil {
 		return err
@@ -326,7 +333,7 @@ func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64)
 	}
 
 	if len(records) > 0 {
-		res := sdr.DB.Model(&SubmittedDistributionRoots{}).Clauses(clause.Returning{}).Create(&records)
+		res := sdr.db.Model(&SubmittedDistributionRoots{}).Clauses(clause.Returning{}).Create(&records)
 		if res.Error != nil {
 			sdr.logger.Sugar().Errorw("Failed to create new submitted_distribution_roots records", zap.Error(res.Error))
 			return res.Error
@@ -336,41 +343,27 @@ func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64)
 	return nil
 }
 
-func (sdr *SubmittedDistributionRootsModel) ClearAccumulatedState(blockNumber uint64) error {
+func (sdr *SubmittedDistributionRootsBaseModel) ClearAccumulatedState(blockNumber uint64) error {
 	delete(sdr.stateAccumulator, blockNumber)
 	return nil
 }
 
-func (sdr *SubmittedDistributionRootsModel) sortValuesForMerkleTree(inputs []SubmittedDistributionRoots) []*base.MerkleTreeInput {
-	slices.SortFunc(inputs, func(i, j SubmittedDistributionRoots) int {
+func (sdr *SubmittedDistributionRootsBaseModel) GetStateDiffs(blockNumber uint64) ([]types.StateDiff, error) {
+	diffs, err := sdr.prepareState(blockNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	slices.SortFunc(diffs, func(i, j SubmittedDistributionRoots) int {
 		return int(i.RootIndex - j.RootIndex)
 	})
 
-	values := make([]*base.MerkleTreeInput, 0)
-	for _, input := range inputs {
-		values = append(values, &base.MerkleTreeInput{
-			SlotID: NewSlotID(input.Root, input.RootIndex),
-			Value:  []byte(input.Root),
+	stateDiffs := make([]types.StateDiff, 0)
+	for _, diff := range diffs {
+		stateDiffs = append(stateDiffs, types.StateDiff{
+			SlotID: NewSlotID(diff.RootIndex, diff.Root),
+			Value:  []byte(diff.Root),
 		})
 	}
-	return values
-}
-
-func (sdr *SubmittedDistributionRootsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
-	diffs, err := sdr.prepareState(blockNumber)
-	if err != nil {
-		return "", err
-	}
-
-	sortedInputs := sdr.sortValuesForMerkleTree(diffs)
-
-	fullTree, err := sdr.MerkleizeState(blockNumber, sortedInputs)
-	if err != nil {
-		return "", err
-	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
-}
-
-func (sdr *SubmittedDistributionRootsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return sdr.BaseEigenState.DeleteState("submitted_distribution_roots", startBlockNumber, endBlockNumber, sdr.DB)
+	return stateDiffs, nil
 }

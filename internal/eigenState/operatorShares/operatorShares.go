@@ -4,20 +4,21 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	pkgUtils "github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"math/big"
 	"slices"
 	"sort"
 	"strings"
 	"time"
 
+	pkgUtils "github.com/Layr-Labs/go-sidecar/pkg/utils"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/internal/eigenState/base"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/eigenStateModel"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/utils"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
-	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -54,10 +55,9 @@ func NewSlotID(operator string, strategy string) types.SlotID {
 }
 
 // Implements IEigenStateModel.
-type OperatorSharesModel struct {
-	base.BaseEigenState
+type OperatorSharesBaseModel struct {
 	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	DB               *gorm.DB
+	db               *gorm.DB
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
@@ -70,23 +70,38 @@ func NewOperatorSharesModel(
 	grm *gorm.DB,
 	logger *zap.Logger,
 	globalConfig *config.Config,
-) (*OperatorSharesModel, error) {
-	model := &OperatorSharesModel{
-		BaseEigenState: base.BaseEigenState{
-			Logger: logger,
-		},
-		DB:               grm,
+) (*eigenStateModel.EigenStateModel, error) {
+	base := &OperatorSharesBaseModel{
+
+		db:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
 	}
+	m := eigenStateModel.NewEigenStateModel(base)
 
-	esm.RegisterState(model, 1)
-	return model, nil
+	esm.RegisterState(m, 1)
+	return m, nil
 }
 
-func (osm *OperatorSharesModel) GetModelName() string {
-	return "OperatorSharesModel"
+func (osm *OperatorSharesBaseModel) Logger() *zap.Logger {
+	return osm.logger
+}
+
+func (osm *OperatorSharesBaseModel) ModelName() string {
+	return "OperatorSharesBaseModel"
+}
+
+func (osm *OperatorSharesBaseModel) TableName() string {
+	return "operator_shares"
+}
+
+func (osm *OperatorSharesBaseModel) DB() *gorm.DB {
+	return osm.db
+}
+
+func (osm *OperatorSharesBaseModel) Base() interface{} {
+	return osm
 }
 
 type operatorSharesOutput struct {
@@ -107,11 +122,11 @@ func parseLogOutputForOperatorShares(outputDataStr string) (*operatorSharesOutpu
 	return outputData, err
 }
 
-func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChange], []uint64) {
+func (osm *OperatorSharesBaseModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChange], []uint64) {
 	stateChanges := make(types.StateTransitions[AccumulatedStateChange])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
-		arguments, err := osm.ParseLogArguments(log)
+		arguments, err := utils.ParseLogArguments(osm.logger, log)
 		if err != nil {
 			return nil, err
 		}
@@ -173,7 +188,7 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 	return stateChanges, blockNumbers
 }
 
-func (osm *OperatorSharesModel) getContractAddressesForEnvironment() map[string][]string {
+func (osm *OperatorSharesBaseModel) GetInterestingLogMap() map[string][]string {
 	contracts := osm.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.DelegationManager: {
@@ -183,17 +198,12 @@ func (osm *OperatorSharesModel) getContractAddressesForEnvironment() map[string]
 	}
 }
 
-func (osm *OperatorSharesModel) IsInterestingLog(log *storage.TransactionLog) bool {
-	addresses := osm.getContractAddressesForEnvironment()
-	return osm.BaseEigenState.IsInterestingLog(addresses, log)
-}
-
-func (osm *OperatorSharesModel) InitBlockProcessing(blockNumber uint64) error {
+func (osm *OperatorSharesBaseModel) InitBlockProcessing(blockNumber uint64) error {
 	osm.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	return nil
 }
 
-func (osm *OperatorSharesModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
+func (osm *OperatorSharesBaseModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
 	stateChanges, sortedBlockNumbers := osm.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
@@ -214,7 +224,7 @@ func (osm *OperatorSharesModel) HandleStateChange(log *storage.TransactionLog) (
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]*OperatorSharesDiff, error) {
+func (osm *OperatorSharesBaseModel) prepareState(blockNumber uint64) ([]*OperatorSharesDiff, error) {
 	preparedState := make([]*OperatorSharesDiff, 0)
 
 	accumulatedState, ok := osm.stateAccumulator[blockNumber]
@@ -251,7 +261,7 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]*OperatorSha
 		where rn = 1
 	`
 	existingRecords := make([]*OperatorShares, 0)
-	res := osm.DB.Model(&OperatorShares{}).
+	res := osm.db.Model(&OperatorShares{}).
 		Raw(query,
 			sql.Named("slotIds", slotIds),
 		).
@@ -302,7 +312,7 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]*OperatorSha
 	return preparedState, nil
 }
 
-func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
+func (osm *OperatorSharesBaseModel) CommitFinalState(blockNumber uint64) error {
 	records, err := osm.prepareState(blockNumber)
 	if err != nil {
 		return err
@@ -318,7 +328,7 @@ func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
 	})
 
 	if len(recordToInsert) > 0 {
-		res := osm.DB.Model(&OperatorShares{}).Clauses(clause.Returning{}).Create(&recordToInsert)
+		res := osm.db.Model(&OperatorShares{}).Clauses(clause.Returning{}).Create(&recordToInsert)
 		if res.Error != nil {
 			osm.logger.Sugar().Errorw("Failed to create new operator_shares records", zap.Error(res.Error))
 			return res.Error
@@ -328,40 +338,24 @@ func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
 	return nil
 }
 
-func (osm *OperatorSharesModel) ClearAccumulatedState(blockNumber uint64) error {
+func (osm *OperatorSharesBaseModel) ClearAccumulatedState(blockNumber uint64) error {
 	delete(osm.stateAccumulator, blockNumber)
 	return nil
 }
 
-func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (osm *OperatorSharesBaseModel) GetStateDiffs(blockNumber uint64) ([]types.StateDiff, error) {
 	diffs, err := osm.prepareState(blockNumber)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	inputs := osm.sortValuesForMerkleTree(diffs)
-
-	fullTree, err := osm.MerkleizeState(blockNumber, inputs)
-	if err != nil {
-		return "", err
-	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
-}
-
-func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []*OperatorSharesDiff) []*base.MerkleTreeInput {
-	inputs := make([]*base.MerkleTreeInput, 0)
+	stateDiffs := make([]types.StateDiff, 0)
 	for _, diff := range diffs {
-		inputs = append(inputs, &base.MerkleTreeInput{
+		stateDiffs = append(stateDiffs, types.StateDiff{
 			SlotID: NewSlotID(diff.Operator, diff.Strategy),
 			Value:  diff.Shares.Bytes(),
 		})
 	}
-	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
-		return strings.Compare(string(i.SlotID), string(j.SlotID))
-	})
-	return inputs
-}
 
-func (osm *OperatorSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return osm.BaseEigenState.DeleteState("operator_shares", startBlockNumber, endBlockNumber, osm.DB)
+	return stateDiffs, nil
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/eigenStateModel"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
@@ -40,8 +41,8 @@ func setup() (
 	return cfg, db, l, err
 }
 
-func teardown(model *OperatorSharesModel) {
-	model.DB.Exec("delete from operator_shares")
+func teardown(model *eigenStateModel.EigenStateModel) {
+	model.DB().Exec("delete from operator_shares")
 }
 
 func Test_OperatorSharesState(t *testing.T) {
@@ -117,7 +118,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		assert.Nil(t, err)
 
 		states := []OperatorShares{}
-		statesRes := model.DB.
+		statesRes := model.DB().
 			Model(&OperatorShares{}).
 			Raw("select * from operator_shares where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
 			Scan(&states)

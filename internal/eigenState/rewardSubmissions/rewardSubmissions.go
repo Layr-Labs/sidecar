@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/internal/eigenState/base"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/eigenStateModel"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/utils"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
-	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -51,10 +51,9 @@ func NewSlotID(rewardHash string, strategy string) types.SlotID {
 	return types.SlotID(fmt.Sprintf("%s_%s", rewardHash, strategy))
 }
 
-type RewardSubmissionsModel struct {
-	base.BaseEigenState
+type RewardSubmissionsBaseModel struct {
 	StateTransitions types.StateTransitions[RewardSubmission]
-	DB               *gorm.DB
+	db               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
 	logger           *zap.Logger
@@ -69,23 +68,37 @@ func NewRewardSubmissionsModel(
 	grm *gorm.DB,
 	logger *zap.Logger,
 	globalConfig *config.Config,
-) (*RewardSubmissionsModel, error) {
-	model := &RewardSubmissionsModel{
-		BaseEigenState: base.BaseEigenState{
-			Logger: logger,
-		},
-		DB:               grm,
+) (*eigenStateModel.EigenStateModel, error) {
+	base := &RewardSubmissionsBaseModel{
+		db:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*RewardSubmission),
 	}
+	m := eigenStateModel.NewEigenStateModel(base)
 
-	esm.RegisterState(model, 5)
-	return model, nil
+	esm.RegisterState(m, 5)
+	return m, nil
 }
 
-func (rs *RewardSubmissionsModel) GetModelName() string {
-	return "RewardSubmissionsModel"
+func (rs *RewardSubmissionsBaseModel) Logger() *zap.Logger {
+	return rs.logger
+}
+
+func (rs *RewardSubmissionsBaseModel) ModelName() string {
+	return "RewardSubmissionsBaseModel"
+}
+
+func (rs *RewardSubmissionsBaseModel) TableName() string {
+	return "reward_submissions"
+}
+
+func (rs *RewardSubmissionsBaseModel) DB() *gorm.DB {
+	return rs.db
+}
+
+func (rs *RewardSubmissionsBaseModel) Base() interface{} {
+	return rs
 }
 
 type genericRewardPaymentData struct {
@@ -117,8 +130,8 @@ func parseRewardSubmissionOutputData(outputDataStr string) (*rewardSubmissionOut
 	return outputData, err
 }
 
-func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storage.TransactionLog) (*RewardSubmissions, error) {
-	arguments, err := rs.ParseLogArguments(log)
+func (rs *RewardSubmissionsBaseModel) handleRewardSubmissionCreatedEvent(log *storage.TransactionLog) (*RewardSubmissions, error) {
+	arguments, err := utils.ParseLogArguments(rs.logger, log)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +194,7 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 	return &RewardSubmissions{Submissions: rewardSubmissions}, nil
 }
 
-func (rs *RewardSubmissionsModel) GetStateTransitions() (types.StateTransitions[RewardSubmissions], []uint64) {
+func (rs *RewardSubmissionsBaseModel) GetStateTransitions() (types.StateTransitions[RewardSubmissions], []uint64) {
 	stateChanges := make(types.StateTransitions[RewardSubmissions])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*RewardSubmissions, error) {
@@ -219,7 +232,7 @@ func (rs *RewardSubmissionsModel) GetStateTransitions() (types.StateTransitions[
 	return stateChanges, blockNumbers
 }
 
-func (rs *RewardSubmissionsModel) getContractAddressesForEnvironment() map[string][]string {
+func (rs *RewardSubmissionsBaseModel) GetInterestingLogMap() map[string][]string {
 	contracts := rs.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.RewardsCoordinator: {
@@ -232,17 +245,12 @@ func (rs *RewardSubmissionsModel) getContractAddressesForEnvironment() map[strin
 	}
 }
 
-func (rs *RewardSubmissionsModel) IsInterestingLog(log *storage.TransactionLog) bool {
-	addresses := rs.getContractAddressesForEnvironment()
-	return rs.BaseEigenState.IsInterestingLog(addresses, log)
-}
-
-func (rs *RewardSubmissionsModel) InitBlockProcessing(blockNumber uint64) error {
+func (rs *RewardSubmissionsBaseModel) InitBlockProcessing(blockNumber uint64) error {
 	rs.stateAccumulator[blockNumber] = make(map[types.SlotID]*RewardSubmission)
 	return nil
 }
 
-func (rs *RewardSubmissionsModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
+func (rs *RewardSubmissionsBaseModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
 	stateChanges, sortedBlockNumbers := rs.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
@@ -262,7 +270,7 @@ func (rs *RewardSubmissionsModel) HandleStateChange(log *storage.TransactionLog)
 	return nil, nil
 }
 
-func (rs *RewardSubmissionsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
+func (rs *RewardSubmissionsBaseModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
 	query := `
 		insert into reward_submissions(avs, reward_hash, token, amount, strategy, strategy_index, multiplier, start_timestamp, end_timestamp, duration, reward_type, block_number)
 			select
@@ -281,7 +289,7 @@ func (rs *RewardSubmissionsModel) clonePreviousBlocksToNewBlock(blockNumber uint
 			from reward_submissions
 			where block_number = @previousBlock
 	`
-	res := rs.DB.Exec(query,
+	res := rs.db.Exec(query,
 		sql.Named("currentBlock", blockNumber),
 		sql.Named("previousBlock", blockNumber-1),
 	)
@@ -294,7 +302,7 @@ func (rs *RewardSubmissionsModel) clonePreviousBlocksToNewBlock(blockNumber uint
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSubmissionDiff, []*RewardSubmissionDiff, error) {
+func (rs *RewardSubmissionsBaseModel) prepareState(blockNumber uint64) ([]*RewardSubmissionDiff, []*RewardSubmissionDiff, error) {
 	accumulatedState, ok := rs.stateAccumulator[blockNumber]
 	if !ok {
 		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
@@ -303,7 +311,7 @@ func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSub
 	}
 
 	currentBlock := &storage.Block{}
-	err := rs.DB.Where("number = ?", blockNumber).First(currentBlock).Error
+	err := rs.db.Where("number = ?", blockNumber).First(currentBlock).Error
 	if err != nil {
 		rs.logger.Sugar().Errorw("Failed to fetch block", zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, nil, err
@@ -331,7 +339,7 @@ func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSub
 			block_number = @previousBlock
 			and end_timestamp <= @blockTime
 	`
-	res := rs.DB.
+	res := rs.db.
 		Model(&RewardSubmission{}).
 		Raw(query,
 			sql.Named("previousBlock", blockNumber-1),
@@ -355,7 +363,7 @@ func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSub
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
+func (rs *RewardSubmissionsBaseModel) CommitFinalState(blockNumber uint64) error {
 	err := rs.clonePreviousBlocksToNewBlock(blockNumber)
 	if err != nil {
 		return err
@@ -367,7 +375,7 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 	}
 
 	for _, record := range recordsToDelete {
-		res := rs.DB.Delete(&RewardSubmission{}, "reward_hash = ? and strategy = ? and block_number = ?", record.RewardSubmission.RewardHash, record.RewardSubmission.Strategy, blockNumber)
+		res := rs.db.Delete(&RewardSubmission{}, "reward_hash = ? and strategy = ? and block_number = ?", record.RewardSubmission.RewardHash, record.RewardSubmission.Strategy, blockNumber)
 		if res.Error != nil {
 			rs.logger.Sugar().Errorw("Failed to delete record",
 				zap.Error(res.Error),
@@ -381,7 +389,7 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 	if len(recordsToInsert) > 0 {
 		// records := make([]RewardSubmission, 0)
 		for _, record := range recordsToInsert {
-			res := rs.DB.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&record.RewardSubmission)
+			res := rs.db.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&record.RewardSubmission)
 			if res.Error != nil {
 				rs.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
 				fmt.Printf("\n\n%+v\n\n", record.RewardSubmission)
@@ -392,52 +400,33 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 	return nil
 }
 
-func (rs *RewardSubmissionsModel) ClearAccumulatedState(blockNumber uint64) error {
+func (rs *RewardSubmissionsBaseModel) ClearAccumulatedState(blockNumber uint64) error {
 	delete(rs.stateAccumulator, blockNumber)
 	return nil
 }
 
-// GenerateStateRoot generates the state root for the given block number using the results of the state changes.
-func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (rs *RewardSubmissionsBaseModel) GetStateDiffs(blockNumber uint64) ([]types.StateDiff, error) {
 	inserts, deletes, err := rs.prepareState(blockNumber)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	combinedResults := make([]*RewardSubmissionDiff, 0)
-	combinedResults = append(combinedResults, inserts...)
-	combinedResults = append(combinedResults, deletes...)
+	diffs := make([]*RewardSubmissionDiff, 0)
+	diffs = append(diffs, inserts...)
+	diffs = append(diffs, deletes...)
 
-	inputs := rs.sortValuesForMerkleTree(combinedResults)
-
-	fullTree, err := rs.MerkleizeState(blockNumber, inputs)
-	if err != nil {
-		return "", err
-	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
-}
-
-func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardSubmissionDiff) []*base.MerkleTreeInput {
-	inputs := make([]*base.MerkleTreeInput, 0)
-	for _, submission := range submissions {
-		slotID := NewSlotID(submission.RewardSubmission.RewardHash, submission.RewardSubmission.Strategy)
+	stateDiffs := make([]types.StateDiff, 0)
+	for _, diff := range diffs {
+		slotID := NewSlotID(diff.RewardSubmission.RewardHash, diff.RewardSubmission.Strategy)
 		value := "added"
-		if submission.IsNoLongerActive {
+		if diff.IsNoLongerActive {
 			value = "removed"
 		}
-		inputs = append(inputs, &base.MerkleTreeInput{
+		stateDiffs = append(stateDiffs, types.StateDiff{
 			SlotID: slotID,
 			Value:  []byte(value),
 		})
 	}
 
-	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
-		return strings.Compare(string(i.SlotID), string(j.SlotID))
-	})
-
-	return inputs
-}
-
-func (rs *RewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return rs.BaseEigenState.DeleteState("registered_avs_operators", startBlockNumber, endBlockNumber, rs.DB)
+	return stateDiffs, nil
 }

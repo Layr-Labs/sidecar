@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/internal/eigenState/base"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/eigenStateModel"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/utils"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
-	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	pkgUtils "github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
@@ -52,10 +52,9 @@ func NewSlotID(staker string, strategy string) types.SlotID {
 	return types.SlotID(fmt.Sprintf("%s_%s", staker, strategy))
 }
 
-type StakerSharesModel struct {
-	base.BaseEigenState
+type StakerSharesBaseModel struct {
 	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	DB               *gorm.DB
+	db               *gorm.DB
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
@@ -63,26 +62,44 @@ type StakerSharesModel struct {
 	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
 }
 
+var _ types.IBaseEigenStateModel = (*StakerSharesBaseModel)(nil)
+
 func NewStakerSharesModel(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
 	logger *zap.Logger,
 	globalConfig *config.Config,
-) (*StakerSharesModel, error) {
-	model := &StakerSharesModel{
-		BaseEigenState:   base.BaseEigenState{},
-		DB:               grm,
+) (*eigenStateModel.EigenStateModel, error) {
+	base := &StakerSharesBaseModel{
+		db:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
 	}
+	m := eigenStateModel.NewEigenStateModel(base)
 
-	esm.RegisterState(model, 3)
-	return model, nil
+	esm.RegisterState(m, 3)
+	return m, nil
 }
 
-func (ss *StakerSharesModel) GetModelName() string {
+func (ss *StakerSharesBaseModel) Logger() *zap.Logger {
+	return ss.logger
+}
+
+func (ss *StakerSharesBaseModel) ModelName() string {
 	return "StakerShares"
+}
+
+func (ss *StakerSharesBaseModel) TableName() string {
+	return "staker_shares"
+}
+
+func (ss *StakerSharesBaseModel) DB() *gorm.DB {
+	return ss.db
+}
+
+func (sdr *StakerSharesBaseModel) Base() interface{} {
+	return sdr
 }
 
 type depositOutputData struct {
@@ -111,7 +128,7 @@ func parseLogOutputForDepositEvent(outputDataStr string) (*depositOutputData, er
 	return outputData, err
 }
 
-func (ss *StakerSharesModel) handleStakerDepositEvent(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
+func (ss *StakerSharesBaseModel) handleStakerDepositEvent(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
 	outputData, err := parseLogOutputForDepositEvent(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -158,8 +175,8 @@ func parseLogOutputForPodSharesUpdatedEvent(outputDataStr string) (*podSharesUpd
 	return outputData, err
 }
 
-func (ss *StakerSharesModel) handlePodSharesUpdatedEvent(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
-	arguments, err := ss.ParseLogArguments(log)
+func (ss *StakerSharesBaseModel) handlePodSharesUpdatedEvent(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
+	arguments, err := utils.ParseLogArguments(ss.logger, log)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +202,7 @@ func (ss *StakerSharesModel) handlePodSharesUpdatedEvent(log *storage.Transactio
 	}, nil
 }
 
-func (ss *StakerSharesModel) handleM1StakerWithdrawals(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
+func (ss *StakerSharesBaseModel) handleM1StakerWithdrawals(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
 	outputData, err := parseLogOutputForDepositEvent(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -239,7 +256,7 @@ func parseLogOutputForM2MigrationEvent(outputDataStr string) (*m2MigrationOutput
 // Since we have already counted M1 withdrawals due to processing events block-by-block, we need to handle not double subtracting.
 // Assuming that M2 WithdrawalQueued events always result in a subtraction, if we encounter a migration event, we need
 // to add the amount back to the shares to get the correct final state.
-func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.TransactionLog) ([]*AccumulatedStateChange, error) {
+func (ss *StakerSharesBaseModel) handleMigratedM2StakerWithdrawals(log *storage.TransactionLog) ([]*AccumulatedStateChange, error) {
 	outputData, err := parseLogOutputForM2MigrationEvent(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -274,7 +291,7 @@ func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.Tran
 			and staker = (select staker from migration)
 	`
 	logs := make([]storage.TransactionLog, 0)
-	res := ss.DB.
+	res := ss.db.
 		Raw(query,
 			sql.Named("strategyManagerAddress", ss.globalConfig.GetContractsMapForChain().StrategyManager),
 			sql.Named("logBlockNumber", log.BlockNumber),
@@ -326,7 +343,7 @@ func parseLogOutputForM2WithdrawalEvent(outputDataStr string) (*m2WithdrawalOutp
 }
 
 // handleM2QueuedWithdrawal handles the WithdrawalQueued event from the DelegationManager contract for M2.
-func (ss *StakerSharesModel) handleM2QueuedWithdrawal(log *storage.TransactionLog) ([]*AccumulatedStateChange, error) {
+func (ss *StakerSharesBaseModel) handleM2QueuedWithdrawal(log *storage.TransactionLog) ([]*AccumulatedStateChange, error) {
 	outputData, err := parseLogOutputForM2WithdrawalEvent(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -354,7 +371,7 @@ type AccumulatedStateChanges struct {
 	Changes []*AccumulatedStateChange
 }
 
-func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChanges], []uint64) {
+func (ss *StakerSharesBaseModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChanges], []uint64) {
 	stateChanges := make(types.StateTransitions[AccumulatedStateChanges])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChanges, error) {
@@ -438,7 +455,7 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 	return stateChanges, blockNumbers
 }
 
-func (ss *StakerSharesModel) getContractAddressesForEnvironment() map[string][]string {
+func (ss *StakerSharesBaseModel) GetInterestingLogMap() map[string][]string {
 	contracts := ss.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.DelegationManager: {
@@ -455,17 +472,12 @@ func (ss *StakerSharesModel) getContractAddressesForEnvironment() map[string][]s
 	}
 }
 
-func (ss *StakerSharesModel) IsInterestingLog(log *storage.TransactionLog) bool {
-	addresses := ss.getContractAddressesForEnvironment()
-	return ss.BaseEigenState.IsInterestingLog(addresses, log)
-}
-
-func (ss *StakerSharesModel) InitBlockProcessing(blockNumber uint64) error {
+func (ss *StakerSharesBaseModel) InitBlockProcessing(blockNumber uint64) error {
 	ss.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	return nil
 }
 
-func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
+func (ss *StakerSharesBaseModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
 	stateChanges, sortedBlockNumbers := ss.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
@@ -486,7 +498,7 @@ func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (int
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerSharesDiff, error) {
+func (ss *StakerSharesBaseModel) prepareState(blockNumber uint64) ([]*StakerSharesDiff, error) {
 	preparedState := make([]*StakerSharesDiff, 0)
 
 	accumulatedState, ok := ss.stateAccumulator[blockNumber]
@@ -523,7 +535,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerSharesDi
 		where rn = 1
 	`
 	existingRecords := make([]StakerShares, 0)
-	res := ss.DB.Model(&StakerShares{}).
+	res := ss.db.Model(&StakerShares{}).
 		Raw(query,
 			sql.Named("slotIds", slotIds),
 		).
@@ -570,7 +582,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerSharesDi
 	return preparedState, nil
 }
 
-func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
+func (ss *StakerSharesBaseModel) CommitFinalState(blockNumber uint64) error {
 	records, err := ss.prepareState(blockNumber)
 	if err != nil {
 		return err
@@ -586,7 +598,7 @@ func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
 	})
 
 	if len(recordsToInsert) > 0 {
-		res := ss.DB.Model(&StakerShares{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
+		res := ss.db.Model(&StakerShares{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
 		if res.Error != nil {
 			ss.logger.Sugar().Errorw("Failed to create new operator_shares records", zap.Error(res.Error))
 			return res.Error
@@ -596,41 +608,24 @@ func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
 	return nil
 }
 
-func (ss *StakerSharesModel) ClearAccumulatedState(blockNumber uint64) error {
+func (ss *StakerSharesBaseModel) ClearAccumulatedState(blockNumber uint64) error {
 	delete(ss.stateAccumulator, blockNumber)
 	return nil
 }
 
-func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (ss *StakerSharesBaseModel) GetStateDiffs(blockNumber uint64) ([]types.StateDiff, error) {
 	diffs, err := ss.prepareState(blockNumber)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	inputs := ss.sortValuesForMerkleTree(diffs)
-
-	fullTree, err := ss.MerkleizeState(blockNumber, inputs)
-	if err != nil {
-		return "", err
-	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
-}
-
-func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerSharesDiff) []*base.MerkleTreeInput {
-	inputs := make([]*base.MerkleTreeInput, 0)
+	stateDiffs := make([]types.StateDiff, 0)
 	for _, diff := range diffs {
-		inputs = append(inputs, &base.MerkleTreeInput{
+		stateDiffs = append(stateDiffs, types.StateDiff{
 			SlotID: NewSlotID(diff.Staker, diff.Strategy),
 			Value:  diff.Shares.Bytes(),
 		})
 	}
-	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
-		return strings.Compare(string(i.SlotID), string(j.SlotID))
-	})
 
-	return inputs
-}
-
-func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ss.BaseEigenState.DeleteState("staker_shares", startBlockNumber, endBlockNumber, ss.DB)
+	return stateDiffs, nil
 }

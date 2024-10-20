@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/eigenStateModel"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
@@ -38,23 +39,23 @@ func setup() (
 	return cfg, db, l, err
 }
 
-func teardown(model *AvsOperatorsModel) {
-	model.DB.Exec("delete from avs_operator_changes")
-	model.DB.Exec("delete from registered_avs_operators")
-	model.DB.Exec("delete from avs_operator_state_changes")
+func teardown(model *eigenStateModel.EigenStateModel) {
+	model.DB().Exec("delete from avs_operator_changes")
+	model.DB().Exec("delete from registered_avs_operators")
+	model.DB().Exec("delete from avs_operator_state_changes")
 }
 
-func getInsertedDeltaRecordsForBlock(blockNumber uint64, model *AvsOperatorsModel) ([]*AvsOperatorStateChange, error) {
+func getInsertedDeltaRecordsForBlock(blockNumber uint64, model *eigenStateModel.EigenStateModel) ([]*AvsOperatorStateChange, error) {
 	results := []*AvsOperatorStateChange{}
 
-	res := model.DB.Model(&AvsOperatorStateChange{}).Where("block_number = ?", blockNumber).Find(&results)
+	res := model.DB().Model(&AvsOperatorStateChange{}).Where("block_number = ?", blockNumber).Find(&results)
 	return results, res.Error
 }
 
-func getInsertedDeltaRecords(model *AvsOperatorsModel) ([]*AvsOperatorStateChange, error) {
+func getInsertedDeltaRecords(model *eigenStateModel.EigenStateModel) ([]*AvsOperatorStateChange, error) {
 	results := []*AvsOperatorStateChange{}
 
-	res := model.DB.Model(&AvsOperatorStateChange{}).Order("block_number asc").Find(&results)
+	res := model.DB().Model(&AvsOperatorStateChange{}).Order("block_number asc").Find(&results)
 	return results, res.Error
 }
 
@@ -67,7 +68,7 @@ func Test_AvsOperatorState(t *testing.T) {
 
 	t.Run("Should create a new AvsOperatorState", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		avsOperatorState, err := NewAvsOperators(esm, grm, l, cfg)
+		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, avsOperatorState)
 	})
@@ -88,7 +89,7 @@ func Test_AvsOperatorState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		avsOperatorState, err := NewAvsOperators(esm, grm, l, cfg)
+		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
@@ -135,7 +136,7 @@ func Test_AvsOperatorState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		avsOperatorState, err := NewAvsOperators(esm, grm, l, cfg)
+		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
@@ -151,7 +152,7 @@ func Test_AvsOperatorState(t *testing.T) {
 		assert.Nil(t, err)
 
 		states := []RegisteredAvsOperators{}
-		statesRes := avsOperatorState.DB.
+		statesRes := avsOperatorState.DB().
 			Model(&RegisteredAvsOperators{}).
 			Raw("select * from registered_avs_operators where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
 			Scan(&states)
@@ -205,7 +206,7 @@ func Test_AvsOperatorState(t *testing.T) {
 			},
 		}
 
-		avsOperatorState, err := NewAvsOperators(esm, grm, l, cfg)
+		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		for _, log := range logs {
@@ -222,7 +223,7 @@ func Test_AvsOperatorState(t *testing.T) {
 			assert.Nil(t, err)
 
 			states := []RegisteredAvsOperators{}
-			statesRes := avsOperatorState.DB.
+			statesRes := avsOperatorState.DB().
 				Model(&RegisteredAvsOperators{}).
 				Raw("select * from registered_avs_operators where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
 				Scan(&states)
@@ -233,13 +234,13 @@ func Test_AvsOperatorState(t *testing.T) {
 
 			if log.BlockNumber == blocks[0] {
 				assert.Equal(t, 1, len(states))
-				inserts, deletes, err := avsOperatorState.prepareState(log.BlockNumber)
+				inserts, deletes, err := avsOperatorState.Base().(*AvsOperatorsBaseModel).prepareState(log.BlockNumber)
 				assert.Nil(t, err)
 				assert.Equal(t, 1, len(inserts))
 				assert.Equal(t, 0, len(deletes))
 			} else if log.BlockNumber == blocks[1] {
 				assert.Equal(t, 0, len(states))
-				inserts, deletes, err := avsOperatorState.prepareState(log.BlockNumber)
+				inserts, deletes, err := avsOperatorState.Base().(*AvsOperatorsBaseModel).prepareState(log.BlockNumber)
 				assert.Nil(t, err)
 				assert.Equal(t, 0, len(inserts))
 				assert.Equal(t, 1, len(deletes))

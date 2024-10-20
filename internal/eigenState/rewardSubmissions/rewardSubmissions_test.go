@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/eigenStateModel"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
@@ -40,26 +41,26 @@ func setup() (
 	return cfg, db, l, err
 }
 
-func teardown(model *RewardSubmissionsModel) {
+func teardown(model *eigenStateModel.EigenStateModel) {
 	queries := []string{
 		`delete from reward_submissions`,
 		`delete from blocks`,
 	}
 	for _, query := range queries {
-		res := model.DB.Exec(query)
+		res := model.DB().Exec(query)
 		if res.Error != nil {
 			fmt.Printf("Failed to run query: %v\n", res.Error)
 		}
 	}
 }
 
-func createBlock(model *RewardSubmissionsModel, blockNumber uint64) error {
+func createBlock(model *eigenStateModel.EigenStateModel, blockNumber uint64) error {
 	block := &storage.Block{
 		Number:    blockNumber,
 		Hash:      "some hash",
 		BlockTime: time.Now().Add(time.Hour * time.Duration(blockNumber)),
 	}
-	res := model.DB.Model(&storage.Block{}).Create(block)
+	res := model.DB().Model(&storage.Block{}).Create(block)
 	if res.Error != nil {
 		return res.Error
 	}
@@ -142,7 +143,7 @@ func Test_RewardSubmissions(t *testing.T) {
 
 			rewards := make([]*RewardSubmission, 0)
 			query := `select * from reward_submissions where block_number = ?`
-			res := model.DB.Raw(query, blockNumber).Scan(&rewards)
+			res := model.DB().Raw(query, blockNumber).Scan(&rewards)
 			assert.Nil(t, res.Error)
 			assert.Equal(t, len(strategiesAndMultipliers), len(rewards))
 
@@ -217,7 +218,7 @@ func Test_RewardSubmissions(t *testing.T) {
 
 			rewards := make([]*RewardSubmission, 0)
 			query := `select * from reward_submissions where block_number = ?`
-			res := model.DB.Raw(query, blockNumber).Scan(&rewards)
+			res := model.DB().Raw(query, blockNumber).Scan(&rewards)
 			assert.Nil(t, res.Error)
 			assert.Equal(t, len(strategiesAndMultipliers), len(rewards))
 
@@ -289,7 +290,7 @@ func Test_RewardSubmissions(t *testing.T) {
 
 			rewards := make([]*RewardSubmission, 0)
 			query := `select * from reward_submissions where block_number = ?`
-			res := model.DB.Raw(query, blockNumber).Scan(&rewards)
+			res := model.DB().Raw(query, blockNumber).Scan(&rewards)
 			assert.Nil(t, res.Error)
 			assert.Equal(t, len(strategiesAndMultipliers), len(rewards))
 
@@ -362,7 +363,7 @@ func Test_RewardSubmissions(t *testing.T) {
 
 			rewards := make([]*RewardSubmission, 0)
 			query := `select * from reward_submissions where block_number = ?`
-			res := model.DB.Raw(query, blockNumber).Scan(&rewards)
+			res := model.DB().Raw(query, blockNumber).Scan(&rewards)
 			assert.Nil(t, res.Error)
 			assert.Equal(t, len(strategiesAndMultipliers), len(rewards))
 
@@ -434,7 +435,7 @@ func Test_RewardSubmissions(t *testing.T) {
 
 			rewards := make([]*RewardSubmission, 0)
 			query := `select * from reward_submissions where block_number = ?`
-			res := model.DB.Raw(query, blockNumber).Scan(&rewards)
+			res := model.DB().Raw(query, blockNumber).Scan(&rewards)
 			assert.Nil(t, res.Error)
 			assert.Equal(t, len(strategiesAndMultipliers), len(rewards))
 
@@ -499,7 +500,7 @@ func Test_RewardSubmissions(t *testing.T) {
 
 		query := `select count(*) from reward_submissions where block_number = ?`
 		var count int
-		res := model.DB.Raw(query, blockNumber).Scan(&count)
+		res := model.DB().Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
 		assert.Equal(t, submissionCounter, count)
@@ -551,7 +552,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		assert.True(t, len(stateRoot) > 0)
 
 		query = `select count(*) from reward_submissions where block_number = ?`
-		res = model.DB.Raw(query, blockNumber).Scan(&count)
+		res = model.DB().Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
 		assert.Equal(t, submissionCounter, count)
@@ -597,7 +598,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		assert.True(t, len(stateRoot) > 0)
 
 		query = `select count(*) from reward_submissions where block_number = ?`
-		res = model.DB.Raw(query, blockNumber).Scan(&count)
+		res = model.DB().Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
 		assert.Equal(t, submissionCounter, count)
@@ -643,7 +644,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		assert.True(t, len(stateRoot) > 0)
 
 		query = `select count(*) from reward_submissions where block_number = ?`
-		res = model.DB.Raw(query, blockNumber).Scan(&count)
+		res = model.DB().Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
 		assert.Equal(t, submissionCounter, count)
@@ -734,7 +735,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		// check that we're starting with 0 rows
 		query := `select count(*) from reward_submissions`
 		var count int
-		res := model.DB.Raw(query).Scan(&count)
+		res := model.DB().Raw(query).Scan(&count)
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 0, count)
 
@@ -750,7 +751,7 @@ func Test_RewardSubmissions(t *testing.T) {
 
 		// Verify we have the right number of rows
 		query = `select count(*) from reward_submissions where block_number = ?`
-		res = model.DB.Raw(query, blockNumber).Scan(&count)
+		res = model.DB().Raw(query, blockNumber).Scan(&count)
 		assert.Nil(t, res.Error)
 		assert.Equal(t, submissionCounter, count)
 

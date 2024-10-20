@@ -40,7 +40,7 @@ func NewEigenStateManager(logger *zap.Logger, grm *gorm.DB) *EigenStateManager {
 // Allows a model to register itself with the state manager.
 func (e *EigenStateManager) RegisterState(model types.IEigenStateModel, index int) {
 	if m, ok := e.StateModels[index]; ok {
-		e.logger.Sugar().Fatalf("Registering model model at index %d which already exists and belongs to %s", index, m.GetModelName())
+		e.logger.Sugar().Fatalf("Registering model model at index %d which already exists and belongs to %s", index, m.ModelName())
 	}
 	e.StateModels[index] = model
 }
@@ -52,7 +52,7 @@ func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog) er
 		state := e.StateModels[index]
 		if state.IsInterestingLog(log) {
 			e.logger.Sugar().Debugw("Handling log for model",
-				zap.String("model", state.GetModelName()),
+				zap.String("model", state.ModelName()),
 				zap.String("transactionHash", log.TransactionHash),
 				zap.Uint64("logIndex", log.LogIndex),
 				zap.String("eventName", log.EventName),
@@ -159,7 +159,7 @@ func (e *EigenStateManager) encodeModelLeaf(model types.IEigenStateModel, blockN
 	if err != nil {
 		return nil, err
 	}
-	return append([]byte(model.GetModelName()), []byte(root)...), nil
+	return append([]byte(model.ModelName()), []byte(root)...), nil
 }
 
 func (e *EigenStateManager) GetSortedModelIndexes() []int {

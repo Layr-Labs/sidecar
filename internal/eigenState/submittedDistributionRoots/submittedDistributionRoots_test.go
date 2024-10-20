@@ -1,7 +1,12 @@
 package submittedDistributionRoots
 
 import (
+	"math/big"
+	"testing"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/eigenStateModel"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
@@ -11,9 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"math/big"
-	"testing"
-	"time"
 )
 
 func setup() (
@@ -37,12 +39,12 @@ func setup() (
 	return cfg, db, l, err
 }
 
-func teardown(model *SubmittedDistributionRootsModel) {
+func teardown(model *eigenStateModel.EigenStateModel) {
 	queries := []string{
 		`delete from submitted_distribution_roots`,
 	}
 	for _, query := range queries {
-		model.DB.Raw(query)
+		model.DB().Raw(query)
 	}
 }
 
@@ -100,7 +102,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 
 		query := `SELECT * FROM submitted_distribution_roots WHERE block_number = ?`
 		var roots []*SubmittedDistributionRoots
-		res := model.DB.Raw(query, blockNumber).Scan(&roots)
+		res := model.DB().Raw(query, blockNumber).Scan(&roots)
 
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, len(roots))
@@ -153,7 +155,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 
 		query := `SELECT * FROM submitted_distribution_roots WHERE block_number = ?`
 		var roots []*SubmittedDistributionRoots
-		res := model.DB.Raw(query, blockNumber).Scan(&roots)
+		res := model.DB().Raw(query, blockNumber).Scan(&roots)
 
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 2, len(roots))

@@ -2,18 +2,37 @@ package types
 
 import (
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type StateRoot string
 
-type IEigenStateModel interface {
+type IBaseEigenStateModel interface {
+	// GetLogger
+	// Get the logger for the model
+	Logger() *zap.Logger
+
 	// GetModelName
 	// Get the name of the model
-	GetModelName() string
+	ModelName() string
 
-	// IsInterestingLog
-	// Determine if the log is interesting to the state model
-	IsInterestingLog(log *storage.TransactionLog) bool
+	// GetTableName
+	// Get the name of the table for the model
+	TableName() string
+
+	// GetDB
+	// Get the database connection for the model
+	DB() *gorm.DB
+
+	// Base
+	// Base model for the state model
+	// used for testing
+	Base() interface{}
+
+	// GetInterestingLogMap
+	// Get the map of interesting logs for the model
+	GetInterestingLogMap() map[string][]string
 
 	// InitBlockProcessing
 	// Perform any necessary setup for processing a block
@@ -29,13 +48,25 @@ type IEigenStateModel interface {
 	// Once all state changes are processed, commit the final state to the database
 	CommitFinalState(blockNumber uint64) error
 
-	// GenerateStateRoot
-	// Generate the state root for the model
-	GenerateStateRoot(blockNumber uint64) (StateRoot, error)
+	// GetStateDiffs
+	// Get the state diffs for the model
+	GetStateDiffs(blockNumber uint64) ([]StateDiff, error)
 
 	// ClearAccumulatedState
 	// Clear the accumulated state for the model to free up memory
 	ClearAccumulatedState(blockNumber uint64) error
+}
+
+type IEigenStateModel interface {
+	IBaseEigenStateModel
+
+	// IsInterestingLog
+	// Determine if the log is interesting to the state model
+	IsInterestingLog(log *storage.TransactionLog) bool
+
+	// GenerateStateRoot
+	// Generate the state root for the model
+	GenerateStateRoot(blockNumber uint64) (StateRoot, error)
 
 	// DeleteState used to delete state stored that may be incomplete or corrupted
 	// to allow for reprocessing of the state
@@ -50,3 +81,8 @@ type IEigenStateModel interface {
 type StateTransitions[T interface{}] map[uint64]func(log *storage.TransactionLog) (*T, error)
 
 type SlotID string
+
+type StateDiff struct {
+	SlotID SlotID
+	Value  []byte
+}

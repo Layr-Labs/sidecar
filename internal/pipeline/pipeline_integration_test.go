@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
+	"testing"
+
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
@@ -29,8 +32,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"log"
-	"testing"
 )
 
 func setup() (
@@ -83,7 +84,7 @@ func setup() (
 
 	sm := stateManager.NewEigenStateManager(l, grm)
 
-	if _, err := avsOperators.NewAvsOperators(sm, grm, l, cfg); err != nil {
+	if _, err := avsOperators.NewAvsOperatorsModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to create AvsOperatorsModel", zap.Error(err))
 	}
 	if _, err := operatorShares.NewOperatorSharesModel(sm, grm, l, cfg); err != nil {

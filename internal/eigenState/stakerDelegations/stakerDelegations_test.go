@@ -2,7 +2,11 @@ package stakerDelegations
 
 import (
 	"database/sql"
+	"testing"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/eigenStateModel"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
@@ -12,8 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"testing"
-	"time"
 )
 
 func setup() (
@@ -37,10 +39,10 @@ func setup() (
 	return cfg, db, l, err
 }
 
-func teardown(model *StakerDelegationsModel) {
-	model.DB.Exec("delete from staker_delegation_changes")
-	model.DB.Exec("delete from delegated_stakers")
-	model.DB.Exec("delete from staker_delegation_changes")
+func teardown(model *eigenStateModel.EigenStateModel) {
+	model.DB().Exec("delete from staker_delegation_changes")
+	model.DB().Exec("delete from delegated_stakers")
+	model.DB().Exec("delete from staker_delegation_changes")
 }
 
 func Test_DelegatedStakersState(t *testing.T) {
@@ -129,7 +131,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 		assert.Nil(t, err)
 
 		states := []DelegatedStakers{}
-		statesRes := model.DB.
+		statesRes := model.DB().
 			Model(&DelegatedStakers{}).
 			Raw("select * from delegated_stakers where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
 			Scan(&states)
@@ -198,7 +200,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 			assert.Nil(t, err)
 
 			states := []DelegatedStakers{}
-			statesRes := model.DB.
+			statesRes := model.DB().
 				Model(&DelegatedStakers{}).
 				Raw("select * from delegated_stakers where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
 				Scan(&states)
@@ -209,13 +211,13 @@ func Test_DelegatedStakersState(t *testing.T) {
 
 			if log.BlockNumber == blocks[0] {
 				assert.Equal(t, 1, len(states))
-				inserts, deletes, err := model.prepareState(log.BlockNumber)
+				inserts, deletes, err := model.Base().(*StakerDelegationsBaseModel).prepareState(log.BlockNumber)
 				assert.Nil(t, err)
 				assert.Equal(t, 1, len(inserts))
 				assert.Equal(t, 0, len(deletes))
 			} else if log.BlockNumber == blocks[1] {
 				assert.Equal(t, 0, len(states))
-				inserts, deletes, err := model.prepareState(log.BlockNumber)
+				inserts, deletes, err := model.Base().(*StakerDelegationsBaseModel).prepareState(log.BlockNumber)
 				assert.Nil(t, err)
 				assert.Equal(t, 0, len(inserts))
 				assert.Equal(t, 1, len(deletes))
