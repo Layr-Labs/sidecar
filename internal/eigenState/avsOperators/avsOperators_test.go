@@ -96,7 +96,7 @@ func Test_AvsOperatorState(t *testing.T) {
 		err = avsOperatorState.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		res, err := avsOperatorState.HandleStateChange(&log)
+		res, err := avsOperatorState.HandleLog(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
 
@@ -143,7 +143,7 @@ func Test_AvsOperatorState(t *testing.T) {
 		err = avsOperatorState.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		stateChange, err := avsOperatorState.HandleStateChange(&log)
+		stateChange, err := avsOperatorState.HandleLog(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, stateChange)
 
@@ -214,7 +214,7 @@ func Test_AvsOperatorState(t *testing.T) {
 			err = avsOperatorState.SetupStateForBlock(log.BlockNumber)
 			assert.Nil(t, err)
 
-			stateChange, err := avsOperatorState.HandleStateChange(log)
+			stateChange, err := avsOperatorState.HandleLog(log)
 			assert.Nil(t, err)
 			assert.NotNil(t, stateChange)
 

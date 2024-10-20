@@ -88,7 +88,7 @@ func Test_StakerSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		change, err := model.HandleStateChange(&log)
+		change, err := model.HandleLog(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
@@ -126,7 +126,7 @@ func Test_StakerSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		change, err := model.HandleStateChange(&log)
+		change, err := model.HandleLog(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
@@ -163,7 +163,7 @@ func Test_StakerSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		change, err := model.HandleStateChange(&log)
+		change, err := model.HandleLog(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
@@ -200,7 +200,7 @@ func Test_StakerSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		change, err := model.HandleStateChange(&log)
+		change, err := model.HandleLog(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
@@ -298,7 +298,7 @@ func Test_StakerSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		change, err := model.HandleStateChange(&log)
+		change, err := model.HandleLog(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
@@ -376,7 +376,7 @@ func Test_StakerSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(originBlockNumber)
 		assert.Nil(t, err)
 
-		change, err := model.HandleStateChange(&shareWithdrawalQueued)
+		change, err := model.HandleLog(&shareWithdrawalQueued)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
@@ -416,7 +416,7 @@ func Test_StakerSharesState(t *testing.T) {
 			t.Fatal(res.Error)
 		}
 
-		change, err = model.HandleStateChange(&withdrawalQueued)
+		change, err = model.HandleLog(&withdrawalQueued)
 		assert.Nil(t, err)
 		assert.Nil(t, change) // should be nil since the handler doesnt care about this event
 
@@ -454,7 +454,7 @@ func Test_StakerSharesState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		change, err = model.HandleStateChange(&log)
+		change, err = model.HandleLog(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
@@ -479,7 +479,7 @@ func Test_StakerSharesState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		change, err = model.HandleStateChange(&withdrawalMigratedLog)
+		change, err = model.HandleLog(&withdrawalMigratedLog)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 

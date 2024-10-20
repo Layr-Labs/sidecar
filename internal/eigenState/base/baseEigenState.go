@@ -12,6 +12,7 @@ import (
 	"github.com/wealdtech/go-merkletree/v2"
 	"github.com/wealdtech/go-merkletree/v2/keccak256"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
+	"golang.org/x/xerrors"
 
 	"github.com/Layr-Labs/go-sidecar/internal/parser"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
@@ -21,6 +22,14 @@ import (
 
 type BaseEigenState struct {
 	Logger *zap.Logger
+	DB     *gorm.DB
+}
+
+func NewBaseEigenState(logger *zap.Logger, db *gorm.DB) BaseEigenState {
+	return BaseEigenState{
+		Logger: logger,
+		DB:     db,
+	}
 }
 
 func (b *BaseEigenState) ParseLogArguments(log *storage.TransactionLog) ([]parser.Argument, error) {
@@ -71,13 +80,35 @@ func (b *BaseEigenState) IsInterestingLog(contractsEvents map[string][]string, l
 	return false
 }
 
-func (b *BaseEigenState) DeleteState(tableName string, startBlockNumber uint64, endBlockNumber uint64, db *gorm.DB) error {
+// HandleLog handles state changes for a given block number.
+// it loops through the forkBlockNumbers and calls the state change function for the block number
+// this supports models that have different state changes for different block ranges
+func (b *BaseEigenState) HandleLog(forkBlockNumbers []uint64, stateChanges types.StateTransitions, log *storage.TransactionLog) (interface{}, error) {
+	for _, blockNumber := range forkBlockNumbers {
+		if log.BlockNumber >= blockNumber {
+			b.Logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
+
+			change, err := stateChanges[blockNumber](log)
+			if err != nil {
+				return nil, err
+			}
+
+			if change == nil {
+				return nil, xerrors.Errorf("No state change found for block %d", blockNumber)
+			}
+			return change, nil
+		}
+	}
+	return nil, nil
+}
+
+func (b *BaseEigenState) DeleteState(tableName string, startBlockNumber uint64, endBlockNumber uint64) error {
 	if endBlockNumber != 0 && endBlockNumber < startBlockNumber {
 		b.Logger.Sugar().Errorw("Invalid block range",
 			zap.Uint64("startBlockNumber", startBlockNumber),
 			zap.Uint64("endBlockNumber", endBlockNumber),
 		)
-		return errors.New("Invalid block range; endBlockNumber must be greater than or equal to startBlockNumber")
+		return errors.New("invalid block range; endBlockNumber must be greater than or equal to startBlockNumber")
 	}
 
 	// tokenizing the table name apparently doesnt work, so we need to use Sprintf to include it.
@@ -88,7 +119,7 @@ func (b *BaseEigenState) DeleteState(tableName string, startBlockNumber uint64, 
 	if endBlockNumber > 0 {
 		query += " and block_number <= @endBlockNumber"
 	}
-	res := db.Exec(query,
+	res := b.DB.Exec(query,
 		sql.Named("tableName", tableName),
 		sql.Named("startBlockNumber", startBlockNumber),
 		sql.Named("endBlockNumber", endBlockNumber))

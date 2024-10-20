@@ -82,7 +82,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		res, err := model.HandleStateChange(&log)
+		res, err := model.HandleLog(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
 
@@ -118,7 +118,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		stateChange, err := model.HandleStateChange(&log)
+		stateChange, err := model.HandleLog(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, stateChange)
 
@@ -191,7 +191,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 			err = model.SetupStateForBlock(log.BlockNumber)
 			assert.Nil(t, err)
 
-			stateChange, err := model.HandleStateChange(log)
+			stateChange, err := model.HandleLog(log)
 			assert.Nil(t, err)
 			assert.NotNil(t, stateChange)
 

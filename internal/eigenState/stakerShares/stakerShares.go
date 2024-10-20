@@ -54,10 +54,9 @@ func NewSlotID(staker string, strategy string) types.SlotID {
 
 type StakerSharesModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	DB               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
@@ -70,7 +69,7 @@ func NewStakerSharesModel(
 	globalConfig *config.Config,
 ) (*StakerSharesModel, error) {
 	model := &StakerSharesModel{
-		BaseEigenState:   base.BaseEigenState{},
+		BaseEigenState:   base.NewBaseEigenState(logger, grm),
 		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
@@ -354,10 +353,10 @@ type AccumulatedStateChanges struct {
 	Changes []*AccumulatedStateChange
 }
 
-func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChanges], []uint64) {
-	stateChanges := make(types.StateTransitions[AccumulatedStateChanges])
+func (ss *StakerSharesModel) GetStateTransitions() ([]uint64, types.StateTransitions) {
+	stateChanges := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChanges, error) {
+	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		var parsedRecords []*AccumulatedStateChange
 		var err error
 
@@ -425,17 +424,16 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 		return &AccumulatedStateChanges{Changes: parsedRecords}, nil
 	}
 
-	// Create an ordered list of block numbers
-	blockNumbers := make([]uint64, 0)
+	// sort the fork block numbers in descending order
+	forkBlockNumbers := make([]uint64, 0)
 	for blockNumber := range stateChanges {
-		blockNumbers = append(blockNumbers, blockNumber)
+		forkBlockNumbers = append(forkBlockNumbers, blockNumber)
 	}
-	sort.Slice(blockNumbers, func(i, j int) bool {
-		return blockNumbers[i] < blockNumbers[j]
+	sort.Slice(forkBlockNumbers, func(i, j int) bool {
+		return forkBlockNumbers[i] > forkBlockNumbers[j]
 	})
-	slices.Reverse(blockNumbers)
 
-	return stateChanges, blockNumbers
+	return forkBlockNumbers, stateChanges
 }
 
 func (ss *StakerSharesModel) getContractAddressesForEnvironment() map[string][]string {
@@ -470,24 +468,9 @@ func (ss *StakerSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) e
 	return nil
 }
 
-func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := ss.GetStateTransitions()
-
-	for _, blockNumber := range sortedBlockNumbers {
-		if log.BlockNumber >= blockNumber {
-			ss.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
-
-			change, err := stateChanges[blockNumber](log)
-			if err != nil {
-				return nil, err
-			}
-			if change == nil {
-				return nil, nil
-			}
-			return change, nil
-		}
-	}
-	return nil, nil
+func (ss *StakerSharesModel) HandleLog(log *storage.TransactionLog) (interface{}, error) {
+	forkBlockNumbers, stateChanges := ss.GetStateTransitions()
+	return ss.BaseEigenState.HandleLog(forkBlockNumbers, stateChanges, log)
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
@@ -632,5 +615,5 @@ func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerSharesDiff) 
 }
 
 func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ss.BaseEigenState.DeleteState("staker_shares", startBlockNumber, endBlockNumber, ss.DB)
+	return ss.BaseEigenState.DeleteState("staker_shares", startBlockNumber, endBlockNumber)
 }

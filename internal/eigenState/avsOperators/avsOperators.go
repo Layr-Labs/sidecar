@@ -60,10 +60,9 @@ func NewSlotID(avs string, operator string) types.SlotID {
 // EigenState model for AVS operators that implements IEigenStateModel.
 type AvsOperatorsModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	DB               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
@@ -80,12 +79,10 @@ func NewAvsOperatorsModel(
 	globalConfig *config.Config,
 ) (*AvsOperatorsModel, error) {
 	s := &AvsOperatorsModel{
-		BaseEigenState: base.BaseEigenState{
-			Logger: logger,
-		},
-		DB:           grm,
-		logger:       logger,
-		globalConfig: globalConfig,
+		BaseEigenState: base.NewBaseEigenState(logger, grm),
+		DB:             grm,
+		logger:         logger,
+		globalConfig:   globalConfig,
 
 		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
 
@@ -106,11 +103,11 @@ func (a *AvsOperatorsModel) GetModelName() string {
 //
 // Returns the map and a reverse sorted list of block numbers that can be traversed when
 // processing a log to determine which state change to apply.
-func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChange], []uint64) {
-	stateChanges := make(types.StateTransitions[AccumulatedStateChange])
+func (a *AvsOperatorsModel) GetStateTransitions() ([]uint64, types.StateTransitions) {
+	stateChanges := make(types.StateTransitions)
 
 	// TODO(seanmcgary): make this not a closure so this function doesnt get big an messy...
-	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
+	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		arguments, err := a.ParseLogArguments(log)
 		if err != nil {
 			return nil, err
@@ -165,17 +162,16 @@ func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[Accumu
 		return record, nil
 	}
 
-	// Create an ordered list of block numbers
-	blockNumbers := make([]uint64, 0)
+	// sort the fork block numbers in descending order
+	forkBlockNumbers := make([]uint64, 0)
 	for blockNumber := range stateChanges {
-		blockNumbers = append(blockNumbers, blockNumber)
+		forkBlockNumbers = append(forkBlockNumbers, blockNumber)
 	}
-	sort.Slice(blockNumbers, func(i, j int) bool {
-		return blockNumbers[i] < blockNumbers[j]
+	sort.Slice(forkBlockNumbers, func(i, j int) bool {
+		return forkBlockNumbers[i] > forkBlockNumbers[j]
 	})
-	slices.Reverse(blockNumbers)
 
-	return stateChanges, blockNumbers
+	return forkBlockNumbers, stateChanges
 }
 
 // Returns a map of contract addresses to event names that are interesting to the state model.
@@ -209,25 +205,9 @@ func (a *AvsOperatorsModel) CleanupProcessedStateForBlock(blockNumber uint64) er
 // Handle the state change for the given log
 //
 // Takes a log and iterates over the state transitions to determine which state change to apply based on block number.
-func (a *AvsOperatorsModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := a.GetStateTransitions()
-
-	for _, blockNumber := range sortedBlockNumbers {
-		if log.BlockNumber >= blockNumber {
-			a.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
-
-			change, err := stateChanges[blockNumber](log)
-			if err != nil {
-				return nil, err
-			}
-
-			if change == nil {
-				return nil, xerrors.Errorf("No state change found for block %d", blockNumber)
-			}
-			return change, nil
-		}
-	}
-	return nil, nil
+func (a *AvsOperatorsModel) HandleLog(log *storage.TransactionLog) (interface{}, error) {
+	forkBlockNumbers, stateChanges := a.GetStateTransitions()
+	return a.BaseEigenState.HandleLog(forkBlockNumbers, stateChanges, log)
 }
 
 func (a *AvsOperatorsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
@@ -385,5 +365,5 @@ func (a *AvsOperatorsModel) sortValuesForMerkleTree(diffs []*RegisteredAvsOperat
 }
 
 func (a *AvsOperatorsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return a.BaseEigenState.DeleteState("registered_avs_operators", startBlockNumber, endBlockNumber, a.DB)
+	return a.BaseEigenState.DeleteState("registered_avs_operators", startBlockNumber, endBlockNumber)
 }

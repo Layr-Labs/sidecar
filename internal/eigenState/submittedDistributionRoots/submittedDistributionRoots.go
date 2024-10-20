@@ -39,10 +39,9 @@ func NewSlotID(root string, rootIndex uint64) types.SlotID {
 
 type SubmittedDistributionRootsModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[SubmittedDistributionRoot]
-	DB               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*SubmittedDistributionRoot
@@ -55,9 +54,7 @@ func NewSubmittedDistributionRootsModel(
 	globalConfig *config.Config,
 ) (*SubmittedDistributionRootsModel, error) {
 	model := &SubmittedDistributionRootsModel{
-		BaseEigenState: base.BaseEigenState{
-			Logger: logger,
-		},
+		BaseEigenState:   base.NewBaseEigenState(logger, grm),
 		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
@@ -88,10 +85,10 @@ func parseLogOutputForDistributionRootSubmitted(outputDataStr string) (*distribu
 	return outputData, err
 }
 
-func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTransitions[SubmittedDistributionRoot], []uint64) {
-	stateChanges := make(types.StateTransitions[SubmittedDistributionRoot])
+func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() ([]uint64, types.StateTransitions) {
+	stateChanges := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*SubmittedDistributionRoot, error) {
+	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		arguments, err := sdr.ParseLogArguments(log)
 		if err != nil {
 			return nil, err
@@ -169,17 +166,16 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 		return record, nil
 	}
 
-	// Create an ordered list of block numbers
-	blockNumbers := make([]uint64, 0)
+	// sort the fork block numbers in descending order
+	forkBlockNumbers := make([]uint64, 0)
 	for blockNumber := range stateChanges {
-		blockNumbers = append(blockNumbers, blockNumber)
+		forkBlockNumbers = append(forkBlockNumbers, blockNumber)
 	}
-	sort.Slice(blockNumbers, func(i, j int) bool {
-		return blockNumbers[i] < blockNumbers[j]
+	sort.Slice(forkBlockNumbers, func(i, j int) bool {
+		return forkBlockNumbers[i] > forkBlockNumbers[j]
 	})
-	slices.Reverse(blockNumbers)
 
-	return stateChanges, blockNumbers
+	return forkBlockNumbers, stateChanges
 }
 
 func (sdr *SubmittedDistributionRootsModel) getContractAddressesForEnvironment() map[string][]string {
@@ -206,24 +202,9 @@ func (sdr *SubmittedDistributionRootsModel) CleanupProcessedStateForBlock(blockN
 	return nil
 }
 
-func (sdr *SubmittedDistributionRootsModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := sdr.GetStateTransitions()
-
-	for _, blockNumber := range sortedBlockNumbers {
-		if log.BlockNumber >= blockNumber {
-			sdr.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
-
-			change, err := stateChanges[blockNumber](log)
-			if err != nil {
-				return nil, err
-			}
-			if change == nil {
-				return nil, xerrors.Errorf("No state change found for block %d", blockNumber)
-			}
-			return change, nil
-		}
-	}
-	return nil, nil
+func (sdr *SubmittedDistributionRootsModel) HandleLog(log *storage.TransactionLog) (interface{}, error) {
+	forkBlockNumbers, stateChanges := sdr.GetStateTransitions()
+	return sdr.BaseEigenState.HandleLog(forkBlockNumbers, stateChanges, log)
 }
 
 func (sdr *SubmittedDistributionRootsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
@@ -372,5 +353,5 @@ func (sdr *SubmittedDistributionRootsModel) GenerateStateRoot(blockNumber uint64
 }
 
 func (sdr *SubmittedDistributionRootsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return sdr.BaseEigenState.DeleteState("submitted_distribution_roots", startBlockNumber, endBlockNumber, sdr.DB)
+	return sdr.BaseEigenState.DeleteState("submitted_distribution_roots", startBlockNumber, endBlockNumber)
 }
