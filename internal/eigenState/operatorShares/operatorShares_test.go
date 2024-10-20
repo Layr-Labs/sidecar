@@ -80,7 +80,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		change, err := model.HandleStateChange(&log)
+		change, err := model.HandleLog(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
@@ -109,7 +109,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		stateChange, err := model.HandleStateChange(&log)
+		stateChange, err := model.HandleLog(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, stateChange)
 
@@ -158,7 +158,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		stateChange, err := model.HandleStateChange(&log)
+		stateChange, err := model.HandleLog(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, stateChange)
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -57,10 +56,9 @@ func NewSlotID(operator string, strategy string) types.SlotID {
 // Implements IEigenStateModel.
 type OperatorSharesModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	DB               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
@@ -73,9 +71,7 @@ func NewOperatorSharesModel(
 	globalConfig *config.Config,
 ) (*OperatorSharesModel, error) {
 	model := &OperatorSharesModel{
-		BaseEigenState: base.BaseEigenState{
-			Logger: logger,
-		},
+		BaseEigenState:   base.NewBaseEigenState(logger, grm),
 		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
@@ -108,10 +104,10 @@ func parseLogOutputForOperatorShares(outputDataStr string) (*operatorSharesOutpu
 	return outputData, err
 }
 
-func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChange], []uint64) {
-	stateChanges := make(types.StateTransitions[AccumulatedStateChange])
+func (osm *OperatorSharesModel) GetStateTransitions() types.StateTransitions {
+	stateTransitions := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
+	stateTransitions[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		arguments, err := osm.ParseLogArguments(log)
 		if err != nil {
 			return nil, err
@@ -161,17 +157,7 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 		return record, nil
 	}
 
-	// Create an ordered list of block numbers
-	blockNumbers := make([]uint64, 0)
-	for blockNumber := range stateChanges {
-		blockNumbers = append(blockNumbers, blockNumber)
-	}
-	sort.Slice(blockNumbers, func(i, j int) bool {
-		return blockNumbers[i] < blockNumbers[j]
-	})
-	slices.Reverse(blockNumbers)
-
-	return stateChanges, blockNumbers
+	return stateTransitions
 }
 
 func (osm *OperatorSharesModel) getContractAddressesForEnvironment() map[string][]string {
@@ -199,24 +185,9 @@ func (osm *OperatorSharesModel) CleanupProcessedStateForBlock(blockNumber uint64
 	return nil
 }
 
-func (osm *OperatorSharesModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := osm.GetStateTransitions()
-
-	for _, blockNumber := range sortedBlockNumbers {
-		if log.BlockNumber >= blockNumber {
-			osm.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
-
-			change, err := stateChanges[blockNumber](log)
-			if err != nil {
-				return nil, err
-			}
-			if change == nil {
-				return nil, xerrors.Errorf("No state change found for block %d", blockNumber)
-			}
-			return change, nil
-		}
-	}
-	return nil, nil //nolint:nilnil
+func (osm *OperatorSharesModel) HandleLog(log *storage.TransactionLog) (interface{}, error) {
+	stateTransitions := osm.GetStateTransitions()
+	return osm.BaseEigenState.HandleLog(stateTransitions, log)
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
@@ -364,5 +335,5 @@ func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []*OperatorSharesD
 }
 
 func (osm *OperatorSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return osm.BaseEigenState.DeleteState("operator_shares", startBlockNumber, endBlockNumber, osm.DB)
+	return osm.BaseEigenState.DeleteState("operator_shares", startBlockNumber, endBlockNumber)
 }

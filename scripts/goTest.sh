@@ -7,4 +7,4 @@ export PYTHONPATH="${PROJECT_ROOT}/sqlite-extensions:$PYTHONPATH"
 export CGO_ENABLED=1
 export TESTING=true
 
-go test $@
+go test $@ 

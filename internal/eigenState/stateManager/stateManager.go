@@ -57,7 +57,7 @@ func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog) er
 				zap.Uint64("logIndex", log.LogIndex),
 				zap.String("eventName", log.EventName),
 			)
-			_, err := state.HandleStateChange(log)
+			_, err := state.HandleLog(log)
 			if err != nil {
 				return err
 			}

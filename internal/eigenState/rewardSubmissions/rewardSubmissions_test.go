@@ -104,7 +104,7 @@ func Test_RewardSubmissions(t *testing.T) {
 			isInteresting := model.IsInterestingLog(log)
 			assert.True(t, isInteresting)
 
-			change, err := model.HandleStateChange(log)
+			change, err := model.HandleLog(log)
 			assert.Nil(t, err)
 			assert.NotNil(t, change)
 
@@ -182,7 +182,7 @@ func Test_RewardSubmissions(t *testing.T) {
 			isInteresting := model.IsInterestingLog(log)
 			assert.True(t, isInteresting)
 
-			change, err := model.HandleStateChange(log)
+			change, err := model.HandleLog(log)
 			assert.Nil(t, err)
 			assert.NotNil(t, change)
 
@@ -257,7 +257,7 @@ func Test_RewardSubmissions(t *testing.T) {
 			isInteresting := model.IsInterestingLog(log)
 			assert.True(t, isInteresting)
 
-			change, err := model.HandleStateChange(log)
+			change, err := model.HandleLog(log)
 			assert.Nil(t, err)
 			assert.NotNil(t, change)
 
@@ -329,7 +329,7 @@ func Test_RewardSubmissions(t *testing.T) {
 			isInteresting := model.IsInterestingLog(log)
 			assert.True(t, isInteresting)
 
-			change, err := model.HandleStateChange(log)
+			change, err := model.HandleLog(log)
 			assert.Nil(t, err)
 			assert.NotNil(t, change)
 
@@ -402,7 +402,7 @@ func Test_RewardSubmissions(t *testing.T) {
 			isInteresting := model.IsInterestingLog(log)
 			assert.True(t, isInteresting)
 
-			change, err := model.HandleStateChange(log)
+			change, err := model.HandleLog(log)
 			assert.Nil(t, err)
 			assert.NotNil(t, change)
 
@@ -487,7 +487,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		isInteresting := model.IsInterestingLog(log)
 		assert.True(t, isInteresting)
 
-		change, err := model.HandleStateChange(log)
+		change, err := model.HandleLog(log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 		typedChange := change.(*RewardSubmissions)
@@ -535,7 +535,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		isInteresting = model.IsInterestingLog(log)
 		assert.True(t, isInteresting)
 
-		change, err = model.HandleStateChange(log)
+		change, err = model.HandleLog(log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 		typedChange = change.(*RewardSubmissions)
@@ -581,7 +581,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		isInteresting = model.IsInterestingLog(log)
 		assert.True(t, isInteresting)
 
-		change, err = model.HandleStateChange(log)
+		change, err = model.HandleLog(log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 		typedChange = change.(*RewardSubmissions)
@@ -627,7 +627,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		isInteresting = model.IsInterestingLog(log)
 		assert.True(t, isInteresting)
 
-		change, err = model.HandleStateChange(log)
+		change, err = model.HandleLog(log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 		typedChange = change.(*RewardSubmissions)
@@ -674,7 +674,7 @@ func Test_RewardSubmissions(t *testing.T) {
 			isInteresting := model.IsInterestingLog(log)
 			assert.True(t, isInteresting)
 
-			change, err := model.HandleStateChange(log)
+			change, err := model.HandleLog(log)
 			assert.Nil(t, err)
 			assert.NotNil(t, change)
 			typedChange := change.(*RewardSubmissions)

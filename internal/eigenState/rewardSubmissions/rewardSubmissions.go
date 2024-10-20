@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -53,12 +52,11 @@ func NewSlotID(rewardHash string, strategy string) types.SlotID {
 
 type RewardSubmissionsModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[RewardSubmission]
-	DB               *gorm.DB
-	Network          config.Network
-	Environment      config.Environment
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	Network      config.Network
+	Environment  config.Environment
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*RewardSubmission
@@ -71,9 +69,7 @@ func NewRewardSubmissionsModel(
 	globalConfig *config.Config,
 ) (*RewardSubmissionsModel, error) {
 	model := &RewardSubmissionsModel{
-		BaseEigenState: base.BaseEigenState{
-			Logger: logger,
-		},
+		BaseEigenState:   base.NewBaseEigenState(logger, grm),
 		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
@@ -181,10 +177,10 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 	return &RewardSubmissions{Submissions: rewardSubmissions}, nil
 }
 
-func (rs *RewardSubmissionsModel) GetStateTransitions() (types.StateTransitions[RewardSubmissions], []uint64) {
-	stateChanges := make(types.StateTransitions[RewardSubmissions])
+func (rs *RewardSubmissionsModel) GetStateTransitions() types.StateTransitions {
+	stateTransitions := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*RewardSubmissions, error) {
+	stateTransitions[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		rewardSubmissions, err := rs.handleRewardSubmissionCreatedEvent(log)
 		if err != nil {
 			return nil, err
@@ -206,17 +202,7 @@ func (rs *RewardSubmissionsModel) GetStateTransitions() (types.StateTransitions[
 		return rewardSubmissions, nil
 	}
 
-	// Create an ordered list of block numbers
-	blockNumbers := make([]uint64, 0)
-	for blockNumber := range stateChanges {
-		blockNumbers = append(blockNumbers, blockNumber)
-	}
-	sort.Slice(blockNumbers, func(i, j int) bool {
-		return blockNumbers[i] < blockNumbers[j]
-	})
-	slices.Reverse(blockNumbers)
-
-	return stateChanges, blockNumbers
+	return stateTransitions
 }
 
 func (rs *RewardSubmissionsModel) getContractAddressesForEnvironment() map[string][]string {
@@ -247,24 +233,9 @@ func (rs *RewardSubmissionsModel) CleanupProcessedStateForBlock(blockNumber uint
 	return nil
 }
 
-func (rs *RewardSubmissionsModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := rs.GetStateTransitions()
-
-	for _, blockNumber := range sortedBlockNumbers {
-		if log.BlockNumber >= blockNumber {
-			rs.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
-
-			change, err := stateChanges[blockNumber](log)
-			if err != nil {
-				return nil, err
-			}
-			if change == nil {
-				return nil, nil
-			}
-			return change, nil
-		}
-	}
-	return nil, nil
+func (rs *RewardSubmissionsModel) HandleLog(log *storage.TransactionLog) (interface{}, error) {
+	stateTransitions := rs.GetStateTransitions()
+	return rs.BaseEigenState.HandleLog(stateTransitions, log)
 }
 
 func (rs *RewardSubmissionsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
@@ -439,5 +410,5 @@ func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardS
 }
 
 func (rs *RewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return rs.BaseEigenState.DeleteState("reward_submissions", startBlockNumber, endBlockNumber, rs.DB)
+	return rs.BaseEigenState.DeleteState("reward_submissions", startBlockNumber, endBlockNumber)
 }

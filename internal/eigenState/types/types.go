@@ -23,11 +23,11 @@ type IEigenStateModel interface {
 	// Perform any necessary cleanup for processing a block
 	CleanupProcessedStateForBlock(blockNumber uint64) error
 
-	// HandleStateChange
+	// HandleLog
 	// Allow the state model to handle the state change
 	//
 	// Returns the saved value. Listed as an interface because go generics suck
-	HandleStateChange(log *storage.TransactionLog) (interface{}, error)
+	HandleLog(log *storage.TransactionLog) (interface{}, error)
 
 	// CommitFinalState
 	// Once all state changes are processed, commit the final state to the database
@@ -47,6 +47,6 @@ type IEigenStateModel interface {
 
 // StateTransitions
 // Map of block number to function that will transition the state to the next block.
-type StateTransitions[T interface{}] map[uint64]func(log *storage.TransactionLog) (*T, error)
+type StateTransitions map[uint64]func(log *storage.TransactionLog) (interface{}, error)
 
 type SlotID string

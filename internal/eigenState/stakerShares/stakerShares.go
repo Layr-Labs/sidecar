@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -54,10 +53,9 @@ func NewSlotID(staker string, strategy string) types.SlotID {
 
 type StakerSharesModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	DB               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
@@ -70,7 +68,7 @@ func NewStakerSharesModel(
 	globalConfig *config.Config,
 ) (*StakerSharesModel, error) {
 	model := &StakerSharesModel{
-		BaseEigenState:   base.BaseEigenState{},
+		BaseEigenState:   base.NewBaseEigenState(logger, grm),
 		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
@@ -354,11 +352,11 @@ type AccumulatedStateChanges struct {
 	Changes []*AccumulatedStateChange
 }
 
-func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChanges], []uint64) {
-	stateChanges := make(types.StateTransitions[AccumulatedStateChanges])
+func (ss *StakerSharesModel) GetStateTransitions() types.StateTransitions {
+	stateTransitions := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChanges, error) {
-		var parsedRecords []*AccumulatedStateChange
+	stateTransitions[0] = func(log *storage.TransactionLog) (interface{}, error) {
+		parsedRecords := make([]*AccumulatedStateChange, 0)
 		var err error
 
 		contractAddresses := ss.globalConfig.GetContractsMapForChain()
@@ -399,9 +397,6 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 		if err != nil {
 			return nil, err
 		}
-		if parsedRecords == nil {
-			return nil, nil
-		}
 
 		// Sanity check to make sure we've got an initialized accumulator map for the block
 		if _, ok := ss.stateAccumulator[log.BlockNumber]; !ok {
@@ -425,17 +420,7 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 		return &AccumulatedStateChanges{Changes: parsedRecords}, nil
 	}
 
-	// Create an ordered list of block numbers
-	blockNumbers := make([]uint64, 0)
-	for blockNumber := range stateChanges {
-		blockNumbers = append(blockNumbers, blockNumber)
-	}
-	sort.Slice(blockNumbers, func(i, j int) bool {
-		return blockNumbers[i] < blockNumbers[j]
-	})
-	slices.Reverse(blockNumbers)
-
-	return stateChanges, blockNumbers
+	return stateTransitions
 }
 
 func (ss *StakerSharesModel) getContractAddressesForEnvironment() map[string][]string {
@@ -470,24 +455,9 @@ func (ss *StakerSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) e
 	return nil
 }
 
-func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := ss.GetStateTransitions()
-
-	for _, blockNumber := range sortedBlockNumbers {
-		if log.BlockNumber >= blockNumber {
-			ss.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
-
-			change, err := stateChanges[blockNumber](log)
-			if err != nil {
-				return nil, err
-			}
-			if change == nil {
-				return nil, nil
-			}
-			return change, nil
-		}
-	}
-	return nil, nil
+func (ss *StakerSharesModel) HandleLog(log *storage.TransactionLog) (interface{}, error) {
+	stateTransitions := ss.GetStateTransitions()
+	return ss.BaseEigenState.HandleLog(stateTransitions, log)
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
@@ -632,5 +602,5 @@ func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerSharesDiff) 
 }
 
 func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ss.BaseEigenState.DeleteState("staker_shares", startBlockNumber, endBlockNumber, ss.DB)
+	return ss.BaseEigenState.DeleteState("staker_shares", startBlockNumber, endBlockNumber)
 }
