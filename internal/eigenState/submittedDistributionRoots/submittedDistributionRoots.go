@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -85,10 +84,10 @@ func parseLogOutputForDistributionRootSubmitted(outputDataStr string) (*distribu
 	return outputData, err
 }
 
-func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() ([]uint64, types.StateTransitions) {
-	stateChanges := make(types.StateTransitions)
+func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() types.StateTransitions {
+	stateTransitions := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
+	stateTransitions[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		arguments, err := sdr.ParseLogArguments(log)
 		if err != nil {
 			return nil, err
@@ -166,16 +165,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() ([]uint64, typ
 		return record, nil
 	}
 
-	// sort the fork block numbers in descending order
-	forkBlockNumbers := make([]uint64, 0)
-	for blockNumber := range stateChanges {
-		forkBlockNumbers = append(forkBlockNumbers, blockNumber)
-	}
-	sort.Slice(forkBlockNumbers, func(i, j int) bool {
-		return forkBlockNumbers[i] > forkBlockNumbers[j]
-	})
-
-	return forkBlockNumbers, stateChanges
+	return stateTransitions
 }
 
 func (sdr *SubmittedDistributionRootsModel) getContractAddressesForEnvironment() map[string][]string {
@@ -203,8 +193,8 @@ func (sdr *SubmittedDistributionRootsModel) CleanupProcessedStateForBlock(blockN
 }
 
 func (sdr *SubmittedDistributionRootsModel) HandleLog(log *storage.TransactionLog) (interface{}, error) {
-	forkBlockNumbers, stateChanges := sdr.GetStateTransitions()
-	return sdr.BaseEigenState.HandleLog(forkBlockNumbers, stateChanges, log)
+	stateTransitions := sdr.GetStateTransitions()
+	return sdr.BaseEigenState.HandleLog(stateTransitions, log)
 }
 
 func (sdr *SubmittedDistributionRootsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {

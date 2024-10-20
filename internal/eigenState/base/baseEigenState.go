@@ -83,12 +83,19 @@ func (b *BaseEigenState) IsInterestingLog(contractsEvents map[string][]string, l
 // HandleLog handles state changes for a given block number.
 // it loops through the forkBlockNumbers and calls the state change function for the block number
 // this supports models that have different state changes for different block ranges
-func (b *BaseEigenState) HandleLog(forkBlockNumbers []uint64, stateChanges types.StateTransitions, log *storage.TransactionLog) (interface{}, error) {
+func (b *BaseEigenState) HandleLog(stateTransitions types.StateTransitions, log *storage.TransactionLog) (interface{}, error) {
+	forkBlockNumbers := make([]uint64, 0, len(stateTransitions))
+	for blockNumber := range stateTransitions {
+		forkBlockNumbers = append(forkBlockNumbers, blockNumber)
+	}
+	slices.Sort(forkBlockNumbers)
+	slices.Reverse(forkBlockNumbers)
+
 	for _, blockNumber := range forkBlockNumbers {
 		if log.BlockNumber >= blockNumber {
 			b.Logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
 
-			change, err := stateChanges[blockNumber](log)
+			change, err := stateTransitions[blockNumber](log)
 			if err != nil {
 				return nil, err
 			}

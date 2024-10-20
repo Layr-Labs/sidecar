@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -105,10 +104,10 @@ func parseLogOutputForOperatorShares(outputDataStr string) (*operatorSharesOutpu
 	return outputData, err
 }
 
-func (osm *OperatorSharesModel) GetStateTransitions() ([]uint64, types.StateTransitions) {
-	stateChanges := make(types.StateTransitions)
+func (osm *OperatorSharesModel) GetStateTransitions() types.StateTransitions {
+	stateTransitions := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
+	stateTransitions[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		arguments, err := osm.ParseLogArguments(log)
 		if err != nil {
 			return nil, err
@@ -158,16 +157,7 @@ func (osm *OperatorSharesModel) GetStateTransitions() ([]uint64, types.StateTran
 		return record, nil
 	}
 
-	// sort the fork block numbers in descending order
-	forkBlockNumbers := make([]uint64, 0)
-	for blockNumber := range stateChanges {
-		forkBlockNumbers = append(forkBlockNumbers, blockNumber)
-	}
-	sort.Slice(forkBlockNumbers, func(i, j int) bool {
-		return forkBlockNumbers[i] > forkBlockNumbers[j]
-	})
-
-	return forkBlockNumbers, stateChanges
+	return stateTransitions
 }
 
 func (osm *OperatorSharesModel) getContractAddressesForEnvironment() map[string][]string {
@@ -196,8 +186,8 @@ func (osm *OperatorSharesModel) CleanupProcessedStateForBlock(blockNumber uint64
 }
 
 func (osm *OperatorSharesModel) HandleLog(log *storage.TransactionLog) (interface{}, error) {
-	forkBlockNumbers, stateChanges := osm.GetStateTransitions()
-	return osm.BaseEigenState.HandleLog(forkBlockNumbers, stateChanges, log)
+	stateTransitions := osm.GetStateTransitions()
+	return osm.BaseEigenState.HandleLog(stateTransitions, log)
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -103,11 +102,11 @@ func (a *AvsOperatorsModel) GetModelName() string {
 //
 // Returns the map and a reverse sorted list of block numbers that can be traversed when
 // processing a log to determine which state change to apply.
-func (a *AvsOperatorsModel) GetStateTransitions() ([]uint64, types.StateTransitions) {
-	stateChanges := make(types.StateTransitions)
+func (a *AvsOperatorsModel) GetStateTransitions() types.StateTransitions {
+	stateTransitions := make(types.StateTransitions)
 
 	// TODO(seanmcgary): make this not a closure so this function doesnt get big an messy...
-	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
+	stateTransitions[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		arguments, err := a.ParseLogArguments(log)
 		if err != nil {
 			return nil, err
@@ -162,16 +161,7 @@ func (a *AvsOperatorsModel) GetStateTransitions() ([]uint64, types.StateTransiti
 		return record, nil
 	}
 
-	// sort the fork block numbers in descending order
-	forkBlockNumbers := make([]uint64, 0)
-	for blockNumber := range stateChanges {
-		forkBlockNumbers = append(forkBlockNumbers, blockNumber)
-	}
-	sort.Slice(forkBlockNumbers, func(i, j int) bool {
-		return forkBlockNumbers[i] > forkBlockNumbers[j]
-	})
-
-	return forkBlockNumbers, stateChanges
+	return stateTransitions
 }
 
 // Returns a map of contract addresses to event names that are interesting to the state model.
@@ -206,8 +196,8 @@ func (a *AvsOperatorsModel) CleanupProcessedStateForBlock(blockNumber uint64) er
 //
 // Takes a log and iterates over the state transitions to determine which state change to apply based on block number.
 func (a *AvsOperatorsModel) HandleLog(log *storage.TransactionLog) (interface{}, error) {
-	forkBlockNumbers, stateChanges := a.GetStateTransitions()
-	return a.BaseEigenState.HandleLog(forkBlockNumbers, stateChanges, log)
+	stateTransitions := a.GetStateTransitions()
+	return a.BaseEigenState.HandleLog(stateTransitions, log)
 }
 
 func (a *AvsOperatorsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {

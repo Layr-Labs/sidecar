@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -92,10 +91,10 @@ func (s *StakerDelegationsModel) GetModelName() string {
 	return "StakerDelegationsModel"
 }
 
-func (s *StakerDelegationsModel) GetStateTransitions() ([]uint64, types.StateTransitions) {
-	stateChanges := make(types.StateTransitions)
+func (s *StakerDelegationsModel) GetStateTransitions() types.StateTransitions {
+	stateTransitions := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
+	stateTransitions[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		arguments, err := s.ParseLogArguments(log)
 		if err != nil {
 			return nil, err
@@ -145,16 +144,7 @@ func (s *StakerDelegationsModel) GetStateTransitions() ([]uint64, types.StateTra
 		return record, nil
 	}
 
-	// sort the fork block numbers in descending order
-	forkBlockNumbers := make([]uint64, 0)
-	for blockNumber := range stateChanges {
-		forkBlockNumbers = append(forkBlockNumbers, blockNumber)
-	}
-	sort.Slice(forkBlockNumbers, func(i, j int) bool {
-		return forkBlockNumbers[i] > forkBlockNumbers[j]
-	})
-
-	return forkBlockNumbers, stateChanges
+	return stateTransitions
 }
 
 func (s *StakerDelegationsModel) getContractAddressesForEnvironment() map[string][]string {
@@ -187,8 +177,8 @@ func (s *StakerDelegationsModel) CleanupProcessedStateForBlock(blockNumber uint6
 }
 
 func (s *StakerDelegationsModel) HandleLog(log *storage.TransactionLog) (interface{}, error) {
-	forkBlockNumbers, stateChanges := s.GetStateTransitions()
-	return s.BaseEigenState.HandleLog(forkBlockNumbers, stateChanges, log)
+	stateTransitions := s.GetStateTransitions()
+	return s.BaseEigenState.HandleLog(stateTransitions, log)
 }
 
 func (s *StakerDelegationsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -353,10 +352,10 @@ type AccumulatedStateChanges struct {
 	Changes []*AccumulatedStateChange
 }
 
-func (ss *StakerSharesModel) GetStateTransitions() ([]uint64, types.StateTransitions) {
-	stateChanges := make(types.StateTransitions)
+func (ss *StakerSharesModel) GetStateTransitions() types.StateTransitions {
+	stateTransitions := make(types.StateTransitions)
 
-	stateChanges[0] = func(log *storage.TransactionLog) (interface{}, error) {
+	stateTransitions[0] = func(log *storage.TransactionLog) (interface{}, error) {
 		parsedRecords := make([]*AccumulatedStateChange, 0)
 		var err error
 
@@ -421,16 +420,7 @@ func (ss *StakerSharesModel) GetStateTransitions() ([]uint64, types.StateTransit
 		return &AccumulatedStateChanges{Changes: parsedRecords}, nil
 	}
 
-	// sort the fork block numbers in descending order
-	forkBlockNumbers := make([]uint64, 0)
-	for blockNumber := range stateChanges {
-		forkBlockNumbers = append(forkBlockNumbers, blockNumber)
-	}
-	sort.Slice(forkBlockNumbers, func(i, j int) bool {
-		return forkBlockNumbers[i] > forkBlockNumbers[j]
-	})
-
-	return forkBlockNumbers, stateChanges
+	return stateTransitions
 }
 
 func (ss *StakerSharesModel) getContractAddressesForEnvironment() map[string][]string {
@@ -466,8 +456,8 @@ func (ss *StakerSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) e
 }
 
 func (ss *StakerSharesModel) HandleLog(log *storage.TransactionLog) (interface{}, error) {
-	forkBlockNumbers, stateChanges := ss.GetStateTransitions()
-	return ss.BaseEigenState.HandleLog(forkBlockNumbers, stateChanges, log)
+	stateTransitions := ss.GetStateTransitions()
+	return ss.BaseEigenState.HandleLog(stateTransitions, log)
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
