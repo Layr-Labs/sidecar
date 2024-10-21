@@ -23,3 +23,4 @@ test-db
 *.dylib
 *.dylib.dSYM
 /sqlite-extensions/build
+internal/eigenState/compile.sh

@@ -1,15 +1,17 @@
 package storage
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/parser"
+	"golang.org/x/xerrors"
 )
 
 type BlockStore interface {
 	InsertBlockAtHeight(blockNumber uint64, hash string, blockTime uint64) (*Block, error)
-	InsertBlockTransaction(blockNumber uint64, txHash string, txIndex uint64, from string, to string, contractAddress string, bytecodeHash string) (*Transaction, error)
-	InsertTransactionLog(txHash string, transactionIndex uint64, blockNumber uint64, log *parser.DecodedLog, outputData map[string]interface{}) (*TransactionLog, error)
+	InsertBlockTransaction(blockNumber uint64, blockTime time.Time, txHash string, txIndex uint64, from string, to string, contractAddress string, bytecodeHash string) (*Transaction, error)
+	InsertTransactionLog(txHash string, transactionIndex uint64, blockNumber uint64, blockTime time.Time, log *parser.DecodedLog, outputData map[string]interface{}) (*TransactionLog, error)
 	GetLatestBlock() (*Block, error)
 	GetBlockByNumber(blockNumber uint64) (*Block, error)
 	InsertOperatorRestakedStrategies(avsDirectorAddress string, blockNumber uint64, blockTime time.Time, operator string, avs string, strategy string) (*OperatorRestakedStrategies, error)
@@ -36,6 +38,7 @@ type Block struct {
 
 type Transaction struct {
 	BlockNumber      uint64
+	BlockTime        time.Time
 	TransactionHash  string
 	TransactionIndex uint64
 	FromAddress      string
@@ -51,6 +54,7 @@ type TransactionLog struct {
 	TransactionHash  string
 	TransactionIndex uint64
 	BlockNumber      uint64
+	BlockTime        time.Time
 	Address          string
 	Arguments        string
 	EventName        string
@@ -59,6 +63,36 @@ type TransactionLog struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	DeletedAt        time.Time
+}
+
+func (tl *TransactionLog) CombineArgs() ([]byte, error) {
+	combinedArgs := make(map[string]interface{})
+	parsedArgs := make([]parser.Argument, 0)
+	if err := json.Unmarshal([]byte(tl.Arguments), &parsedArgs); err != nil {
+		return nil, xerrors.Errorf("failed to unmarshal log arguments: %w", err)
+	}
+
+	parsedOutputs := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(tl.OutputData), &parsedOutputs); err != nil {
+		return nil, xerrors.Errorf("failed to unmarshal log output data: %w", err)
+	}
+
+	for _, arg := range parsedArgs {
+		if arg.Indexed {
+			combinedArgs[arg.Name] = arg.Value
+		} else {
+			val, ok := parsedOutputs[arg.Name]
+			if !ok {
+				return nil, xerrors.Errorf("missing output data for argument: %s", arg.Name)
+			}
+			combinedArgs[arg.Name] = val
+		}
+	}
+	combinedArgsJson, err := json.Marshal(combinedArgs)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to marshal combined args: %w", err)
+	}
+	return combinedArgsJson, nil
 }
 
 type BatchTransaction struct {

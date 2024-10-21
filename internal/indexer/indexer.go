@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"
@@ -182,7 +183,7 @@ func (idx *Indexer) ParseAndIndexTransactionLogs(ctx context.Context, fetchedBlo
 		}
 
 		for _, log := range parsedTransactionLogs.Logs {
-			_, err := idx.IndexLog(ctx, fetchedBlock.Block.Number.Value(), tx.Hash.Value(), tx.Index.Value(), log)
+			_, err := idx.IndexLog(ctx, fetchedBlock.Block.Number.Value(), time.Unix(int64(fetchedBlock.Block.Timestamp.Value()), 0), tx.Hash.Value(), tx.Index.Value(), log)
 			if err != nil {
 				idx.Logger.Sugar().Errorw("failed to index log",
 					zap.Error(err),
@@ -294,6 +295,7 @@ func (idx *Indexer) IndexTransaction(
 ) (*storage.Transaction, error) {
 	return idx.MetadataStore.InsertBlockTransaction(
 		block.Number,
+		block.BlockTime,
 		tx.Hash.Value(),
 		tx.Index.Value(),
 		tx.From.Value(),
@@ -389,6 +391,7 @@ func (idx *Indexer) handleContractCreation(
 func (idx *Indexer) IndexLog(
 	ctx context.Context,
 	blockNumber uint64,
+	blockTime time.Time,
 	txHash string,
 	txIndex uint64,
 	log *parser.DecodedLog,
@@ -397,6 +400,7 @@ func (idx *Indexer) IndexLog(
 		txHash,
 		txIndex,
 		blockNumber,
+		blockTime,
 		log,
 		log.OutputData,
 	)
