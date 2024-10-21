@@ -308,7 +308,7 @@ func (idx *Indexer) DecodeLog(a *abi.ABI, lg *ethereum.EthereumEventLog) (*parse
 
 	decodedLog.EventName = event.RawName
 	decodedLog.Arguments = make([]parser.Argument, len(event.Inputs))
-	1
+	
 	for i, input := range event.Inputs {
 		decodedLog.Arguments[i] = parser.Argument{
 			Name:    input.Name,
