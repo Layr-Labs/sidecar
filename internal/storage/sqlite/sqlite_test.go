@@ -90,6 +90,7 @@ func Test_SqliteBlockstore(t *testing.T) {
 		t.Run("InsertBlockTransaction", func(t *testing.T) {
 			tx := storage.Transaction{
 				BlockNumber:      block.Number,
+				BlockTime:        block.BlockTime,
 				TransactionHash:  "txHash",
 				TransactionIndex: 0,
 				FromAddress:      "from",
@@ -99,6 +100,7 @@ func Test_SqliteBlockstore(t *testing.T) {
 			}
 			insertedTx, err := sqliteStore.InsertBlockTransaction(
 				tx.BlockNumber,
+				tx.BlockTime,
 				tx.TransactionHash,
 				tx.TransactionIndex,
 				tx.FromAddress,
@@ -130,6 +132,7 @@ func Test_SqliteBlockstore(t *testing.T) {
 			}
 			_, err := sqliteStore.InsertBlockTransaction(
 				tx.BlockNumber,
+				tx.BlockTime,
 				tx.TransactionHash,
 				tx.TransactionIndex,
 				tx.FromAddress,
@@ -167,12 +170,14 @@ func Test_SqliteBlockstore(t *testing.T) {
 				TransactionHash:  insertedTransactions[0].TransactionHash,
 				TransactionIndex: insertedTransactions[0].TransactionIndex,
 				BlockNumber:      insertedTransactions[0].BlockNumber,
+				BlockTime:        insertedTransactions[0].BlockTime,
 			}
 
 			insertedTxLog, err := sqliteStore.InsertTransactionLog(
 				txLog.TransactionHash,
 				txLog.TransactionIndex,
 				txLog.BlockNumber,
+				txLog.BlockTime,
 				decodedLog,
 				decodedLog.OutputData,
 			)
@@ -209,12 +214,14 @@ func Test_SqliteBlockstore(t *testing.T) {
 				TransactionHash:  insertedTransactions[0].TransactionHash,
 				TransactionIndex: insertedTransactions[0].TransactionIndex,
 				BlockNumber:      insertedTransactions[0].BlockNumber,
+				BlockTime:        insertedTransactions[0].BlockTime,
 			}
 
 			_, err := sqliteStore.InsertTransactionLog(
 				txLog.TransactionHash,
 				txLog.TransactionIndex,
 				txLog.BlockNumber,
+				txLog.BlockTime,
 				decodedLog,
 				decodedLog.OutputData,
 			)

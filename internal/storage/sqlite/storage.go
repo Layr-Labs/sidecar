@@ -59,6 +59,7 @@ func (s *SqliteBlockStore) InsertBlockAtHeight(
 
 func (s *SqliteBlockStore) InsertBlockTransaction(
 	blockNumber uint64,
+	blockTime time.Time,
 	txHash string,
 	txIndex uint64,
 	from string,
@@ -72,6 +73,7 @@ func (s *SqliteBlockStore) InsertBlockTransaction(
 
 	tx := &storage.Transaction{
 		BlockNumber:      blockNumber,
+		BlockTime:        blockTime,
 		TransactionHash:  txHash,
 		TransactionIndex: txIndex,
 		FromAddress:      from,
@@ -92,6 +94,7 @@ func (s *SqliteBlockStore) InsertTransactionLog(
 	txHash string,
 	transactionIndex uint64,
 	blockNumber uint64,
+	blockTime time.Time,
 	log *parser.DecodedLog,
 	outputData map[string]interface{},
 ) (*storage.TransactionLog, error) {
@@ -109,6 +112,7 @@ func (s *SqliteBlockStore) InsertTransactionLog(
 		TransactionHash:  txHash,
 		TransactionIndex: transactionIndex,
 		BlockNumber:      blockNumber,
+		BlockTime:        blockTime,
 		Address:          strings.ToLower(log.Address),
 		Arguments:        string(argsJson),
 		EventName:        log.EventName,
@@ -217,7 +221,7 @@ func (s *SqliteBlockStore) DeleteCorruptedState(startBlockNumber uint64, endBloc
 			zap.Uint64("startBlockNumber", startBlockNumber),
 			zap.Uint64("endBlockNumber", endBlockNumber),
 		)
-		return fmt.Errorf("Invalid block range; endBlockNumber must be greater than or equal to startBlockNumber")
+		return fmt.Errorf("invalid block range; endBlockNumber must be greater than or equal to startBlockNumber")
 	}
 
 	tablesWithBlockNumber := []string{
