@@ -2,7 +2,7 @@ COPY (
      WITH operator_shares as (
     select *
     FROM dbt_mainnet_ethereum_rewards.operator_shares
-    where block_time < '2024-08-13'
+    where block_time < '2024-08-20'
 ),
 ranked_operator_records as (
     SELECT *,
@@ -23,7 +23,7 @@ ranked_operator_records as (
          SELECT
              operator, strategy, shares, snapshot_time as start_time,
              CASE
-                 WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '2024-08-01')
+                 WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '2024-08-18')
                  ELSE LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time)
                  END AS end_time
          FROM snapshotted_records

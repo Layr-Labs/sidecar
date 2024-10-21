@@ -111,7 +111,10 @@ func Test_CombinedRewards(t *testing.T) {
 	t.Run("Should generate the proper combinedRewards", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
-		combinedRewards, err := rewards.GenerateCombinedRewards()
+		startDate := "1970-01-01"
+		snapshotDate, err := getSnapshotDate()
+
+		combinedRewards, err := rewards.GenerateCombinedRewards(startDate, snapshotDate)
 		assert.Nil(t, err)
 		assert.NotNil(t, combinedRewards)
 

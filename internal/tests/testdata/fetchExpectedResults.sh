@@ -18,9 +18,9 @@ if [[ $NETWORK == "testnet-reduced" ]]; then
     sqlFileName="testnetReduced_${sqlFileName}"
 fi
 
-for d in operatorAvsRegistrationSnapshots operatorRestakedStrategies operatorShareSnapshots stakerDelegationSnapshots stakerShareSnapshots; do
+for d in operatorAvsRegistrationSnapshots operatorRestakedStrategies operatorShareSnapshots stakerDelegationSnapshots stakerShareSnapshots 1_goldActiveRewards; do
     echo "Generating expected results for $d"
     sqlFileWithPath="${d}/${sqlFileName}"
     outputFileWithPath="${d}/${outputFile}"
-    psql --host localhost --port 5435 --user blocklake --dbname blocklake --password < $sqlFileWithPath > $outputFileWithPath
+    psql --host localhost --port 5434 --user blocklake --dbname blocklake --password < $sqlFileWithPath > $outputFileWithPath
 done

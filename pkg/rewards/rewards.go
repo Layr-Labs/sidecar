@@ -126,10 +126,10 @@ func (rc *RewardsCalculator) initializeRewardsSchema() error {
 	return nil
 }
 
-func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
+func (rc *RewardsCalculator) generateSnapshotData(startDate string, snapshotDate string) error {
 	var err error
 
-	if err = rc.GenerateAndInsertCombinedRewards(); err != nil {
+	if err = rc.GenerateAndInsertCombinedRewards(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate combined rewards", "error", err)
 		return err
 	}

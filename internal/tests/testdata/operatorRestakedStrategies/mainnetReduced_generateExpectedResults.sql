@@ -11,7 +11,7 @@ copy (with ranked_records AS (
             ) AS rn
     FROM public.operator_restaked_strategies
     WHERE avs_directory_address = lower('0x135dda560e946695d6f155dacafc6f1f25c1f5af')
-    and block_time < '2024-08-13'
+    and block_time < '2024-08-20'
 ),
      latest_records AS (
          SELECT

@@ -1,6 +1,7 @@
 package rewards
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -23,7 +24,10 @@ const rewardsCombinedQuery = `
 			rs.reward_type,
 			ROW_NUMBER() OVER (PARTITION BY reward_hash, strategy_index ORDER BY block_number asc) as rn
 		from reward_submissions as rs
-		left join blocks as b on (b.number = rs.block_number) 
+		left join blocks as b on (b.number = rs.block_number)
+		where
+			DATE(b.block_time) >= @startDate
+			and DATE(b.block_time) < @snapshotDate
 	)
 	select * from combined_rewards
 	where rn = 1
@@ -46,10 +50,14 @@ type CombinedRewards struct {
 	RewardType     string     // avs, all_stakers, all_earners
 }
 
-func (r *RewardsCalculator) GenerateCombinedRewards() ([]*CombinedRewards, error) {
+func (r *RewardsCalculator) GenerateCombinedRewards(startDate string, snapshotDate string) ([]*CombinedRewards, error) {
 	combinedRewards := make([]*CombinedRewards, 0)
 
-	res := r.grm.Raw(rewardsCombinedQuery).Scan(&combinedRewards)
+	res := r.grm.Raw(rewardsCombinedQuery,
+		sql.Named("startDate", startDate),
+		sql.Named("snapshotDate", snapshotDate),
+	).
+		Scan(&combinedRewards)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate combined rewards", "error", res.Error)
 		return nil, res.Error
@@ -57,8 +65,8 @@ func (r *RewardsCalculator) GenerateCombinedRewards() ([]*CombinedRewards, error
 	return combinedRewards, nil
 }
 
-func (r *RewardsCalculator) GenerateAndInsertCombinedRewards() error {
-	combinedRewards, err := r.GenerateCombinedRewards()
+func (r *RewardsCalculator) GenerateAndInsertCombinedRewards(startDate string, snapshotDate string) error {
+	combinedRewards, err := r.GenerateCombinedRewards(startDate, snapshotDate)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate combined rewards", "error", err)
 		return err

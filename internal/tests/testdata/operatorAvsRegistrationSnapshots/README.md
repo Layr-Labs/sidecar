@@ -70,7 +70,7 @@ with filtered as (
     LEFT JOIN blocks b ON t.block_sequence_id = b.id
     WHERE t.address = '0x135dda560e946695d6f155dacafc6f1f25c1f5af'
     AND t.event_name = 'OperatorAVSRegistrationStatusUpdated'
-    AND date_trunc('day', b.block_time) < TIMESTAMP '2024-08-13'
+    AND date_trunc('day', b.block_time) < TIMESTAMP '2024-08-20'
 )
 select
     operator,

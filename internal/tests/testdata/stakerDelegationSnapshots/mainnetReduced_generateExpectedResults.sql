@@ -3,7 +3,7 @@ COPY (
     select
     *
     from dbt_mainnet_ethereum_rewards.staker_delegation_status
-    where block_time < '2024-08-13'
+    where block_time < '2024-08-20'
 ),
 ranked_delegations as (
     SELECT *,
@@ -24,7 +24,7 @@ ranked_delegations as (
          staker, operator, snapshot_time as start_time,
          CASE
              -- If the range does not have the end, use the cutoff date truncated to 0 UTC
-             WHEN LEAD(snapshot_time) OVER (PARTITION BY staker ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '2024-08-01')
+             WHEN LEAD(snapshot_time) OVER (PARTITION BY staker ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '2024-08-18')
              ELSE LEAD(snapshot_time) OVER (PARTITION BY staker ORDER BY snapshot_time)
              END AS end_time
      FROM snapshotted_records

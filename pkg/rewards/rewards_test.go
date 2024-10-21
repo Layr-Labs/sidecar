@@ -52,7 +52,7 @@ func getSnapshotDate() (string, error) {
 	case "testnet-reduced":
 		return "2024-07-25", nil
 	case "mainnet-reduced":
-		return "2024-08-01", nil
+		return "2024-08-18", nil
 	}
 	return "", fmt.Errorf("Unknown context: %s", context)
 }
@@ -148,6 +148,8 @@ func Test_Rewards(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	startDate := "1970-01-01"
+
 	t.Run("Should initialize the rewards calculator", func(t *testing.T) {
 		rc, err := NewRewardsCalculator(l, grm, cfg)
 		assert.Nil(t, err)
@@ -215,7 +217,7 @@ func Test_Rewards(t *testing.T) {
 		t.Log("Hydrated tables")
 
 		// Generate snapshots
-		err = rc.generateSnapshotData(snapshotDate)
+		err = rc.generateSnapshotData(startDate, snapshotDate)
 		assert.Nil(t, err)
 
 		t.Log("Generated and inserted snapshots")
