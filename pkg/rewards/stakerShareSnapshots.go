@@ -13,6 +13,9 @@ with staker_shares_with_block_info as (
 		DATE(b.block_time) as block_date
 	from staker_shares as ss
 	left join blocks as b on (b.number = ss.block_number)
+	where
+		DATE(b.block_time) >= DATE(@startDate)
+		and DATE(b.block_time) < DATE(@cutoffDate)
 ),
 ranked_staker_records as (
 SELECT *,
@@ -82,10 +85,13 @@ type StakerShareSnapshot struct {
 	Shares   string
 }
 
-func (r *RewardsCalculator) GenerateStakerShareSnapshots(snapshotDate string) ([]*StakerShareSnapshot, error) {
+func (r *RewardsCalculator) GenerateStakerShareSnapshots(startDate string, snapshotDate string) ([]*StakerShareSnapshot, error) {
 	results := make([]*StakerShareSnapshot, 0)
 
-	res := r.grm.Raw(stakerShareSnapshotsQuery, sql.Named("cutoffDate", snapshotDate)).Scan(&results)
+	res := r.grm.Raw(stakerShareSnapshotsQuery,
+		sql.Named("startDate", startDate),
+		sql.Named("cutoffDate", snapshotDate),
+	).Scan(&results)
 
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", res.Error)
@@ -94,8 +100,8 @@ func (r *RewardsCalculator) GenerateStakerShareSnapshots(snapshotDate string) ([
 	return results, nil
 }
 
-func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(snapshotDate string) error {
-	snapshots, err := r.GenerateStakerShareSnapshots(snapshotDate)
+func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(startDate string, snapshotDate string) error {
+	snapshots, err := r.GenerateStakerShareSnapshots(startDate, snapshotDate)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", err)
 		return err

@@ -153,13 +153,13 @@ func (rc *RewardsCalculator) generateSnapshotData(startDate string, snapshotDate
 	}
 	rc.logger.Sugar().Debugw("Generated operator share snapshots")
 
-	if err = rc.GenerateAndInsertStakerShareSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertStakerShareSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", err)
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated staker share snapshots")
 
-	if err = rc.GenerateAndInsertStakerDelegationSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertStakerDelegationSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", err)
 		return err
 	}

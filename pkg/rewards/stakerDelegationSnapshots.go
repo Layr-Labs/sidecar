@@ -13,6 +13,9 @@ with staker_delegations_with_block_info as (
 		DATE(b.block_time) as block_date
 	from staker_delegation_changes as sdc
 	left join blocks as b on (b.number = sdc.block_number)
+	where
+		DATE(b.block_time) >= DATE(@startDate)
+		and DATE(b.block_time) < DATE(@cutoffDate)
 ),
 ranked_staker_records as (
 SELECT *,
@@ -79,10 +82,13 @@ type StakerDelegationSnapshot struct {
 	Snapshot string
 }
 
-func (r *RewardsCalculator) GenerateStakerDelegationSnapshots(snapshotDate string) ([]*StakerDelegationSnapshot, error) {
+func (r *RewardsCalculator) GenerateStakerDelegationSnapshots(startDate string, snapshotDate string) ([]*StakerDelegationSnapshot, error) {
 	results := make([]*StakerDelegationSnapshot, 0)
 
-	res := r.grm.Raw(stakerDelegationSnapshotsQuery, sql.Named("cutoffDate", snapshotDate)).Scan(&results)
+	res := r.grm.Raw(stakerDelegationSnapshotsQuery,
+		sql.Named("startDate", startDate),
+		sql.Named("cutoffDate", snapshotDate),
+	).Scan(&results)
 
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", res.Error)
@@ -91,8 +97,8 @@ func (r *RewardsCalculator) GenerateStakerDelegationSnapshots(snapshotDate strin
 	return results, nil
 }
 
-func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(snapshotDate string) error {
-	snapshots, err := r.GenerateStakerDelegationSnapshots(snapshotDate)
+func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(startDate string, snapshotDate string) error {
+	snapshots, err := r.GenerateStakerDelegationSnapshots(startDate, snapshotDate)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", err)
 		return err
