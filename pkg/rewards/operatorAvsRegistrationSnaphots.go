@@ -29,7 +29,7 @@ WITH state_changes as (
 	left join blocks as b on (b.number = aosc.block_number)
 	where
 		DATE(b.block_time) >= DATE(@startDate)
-		AND DATE(b.block_time) < DATE(@snapshotDate)
+		AND DATE(b.block_time) < DATE(@cutoffDate)
 ),
 marked_statuses as (
 	SELECT
@@ -73,7 +73,7 @@ registration_periods AS (
 		block_time AS start_time,
 		-- Mark the next_block_time as the end_time for the range
 		-- Use coalesce because if the next_block_time for a registration is not closed, then we use cutoff_date
-		COALESCE(next_block_time, DATETIME(@snapshotDate)) AS end_time,
+		COALESCE(next_block_time, DATETIME(@cutoffDate)) AS end_time,
 		registered
 	FROM removed_same_day_deregistrations
 	WHERE registered = TRUE
@@ -138,7 +138,7 @@ func (r *RewardsCalculator) GenerateOperatorAvsRegistrationSnapshots(startDate s
 
 	res := r.grm.Raw(operatorAvsRegistrationSnapshotsQuery,
 		sql.Named("startDate", startDate),
-		sql.Named("snapshotDate", snapshotDate),
+		sql.Named("cutoffDate", snapshotDate),
 	).Scan(&results)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator AVS registration windows", "error", res.Error)

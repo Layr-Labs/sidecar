@@ -16,6 +16,9 @@ with operator_shares_with_block_info as (
 		DATE(b.block_time) as block_date
 	from operator_shares as os
 	left join blocks as b on (b.number = os.block_number)
+	where
+		DATE(b.block_time) >= DATE(@startDate)
+		and DATE(b.block_time) < DATE(@cutoffDate)
 ),
 ranked_operator_records as (
 	select
@@ -86,10 +89,13 @@ type OperatorShareSnapshots struct {
 	Snapshot string
 }
 
-func (r *RewardsCalculator) GenerateOperatorShareSnapshots(snapshotDate string) ([]*OperatorShareSnapshots, error) {
+func (r *RewardsCalculator) GenerateOperatorShareSnapshots(startDate string, snapshotDate string) ([]*OperatorShareSnapshots, error) {
 	results := make([]*OperatorShareSnapshots, 0)
 
-	res := r.grm.Raw(operatorShareSnapshotsQuery, sql.Named("cutoffDate", snapshotDate)).Scan(&results)
+	res := r.grm.Raw(operatorShareSnapshotsQuery,
+		sql.Named("startDate", startDate),
+		sql.Named("cutoffDate", snapshotDate),
+	).Scan(&results)
 
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", res.Error)
@@ -98,8 +104,8 @@ func (r *RewardsCalculator) GenerateOperatorShareSnapshots(snapshotDate string) 
 	return results, nil
 }
 
-func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(snapshotDate string) error {
-	snapshots, err := r.GenerateOperatorShareSnapshots(snapshotDate)
+func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(startDate string, snapshotDate string) error {
+	snapshots, err := r.GenerateOperatorShareSnapshots(startDate, snapshotDate)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", err)
 		return err

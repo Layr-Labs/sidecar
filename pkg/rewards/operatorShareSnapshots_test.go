@@ -81,6 +81,8 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	startDate := "1970-01-01"
+
 	t.Run("Should hydrate dependency tables", func(t *testing.T) {
 		if _, err = hydrateAllBlocksTable(grm, l); err != nil {
 			t.Error(err)
@@ -93,7 +95,7 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
 		t.Log("Generating operator share snapshots")
-		snapshots, err := rewards.GenerateOperatorShareSnapshots(snapshotDate)
+		snapshots, err := rewards.GenerateOperatorShareSnapshots(startDate, snapshotDate)
 		assert.Nil(t, err)
 
 		t.Log("Loading expected results")

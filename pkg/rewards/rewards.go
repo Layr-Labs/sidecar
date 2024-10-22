@@ -147,7 +147,7 @@ func (rc *RewardsCalculator) generateSnapshotData(startDate string, snapshotDate
 	}
 	rc.logger.Sugar().Debugw("Generated operator AVS strategy snapshots")
 
-	if err = rc.GenerateAndInsertOperatorShareSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertOperatorShareSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", err)
 		return err
 	}
