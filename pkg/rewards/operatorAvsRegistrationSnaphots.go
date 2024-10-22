@@ -27,6 +27,9 @@ WITH state_changes as (
 		DATE(b.block_time) as block_date
 	from avs_operator_state_changes as aosc
 	left join blocks as b on (b.number = aosc.block_number)
+	where
+		DATE(b.block_time) >= DATE(@startDate)
+		AND DATE(b.block_time) < DATE(@snapshotDate)
 ),
 marked_statuses as (
 	SELECT
@@ -70,7 +73,7 @@ registration_periods AS (
 		block_time AS start_time,
 		-- Mark the next_block_time as the end_time for the range
 		-- Use coalesce because if the next_block_time for a registration is not closed, then we use cutoff_date
-		COALESCE(next_block_time, DATETIME(@cutoffDate)) AS end_time,
+		COALESCE(next_block_time, DATETIME(@snapshotDate)) AS end_time,
 		registered
 	FROM removed_same_day_deregistrations
 	WHERE registered = TRUE
@@ -130,10 +133,13 @@ type OperatorAvsRegistrationSnapshots struct {
 }
 
 // GenerateOperatorAvsRegistrationSnapshots returns a list of OperatorAvsRegistrationSnapshots objects
-func (r *RewardsCalculator) GenerateOperatorAvsRegistrationSnapshots(snapshotDate string) ([]*OperatorAvsRegistrationSnapshots, error) {
+func (r *RewardsCalculator) GenerateOperatorAvsRegistrationSnapshots(startDate string, snapshotDate string) ([]*OperatorAvsRegistrationSnapshots, error) {
 	results := make([]*OperatorAvsRegistrationSnapshots, 0)
 
-	res := r.grm.Raw(operatorAvsRegistrationSnapshotsQuery, sql.Named("cutoffDate", snapshotDate)).Scan(&results)
+	res := r.grm.Raw(operatorAvsRegistrationSnapshotsQuery,
+		sql.Named("startDate", startDate),
+		sql.Named("snapshotDate", snapshotDate),
+	).Scan(&results)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator AVS registration windows", "error", res.Error)
 		return nil, res.Error
@@ -141,8 +147,8 @@ func (r *RewardsCalculator) GenerateOperatorAvsRegistrationSnapshots(snapshotDat
 	return results, nil
 }
 
-func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate string) error {
-	snapshots, err := r.GenerateOperatorAvsRegistrationSnapshots(snapshotDate)
+func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(startDate string, snapshotDate string) error {
+	snapshots, err := r.GenerateOperatorAvsRegistrationSnapshots(startDate, snapshotDate)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator AVS registration snapshots", "error", err)
 		return err

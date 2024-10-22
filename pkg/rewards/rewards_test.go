@@ -143,10 +143,11 @@ func Test_Rewards(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	snapshotDate, err := getSnapshotDate()
-	if err != nil {
-		t.Fatal(err)
-	}
+	//snapshotDate, err := getSnapshotDate()
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	snapshotDate := "2024-08-01"
 
 	startDate := "1970-01-01"
 

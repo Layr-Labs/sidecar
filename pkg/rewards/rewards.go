@@ -135,7 +135,7 @@ func (rc *RewardsCalculator) generateSnapshotData(startDate string, snapshotDate
 	}
 	rc.logger.Sugar().Debugw("Generated combined rewards")
 
-	if err = rc.GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertOperatorAvsRegistrationSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator AVS registration snapshots", "error", err)
 		return err
 	}
