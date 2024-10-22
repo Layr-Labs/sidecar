@@ -24,7 +24,7 @@ ranked_staker_records as (
          SELECT
              staker, strategy, shares, snapshot_time as start_time,
              CASE
-                 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '2024-08-18')
+                 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '2024-08-20')
                  ELSE LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time)
                  END AS end_time
          FROM snapshotted_records

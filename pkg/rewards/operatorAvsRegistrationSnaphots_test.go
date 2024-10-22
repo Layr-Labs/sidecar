@@ -109,7 +109,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		case "testnet-reduced":
 			assert.Equal(t, 16042, count)
 		case "mainnet-reduced":
-			assert.Equal(t, 1752, count)
+			assert.Equal(t, 1922, count)
 		default:
 			t.Fatal("Unknown test context")
 		}

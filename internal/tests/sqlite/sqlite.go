@@ -27,7 +27,7 @@ func GetFileBasedSqliteDatabaseConnection(l *zap.Logger) (string, *gorm.DB, erro
 	if err != nil {
 		panic(err)
 	}
-	basePath := fmt.Sprintf("%s%s-%d", os.TempDir(), fileName, time.Time{}.Unix())
+	basePath := fmt.Sprintf("%s%s-%d", os.TempDir(), fileName, time.Now().Unix())
 	if err := os.MkdirAll(basePath, os.ModePerm); err != nil {
 		return "", nil, err
 	}

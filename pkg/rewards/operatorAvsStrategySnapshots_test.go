@@ -115,7 +115,7 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 		case "testnet-reduced":
 			assert.Equal(t, 1591921, count)
 		case "mainnet-reduced":
-			assert.Equal(t, 2317332, count)
+			assert.Equal(t, 2497286, count)
 		default:
 			t.Fatal("Unknown test context")
 		}

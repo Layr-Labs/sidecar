@@ -34,7 +34,7 @@ marked_statuses AS (
              operator,
              avs,
              block_time AS start_time,
-             COALESCE(next_block_time, TIMESTAMP '2024-08-18') AS end_time,
+             COALESCE(next_block_time, TIMESTAMP '2024-08-20') AS end_time,
              registered
          FROM removed_same_day_deregistrations
          WHERE registered = TRUE

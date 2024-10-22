@@ -45,7 +45,7 @@ FROM (
          UNION ALL
          SELECT *, 'delegations' AS src FROM dbt_mainnet_ethereum_rewards.staker_delegations
      ) as delegations_combined
-where block_time < '2024-08-13'
+where block_time < '2024-08-20'
 ```
 
 

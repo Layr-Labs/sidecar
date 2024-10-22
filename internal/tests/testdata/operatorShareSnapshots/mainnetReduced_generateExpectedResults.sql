@@ -1,3 +1,6 @@
+-- Note: block_time is really what the applied cutoff date is based on.
+-- e.g. if the snapshot date is 2024-08-20, then the cutoff date is 2024-08-18.
+
 COPY (
      WITH operator_shares as (
     select *
@@ -23,7 +26,7 @@ ranked_operator_records as (
          SELECT
              operator, strategy, shares, snapshot_time as start_time,
              CASE
-                 WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '2024-08-18')
+                 WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '2024-08-20')
                  ELSE LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time)
                  END AS end_time
          FROM snapshotted_records
