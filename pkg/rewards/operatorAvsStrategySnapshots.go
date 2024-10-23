@@ -215,7 +215,7 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(startD
 	}
 
 	r.logger.Sugar().Infow("Inserting operator AVS strategy snapshots", "count", len(snapshots))
-	res := r.grm.Model(&OperatorAvsStrategySnapshot{}).CreateInBatches(snapshots, 100)
+	res := r.grm.Model(&OperatorAvsStrategySnapshot{}).CreateInBatches(snapshots, 5000)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to insert operator AVS strategy snapshots", "error", res.Error)
 		return res.Error

@@ -130,7 +130,8 @@ func NewGormSqliteFromSqlite(sqlite gorm.Dialector) (*gorm.DB, error) {
 		`PRAGMA journal_mode = WAL;`,
 		`PRAGMA synchronous = normal;`,
 		`pragma mmap_size = 30000000000;`,
-		`PRAGMA cache_size = -2000000;`, // Set cache size to 2GB
+		`PRAGMA cache_size = -4000000;`, // Set cache size to 4GB
+		`PRAGMA temp_store = 2;`,        // use memory for temp storage
 	}
 
 	for _, pragma := range pragmas {

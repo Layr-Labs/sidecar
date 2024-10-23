@@ -114,7 +114,7 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(startDate st
 	}
 
 	r.logger.Sugar().Infow("Inserting operator share snapshots", "count", len(snapshots))
-	res := r.grm.Model(&OperatorShareSnapshots{}).CreateInBatches(snapshots, 100)
+	res := r.grm.Model(&OperatorShareSnapshots{}).CreateInBatches(snapshots, 5000)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to insert operator share snapshots", "error", res.Error)
 		return res.Error

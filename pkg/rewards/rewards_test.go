@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // const TOTAL_BLOCK_COUNT = 1229187
@@ -193,6 +194,8 @@ func Test_Rewards(t *testing.T) {
 			assert.True(t, slices.Contains(tablesList, table))
 		}
 
+		testStart := time.Now()
+
 		// Setup all tables and source data
 		_, err = hydrateAllBlocksTable(grm, l)
 		assert.Nil(t, err)
@@ -218,6 +221,9 @@ func Test_Rewards(t *testing.T) {
 		t.Log("Hydrated tables")
 
 		snapshotDates := []string{"2024-08-02", "2024-08-12"}
+
+		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
+		testStart = time.Now()
 
 		for i, snapshotDate := range snapshotDates {
 			var startDate string
@@ -245,7 +251,7 @@ func Test_Rewards(t *testing.T) {
 			assert.Nil(t, err)
 			fmt.Printf("Rows in gold_1_active_rewards: %v\n", rows)
 
-			err = rc.GenerateGold2StakerRewardAmountsTable(forks)
+			err = rc.GenerateGold2StakerRewardAmountsTable(startDate, forks)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, "gold_2_staker_reward_amounts")
 			assert.Nil(t, err)
@@ -322,6 +328,9 @@ func Test_Rewards(t *testing.T) {
 
 			assert.Zero(t, invalidAmounts)
 			t.Logf("Invalid amounts: %d", invalidAmounts)
+
+			fmt.Printf("Duration for snapshot %s: %v\n", snapshotDate, time.Since(testStart))
+			testStart = time.Now()
 		}
 
 		fmt.Printf("Done!\n\n")

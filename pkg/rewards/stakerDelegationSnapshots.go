@@ -107,7 +107,7 @@ func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(startDate
 	}
 
 	r.logger.Sugar().Infow("Inserting staker delegation snapshots", "count", len(snapshots))
-	res := r.grm.Model(&StakerDelegationSnapshot{}).CreateInBatches(snapshots, 100)
+	res := r.grm.Model(&StakerDelegationSnapshot{}).CreateInBatches(snapshots, 5000)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to insert staker delegation snapshots", "error", res.Error)
 		return res.Error

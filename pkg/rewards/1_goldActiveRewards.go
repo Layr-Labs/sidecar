@@ -166,6 +166,7 @@ func (r *RewardsCalculator) CreateGold1ActiveRewardsTable() error {
 	)`,
 		`create index if not exists idx_gold_1_active_rewards_snapshot on gold_1_active_rewards(snapshot)`,
 		`create index if not exists idx_gold_1_active_rewards_reward_type on gold_1_active_rewards(reward_type)`,
+		`create index if not exists idx_1_gold_active_rewards_non_zero_mul on gold_1_active_rewards(multiplier) where multiplier != '0'`,
 	}
 	for _, query := range queries {
 		res := r.grm.Exec(query)

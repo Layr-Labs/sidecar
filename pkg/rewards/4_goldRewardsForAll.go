@@ -2,7 +2,10 @@ package rewards
 
 const _4_goldRewardsForAllQuery = `
 insert into gold_4_rewards_for_all
-WITH reward_snapshot_stakers AS (
+WITH positive_staker_share_snapshots as (
+    select * from staker_share_snapshots sss
+	where big_gt(sss.shares, '0')
+), reward_snapshot_stakers AS (
   SELECT
     ap.reward_hash,
     ap.snapshot,
@@ -16,12 +19,12 @@ WITH reward_snapshot_stakers AS (
     sss.staker,
     sss.shares
   FROM gold_1_active_rewards ap
-  JOIN staker_share_snapshots as sss
+  JOIN positive_staker_share_snapshots as sss
   ON ap.strategy = sss.strategy and ap.snapshot = sss.snapshot
   WHERE
   	ap.reward_type = 'all_stakers'
   	-- Parse out negative shares and zero multiplier so there is no division by zero case
-  	AND big_gt(sss.shares, '0') and ap.multiplier != '0'
+  	AND ap.multiplier != '0'
 ),
 staker_weights AS (
   SELECT *,

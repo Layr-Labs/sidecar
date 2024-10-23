@@ -110,7 +110,7 @@ func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(startDate stri
 	}
 
 	r.logger.Sugar().Infow("Inserting staker share snapshots", "count", len(snapshots))
-	res := r.grm.Model(&StakerShareSnapshot{}).CreateInBatches(snapshots, 100)
+	res := r.grm.Model(&StakerShareSnapshot{}).CreateInBatches(snapshots, 5000)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to insert staker share snapshots", "error", res.Error)
 		return res.Error
@@ -129,6 +129,7 @@ func (r *RewardsCalculator) CreateStakerShareSnapshotsTable() error {
 		`,
 		`create index idx_staker_share_snapshots_staker_strategy_snapshot on staker_share_snapshots (staker, strategy, snapshot)`,
 		`create index idx_staker_share_snapshots_strategy_snapshot on staker_share_snapshots (strategy, snapshot)`,
+		`create index if not exists idx_staker_share_snapshots_pos_shares on staker_share_snapshots(shares) where big_gt(shares, 0)`,
 	}
 	for _, query := range queries {
 		res := r.grm.Exec(query)

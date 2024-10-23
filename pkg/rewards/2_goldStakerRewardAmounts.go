@@ -22,7 +22,10 @@ WITH filtered_reward_types as (
 		ap.reward_type,
 		ap.reward_submission_date
 	FROM gold_1_active_rewards ap
-	WHERE ap.reward_type = 'avs'
+	WHERE
+	    ap.reward_type = 'avs'
+		and ap.snapshot >= DATE(@startDate)
+		and ap.multiplier != '0'
 ),
 reward_snapshot_operators as (
   SELECT
@@ -43,7 +46,7 @@ reward_snapshot_operators as (
  	and frp.snapshot = oar.snapshot
   )
 ),
-operator_restaked_strategies AS (
+_operator_restaked_strategies AS (
   SELECT
 	rso.*
   FROM reward_snapshot_operators rso
@@ -59,11 +62,15 @@ staker_delegated_operators AS (
   SELECT
 	ors.*,
 	sds.staker
-  FROM operator_restaked_strategies ors
+  FROM _operator_restaked_strategies ors
   JOIN staker_delegation_snapshots sds
   ON
 	ors.operator = sds.operator AND
 	ors.snapshot = sds.snapshot
+),
+positive_staker_strategy_shares AS (
+    select * from staker_share_snapshots sss
+    where big_gt(sss.shares, '0')
 ),
 -- Get the shares for staker delegated to the operator
 staker_avs_strategy_shares AS (
@@ -71,13 +78,12 @@ staker_avs_strategy_shares AS (
 	sdo.*,
 	sss.shares
   FROM staker_delegated_operators sdo
-  JOIN staker_share_snapshots sss
+  JOIN positive_staker_strategy_shares sss
   ON
 	sdo.staker = sss.staker
 	and sdo.snapshot = sss.snapshot
 	and sdo.strategy = sss.strategy
   -- Parse out negative shares and zero multiplier so there is no division by zero case
-  WHERE big_gt(sss.shares, '0') and sdo.multiplier != '0'
 ),
 -- Calculate the weight of a staker
 staker_weights AS (
@@ -145,8 +151,9 @@ SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
 `
 
-func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(startDate string, forks config.ForkMap) error {
 	res := rc.grm.Exec(_2_goldStakerRewardAmountsQuery,
+		sql.Named("startDate", startDate),
 		sql.Named("amazonHardforkDate", forks[config.Fork_Amazon]),
 		sql.Named("nileHardforkDate", forks[config.Fork_Nile]),
 	)
