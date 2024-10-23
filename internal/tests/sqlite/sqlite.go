@@ -34,9 +34,12 @@ func GetFileBasedSqliteDatabaseConnection(l *zap.Logger) (string, *gorm.DB, erro
 
 	filePath := fmt.Sprintf("%s/test.db", basePath)
 	fmt.Printf("File path: %s\n", filePath)
+
+	extensionPath := tests.GetSqliteExtensionsPath()
+	fmt.Printf("Extension path: %s\n", extensionPath)
 	db, err := sqlite2.NewGormSqliteFromSqlite(sqlite2.NewSqlite(&sqlite2.SqliteConfig{
 		Path:           filePath,
-		ExtensionsPath: []string{tests.GetSqliteExtensionsPath()},
+		ExtensionsPath: []string{extensionPath},
 	}, l))
 	if err != nil {
 		panic(err)

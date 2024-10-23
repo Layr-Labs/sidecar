@@ -107,7 +107,6 @@ func setupRewards() (
 	default:
 		return "", nil, nil, nil, fmt.Errorf("Unknown test context")
 	}
-	cfg.SqliteConfig.ExtensionsPath = []string{tests.GetSqliteExtensionsPath()}
 	fmt.Printf("Test context: %+v\n", testContext)
 	fmt.Printf("Using chain: %+v\n", cfg.Chain)
 
