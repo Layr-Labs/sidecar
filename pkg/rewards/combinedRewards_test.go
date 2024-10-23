@@ -23,7 +23,7 @@ func setupCombinedRewards() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
+	dbName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l, "")
 	if err != nil {
 		panic(err)
 	}

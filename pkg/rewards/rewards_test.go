@@ -113,7 +113,9 @@ func setupRewards() (
 	cfg.Debug = true
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
+	dbBasePath := os.Getenv("DB_BASE_PATH")
+
+	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l, dbBasePath)
 	if err != nil {
 		panic(err)
 	}

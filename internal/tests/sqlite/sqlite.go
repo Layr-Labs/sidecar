@@ -22,12 +22,15 @@ func GetInMemorySqliteDatabaseConnection(l *zap.Logger) (*gorm.DB, error) {
 	return db, nil
 }
 
-func GetFileBasedSqliteDatabaseConnection(l *zap.Logger) (string, *gorm.DB, error) {
+func GetFileBasedSqliteDatabaseConnection(l *zap.Logger, dbBasePath string) (string, *gorm.DB, error) {
 	fileName, err := uuid.NewUUID()
 	if err != nil {
 		panic(err)
 	}
-	basePath := fmt.Sprintf("%ssidecardb-%s-%d", os.TempDir(), fileName, time.Now().Unix())
+	if dbBasePath == "" {
+		dbBasePath = os.TempDir()
+	}
+	basePath := fmt.Sprintf("%ssidecardb-%s-%d", dbBasePath, fileName, time.Now().Unix())
 	if err := os.MkdirAll(basePath, os.ModePerm); err != nil {
 		return "", nil, err
 	}
