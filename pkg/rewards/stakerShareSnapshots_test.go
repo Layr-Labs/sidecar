@@ -23,7 +23,7 @@ func setupStakerShareSnapshot() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l, ""),
+	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l, "")
 	if err != nil {
 		panic(err)
 	}
