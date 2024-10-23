@@ -23,7 +23,7 @@ WITH reward_snapshot_operators as (
   FROM gold_1_active_rewards ap
   JOIN operator_avs_registration_snapshots oar
   	ON ap.avs = oar.avs and ap.snapshot = oar.snapshot
-  WHERE ap.reward_type = 'avs'
+  WHERE ap.reward_type = 'avs' and multiplier != '0'
 ),
 operator_restaked_strategies AS (
   SELECT
@@ -58,8 +58,7 @@ staker_avs_strategy_shares AS (
 	sdo.staker = sss.staker
 	and sdo.snapshot = sss.snapshot
 	and sdo.strategy = sss.strategy
-  -- Parse out negative shares and zero multiplier so there is no division by zero case
-  WHERE big_gt(sss.shares, '0') and sdo.multiplier != '0'
+  where sss.positive_shares = true
 ),
 -- Calculate the weight of a staker
 staker_weight_grouped as (
@@ -149,6 +148,10 @@ token_breakdowns AS (
   FROM operator_tokens
 )
 SELECT * from token_breakdowns
+where
+    DATE(snapshot) >= DATE(@startDate)
+	and DATE(snapshot) < DATE(@cutoffDate)
+
 ORDER BY reward_hash, snapshot, staker, operator
 `
 

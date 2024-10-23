@@ -2,6 +2,8 @@ package rewards
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
+	"gorm.io/gorm"
 )
 
 // Operator AVS Registration Windows: Ranges at which an operator has registered for an AVS

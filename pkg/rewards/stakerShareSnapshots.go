@@ -77,7 +77,8 @@ final_results as (
 		where DATE(day) between DATE(start_time) and DATE(end_time, '-1 day')
 )
 select
-	*
+	*,
+	big_gt(shares, '0') as positive_shares
 from final_results
 where
 	DATE(snapshot) >= DATE(@startDate)
@@ -85,10 +86,11 @@ where
 `
 
 type StakerShareSnapshot struct {
-	Staker   string
-	Strategy string
-	Snapshot string
-	Shares   string
+	Staker         string
+	Strategy       string
+	Snapshot       string
+	Shares         string
+	PositiveShares bool
 }
 
 func (r *RewardsCalculator) GenerateStakerShareSnapshots(startDate string, snapshotDate string) ([]*StakerShareSnapshot, error) {
@@ -131,12 +133,13 @@ func (r *RewardsCalculator) CreateStakerShareSnapshotsTable() error {
 			staker TEXT,
 			strategy TEXT,
 			shares TEXT,
-			snapshot TEXT
+			snapshot TEXT,
+			positive_shares int
 		)
 		`,
 		`create index idx_staker_share_snapshots_staker_strategy_snapshot on staker_share_snapshots (staker, strategy, snapshot)`,
 		`create index idx_staker_share_snapshots_strategy_snapshot on staker_share_snapshots (strategy, snapshot)`,
-		// `create index if not exists idx_staker_share_snapshots_pos_shares on staker_share_snapshots(shares) where big_gt(shares, 0)`,
+		`create index if not exists idx_staker_share_snapshots_pos_shares on staker_share_snapshots(positive_shares)`,
 	}
 	for _, query := range queries {
 		res := r.grm.Exec(query)
