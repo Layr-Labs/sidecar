@@ -66,48 +66,48 @@ active_reward_ranges AS (
 	-- 1. reward_start_exclusive >= reward_end_inclusive: The reward period is done or we will handle on a subsequent run
 	WHERE reward_start_exclusive < reward_end_inclusive
 ),
-date_bounds as (
-	select
-		min(reward_start_exclusive) as min_start,
-		max(reward_end_inclusive) as max_end
-	from active_reward_ranges
-),
-day_series AS (
-	with RECURSIVE day_series_inner AS (
-		SELECT DATE(min_start) AS dayy
-		FROM date_bounds
-		UNION ALL
-		SELECT DATE(dayy, '+1 day')
-		FROM day_series_inner
-		WHERE dayy < (SELECT max_end FROM date_bounds)
-	)
-	select * from day_series_inner
-),
+	date_bounds as (
+		select
+			min(reward_start_exclusive) as min_start,
+			max(reward_end_inclusive) as max_end
+		from active_reward_ranges
+	),
+	day_series AS (
+		with RECURSIVE day_series_inner AS (
+			SELECT DATE(min_start) AS day
+			FROM date_bounds
+			UNION ALL
+			SELECT DATE(day, '+1 day')
+			FROM day_series_inner
+			WHERE day < (SELECT max_end FROM date_bounds)
+		)
+		select * from day_series_inner
+	),
 -- Explode out the ranges for a day per inclusive date
- exploded_active_range_rewards AS (
-	 SELECT
-		arr.*,
-		day_series.dayy as dayy
-	 FROM active_reward_ranges as arr
-	 cross join day_series
-	 where DATE(day_series.dayy) between DATE(reward_start_exclusive) and DATE(reward_end_inclusive)
- ),
- active_rewards_final AS (
-	 SELECT
-		 avs,
-		 DATE(dayy) as snapshot,
-		 token,
-		 tokens_per_day,
-		 tokens_per_day_decimal,
-		 multiplier,
-		 strategy,
-		 reward_hash,
-		 reward_type,
-		 reward_submission_date
-	 FROM exploded_active_range_rewards
-	 -- Remove snapshots on the start day
-	 WHERE DATE(dayy) != reward_start_exclusive
- )
+     exploded_active_range_rewards AS (
+         SELECT
+         	arr.*,
+         	day_series.day as day
+         FROM active_reward_ranges as arr
+		 cross join day_series
+		 where DATE(day_series.day) between DATE(reward_start_exclusive) and DATE(reward_end_inclusive)
+     ),
+     active_rewards_final AS (
+         SELECT
+             avs,
+             DATE(day) as snapshot,
+             token,
+             tokens_per_day,
+             tokens_per_day_decimal,
+             multiplier,
+             strategy,
+             reward_hash,
+             reward_type,
+             reward_submission_date
+         FROM exploded_active_range_rewards
+         -- Remove snapshots on the start day
+         WHERE day != reward_start_exclusive
+     )
 select
 	avs,
 	snapshot,
@@ -120,7 +120,6 @@ select
 	reward_type,
 	reward_submission_date
 from active_rewards_final
-where snapshot >= DATE(@startDate)
 `
 
 type ResultRow struct {

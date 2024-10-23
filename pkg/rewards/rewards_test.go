@@ -224,6 +224,7 @@ func Test_Rewards(t *testing.T) {
 
 		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
 		testStart = time.Now()
+		totalTestStart := time.Now()
 
 		for i, snapshotDate := range snapshotDates {
 			var startDate string
@@ -241,6 +242,9 @@ func Test_Rewards(t *testing.T) {
 			err = rc.generateSnapshotData(startDate, snapshotDate)
 			assert.Nil(t, err)
 
+			fmt.Printf("Snapshot duration: %v\n", time.Since(testStart))
+			testStart = time.Now()
+
 			t.Log("Generated and inserted snapshots")
 			forks, err := cfg.GetForkDates()
 			assert.Nil(t, err)
@@ -249,49 +253,57 @@ func Test_Rewards(t *testing.T) {
 			assert.Nil(t, err)
 			rows, err := getRowCountForTable(grm, "gold_1_active_rewards")
 			assert.Nil(t, err)
-			fmt.Printf("Rows in gold_1_active_rewards: %v\n", rows)
+			fmt.Printf("Rows in gold_1_active_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
 
 			err = rc.GenerateGold2StakerRewardAmountsTable(startDate, forks)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, "gold_2_staker_reward_amounts")
 			assert.Nil(t, err)
-			fmt.Printf("Rows in gold_2_staker_reward_amounts: %v\n", rows)
+			fmt.Printf("Rows in gold_2_staker_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
 
 			err = rc.GenerateGold3OperatorRewardAmountsTable()
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, "gold_3_operator_reward_amounts")
 			assert.Nil(t, err)
-			fmt.Printf("Rows in gold_3_operator_reward_amounts: %v\n", rows)
+			fmt.Printf("Rows in gold_3_operator_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
 
 			err = rc.GenerateGold4RewardsForAllTable()
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, "gold_4_rewards_for_all")
 			assert.Nil(t, err)
-			fmt.Printf("Rows in gold_4_rewards_for_all: %v\n", rows)
+			fmt.Printf("Rows in gold_4_rewards_for_all: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
 
 			err = rc.GenerateGold5RfaeStakersTable(forks)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, "gold_5_rfae_stakers")
 			assert.Nil(t, err)
-			fmt.Printf("Rows in gold_5_rfae_stakers: %v\n", rows)
+			fmt.Printf("Rows in gold_5_rfae_stakers: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
 
 			err = rc.GenerateGold6RfaeOperatorsTable()
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, "gold_6_rfae_operators")
 			assert.Nil(t, err)
-			fmt.Printf("Rows in gold_6_rfae_operators: %v\n", rows)
+			fmt.Printf("Rows in gold_6_rfae_operators: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
 
 			err = rc.GenerateGold7StagingTable()
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, "gold_7_staging")
 			assert.Nil(t, err)
-			fmt.Printf("Rows in gold_7_staging: %v\n", rows)
+			fmt.Printf("Rows in gold_7_staging: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
 
 			err = rc.GenerateGold8FinalTable(startDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, "gold_table")
 			assert.Nil(t, err)
-			fmt.Printf("Rows in gold_table: %v\n", rows)
+			fmt.Printf("Rows in gold_table: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
 
 			goldStagingRows, err := rc.ListGoldStagingRowsForSnapshot(snapshotDate)
 			assert.Nil(t, err)
@@ -329,7 +341,7 @@ func Test_Rewards(t *testing.T) {
 			assert.Zero(t, invalidAmounts)
 			t.Logf("Invalid amounts: %d", invalidAmounts)
 
-			fmt.Printf("Duration for snapshot %s: %v\n", snapshotDate, time.Since(testStart))
+			fmt.Printf("Duration for snapshot %s: %v\n", snapshotDate, time.Since(totalTestStart))
 			testStart = time.Now()
 		}
 

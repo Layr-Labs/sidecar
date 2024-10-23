@@ -174,7 +174,7 @@ func (r *RewardsCalculator) CreateOperatorAvsRegistrationSnapshotsTable() error 
 			snapshot TEXT
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_operator_avs_registration_snapshots_avs_snapshot ON operator_avs_registration_snapshots (avs, snapshot)`,
-		`CREATE INDEX IF NOT EXISTS idx_operator_avs_registration_snapshots_operator_snapshot ON operator_avs_registration_snapshots (operator, snapshot)`,
+		// `CREATE INDEX IF NOT EXISTS idx_operator_avs_registration_snapshots_operator_snapshot ON operator_avs_registration_snapshots (operator, snapshot)`,
 	}
 	for _, query := range queries {
 		res := r.grm.Exec(query)
