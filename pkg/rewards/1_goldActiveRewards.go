@@ -66,48 +66,48 @@ active_reward_ranges AS (
 	-- 1. reward_start_exclusive >= reward_end_inclusive: The reward period is done or we will handle on a subsequent run
 	WHERE reward_start_exclusive < reward_end_inclusive
 ),
-	date_bounds as (
-		select
-			min(reward_start_exclusive) as min_start,
-			max(reward_end_inclusive) as max_end
-		from active_reward_ranges
-	),
-	day_series AS (
-		with RECURSIVE day_series_inner AS (
-			SELECT DATE(min_start) AS day
-			FROM date_bounds
-			UNION ALL
-			SELECT DATE(day, '+1 day')
-			FROM day_series_inner
-			WHERE day < (SELECT max_end FROM date_bounds)
-		)
-		select * from day_series_inner
-	),
+date_bounds as (
+	select
+		min(reward_start_exclusive) as min_start,
+		max(reward_end_inclusive) as max_end
+	from active_reward_ranges
+),
+day_series AS (
+	with RECURSIVE day_series_inner AS (
+		SELECT DATE(min_start) AS dayy
+		FROM date_bounds
+		UNION ALL
+		SELECT DATE(dayy, '+1 day')
+		FROM day_series_inner
+		WHERE dayy < (SELECT max_end FROM date_bounds)
+	)
+	select * from day_series_inner
+),
 -- Explode out the ranges for a day per inclusive date
-     exploded_active_range_rewards AS (
-         SELECT
-         	arr.*,
-         	day_series.day as day
-         FROM active_reward_ranges as arr
-		 cross join day_series
-		 where DATE(day_series.day) between DATE(reward_start_exclusive) and DATE(reward_end_inclusive)
-     ),
-     active_rewards_final AS (
-         SELECT
-             avs,
-             DATE(day) as snapshot,
-             token,
-             tokens_per_day,
-             tokens_per_day_decimal,
-             multiplier,
-             strategy,
-             reward_hash,
-             reward_type,
-             reward_submission_date
-         FROM exploded_active_range_rewards
-         -- Remove snapshots on the start day
-         WHERE day != reward_start_exclusive
-     )
+ exploded_active_range_rewards AS (
+	 SELECT
+		arr.*,
+		day_series.dayy as dayy
+	 FROM active_reward_ranges as arr
+	 cross join day_series
+	 where DATE(day_series.dayy) between DATE(reward_start_exclusive) and DATE(reward_end_inclusive)
+ ),
+ active_rewards_final AS (
+	 SELECT
+		 avs,
+		 DATE(dayy) as snapshot,
+		 token,
+		 tokens_per_day,
+		 tokens_per_day_decimal,
+		 multiplier,
+		 strategy,
+		 reward_hash,
+		 reward_type,
+		 reward_submission_date
+	 FROM exploded_active_range_rewards
+	 -- Remove snapshots on the start day
+	 WHERE DATE(dayy) != reward_start_exclusive
+ )
 select
 	avs,
 	snapshot,
@@ -120,6 +120,7 @@ select
 	reward_type,
 	reward_submission_date
 from active_rewards_final
+where snapshot >= DATE(@startDate)
 `
 
 type ResultRow struct {
@@ -132,14 +133,15 @@ type ResultRow struct {
 
 // Generate1ActiveRewards generates active rewards for the gold_1_active_rewards table
 //
-// @param snapshotDate: The upper bound of when to calculate rewards to
 // @param startDate: The lower bound of when to calculate rewards from. If we're running rewards for the first time,
 // this will be "1970-01-01". If this is a subsequent run, this will be the last snapshot date.
-func (r *RewardsCalculator) Generate1ActiveRewards(cutoffDate string, startDate string) error {
+// @param cutoffDate: The upper bound of when to calculate rewards to (inclusive)
+func (r *RewardsCalculator) Generate1ActiveRewards(startDate string, cutoffDate string) error {
 	r.logger.Sugar().Infow("Generating active rewards", "cutoffDate", cutoffDate, "startDate", startDate)
 	res := r.grm.Exec(_1_goldActiveRewardsQuery,
 		sql.Named("cutoffDate", cutoffDate),
-		sql.Named("rewardsStart", startDate),
+		sql.Named("startDate", startDate),
+		sql.Named("rewardsStart", "1970-01-01"),
 	)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate active rewards", "error", res.Error)
@@ -149,24 +151,28 @@ func (r *RewardsCalculator) Generate1ActiveRewards(cutoffDate string, startDate 
 }
 
 func (r *RewardsCalculator) CreateGold1ActiveRewardsTable() error {
-	query := `
-		create table if not exists gold_1_active_rewards (
-			avs TEXT NOT NULL,
-			snapshot DATE NOT NULL,
-			token TEXT NOT NULL,
-			tokens_per_day TEXT NOT NULL,
-			tokens_per_day_decimal TEXT NOT NULL,
-			multiplier TEXT NOT NULL,
-			strategy TEXT NOT NULL,
-			reward_hash TEXT NOT NULL,
-			reward_type TEXT NOT NULL,
-			reward_submission_date DATE NOT NULL
-		)
-	`
-	res := r.grm.Exec(query)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to create gold_1_active_rewards table", "error", res.Error)
-		return res.Error
+	queries := []string{
+		`create table if not exists gold_1_active_rewards (
+		avs TEXT NOT NULL,
+		snapshot DATE NOT NULL,
+		token TEXT NOT NULL,
+		tokens_per_day TEXT NOT NULL,
+		tokens_per_day_decimal TEXT NOT NULL,
+		multiplier TEXT NOT NULL,
+		strategy TEXT NOT NULL,
+		reward_hash TEXT NOT NULL,
+		reward_type TEXT NOT NULL,
+		reward_submission_date DATE NOT NULL
+	)`,
+		`create index if not exists idx_gold_1_active_rewards_snapshot on gold_1_active_rewards(snapshot)`,
+		`create index if not exists idx_gold_1_active_rewards_reward_type on gold_1_active_rewards(reward_type)`,
+	}
+	for _, query := range queries {
+		res := r.grm.Exec(query)
+		if res.Error != nil {
+			r.logger.Sugar().Errorw("Failed to create gold_1_active_rewards table", "error", res.Error)
+			return res.Error
+		}
 	}
 	return nil
 }

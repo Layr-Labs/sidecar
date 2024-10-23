@@ -14,6 +14,10 @@ type Environment int
 
 type Chain string
 
+func (c Chain) String() string {
+	return string(c)
+}
+
 type ForkName string
 
 const (
@@ -23,6 +27,7 @@ const (
 
 	Fork_Nile   ForkName = "nile"
 	Fork_Amazon ForkName = "amazon"
+	Fork_Panama ForkName = "panama"
 )
 
 func parseListEnvVar(envVar string) []string {
@@ -207,16 +212,19 @@ func (c *Config) GetForkDates() (ForkMap, error) {
 		return ForkMap{
 			Fork_Amazon: "1970-01-01", // Amazon hard fork was never on preprod as we backfilled
 			Fork_Nile:   "2024-08-14", // Last calculation end timestamp was 8-13: https://holesky.etherscan.io/tx/0xb5a6855e88c79312b7c0e1c9f59ae9890b97f157ea27e69e4f0fadada4712b64#eventlog
+			Fork_Panama: "2024-10-01",
 		}, nil
 	case Chain_Holesky:
 		return ForkMap{
 			Fork_Amazon: "1970-01-01", // Amazon hard fork was never on testnet as we backfilled
 			Fork_Nile:   "2024-08-13", // Last calculation end timestamp was 8-12: https://holesky.etherscan.io/tx/0x5fc81b5ed2a78b017ef313c181d8627737a97fef87eee85acedbe39fc8708c56#eventlog
+			Fork_Panama: "2024-10-01",
 		}, nil
 	case Chain_Mainnet:
 		return ForkMap{
 			Fork_Amazon: "2024-08-02", // Last calculation end timestamp was 8-01: https://etherscan.io/tx/0x2aff6f7b0132092c05c8f6f41a5e5eeeb208aa0d95ebcc9022d7823e343dd012#eventlog
 			Fork_Nile:   "2024-08-12", // Last calculation end timestamp was 8-11: https://etherscan.io/tx/0x922d29d93c02d189fc2332041f01a80e0007cd7a625a5663ef9d30082f7ef66f#eventlog
+			Fork_Panama: "2024-10-01",
 		}, nil
 	}
 	return nil, errors.New("unsupported chain")

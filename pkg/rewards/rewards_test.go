@@ -7,6 +7,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
+	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -143,13 +144,12 @@ func Test_Rewards(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	projectRoot := getProjectRootPath()
+
 	//snapshotDate, err := getSnapshotDate()
 	//if err != nil {
 	//	t.Fatal(err)
 	//}
-	snapshotDate := "2024-08-01"
-
-	startDate := "1970-01-01"
 
 	t.Run("Should initialize the rewards calculator", func(t *testing.T) {
 		rc, err := NewRewardsCalculator(l, grm, cfg)
@@ -217,62 +217,112 @@ func Test_Rewards(t *testing.T) {
 
 		t.Log("Hydrated tables")
 
-		// Generate snapshots
-		err = rc.generateSnapshotData(startDate, snapshotDate)
-		assert.Nil(t, err)
+		snapshotDates := []string{"2024-08-02", "2024-08-12"}
 
-		t.Log("Generated and inserted snapshots")
-		forks, err := cfg.GetForkDates()
-		assert.Nil(t, err)
+		for i, snapshotDate := range snapshotDates {
+			var startDate string
+			if i == 0 {
+				startDate = "1970-01-01"
+			} else {
+				startDate, err = rc.GetNextSnapshotDate()
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Logf("Max snapshot date: %s", startDate)
+			}
+			t.Logf("Generating rewards - startDate %s, snapshotDate: %s", startDate, snapshotDate)
+			// Generate snapshots
+			err = rc.generateSnapshotData(startDate, snapshotDate)
+			assert.Nil(t, err)
 
-		startDate := "1970-01-01"
-		err = rc.Generate1ActiveRewards(snapshotDate, startDate)
-		assert.Nil(t, err)
-		rows, err := getRowCountForTable(grm, "gold_1_active_rewards")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_1_active_rewards: %v\n", rows)
+			t.Log("Generated and inserted snapshots")
+			forks, err := cfg.GetForkDates()
+			assert.Nil(t, err)
 
-		err = rc.GenerateGold2StakerRewardAmountsTable(forks)
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_2_staker_reward_amounts")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_2_staker_reward_amounts: %v\n", rows)
+			err = rc.Generate1ActiveRewards(startDate, snapshotDate)
+			assert.Nil(t, err)
+			rows, err := getRowCountForTable(grm, "gold_1_active_rewards")
+			assert.Nil(t, err)
+			fmt.Printf("Rows in gold_1_active_rewards: %v\n", rows)
 
-		err = rc.GenerateGold3OperatorRewardAmountsTable()
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_3_operator_reward_amounts")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_3_operator_reward_amounts: %v\n", rows)
+			err = rc.GenerateGold2StakerRewardAmountsTable(forks)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, "gold_2_staker_reward_amounts")
+			assert.Nil(t, err)
+			fmt.Printf("Rows in gold_2_staker_reward_amounts: %v\n", rows)
 
-		err = rc.GenerateGold4RewardsForAllTable()
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_4_rewards_for_all")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_4_rewards_for_all: %v\n", rows)
+			err = rc.GenerateGold3OperatorRewardAmountsTable()
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, "gold_3_operator_reward_amounts")
+			assert.Nil(t, err)
+			fmt.Printf("Rows in gold_3_operator_reward_amounts: %v\n", rows)
 
-		err = rc.GenerateGold5RfaeStakersTable()
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_5_rfae_stakers")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_5_rfae_stakers: %v\n", rows)
+			err = rc.GenerateGold4RewardsForAllTable()
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, "gold_4_rewards_for_all")
+			assert.Nil(t, err)
+			fmt.Printf("Rows in gold_4_rewards_for_all: %v\n", rows)
 
-		err = rc.GenerateGold6RfaeOperatorsTable()
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_6_rfae_operators")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_6_rfae_operators: %v\n", rows)
+			err = rc.GenerateGold5RfaeStakersTable(forks)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, "gold_5_rfae_stakers")
+			assert.Nil(t, err)
+			fmt.Printf("Rows in gold_5_rfae_stakers: %v\n", rows)
 
-		err = rc.GenerateGold7StagingTable()
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_7_staging")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_7_staging: %v\n", rows)
+			err = rc.GenerateGold6RfaeOperatorsTable()
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, "gold_6_rfae_operators")
+			assert.Nil(t, err)
+			fmt.Printf("Rows in gold_6_rfae_operators: %v\n", rows)
 
-		err = rc.GenerateGold8FinalTable()
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_table")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_table: %v\n", rows)
+			err = rc.GenerateGold7StagingTable()
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, "gold_7_staging")
+			assert.Nil(t, err)
+			fmt.Printf("Rows in gold_7_staging: %v\n", rows)
+
+			err = rc.GenerateGold8FinalTable(startDate)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, "gold_table")
+			assert.Nil(t, err)
+			fmt.Printf("Rows in gold_table: %v\n", rows)
+
+			goldStagingRows, err := rc.ListGoldStagingRowsForSnapshot(snapshotDate)
+			assert.Nil(t, err)
+
+			expectedRows, err := tests.GetGoldStagingExpectedResults(projectRoot, snapshotDate)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Equal(t, len(expectedRows), len(goldStagingRows))
+
+			missingRows := 0
+			invalidAmounts := 0
+			for i, row := range goldStagingRows {
+				foundRow := utils.Find(expectedRows, func(r *tests.GoldStagingExpectedResult) bool {
+					return row.Earner == r.Earner && row.Snapshot == r.Snapshot && row.RewardHash == r.RewardHash && row.Token == r.Token
+				})
+				if foundRow == nil {
+					missingRows++
+					if missingRows < 100 {
+						fmt.Printf("[%d] Row not found in expected results: %+v\n", i, row)
+					}
+					continue
+				}
+				if foundRow.Amount != row.Amount {
+					invalidAmounts++
+					if invalidAmounts < 100 {
+						fmt.Printf("[%d] Amount mismatch: expected '%s', got '%s' for row: %+v\n", i, row.Amount, foundRow.Amount, row)
+					}
+				}
+			}
+			assert.Zero(t, missingRows)
+			t.Logf("Missing rows: %d", missingRows)
+
+			assert.Zero(t, invalidAmounts)
+			t.Logf("Invalid amounts: %d", invalidAmounts)
+		}
 
 		fmt.Printf("Done!\n\n")
 		t.Cleanup(func() {

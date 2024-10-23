@@ -174,7 +174,12 @@ final_results as (
 	cross join day_series
 	where DATE(day) between DATE(start_time) and DATE(end_time, '-1 day')
 )
-select * from final_results;
+select
+	*
+from final_results
+where
+	DATE(snapshot) >= DATE(@startDate)
+	and DATE(snapshot) < DATE(@cutoffDate)
 `
 
 type OperatorAvsStrategySnapshot struct {
@@ -184,12 +189,16 @@ type OperatorAvsStrategySnapshot struct {
 	Snapshot string
 }
 
-func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(snapshotDate string) ([]*OperatorAvsStrategySnapshot, error) {
+func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(startDate string, snapshotDate string) ([]*OperatorAvsStrategySnapshot, error) {
 	results := make([]*OperatorAvsStrategySnapshot, 0)
 
 	contractAddresses := r.globalConfig.GetContractsMapForChain()
 
-	res := r.grm.Raw(operatorAvsStrategyWindowsQuery, sql.Named("avsDirectoryAddress", contractAddresses.AvsDirectory)).Scan(&results)
+	res := r.grm.Raw(operatorAvsStrategyWindowsQuery,
+		sql.Named("avsDirectoryAddress", contractAddresses.AvsDirectory),
+		sql.Named("startDate", startDate),
+		sql.Named("cutoffDate", snapshotDate),
+	).Scan(&results)
 
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator AVS strategy windows", "error", res.Error)
@@ -198,8 +207,8 @@ func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(snapshotDate st
 	return results, nil
 }
 
-func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(snapshotDate string) error {
-	snapshots, err := r.GenerateOperatorAvsStrategySnapshots(snapshotDate)
+func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(startDate string, snapshotDate string) error {
+	snapshots, err := r.GenerateOperatorAvsStrategySnapshots(startDate, snapshotDate)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator AVS strategy snapshots", "error", err)
 		return err

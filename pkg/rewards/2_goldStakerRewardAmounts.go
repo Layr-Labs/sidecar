@@ -7,23 +7,41 @@ import (
 
 const _2_goldStakerRewardAmountsQuery = `
 insert into gold_2_staker_reward_amounts
-WITH reward_snapshot_operators as (
+-- sqlite filtering optimization. filter by reward_type FIRST
+-- then attempt to join it with the operator_avs_registration_snapshots table
+WITH filtered_reward_types as (
+	SELECT
+		ap.reward_hash,
+		ap.snapshot,
+		ap.token,
+		ap.tokens_per_day,
+		ap.tokens_per_day_decimal,
+		ap.avs,
+		ap.strategy,
+		ap.multiplier,
+		ap.reward_type,
+		ap.reward_submission_date
+	FROM gold_1_active_rewards ap
+	WHERE ap.reward_type = 'avs'
+),
+reward_snapshot_operators as (
   SELECT
-	ap.reward_hash,
-	ap.snapshot,
-	ap.token,
-	ap.tokens_per_day,
-	ap.tokens_per_day_decimal,
-	ap.avs,
-	ap.strategy,
-	ap.multiplier,
-	ap.reward_type,
-	ap.reward_submission_date,
+	frp.reward_hash,
+	frp.snapshot,
+	frp.token,
+	frp.tokens_per_day,
+	frp.tokens_per_day_decimal,
+	frp.avs,
+	frp.strategy,
+	frp.multiplier,
+	frp.reward_type,
+	frp.reward_submission_date,
 	oar.operator
-  FROM gold_1_active_rewards ap
-  JOIN operator_avs_registration_snapshots oar
-  	ON ap.avs = oar.avs and ap.snapshot = oar.snapshot
-  WHERE ap.reward_type = 'avs'
+  FROM filtered_reward_types frp
+  JOIN operator_avs_registration_snapshots oar ON(
+ 	frp.avs = oar.avs
+ 	and frp.snapshot = oar.snapshot
+  )
 ),
 operator_restaked_strategies AS (
   SELECT
@@ -62,25 +80,10 @@ staker_avs_strategy_shares AS (
   WHERE big_gt(sss.shares, '0') and sdo.multiplier != '0'
 ),
 -- Calculate the weight of a staker
-staker_weight_grouped as (
-	select
-		staker,
-	    reward_hash,
-	    snapshot,
-	    sum_big(staker_weight(multiplier, shares)) as staker_weight
-	from staker_avs_strategy_shares
-	group by staker, reward_hash, snapshot
-),
 staker_weights AS (
-  SELECT
-      s.*,
-      swg.staker_weight
-  FROM staker_avs_strategy_shares s
-  left join staker_weight_grouped swg on (
-      s.staker = swg.staker
-      and s.reward_hash = swg.reward_hash
-      and s.snapshot = swg.snapshot
-  )
+  SELECT *,
+    sum_big(staker_weight(multiplier, shares)) OVER (PARTITION BY staker, reward_hash, snapshot) AS staker_weight
+  FROM staker_avs_strategy_shares
 ),
 -- Get distinct stakers since their weights are already calculated
 distinct_stakers AS (
@@ -95,21 +98,11 @@ distinct_stakers AS (
   WHERE rn = 1
   ORDER BY reward_hash, snapshot, staker
 ),
-staker_weight_sum_groups as (
-	select
-		reward_hash,
-	   	snapshot,
-	    sum_big(staker_weight) as total_weight
-	from distinct_stakers
-	group by reward_hash, snapshot
-),
 -- Calculate sum of all staker weights for each reward and snapshot
 staker_weight_sum AS (
-	SELECT
-		s.*,
-		sws.total_weight
-  FROM distinct_stakers as s
-  join staker_weight_sum_groups as sws on (s.reward_hash = sws.reward_hash and s.snapshot = sws.snapshot)
+  SELECT *,
+    sum_big(staker_weight) OVER (PARTITION BY reward_hash, snapshot) as total_weight
+  FROM distinct_stakers
 ),
 -- Calculate staker proportion of tokens for each reward and snapshot
 staker_proportion AS (
@@ -158,7 +151,7 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(forks config.
 		sql.Named("nileHardforkDate", forks[config.Fork_Nile]),
 	)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_staker_reward_amounts", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to create 2_gold_staker_reward_amounts", "error", res.Error)
 		return res.Error
 	}
 	return nil

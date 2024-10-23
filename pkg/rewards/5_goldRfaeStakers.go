@@ -1,5 +1,11 @@
 package rewards
 
+import (
+	"database/sql"
+	"fmt"
+	"github.com/Layr-Labs/go-sidecar/internal/config"
+)
+
 const _5_goldRfaeStakersQuery = `
 insert into gold_5_rfae_stakers
 WITH avs_opted_operators AS (
@@ -9,7 +15,7 @@ WITH avs_opted_operators AS (
   FROM operator_avs_registration_snapshots
 ),
 -- Get the operators who will earn rewards for the reward submission at the given snapshot
-reward_snapshot_operators as (
+all_earners_rewards as (
   SELECT
     ap.reward_hash,
     ap.snapshot,
@@ -19,12 +25,27 @@ reward_snapshot_operators as (
     ap.strategy,
     ap.multiplier,
     ap.reward_type,
-    ap.reward_submission_date,
-    aoo.operator
+    ap.reward_submission_date
   FROM gold_1_active_rewards ap
-  JOIN avs_opted_operators aoo
-  ON ap.snapshot = aoo.snapshot
   WHERE ap.reward_type = 'all_earners'
+),
+-- Get the operators who will earn rewards for the reward submission at the given snapshot
+-- Optimized this to perform the filter on all_earners FIRST then do the join.
+-- otherwise sqlite was thrashing and not doing anything...
+reward_snapshot_operators as (
+  SELECT
+    aer.reward_hash,
+    aer.snapshot,
+    aer.token,
+    aer.tokens_per_day_decimal,
+    aer.avs,
+    aer.strategy,
+    aer.multiplier,
+    aer.reward_type,
+    aer.reward_submission_date,
+    aoo.operator
+  FROM all_earners_rewards aer
+  JOIN avs_opted_operators aoo ON(aer.snapshot = aoo.snapshot)
 ),
 -- Get the stakers that were delegated to the operator for the snapshot 
 staker_delegated_operators AS (
@@ -51,26 +72,24 @@ staker_strategy_shares AS (
   -- Parse out negative shares and zero multiplier so there is no division by zero case
   WHERE big_gt(sss.shares, '0') and sdo.multiplier != '0'
 ),
--- Calculate the weight of a staker
-staker_weights_grouped as (
-	SELECT
-		staker,
-		reward_hash,
-		snapshot,
-		sum_big(staker_weight(multiplier, shares)) as staker_weight
-	from staker_strategy_shares
-	group by staker, reward_hash, snapshot
+addresses_to_exclude AS (
+    SELECT
+        address as excluded_address
+    from excluded_addresses
+    where network = @network
+),
+parsed_out_excluded_addresses AS (
+  SELECT * from staker_strategy_shares sss
+  LEFT JOIN addresses_to_exclude ate ON sss.staker = ate.excluded_address
+  WHERE 
+  	-- The end result here is that null excluded addresses are not selected UNLESS after the cutoff date
+    ate.excluded_address IS NULL  -- Earner is not in the exclusion list
+    OR sss.snapshot >= DATE(@panamaForkDate)  -- Or snapshot is on or after the cutoff date
 ),
 staker_weights AS (
-  SELECT
-      sss.*,
-      swg.staker_weight
-  FROM staker_strategy_shares as sss
-  join staker_weights_grouped as swg on (
-	sss.staker = swg.staker
-	and sss.reward_hash = swg.reward_hash
-   	and sss.snapshot = swg.snapshot
-  )
+  SELECT *,
+    sum_big(staker_weight(multiplier, shares)) OVER (PARTITION BY staker, reward_hash, snapshot) AS staker_weight
+  FROM parsed_out_excluded_addresses
 ),
 -- Get distinct stakers since their weights are already calculated
 distinct_stakers AS (
@@ -86,23 +105,10 @@ distinct_stakers AS (
   ORDER BY reward_hash, snapshot, staker
 ),
 -- Calculate sum of all staker weights for each reward and snapshot
-staker_weight_sum_groups as (
-	SELECT
-		reward_hash,
-		snapshot,
-		sum_big(staker_weight) as total_weight
-	FROM distinct_stakers
-	GROUP BY reward_hash, snapshot
-),
 staker_weight_sum AS (
-  SELECT
-      ds.*,
-      swsg.total_weight
-  FROM distinct_stakers as ds
-  JOIN staker_weight_sum_groups as swsg on (
-      ds.reward_hash = swsg.reward_hash
-      and ds.snapshot = swsg.snapshot
-  )
+  SELECT *,
+    sum_big(staker_weight) OVER (PARTITION BY reward_hash, snapshot) as total_weight
+  FROM distinct_stakers
 ),
 -- Calculate staker proportion of tokens for each reward and snapshot
 staker_proportion AS (
@@ -127,8 +133,13 @@ SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
 `
 
-func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable() error {
-	res := rc.grm.Exec(_5_goldRfaeStakersQuery)
+func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(forks config.ForkMap) error {
+	fmt.Printf("Forks: %+v\n", forks[config.Fork_Panama])
+	fmt.Printf("Chain: %+v\n", rc.globalConfig.Chain.String())
+	res := rc.grm.Exec(_5_goldRfaeStakersQuery,
+		sql.Named("panamaForkDate", forks[config.Fork_Panama]),
+		sql.Named("network", rc.globalConfig.Chain.String()),
+	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to generate gold_rfae_stakers", "error", res.Error)
 		return res.Error
@@ -143,6 +154,7 @@ func (rc *RewardsCalculator) CreateGold5RfaeStakersTable() error {
 			snapshot DATE NOT NULL,
 			token TEXT NOT NULL,
 			tokens_per_day TEXT NOT NULL,
+			tokens_per_day_decimal TEXT NOT NULL,
 			avs TEXT NOT NULL,
 			strategy TEXT NOT NULL,
 			multiplier TEXT NOT NULL,

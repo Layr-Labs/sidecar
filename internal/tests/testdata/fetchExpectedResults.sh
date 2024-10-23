@@ -18,9 +18,24 @@ if [[ $NETWORK == "testnet-reduced" ]]; then
     sqlFileName="testnetReduced_${sqlFileName}"
 fi
 
-for d in operatorAvsRegistrationSnapshots operatorShareSnapshots; do
-    echo "Generating expected results for $d"
-    sqlFileWithPath="${d}/${sqlFileName}"
-    outputFileWithPath="${d}/${outputFile}"
-    psql --host localhost --port 5434 --user blocklake --dbname blocklake --password < $sqlFileWithPath > $outputFileWithPath
+for d in 7_goldStaging; do
+    echo "Processing directory: $d"
+    if [[ $d == "7_goldStaging" ]]; then
+        files=$(ls "./${d}" | grep "_generateExpectedResults_")
+        echo "Found SQL files: $files"
+        for f in $files;
+        do
+            snapshotDate=$(echo $f | cut -d '_' -f3 | cut -d '.' -f1)
+            echo "Snapshot date: $snapshotDate"
+            sqlFileWithPath="${d}/$f"
+            outputFileWithPath="${d}/expectedResults_${snapshotDate}.csv"
+            echo "Generating expected results for ${sqlFileWithPath} to ${outputFileWithPath}"
+            psql --host localhost --port 5434 --user blocklake --dbname blocklake --password < $sqlFileWithPath > $outputFileWithPath
+        done
+    else
+        echo "Generating expected results for $d"
+        sqlFileWithPath="${d}/${sqlFileName}"
+        outputFileWithPath="${d}/${outputFile}"
+        psql --host localhost --port 5434 --user blocklake --dbname blocklake --password < $sqlFileWithPath > $outputFileWithPath
+    fi
 done

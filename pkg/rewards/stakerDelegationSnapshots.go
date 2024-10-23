@@ -13,9 +13,6 @@ with staker_delegations_with_block_info as (
 		DATE(b.block_time) as block_date
 	from staker_delegation_changes as sdc
 	left join blocks as b on (b.number = sdc.block_number)
-	where
-		DATE(b.block_time) >= DATE(@startDate)
-		and DATE(b.block_time) < DATE(@cutoffDate)
 ),
 ranked_staker_records as (
 SELECT *,
@@ -73,7 +70,12 @@ final_results as (
 	cross join day_series
 		where DATE(day) between DATE(start_time) and DATE(end_time, '-1 day')
 )
-select * from final_results
+select
+	*
+from final_results
+where
+	DATE(snapshot) >= DATE(@startDate)
+	and DATE(snapshot) < DATE(@cutoffDate)
 `
 
 type StakerDelegationSnapshot struct {

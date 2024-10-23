@@ -27,9 +27,6 @@ WITH state_changes as (
 		DATE(b.block_time) as block_date
 	from avs_operator_state_changes as aosc
 	left join blocks as b on (b.number = aosc.block_number)
-	where
-		DATE(b.block_time) >= DATE(@startDate)
-		AND DATE(b.block_time) < DATE(@cutoffDate)
 ),
 marked_statuses as (
 	SELECT
@@ -123,7 +120,12 @@ final_results as (
 	cross join day_series
 where DATE(day) between DATE(start_time) and DATE(end_time, '-1 day')
 )
-select * from final_results
+select
+	*
+from final_results
+where
+		DATE(snapshot) >= DATE(@startDate)
+		AND DATE(snapshot) < DATE(@cutoffDate)
 `
 
 type OperatorAvsRegistrationSnapshots struct {
@@ -172,6 +174,7 @@ func (r *RewardsCalculator) CreateOperatorAvsRegistrationSnapshotsTable() error 
 			snapshot TEXT
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_operator_avs_registration_snapshots_avs_snapshot ON operator_avs_registration_snapshots (avs, snapshot)`,
+		`CREATE INDEX IF NOT EXISTS idx_operator_avs_registration_snapshots_operator_snapshot ON operator_avs_registration_snapshots (operator, snapshot)`,
 	}
 	for _, query := range queries {
 		res := r.grm.Exec(query)

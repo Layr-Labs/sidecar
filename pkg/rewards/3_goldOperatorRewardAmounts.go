@@ -2,16 +2,7 @@ package rewards
 
 const _3_goldOperatorRewardAmountsQuery = `
 insert into gold_3_operator_reward_amounts
-with operator_token_groups as (
-    SELECT
-    operator,
-    reward_hash,
-    snapshot,
-    sum_big(operator_tokens) AS operator_tokens
-  FROM gold_2_staker_reward_amounts
-  group by operator, reward_hash, snapshot
-),
-operator_token_sums AS (
+with operator_token_sums AS (
   SELECT
     g.reward_hash,
     g.snapshot,
@@ -23,13 +14,8 @@ operator_token_sums AS (
     g.multiplier,
     g.reward_type,
     g.operator,
-    otg.operator_tokens
+    sum_big(g.operator_tokens) OVER (PARTITION BY g.operator, g.reward_hash, g.snapshot) AS operator_tokens
   FROM gold_2_staker_reward_amounts as g
-  join operator_token_groups as otg on (
-    g.operator = otg.operator
-	and g.reward_hash = otg.reward_hash
-	and g.snapshot = otg.snapshot
-  )
 ),
 -- Dedupe the operator tokens across strategies for each operator, reward hash, and snapshot
 distinct_operators AS (
