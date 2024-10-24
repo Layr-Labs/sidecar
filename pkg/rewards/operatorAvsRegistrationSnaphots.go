@@ -120,7 +120,12 @@ final_results as (
 	cross join day_series
 where DATE(day) between DATE(start_time) and DATE(end_time, '-1 day')
 )
-select * from final_results
+select
+	*
+from final_results
+where
+		DATE(snapshot) >= DATE(@startDate)
+		AND DATE(snapshot) < DATE(@cutoffDate)
 `
 
 type OperatorAvsRegistrationSnapshots struct {
@@ -130,10 +135,13 @@ type OperatorAvsRegistrationSnapshots struct {
 }
 
 // GenerateOperatorAvsRegistrationSnapshots returns a list of OperatorAvsRegistrationSnapshots objects
-func (r *RewardsCalculator) GenerateOperatorAvsRegistrationSnapshots(snapshotDate string) ([]*OperatorAvsRegistrationSnapshots, error) {
+func (r *RewardsCalculator) GenerateOperatorAvsRegistrationSnapshots(startDate string, snapshotDate string) ([]*OperatorAvsRegistrationSnapshots, error) {
 	results := make([]*OperatorAvsRegistrationSnapshots, 0)
 
-	res := r.grm.Raw(operatorAvsRegistrationSnapshotsQuery, sql.Named("cutoffDate", snapshotDate)).Scan(&results)
+	res := r.grm.Raw(operatorAvsRegistrationSnapshotsQuery,
+		sql.Named("startDate", startDate),
+		sql.Named("cutoffDate", snapshotDate),
+	).Scan(&results)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator AVS registration windows", "error", res.Error)
 		return nil, res.Error
@@ -141,8 +149,8 @@ func (r *RewardsCalculator) GenerateOperatorAvsRegistrationSnapshots(snapshotDat
 	return results, nil
 }
 
-func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate string) error {
-	snapshots, err := r.GenerateOperatorAvsRegistrationSnapshots(snapshotDate)
+func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(startDate string, snapshotDate string) error {
+	snapshots, err := r.GenerateOperatorAvsRegistrationSnapshots(startDate, snapshotDate)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator AVS registration snapshots", "error", err)
 		return err
@@ -150,7 +158,7 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(sn
 
 	r.logger.Sugar().Infow("Inserting operator AVS registration snapshots", "count", len(snapshots))
 
-	res := r.grm.Model(&OperatorAvsRegistrationSnapshots{}).CreateInBatches(snapshots, 100)
+	res := r.grm.Model(&OperatorAvsRegistrationSnapshots{}).CreateInBatches(snapshots, 5000)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to insert operator AVS registration snapshots", "error", res.Error)
 		return err
@@ -166,6 +174,7 @@ func (r *RewardsCalculator) CreateOperatorAvsRegistrationSnapshotsTable() error 
 			snapshot TEXT
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_operator_avs_registration_snapshots_avs_snapshot ON operator_avs_registration_snapshots (avs, snapshot)`,
+		// `CREATE INDEX IF NOT EXISTS idx_operator_avs_registration_snapshots_operator_snapshot ON operator_avs_registration_snapshots (operator, snapshot)`,
 	}
 	for _, query := range queries {
 		res := r.grm.Exec(query)

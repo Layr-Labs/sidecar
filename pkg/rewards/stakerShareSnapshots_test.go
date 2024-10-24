@@ -23,7 +23,7 @@ func setupStakerShareSnapshot() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
+	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l, "")
 	if err != nil {
 		panic(err)
 	}
@@ -78,6 +78,8 @@ func Test_StakerShareSnapshots(t *testing.T) {
 
 	snapshotDate, err := getSnapshotDate()
 
+	startDate := "1970-01-01"
+
 	t.Run("Should hydrate dependency tables", func(t *testing.T) {
 		if _, err = hydrateAllBlocksTable(grm, l); err != nil {
 			t.Error(err)
@@ -90,7 +92,7 @@ func Test_StakerShareSnapshots(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
 		t.Log("Generating staker share snapshots")
-		snapshots, err := rewards.GenerateStakerShareSnapshots(snapshotDate)
+		snapshots, err := rewards.GenerateStakerShareSnapshots(startDate, snapshotDate)
 		assert.Nil(t, err)
 
 		t.Log("Getting expected results")

@@ -24,7 +24,7 @@ func setupOperatorAvsRegistrationSnapshot() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
+	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l, "")
 	if err != nil {
 		panic(err)
 	}
@@ -83,6 +83,8 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	startDate := "1970-01-01"
+
 	t.Run("Should hydrate blocks and operatorAvsStateChanges tables", func(t *testing.T) {
 		totalBlockCount, err := hydrateAllBlocksTable(grm, l)
 		if err != nil {
@@ -109,7 +111,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		case "testnet-reduced":
 			assert.Equal(t, 16042, count)
 		case "mainnet-reduced":
-			assert.Equal(t, 1752, count)
+			assert.Equal(t, 1922, count)
 		default:
 			t.Fatal("Unknown test context")
 		}
@@ -117,7 +119,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 	t.Run("Should generate the proper operatorAvsRegistrationWindows", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
-		snapshots, err := rewards.GenerateOperatorAvsRegistrationSnapshots(snapshotDate)
+		snapshots, err := rewards.GenerateOperatorAvsRegistrationSnapshots(startDate, snapshotDate)
 		assert.Nil(t, err)
 		assert.NotNil(t, snapshots)
 

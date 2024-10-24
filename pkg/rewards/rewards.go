@@ -126,40 +126,40 @@ func (rc *RewardsCalculator) initializeRewardsSchema() error {
 	return nil
 }
 
-func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
+func (rc *RewardsCalculator) generateSnapshotData(startDate string, snapshotDate string) error {
 	var err error
 
-	if err = rc.GenerateAndInsertCombinedRewards(); err != nil {
+	if err = rc.GenerateAndInsertCombinedRewards(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate combined rewards", "error", err)
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated combined rewards")
 
-	if err = rc.GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertOperatorAvsRegistrationSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator AVS registration snapshots", "error", err)
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated operator AVS registration snapshots")
 
-	if err = rc.GenerateAndInsertOperatorAvsStrategySnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertOperatorAvsStrategySnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator AVS strategy snapshots", "error", err)
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated operator AVS strategy snapshots")
 
-	if err = rc.GenerateAndInsertOperatorShareSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertOperatorShareSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", err)
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated operator share snapshots")
 
-	if err = rc.GenerateAndInsertStakerShareSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertStakerShareSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", err)
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated staker share snapshots")
 
-	if err = rc.GenerateAndInsertStakerDelegationSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertStakerDelegationSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", err)
 		return err
 	}

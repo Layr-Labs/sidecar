@@ -1,5 +1,7 @@
 package rewards
 
+import "database/sql"
+
 const _7_goldStagingQuery = `
 insert into gold_7_staging
 WITH staker_rewards AS (
@@ -49,7 +51,7 @@ rewards_for_all_earners_operators AS (
     operator_tokens as amount
   FROM gold_6_rfae_operators
 ),
-combined_rewards AS (
+all_combined_rewards AS (
   SELECT * FROM operator_rewards
   UNION ALL
   SELECT * FROM staker_rewards
@@ -68,7 +70,7 @@ deduped_earners AS (
     reward_hash,
     token,
     sum_big(amount) as amount
-  FROM combined_rewards
+  FROM all_combined_rewards
   GROUP BY
     earner,
     snapshot,
@@ -78,6 +80,14 @@ deduped_earners AS (
 SELECT *
 FROM deduped_earners
 `
+
+type GoldStagingRow struct {
+	Earner     string
+	Snapshot   string
+	RewardHash string
+	Token      string
+	Amount     string
+}
 
 func (rc *RewardsCalculator) GenerateGold7StagingTable() error {
 	res := rc.grm.Exec(_7_goldStagingQuery)
@@ -104,4 +114,22 @@ func (rc *RewardsCalculator) CreateGold7StagingTable() error {
 		return res.Error
 	}
 	return nil
+}
+
+func (rc *RewardsCalculator) ListGoldStagingRowsForSnapshot(snapshotDate string) ([]*GoldStagingRow, error) {
+	results := make([]*GoldStagingRow, 0)
+	query := `
+	SELECT
+		earner,
+		cast(snapshot as text) as snapshot,
+		reward_hash,
+		token,
+		amount
+	FROM gold_7_staging WHERE DATE(snapshot) < @cutoffDate`
+	res := rc.grm.Raw(query, sql.Named("cutoffDate", snapshotDate)).Scan(&results)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to list gold staging rows", "error", res.Error)
+		return nil, res.Error
+	}
+	return results, nil
 }

@@ -168,3 +168,16 @@ func GetCombinedRewardsSqlFile(projectBase string) (string, error) {
 	path := getTestdataPathFromProjectRoot(projectBase, "/combinedRewards/combinedRewards.sql")
 	return getSqlFile(path)
 }
+
+type GoldStagingExpectedResult struct {
+	Earner     string `csv:"earner"`
+	Snapshot   string `csv:"snapshot"`
+	RewardHash string `csv:"reward_hash"`
+	Token      string `csv:"token"`
+	Amount     string `csv:"amount"`
+}
+
+func GetGoldStagingExpectedResults(projectBase string, snapshotDate string) ([]*GoldStagingExpectedResult, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, fmt.Sprintf("/7_goldStaging/expectedResults_%s.csv", snapshotDate))
+	return getExpectedResultsCsvFile[GoldStagingExpectedResult](path)
+}

@@ -2,7 +2,10 @@ package rewards
 
 const _4_goldRewardsForAllQuery = `
 insert into gold_4_rewards_for_all
-WITH reward_snapshot_stakers AS (
+WITH positive_staker_share_snapshots as (
+    select * from staker_share_snapshots sss
+	where big_gt(sss.shares, '0')
+), reward_snapshot_stakers AS (
   SELECT
     ap.reward_hash,
     ap.snapshot,
@@ -16,33 +19,17 @@ WITH reward_snapshot_stakers AS (
     sss.staker,
     sss.shares
   FROM gold_1_active_rewards ap
-  JOIN staker_share_snapshots as sss
+  JOIN positive_staker_share_snapshots as sss
   ON ap.strategy = sss.strategy and ap.snapshot = sss.snapshot
   WHERE
   	ap.reward_type = 'all_stakers'
   	-- Parse out negative shares and zero multiplier so there is no division by zero case
-  	AND big_gt(sss.shares, '0') and ap.multiplier != '0'
-),
--- Calculate the weight of a staker
-staker_weights_grouped as (
-	select
-	  	staker,
-	    reward_hash,
-	    snapshot,
-	    sum_big(numeric_multiply(multiplier, shares)) as staker_weight
-	from reward_snapshot_stakers
-	group by staker, reward_hash, snapshot
+  	AND ap.multiplier != '0'
 ),
 staker_weights AS (
-  SELECT
-      rss.*,
-      swg.staker_weight
-  FROM reward_snapshot_stakers as rss
-  JOIN staker_weights_grouped as swg on (
-	rss.staker = swg.staker
-    and rss.reward_hash = swg.reward_hash
-    and rss.snapshot = swg.snapshot
-  )
+  SELECT *,
+    sum_big(staker_weight(multiplier, shares)) OVER (PARTITION BY staker, reward_hash, snapshot) AS staker_weight
+  FROM reward_snapshot_stakers
 ),
 -- Get distinct stakers since their weights are already calculated
 distinct_stakers AS (
@@ -57,29 +44,15 @@ distinct_stakers AS (
   WHERE rn = 1
   ORDER BY reward_hash, snapshot, staker
 ),
--- Calculate sum of all staker weights
-staker_weight_sum_groups as (
-	SELECT
-		reward_hash,
-		snapshot,
-		sum_big(staker_weight) as total_staker_weight
-	FROM distinct_stakers
-	GROUP BY reward_hash, snapshot
-),
 staker_weight_sum AS (
-	SELECT
-      ds.*,
-	  swsg.total_staker_weight
-  	FROM distinct_stakers as ds
-  	JOIN staker_weight_sum_groups as swsg on (
-  		ds.reward_hash = swsg.reward_hash
-  	    and ds.snapshot = swsg.snapshot
-  	)
+  SELECT *,
+    sum_big(staker_weight) OVER (PARTITION BY reward_hash, snapshot) as total_staker_weight
+  FROM distinct_stakers
 ),
 -- Calculate staker token proportion
 staker_proportion AS (
   SELECT *,
-    calc_staker_proportion(staker_weight, total_staker_weight) as staker_proportion
+    staker_proportion(staker_weight, total_staker_weight) as staker_proportion
   FROM staker_weight_sum
 ),
 -- Calculate total tokens to staker

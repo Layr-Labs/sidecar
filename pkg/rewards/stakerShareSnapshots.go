@@ -1,6 +1,10 @@
 package rewards
 
-import "database/sql"
+import (
+	"database/sql"
+	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
+	"gorm.io/gorm"
+)
 
 const stakerShareSnapshotsQuery = `
 with staker_shares_with_block_info as (
@@ -72,20 +76,30 @@ final_results as (
 	cross join day_series
 		where DATE(day) between DATE(start_time) and DATE(end_time, '-1 day')
 )
-select * from final_results
+select
+	*,
+	big_gt(shares, '0') as positive_shares
+from final_results
+where
+	DATE(snapshot) >= DATE(@startDate)
+	and DATE(snapshot) < DATE(@cutoffDate)
 `
 
 type StakerShareSnapshot struct {
-	Staker   string
-	Strategy string
-	Snapshot string
-	Shares   string
+	Staker         string
+	Strategy       string
+	Snapshot       string
+	Shares         string
+	PositiveShares bool
 }
 
-func (r *RewardsCalculator) GenerateStakerShareSnapshots(snapshotDate string) ([]*StakerShareSnapshot, error) {
+func (r *RewardsCalculator) GenerateStakerShareSnapshots(startDate string, snapshotDate string) ([]*StakerShareSnapshot, error) {
 	results := make([]*StakerShareSnapshot, 0)
 
-	res := r.grm.Raw(stakerShareSnapshotsQuery, sql.Named("cutoffDate", snapshotDate)).Scan(&results)
+	res := r.grm.Raw(stakerShareSnapshotsQuery,
+		sql.Named("startDate", startDate),
+		sql.Named("cutoffDate", snapshotDate),
+	).Scan(&results)
 
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", res.Error)
@@ -94,20 +108,23 @@ func (r *RewardsCalculator) GenerateStakerShareSnapshots(snapshotDate string) ([
 	return results, nil
 }
 
-func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(snapshotDate string) error {
-	snapshots, err := r.GenerateStakerShareSnapshots(snapshotDate)
+func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(startDate string, snapshotDate string) error {
+	snapshots, err := r.GenerateStakerShareSnapshots(startDate, snapshotDate)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", err)
 		return err
 	}
 
 	r.logger.Sugar().Infow("Inserting staker share snapshots", "count", len(snapshots))
-	res := r.grm.Model(&StakerShareSnapshot{}).CreateInBatches(snapshots, 100)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to insert staker share snapshots", "error", res.Error)
-		return res.Error
-	}
-	return nil
+	_, err = sqlite.WrapTxAndCommit(func(tx *gorm.DB) (interface{}, error) {
+		res := r.grm.Model(&StakerShareSnapshot{}).CreateInBatches(snapshots, 5000)
+		if res.Error != nil {
+			r.logger.Sugar().Errorw("Failed to insert staker share snapshots", "error", res.Error)
+			return nil, res.Error
+		}
+		return nil, nil
+	}, nil, r.grm)
+	return err
 }
 
 func (r *RewardsCalculator) CreateStakerShareSnapshotsTable() error {
@@ -116,11 +133,13 @@ func (r *RewardsCalculator) CreateStakerShareSnapshotsTable() error {
 			staker TEXT,
 			strategy TEXT,
 			shares TEXT,
-			snapshot TEXT
+			snapshot TEXT,
+			positive_shares int
 		)
 		`,
 		`create index idx_staker_share_snapshots_staker_strategy_snapshot on staker_share_snapshots (staker, strategy, snapshot)`,
 		`create index idx_staker_share_snapshots_strategy_snapshot on staker_share_snapshots (strategy, snapshot)`,
+		`create index if not exists idx_staker_share_snapshots_pos_shares on staker_share_snapshots(positive_shares)`,
 	}
 	for _, query := range queries {
 		res := r.grm.Exec(query)

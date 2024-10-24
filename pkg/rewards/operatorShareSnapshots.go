@@ -76,7 +76,12 @@ final_results as (
 	cross join day_series
 		where DATE(day) between DATE(start_time) and DATE(end_time, '-1 day')
 )
-select * from final_results
+select
+	*
+from final_results
+where
+	DATE(snapshot) >= DATE(@startDate)
+	and DATE(snapshot) < DATE(@cutoffDate)
 `
 
 type OperatorShareSnapshots struct {
@@ -86,10 +91,13 @@ type OperatorShareSnapshots struct {
 	Snapshot string
 }
 
-func (r *RewardsCalculator) GenerateOperatorShareSnapshots(snapshotDate string) ([]*OperatorShareSnapshots, error) {
+func (r *RewardsCalculator) GenerateOperatorShareSnapshots(startDate string, snapshotDate string) ([]*OperatorShareSnapshots, error) {
 	results := make([]*OperatorShareSnapshots, 0)
 
-	res := r.grm.Raw(operatorShareSnapshotsQuery, sql.Named("cutoffDate", snapshotDate)).Scan(&results)
+	res := r.grm.Raw(operatorShareSnapshotsQuery,
+		sql.Named("startDate", startDate),
+		sql.Named("cutoffDate", snapshotDate),
+	).Scan(&results)
 
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", res.Error)
@@ -98,15 +106,15 @@ func (r *RewardsCalculator) GenerateOperatorShareSnapshots(snapshotDate string) 
 	return results, nil
 }
 
-func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(snapshotDate string) error {
-	snapshots, err := r.GenerateOperatorShareSnapshots(snapshotDate)
+func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(startDate string, snapshotDate string) error {
+	snapshots, err := r.GenerateOperatorShareSnapshots(startDate, snapshotDate)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", err)
 		return err
 	}
 
 	r.logger.Sugar().Infow("Inserting operator share snapshots", "count", len(snapshots))
-	res := r.grm.Model(&OperatorShareSnapshots{}).CreateInBatches(snapshots, 100)
+	res := r.grm.Model(&OperatorShareSnapshots{}).CreateInBatches(snapshots, 5000)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to insert operator share snapshots", "error", res.Error)
 		return res.Error

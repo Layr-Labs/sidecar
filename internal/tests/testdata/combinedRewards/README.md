@@ -55,7 +55,7 @@ Mainnet, reduced
 ```sql
 with filtered as (
     select * from dbt_mainnet_ethereum_rewards.rewards_combined
-    where block_time < '2024-08-13'
+    where block_time < '2024-08-20'
 ),
 expanded as (
     select

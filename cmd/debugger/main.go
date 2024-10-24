@@ -1,50 +1,30 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
-	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/internal/contractCaller"
-	"github.com/Layr-Labs/go-sidecar/internal/contractManager"
 	"github.com/Layr-Labs/go-sidecar/internal/contractStore/sqliteContractStore"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/avsOperators"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/operatorShares"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stakerDelegations"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stakerShares"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
-	"github.com/Layr-Labs/go-sidecar/internal/fetcher"
-	"github.com/Layr-Labs/go-sidecar/internal/indexer"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/metrics"
-	"github.com/Layr-Labs/go-sidecar/internal/pipeline"
-	"github.com/Layr-Labs/go-sidecar/internal/sidecar"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
-	sqliteBlockStore "github.com/Layr-Labs/go-sidecar/internal/storage/sqlite"
 	"go.uber.org/zap"
 )
 
 func main() {
-	ctx := context.Background()
 	cfg := config.NewConfig()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
-	if err != nil {
-		l.Sugar().Fatal("Failed to setup statsd client", zap.Error(err))
-	}
-
-	etherscanClient := etherscan.NewEtherscanClient(cfg, l)
-	client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
-
 	db := sqlite.NewSqlite(&sqlite.SqliteConfig{
-		Path:           cfg.GetSqlitePath(),
-		ExtensionsPath: cfg.SqliteConfig.ExtensionsPath,
+		Path:           "/Users/seanmcgary/Code/sidecar/test-db/test.db",
+		ExtensionsPath: []string{"/Users/seanmcgary/Code/sidecar/sqlite-extensions/build/lib/libcalculations"},
 	}, l)
 
 	grm, err := sqlite.NewGormSqliteFromSqlite(db)
@@ -63,13 +43,6 @@ func main() {
 		log.Fatalf("Failed to initialize core contracts: %v", err)
 	}
 
-	cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
-
-	mds := sqliteBlockStore.NewSqliteBlockStore(grm, l, cfg)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
 	sm := stateManager.NewEigenStateManager(l, grm)
 
 	if _, err := avsOperators.NewAvsOperatorsModel(sm, grm, l, cfg); err != nil {
@@ -85,55 +58,161 @@ func main() {
 		l.Sugar().Fatalw("Failed to create StakerSharesModel", zap.Error(err))
 	}
 
-	fetchr := fetcher.NewFetcher(client, cfg, l)
+	fmt.Printf("Running query\n")
 
-	cc := contractCaller.NewContractCaller(client, l)
-
-	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, cc, l, cfg)
-
-	p := pipeline.NewPipeline(fetchr, idxr, mds, sm, l)
-
-	// Create new sidecar instance
-	sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
-		GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
-	}, cfg, mds, p, sm, l, client)
-
-	// RPC channel to notify the RPC server to shutdown gracefully
-	rpcChannel := make(chan bool)
-	err = sidecar.WithRpcServer(ctx, mds, sm, rpcChannel)
-	if err != nil {
-		l.Sugar().Fatalw("Failed to start RPC server", zap.Error(err))
+	query := `
+	WITH reward_snapshot_operators as (
+  SELECT
+	ap.reward_hash,
+	ap.snapshot,
+	ap.token,
+	ap.tokens_per_day,
+	ap.tokens_per_day_decimal,
+	ap.avs,
+	ap.strategy,
+	ap.multiplier,
+	ap.reward_type,
+	ap.reward_submission_date,
+	oar.operator
+  FROM gold_1_active_rewards ap
+  JOIN operator_avs_registration_snapshots oar
+  	ON ap.avs = oar.avs and ap.snapshot = oar.snapshot
+  WHERE ap.reward_type = 'avs'
+),
+operator_restaked_strategies AS (
+  SELECT
+	rso.*
+  FROM reward_snapshot_operators rso
+  JOIN operator_avs_strategy_snapshots oas
+  ON
+	rso.operator = oas.operator
+	and rso.avs = oas.avs
+	and rso.strategy = oas.strategy
+	and rso.snapshot = oas.snapshot
+),
+-- Get the stakers that were delegated to the operator for the snapshot
+staker_delegated_operators AS (
+  SELECT
+	ors.*,
+	sds.staker
+  FROM operator_restaked_strategies ors
+  JOIN staker_delegation_snapshots sds
+  ON
+	ors.operator = sds.operator AND
+	ors.snapshot = sds.snapshot
+),
+-- Get the shares for staker delegated to the operator
+staker_avs_strategy_shares AS (
+  SELECT
+	sdo.*,
+	sss.shares
+  FROM staker_delegated_operators sdo
+  JOIN staker_share_snapshots sss
+  ON
+	sdo.staker = sss.staker
+	and sdo.snapshot = sss.snapshot
+	and sdo.strategy = sss.strategy
+  -- Parse out negative shares and zero multiplier so there is no division by zero case
+  WHERE big_gt(sss.shares, '0') and sdo.multiplier != '0'
+),
+-- Calculate the weight of a staker
+staker_weight_grouped as (
+	select
+		staker,
+	    reward_hash,
+	    snapshot,
+	    sum_big_c(numeric_multiply_c(multiplier, shares)) as staker_weight
+	from staker_avs_strategy_shares
+	group by staker, reward_hash, snapshot
+),
+staker_weights AS (
+  SELECT
+      s.*,
+      swg.staker_weight
+  FROM staker_avs_strategy_shares s
+  left join staker_weight_grouped swg on (
+      s.staker = swg.staker
+      and s.reward_hash = swg.reward_hash
+      and s.snapshot = swg.snapshot
+  )
+),
+-- Get distinct stakers since their weights are already calculated
+distinct_stakers AS (
+  SELECT *
+  FROM (
+	  SELECT *,
+		-- We can use an arbitrary order here since the staker_weight is the same for each (staker, strategy, hash, snapshot)
+		-- We use strategy ASC for better debuggability
+		ROW_NUMBER() OVER (PARTITION BY reward_hash, snapshot, staker ORDER BY strategy ASC) as rn
+	  FROM staker_weights
+  ) t
+  WHERE rn = 1
+  ORDER BY reward_hash, snapshot, staker
+),
+staker_weight_sum_groups as (
+	select
+		reward_hash,
+	   	snapshot,
+	    sum_big_c(staker_weight) as total_weight
+	from distinct_stakers
+	group by reward_hash, snapshot
+),
+-- Calculate sum of all staker weights for each reward and snapshot
+staker_weight_sum AS (
+	SELECT
+		s.*,
+		sws.total_weight
+  FROM distinct_stakers as s
+  join staker_weight_sum_groups as sws on (s.reward_hash = sws.reward_hash and s.snapshot = sws.snapshot)
+),
+-- Calculate staker proportion of tokens for each reward and snapshot
+staker_proportion AS (
+  SELECT *,
+	staker_weight(staker_weight, total_weight) as staker_proportion
+  FROM staker_weight_sum
+),
+-- Calculate total tokens to the (staker, operator) pair
+staker_operator_total_tokens AS (
+  SELECT *,
+	CASE -- For snapshots that are before the hard fork AND submitted before the hard fork, we use the old calc method
+	  WHEN snapshot < DATE('1970-01-01') AND reward_submission_date < DATE('1970-01-01') THEN
+		amazon_staker_token_rewards(staker_proportion, tokens_per_day)
+	  WHEN snapshot < DATE('2024-08-13') AND reward_submission_date < DATE('2024-08-13') THEN
+		nile_staker_token_rewards(staker_proportion, tokens_per_day)
+	  ELSE
+		staker_token_rewards(staker_proportion, tokens_per_day)
+	END as total_staker_operator_payout
+  FROM staker_proportion
+),
+operator_tokens as (
+	select *,
+		CASE
+		  WHEN snapshot < DATE('1970-01-01') AND reward_submission_date < DATE('1970-01-01') THEN
+			amazon_operator_token_rewards(total_staker_operator_payout)
+		  WHEN snapshot < DATE('2024-08-13') AND reward_submission_date < DATE('2024-08-13') THEN
+			nile_operator_token_rewards(total_staker_operator_payout)
+		  ELSE
+			operator_token_rewards(total_staker_operator_payout)
+		END as operator_tokens
+	from staker_operator_total_tokens
+),
+-- Calculate the token breakdown for each (staker, operator) pair
+token_breakdowns AS (
+  SELECT *,
+	subtract_big(total_staker_operator_payout, operator_tokens) as staker_tokens
+  FROM operator_tokens
+)
+SELECT * from staker_avs_strategy_shares
+`
+	rowResult := make([]interface{}, 0)
+	res := grm.Raw(query).Scan(&rowResult)
+	fmt.Printf("Error? %+v\n", res.Error)
+	if res.Error != nil {
+		log.Fatalf("Failed to load extension: %v", res.Error)
 	}
+	fmt.Printf("Got %d rows\n", len(rowResult))
+	// for i, row := range rowResult {
+	// 	fmt.Printf("Row %d - %+v\n", i, row)
+	// }
 
-	block, err := fetchr.FetchBlock(ctx, 1215893)
-	if err != nil {
-		l.Sugar().Fatalw("Failed to fetch block", zap.Error(err))
-	}
-
-	transactionHash := "0xf6775c38af1d2802bcbc2b7c8959c0d5b48c63a14bfeda0261ba29d76c68c423"
-	transaction := &ethereum.EthereumTransaction{}
-
-	for _, tx := range block.Block.Transactions {
-		if tx.Hash.Value() == transactionHash {
-			transaction = tx
-			break
-		}
-	}
-
-	logIndex := 4
-	receipt := block.TxReceipts[transaction.Hash.Value()]
-	var interestingLog *ethereum.EthereumEventLog
-
-	for _, log := range receipt.Logs {
-		if log.LogIndex.Value() == uint64(logIndex) {
-			fmt.Printf("Log: %+v\n", log)
-			interestingLog = log
-		}
-	}
-
-	decodedLog, err := idxr.DecodeLogWithAbi(nil, receipt, interestingLog)
-	if err != nil {
-		l.Sugar().Fatalw("Failed to decode log", zap.Error(err))
-	}
-	l.Sugar().Infof("Decoded log: %+v", decodedLog)
 }
