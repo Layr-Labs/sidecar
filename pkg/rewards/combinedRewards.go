@@ -2,8 +2,6 @@ package rewards
 
 import (
 	"database/sql"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
-	"gorm.io/gorm"
 	"time"
 )
 

@@ -2,8 +2,6 @@ package rewards
 
 import (
 	"database/sql"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
-	"gorm.io/gorm"
 )
 
 const stakerDelegationSnapshotsQuery = `
@@ -130,6 +128,7 @@ func (r *RewardsCalculator) CreateStakerDelegationSnapshotsTable() error {
 			)
 		`,
 		`create index idx_staker_delegation_snapshots_operator_snapshot on staker_delegation_snapshots (operator, snapshot)`,
+		`create index idx_staker_delegation_snapshots_snapshot on staker_delegation_snapshots (snapshot)`,
 	}
 
 	for _, query := range queries {

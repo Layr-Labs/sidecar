@@ -7,81 +7,61 @@ import (
 
 const _2_goldStakerRewardAmountsQuery = `
 insert into gold_2_staker_reward_amounts
-WITH reward_snapshot_operators as (
-  SELECT
-	ap.reward_hash,
-	ap.snapshot,
-	ap.token,
-	ap.tokens_per_day,
-	ap.tokens_per_day_decimal,
-	ap.avs,
-	ap.strategy,
-	ap.multiplier,
-	ap.reward_type,
-	ap.reward_submission_date,
-	oar.operator
-  FROM gold_1_active_rewards ap
-  JOIN operator_avs_registration_snapshots oar
-  	ON ap.avs = oar.avs and ap.snapshot = oar.snapshot
-  WHERE ap.reward_type = 'avs' and multiplier != '0'
+with big_results as (
+SELECT ap.reward_hash,
+        ap.snapshot,
+        ap.token,
+        ap.tokens_per_day,
+        ap.tokens_per_day_decimal,
+        ap.avs,
+        ap.strategy,
+        ap.multiplier,
+        ap.reward_type,
+        ap.reward_submission_date,
+        oar.operator,
+        sds.staker
+    FROM gold_1_active_rewards ap
+    JOIN operator_avs_registration_snapshots oar ON (ap.avs = oar.avs and ap.snapshot = oar.snapshot)
+    JOIN operator_avs_strategy_snapshots oas ON (
+        oar.operator = oas.operator
+        and ap.avs = oas.avs
+        and ap.strategy = oas.strategy
+        and ap.snapshot = oas.snapshot
+    )
+    JOIN staker_delegation_snapshots sds ON (
+        oar.operator = sds.operator AND
+        ap.snapshot = sds.snapshot
+    )
+    WHERE
+        ap.reward_type = 'avs'
+    	and multiplier != '0'
+    	and DATE(ap.snapshot) >= DATE(@startDate)
+    	and DATE(ap.snapshot) < DATE(@cutoffDate)
 ),
-operator_restaked_strategies AS (
-  SELECT
-	rso.*
-  FROM reward_snapshot_operators rso
-  JOIN operator_avs_strategy_snapshots oas
-  ON
-	rso.operator = oas.operator
-	and rso.avs = oas.avs
-	and rso.strategy = oas.strategy
-	and rso.snapshot = oas.snapshot
+-- This is actually reversed to what we do currently. Reason being is that sqlite's
+-- query planner is bad at optimizing joins when you have one table that's absolutely
+-- huge and the other that's 1-2 orders of magniutde smaller.
+-- Adding the date range to select only the rows between our start and cut-off dates helps
+joined_staker_shares as (
+    select
+        br.*,
+        sss.shares
+    from staker_share_snapshots sss
+    join big_results br on (
+        br.staker = sss.staker
+        and br.snapshot = sss.snapshot
+        and br.strategy = sss.strategy
+    )
+    where
+      DATE(sss.snapshot) >= DATE(@startDate)
+      and DATE(sss.snapshot) < DATE(@cutoffDate)
 ),
--- Get the stakers that were delegated to the operator for the snapshot
-staker_delegated_operators AS (
-  SELECT
-	ors.*,
-	sds.staker
-  FROM operator_restaked_strategies ors
-  JOIN staker_delegation_snapshots sds
-  ON
-	ors.operator = sds.operator AND
-	ors.snapshot = sds.snapshot
+staker_weights as (
+    SELECT
+        *,
+        sum_big(staker_weight(multiplier, shares)) OVER (PARTITION BY staker, reward_hash, snapshot) AS staker_weight
+    FROM joined_staker_shares
 ),
--- Get the shares for staker delegated to the operator
-staker_avs_strategy_shares AS (
-  SELECT
-	sdo.*,
-	sss.shares
-  FROM staker_delegated_operators sdo
-  JOIN staker_share_snapshots sss
-  ON
-	sdo.staker = sss.staker
-	and sdo.snapshot = sss.snapshot
-	and sdo.strategy = sss.strategy
-  where sss.positive_shares = true
-),
--- Calculate the weight of a staker
-staker_weight_grouped as (
-	select
-		staker,
-	    reward_hash,
-	    snapshot,
-	    sum_big(staker_weight(multiplier, shares)) as staker_weight
-	from staker_avs_strategy_shares
-	group by staker, reward_hash, snapshot
-),
-staker_weights AS (
-  SELECT
-      s.*,
-      swg.staker_weight
-  FROM staker_avs_strategy_shares s
-  left join staker_weight_grouped swg on (
-      s.staker = swg.staker
-      and s.reward_hash = swg.reward_hash
-      and s.snapshot = swg.snapshot
-  )
-),
--- Get distinct stakers since their weights are already calculated
 distinct_stakers AS (
   SELECT *
   FROM (
@@ -94,21 +74,11 @@ distinct_stakers AS (
   WHERE rn = 1
   ORDER BY reward_hash, snapshot, staker
 ),
-staker_weight_sum_groups as (
-	select
-		reward_hash,
-	   	snapshot,
-	    sum_big(staker_weight) as total_weight
-	from distinct_stakers
-	group by reward_hash, snapshot
-),
 -- Calculate sum of all staker weights for each reward and snapshot
 staker_weight_sum AS (
-	SELECT
-		s.*,
-		sws.total_weight
-  FROM distinct_stakers as s
-  join staker_weight_sum_groups as sws on (s.reward_hash = sws.reward_hash and s.snapshot = sws.snapshot)
+  SELECT *,
+    sum_big(staker_weight) OVER (PARTITION BY reward_hash, snapshot) as total_weight
+  FROM distinct_stakers
 ),
 -- Calculate staker proportion of tokens for each reward and snapshot
 staker_proportion AS (
@@ -118,16 +88,16 @@ staker_proportion AS (
 ),
 -- Calculate total tokens to the (staker, operator) pair
 staker_operator_total_tokens AS (
-  SELECT *,
-	CASE -- For snapshots that are before the hard fork AND submitted before the hard fork, we use the old calc method
-	  WHEN snapshot < DATE(@amazonHardforkDate) AND reward_submission_date < DATE(@amazonHardforkDate) THEN
-		amazon_staker_token_rewards(staker_proportion, tokens_per_day)
-	  WHEN snapshot < DATE(@nileHardforkDate) AND reward_submission_date < DATE(@nileHardforkDate) THEN
-		nile_staker_token_rewards(staker_proportion, tokens_per_day)
-	  ELSE
-		staker_token_rewards(staker_proportion, tokens_per_day_decimal)
-	END as total_staker_operator_payout
-  FROM staker_proportion
+	SELECT *,
+		CASE -- For snapshots that are before the hard fork AND submitted before the hard fork, we use the old calc method
+		  WHEN snapshot < DATE(@amazonHardforkDate) AND reward_submission_date < DATE(@amazonHardforkDate) THEN
+			amazon_staker_token_rewards(staker_proportion, tokens_per_day)
+		  WHEN snapshot < DATE(@nileHardforkDate) AND reward_submission_date < DATE(@nileHardforkDate) THEN
+			nile_staker_token_rewards(staker_proportion, tokens_per_day)
+		  ELSE
+			staker_token_rewards(staker_proportion, tokens_per_day_decimal)
+		END as total_staker_operator_payout
+	FROM staker_proportion
 ),
 operator_tokens as (
 	select *,
@@ -141,23 +111,25 @@ operator_tokens as (
 		END as operator_tokens
 	from staker_operator_total_tokens
 ),
--- Calculate the token breakdown for each (staker, operator) pair
 token_breakdowns AS (
   SELECT *,
 	subtract_big(total_staker_operator_payout, operator_tokens) as staker_tokens
   FROM operator_tokens
+),
+final_results as (
+    SELECT * from token_breakdowns
+    where
+        DATE(snapshot) >= DATE(@startDate)
+        and DATE(snapshot) < DATE(@cutoffDate)
+    ORDER BY reward_hash, snapshot, staker, operator
 )
-SELECT * from token_breakdowns
-where
-    DATE(snapshot) >= DATE(@startDate)
-	and DATE(snapshot) < DATE(@cutoffDate)
-
-ORDER BY reward_hash, snapshot, staker, operator
+select * from final_results;
 `
 
-func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(startDate string, forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(startDate string, snapshotDate string, forks config.ForkMap) error {
 	res := rc.grm.Exec(_2_goldStakerRewardAmountsQuery,
 		sql.Named("startDate", startDate),
+		sql.Named("cutoffDate", snapshotDate),
 		sql.Named("amazonHardforkDate", forks[config.Fork_Amazon]),
 		sql.Named("nileHardforkDate", forks[config.Fork_Nile]),
 	)

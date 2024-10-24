@@ -132,6 +132,7 @@ func NewGormSqliteFromSqlite(sqlite gorm.Dialector) (*gorm.DB, error) {
 		`pragma mmap_size = 30000000000;`,
 		`PRAGMA cache_size = -4000000;`, // Set cache size to 4GB
 		`PRAGMA temp_store = 2;`,        // use memory for temp storage
+		`PRAGMA page_size = 16384;`,     // set page size to 16kb
 	}
 
 	for _, pragma := range pragmas {
@@ -161,6 +162,11 @@ func WrapTxAndCommit[T any](fn func(*gorm.DB) (T, error), db *gorm.DB, tx *gorm.
 		tx.Commit()
 	}
 	return res, err
+}
+
+func Analyze(db *gorm.DB) error {
+	fmt.Printf("Running ANALYZE on the database\n")
+	return db.Exec("ANALYZE").Error
 }
 
 func IsDuplicateKeyError(err error) bool {

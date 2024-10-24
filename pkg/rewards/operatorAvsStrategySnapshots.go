@@ -2,8 +2,6 @@ package rewards
 
 import (
 	"database/sql"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
-	"gorm.io/gorm"
 )
 
 // Operator AVS Strategy Windows: Ranges for which an Operator, Strategy is restaked on an AVS

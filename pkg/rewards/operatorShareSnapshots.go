@@ -2,9 +2,7 @@ package rewards
 
 import (
 	"database/sql"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 const operatorShareSnapshotsQuery = `

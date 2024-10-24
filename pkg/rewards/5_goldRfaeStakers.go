@@ -2,7 +2,6 @@ package rewards
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 )
 
@@ -134,8 +133,6 @@ ORDER BY reward_hash, snapshot, staker, operator
 `
 
 func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(forks config.ForkMap) error {
-	fmt.Printf("Forks: %+v\n", forks[config.Fork_Panama])
-	fmt.Printf("Chain: %+v\n", rc.globalConfig.Chain.String())
 	res := rc.grm.Exec(_5_goldRfaeStakersQuery,
 		sql.Named("panamaForkDate", forks[config.Fork_Panama]),
 		sql.Named("network", rc.globalConfig.Chain.String()),
