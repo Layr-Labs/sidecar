@@ -1,13 +1,14 @@
 package stakerShares
 
 import (
-	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
-	"github.com/Layr-Labs/go-sidecar/pkg/storage"
-	"github.com/Layr-Labs/go-sidecar/pkg/types/numbers"
 	"math/big"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
+	"github.com/Layr-Labs/go-sidecar/pkg/storage"
+	"github.com/Layr-Labs/go-sidecar/pkg/types/numbers"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"

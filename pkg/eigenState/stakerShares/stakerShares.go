@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Layr-Labs/go-sidecar/pkg/storage"
-	"github.com/Layr-Labs/go-sidecar/pkg/types/numbers"
 	"math/big"
 	"slices"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Layr-Labs/go-sidecar/pkg/storage"
+	"github.com/Layr-Labs/go-sidecar/pkg/types/numbers"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/base"
@@ -554,6 +555,7 @@ func (ss *StakerSharesModel) getContractAddressesForEnvironment() map[string][]s
 		contracts.DelegationManager: {
 			"WithdrawalMigrated",
 			"WithdrawalQueued",
+			"SlashingWithdrawalQueued",
 		},
 		contracts.StrategyManager: {
 			"Deposit",
