@@ -410,24 +410,27 @@ func parseLogOutputForSlashingWithdrawalQueuedEvent(outputDataStr string) (*slas
 }
 
 // handleM2QueuedWithdrawal handles the WithdrawalQueued event from the DelegationManager contract for M2.
-func (ss *StakerSharesModel) handleSlashingQueuedWithdrawal(log *storage.TransactionLog) ([]*AccumulatedStateChange, error) {
+func (ss *StakerSharesModel) handleSlashingQueuedWithdrawal(log *storage.TransactionLog) ([]*StakerShareDeltas, error) {
 	outputData, err := parseLogOutputForSlashingWithdrawalQueuedEvent(log.OutputData)
 	if err != nil {
 		return nil, err
 	}
 
-	records := make([]*AccumulatedStateChange, 0)
+	records := make([]*StakerShareDeltas, 0)
 
 	for i, strategy := range outputData.Withdrawal.Strategies {
 		shares, success := numbers.NewBig257().SetString(outputData.SharesToWithdraw[i].String(), 10)
 		if !success {
 			return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.SharesToWithdraw[i])
 		}
-		r := &AccumulatedStateChange{
-			Staker:      outputData.Withdrawal.Staker,
-			Strategy:    strategy,
-			Shares:      shares.Mul(shares, big.NewInt(-1)),
-			BlockNumber: log.BlockNumber,
+		r := &StakerShareDeltas{
+			Staker:          outputData.Withdrawal.Staker,
+			Strategy:        strategy,
+			Shares:          shares.Mul(shares, big.NewInt(-1)).String(),
+			StrategyIndex:   uint64(i),
+			LogIndex:        log.LogIndex,
+			TransactionHash: log.TransactionHash,
+			BlockNumber:     log.BlockNumber,
 		}
 		records = append(records, r)
 	}
@@ -497,8 +500,11 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 			}
 		} else if log.Address == contractAddresses.DelegationManager && log.EventName == "SlashingWithdrawalQueued" {
 			records, err := ss.handleSlashingQueuedWithdrawal(log)
-			if err == nil {
-				parsedRecords = append(parsedRecords, records...)
+			if err == nil && records != nil {
+				deltaRecords = append(deltaRecords, records...)
+				for _, record := range records {
+					parsedRecords = append(parsedRecords, shareDeltaToAccumulatedStateChange(record))
+				}
 			}
 		} else {
 			ss.logger.Sugar().Debugw("Got stakerShares event that we don't handle",
