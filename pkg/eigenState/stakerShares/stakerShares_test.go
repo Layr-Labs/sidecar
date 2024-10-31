@@ -109,9 +109,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.NotNil(t, change)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.ShareDeltas))
 
-		shareDiff := diffs.StateDiffs[0].Event.(*StakerShareDeltas)
+		shareDiff := diffs.ShareDeltas[0]
 
 		assert.Equal(t, "159925690037480381", shareDiff.Shares)
 		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", shareDiff.Staker)
@@ -149,9 +149,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.NotNil(t, change)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.ShareDeltas))
 
-		shareDiff := diffs.StateDiffs[0].Event.(*StakerShareDeltas)
+		shareDiff := diffs.ShareDeltas[0]
 
 		assert.Equal(t, "-246393621132195985", shareDiff.Shares)
 		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", shareDiff.Staker)
@@ -189,9 +189,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.NotNil(t, change)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.ShareDeltas))
 
-		shareDiff := diffs.StateDiffs[0].Event.(*StakerShareDeltas)
+		shareDiff := diffs.ShareDeltas[0]
 
 		assert.Equal(t, "32000000000000000000", shareDiff.Shares)
 		assert.Equal(t, strings.ToLower("0x0808D4689B347D499a96f139A5fC5B5101258406"), shareDiff.Staker)
@@ -229,9 +229,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.NotNil(t, change)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.ShareDeltas))
 
-		shareDiff := diffs.StateDiffs[0].Event.(*StakerShareDeltas)
+		shareDiff := diffs.ShareDeltas[0]
 
 		assert.Equal(t, "-1000000000000000000", shareDiff.Shares)
 		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), shareDiff.Staker)
@@ -330,9 +330,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.NotNil(t, change)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.ShareDeltas))
 
-		shareDiff := diffs.StateDiffs[0].Event.(*StakerShareDeltas)
+		shareDiff := diffs.ShareDeltas[0]
 		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", shareDiff.Staker)
 		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", shareDiff.Strategy)
 		assert.Equal(t, "246393621132195985", shareDiff.Shares)
@@ -413,22 +413,21 @@ func Test_StakerSharesState(t *testing.T) {
 
 		diffs := change.(*AccumulatedStateDiffs)
 
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.ShareDeltas))
 
-		shareDiff := diffs.StateDiffs[0].Event.(*StakerShareDeltas)
+		shareDiff := diffs.ShareDeltas[0]
 		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", shareDiff.Staker)
 		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", shareDiff.Strategy)
 		assert.Equal(t, "-246393621132195985", shareDiff.Shares)
 
-		deltas, ok := model.diffAccumulator[originBlockNumber]
+		deltas, ok := model.eventDeltaAccumulator[originBlockNumber]
 		assert.True(t, ok)
 		assert.NotNil(t, deltas)
 		assert.Equal(t, 1, len(deltas))
 
-		delta := deltas[0].Event.(*StakerShareDeltas)
-		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", delta.Staker)
-		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", delta.Strategy)
-		assert.Equal(t, "-246393621132195985", delta.Shares)
+		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", deltas[0].Staker)
+		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", deltas[0].Strategy)
+		assert.Equal(t, "-246393621132195985", deltas[0].Shares)
 
 		// Insert the other half of the M1 event that captures the withdrawalRoot associated with the M1 withdrawal
 		// No need to process this event, we just need it to be present in the DB
@@ -452,7 +451,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		change, err = model.HandleStateChange(&withdrawalQueued)
 		assert.Nil(t, err)
-		assert.Nil(t, change.(*AccumulatedStateDiffs).StateDiffs) // should be nil since the handler doesnt care about this event
+		assert.Len(t, change.(*AccumulatedStateDiffs).ShareDeltas, 0)
 
 		err = model.CommitFinalState(originBlockNumber)
 		assert.Nil(t, err)
@@ -496,9 +495,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.NotNil(t, change)
 
 		diffs = change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.ShareDeltas))
 
-		shareDiff = diffs.StateDiffs[0].Event.(*StakerShareDeltas)
+		shareDiff = diffs.ShareDeltas[0]
 		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", shareDiff.Staker)
 		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", shareDiff.Strategy)
 		assert.Equal(t, "-246393621132195985", shareDiff.Shares)
@@ -523,21 +522,20 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.NotNil(t, change)
 
 		diffs = change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.ShareDeltas))
 
-		shareDiff = diffs.StateDiffs[0].Event.(*StakerShareDeltas)
+		shareDiff = diffs.ShareDeltas[0]
 		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", shareDiff.Staker)
 		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", shareDiff.Strategy)
 		assert.Equal(t, "246393621132195985", shareDiff.Shares)
 
-		deltas = model.diffAccumulator[originBlockNumber]
+		deltas = model.eventDeltaAccumulator[originBlockNumber]
 		assert.NotNil(t, deltas)
 		assert.Equal(t, 1, len(deltas))
 
-		delta = deltas[0].Event.(*StakerShareDeltas)
-		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", delta.Staker)
-		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", delta.Strategy)
-		assert.Equal(t, "-246393621132195985", delta.Shares)
+		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", deltas[0].Staker)
+		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", deltas[0].Strategy)
+		assert.Equal(t, "-246393621132195985", deltas[0].Shares)
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -593,9 +591,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.NotNil(t, change)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.ShareDeltas))
 
-		shareDiff := diffs.StateDiffs[0].Event.(*StakerShareDeltas)
+		shareDiff := diffs.ShareDeltas[0]
 		assert.Equal(t, "-50000000000000", shareDiff.Shares)
 		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), shareDiff.Staker)
 		assert.Equal(t, "0xd523267698c81a372191136e477fdebfa33d9fb4", shareDiff.Strategy)
@@ -631,14 +629,14 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.NotNil(t, change)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 2, len(diffs.StateDiffs))
+		assert.Equal(t, 2, len(diffs.ShareDeltas))
 
-		shareDiff := diffs.StateDiffs[0].Event.(*StakerShareDeltas)
+		shareDiff := diffs.ShareDeltas[0]
 		assert.Equal(t, "-50000000000000", shareDiff.Shares)
 		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), shareDiff.Staker)
 		assert.Equal(t, "0xd523267698c81a372191136e477fdebfa33d9fb4", shareDiff.Strategy)
 
-		shareDiff = diffs.StateDiffs[1].Event.(*StakerShareDeltas)
+		shareDiff = diffs.ShareDeltas[1]
 		assert.Equal(t, "-100000000000000", shareDiff.Shares)
 		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), shareDiff.Staker)
 		assert.Equal(t, "0xe523267698c81a372191136e477fdebfa33d9fb5", shareDiff.Strategy)
@@ -674,9 +672,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.NotNil(t, change)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.ShareDeltas))
 
-		shareDiff := diffs.StateDiffs[0].Event.(*StakerShareDeltas)
+		shareDiff := diffs.ShareDeltas[0]
 		assert.Equal(t, "-50000000000000", shareDiff.Shares)
 		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), shareDiff.Staker)
 		assert.Equal(t, "0xd523267698c81a372191136e477fdebfa33d9fb4", shareDiff.Strategy)
@@ -712,14 +710,14 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.NotNil(t, change)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 2, len(diffs.StateDiffs))
+		assert.Equal(t, 2, len(diffs.ShareDeltas))
 
-		shareDiff := diffs.StateDiffs[0].Event.(*StakerShareDeltas)
+		shareDiff := diffs.ShareDeltas[0]
 		assert.Equal(t, "-50000000000000", shareDiff.Shares)
 		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), shareDiff.Staker)
 		assert.Equal(t, "0xd523267698c81a372191136e477fdebfa33d9fb4", shareDiff.Strategy)
 
-		shareDiff = diffs.StateDiffs[1].Event.(*StakerShareDeltas)
+		shareDiff = diffs.ShareDeltas[1]
 		assert.Equal(t, "-100000000000000", shareDiff.Shares)
 		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), shareDiff.Staker)
 		assert.Equal(t, "0xe523267698c81a372191136e477fdebfa33d9fb5", shareDiff.Strategy)
@@ -756,9 +754,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.SlashDiffs))
 
-		slashDiff := diffs.StateDiffs[0].Event.(*SlashDiff)
+		slashDiff := diffs.SlashDiffs[0]
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
 		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
@@ -815,9 +813,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.SlashDiffs))
 
-		slashDiff := diffs.StateDiffs[0].Event.(*SlashDiff)
+		slashDiff := diffs.SlashDiffs[0]
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
 		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
@@ -886,9 +884,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.SlashDiffs))
 
-		slashDiff := diffs.StateDiffs[0].Event.(*SlashDiff)
+		slashDiff := diffs.SlashDiffs[0]
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
 		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
@@ -946,9 +944,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.SlashDiffs))
 
-		slashDiff := diffs.StateDiffs[0].Event.(*SlashDiff)
+		slashDiff := diffs.SlashDiffs[0]
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
 		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
@@ -1008,9 +1006,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.SlashDiffs))
 
-		slashDiff := diffs.StateDiffs[0].Event.(*SlashDiff)
+		slashDiff := diffs.SlashDiffs[0]
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
 		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
@@ -1070,9 +1068,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.SlashDiffs))
 
-		slashDiff := diffs.StateDiffs[0].Event.(*SlashDiff)
+		slashDiff := diffs.SlashDiffs[0]
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
 		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
@@ -1135,9 +1133,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.SlashDiffs))
 
-		slashDiff := diffs.StateDiffs[0].Event.(*SlashDiff)
+		slashDiff := diffs.SlashDiffs[0]
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
 		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
@@ -1206,14 +1204,14 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 2, len(diffs.StateDiffs))
+		assert.Equal(t, 2, len(diffs.SlashDiffs))
 
-		slashDiff := diffs.StateDiffs[0].Event.(*SlashDiff)
+		slashDiff := diffs.SlashDiffs[0]
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
 		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
 
-		slashDiff = diffs.StateDiffs[1].Event.(*SlashDiff)
+		slashDiff = diffs.SlashDiffs[1]
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
 		assert.Equal(t, "0x1234567890abcdef1234567890abcdef12345678", slashDiff.Strategy)
 		assert.Equal(t, "900000000000000000", slashDiff.WadsSlashed.String())
@@ -1278,9 +1276,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.SlashDiffs))
 
-		slashDiff := diffs.StateDiffs[0].Event.(*SlashDiff)
+		slashDiff := diffs.SlashDiffs[0]
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
 		assert.Equal(t, "1000000000000000000", slashDiff.WadsSlashed.String())
@@ -1340,9 +1338,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 
 		diffs := change.(*AccumulatedStateDiffs)
-		assert.Equal(t, 1, len(diffs.StateDiffs))
+		assert.Equal(t, 1, len(diffs.SlashDiffs))
 
-		slashDiff := diffs.StateDiffs[0].Event.(*SlashDiff)
+		slashDiff := diffs.SlashDiffs[0]
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
 		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
