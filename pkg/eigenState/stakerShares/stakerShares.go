@@ -634,13 +634,13 @@ func (ss *StakerSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) e
 }
 
 func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	StateDiffs, sortedBlockNumbers := ss.GetStateTransitions()
+	stateChanges, sortedBlockNumbers := ss.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
 		if log.BlockNumber >= blockNumber {
 			ss.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
 
-			change, err := StateDiffs[blockNumber](log)
+			change, err := stateChanges[blockNumber](log)
 			if err != nil {
 				return nil, err
 			}
@@ -653,8 +653,12 @@ func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (int
 	return nil, nil
 }
 
+// TODO: this is not very performant in cases of large slashings and is called twice (once in CommitFinalState and once in GenerateStateRoot)
+// but prob ok?
 // prepareState prepares the state for commit by adding the new state to the existing state.
 func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerSharesDiff, error) {
+	// reset the delta accumulator
+	ss.deltaAccumulator[blockNumber] = make([]*StakerShareDeltas, 0)
 	// keep track of the updated staker shares
 	updatedStakerShares := make(map[types.SlotID]*StakerSharesDiff)
 
@@ -797,7 +801,8 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerSharesDi
 					LogIndex:        slashDiff.LogIndex,
 					BlockNumber:     slashDiff.BlockNumber,
 				})
-				// update the shares with wadsLeft
+
+				// update the shares
 				currStakerShares.Shares = currStakerShares.Shares.Add(currStakerShares.Shares, diffShares)
 				currStakerShares.BlockNumber = blockNumber
 
