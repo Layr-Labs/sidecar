@@ -26,27 +26,29 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type StakerShares struct {
-	Staker      string
-	Strategy    string
-	Shares      string
-	BlockNumber uint64
-	CreatedAt   time.Time
+var WAD = big.NewInt(1e18)
+
+type StateDiffEvent interface {
+	SlotID() types.SlotID
 }
 
-type AccumulatedStateChange struct {
-	Staker      string
-	Strategy    string
-	Shares      *big.Int
-	BlockNumber uint64
+type StateDiff struct {
+	Event StateDiffEvent
 }
 
-type StakerSharesDiff struct {
-	Staker      string
-	Strategy    string
-	Shares      *big.Int
-	BlockNumber uint64
-	IsNew       bool
+type SlashDiff struct {
+	Operator        string
+	Strategy        string
+	WadsSlashed     *big.Int
+	TransactionHash string
+	LogIndex        uint64
+	BlockTime       time.Time
+	BlockDate       string
+	BlockNumber     uint64
+}
+
+func (u *SlashDiff) SlotID() types.SlotID {
+	return types.SlotID(fmt.Sprintf("MAX_MAGNITUDE_%s_%s", u.Operator, u.Strategy))
 }
 
 // Table staker_share_deltas
@@ -62,20 +64,49 @@ type StakerShareDeltas struct {
 	BlockNumber     uint64
 }
 
-func NewSlotID(staker string, strategy string) types.SlotID {
+func (ss *StakerShareDeltas) SlotID() types.SlotID {
+	return NewShareDeltaSlotID(ss.Staker, ss.Strategy)
+}
+
+func NewShareDeltaSlotID(staker, strategy string) types.SlotID {
 	return types.SlotID(fmt.Sprintf("%s_%s", staker, strategy))
+}
+
+type StakerShares struct {
+	Staker      string
+	Strategy    string
+	Shares      string
+	BlockNumber uint64
+	CreatedAt   time.Time
+}
+
+type StakerSharesDiff struct {
+	Staker      string
+	Strategy    string
+	Shares      *big.Int
+	BlockNumber uint64
+}
+
+func (ss *StakerShares) ToStakerSharesDiff() (*StakerSharesDiff, error) {
+	shares, success := numbers.NewBig257().SetString(ss.Shares, 10)
+	if !success {
+		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", ss.Shares)
+	}
+	return &StakerSharesDiff{
+		Staker:      ss.Staker,
+		Strategy:    ss.Strategy,
+		Shares:      shares,
+		BlockNumber: ss.BlockNumber,
+	}, nil
 }
 
 type StakerSharesModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	DB               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
-	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
-
+	diffAccumulator  map[uint64][]*StateDiff
 	deltaAccumulator map[uint64][]*StakerShareDeltas
 }
 
@@ -90,7 +121,7 @@ func NewStakerSharesModel(
 		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
+		diffAccumulator:  make(map[uint64][]*StateDiff),
 		deltaAccumulator: make(map[uint64][]*StakerShareDeltas),
 	}
 
@@ -128,7 +159,7 @@ func parseLogOutputForDepositEvent(outputDataStr string) (*depositOutputData, er
 	return outputData, err
 }
 
-func (ss *StakerSharesModel) handleStakerDepositEvent(log *storage.TransactionLog) (*StakerShareDeltas, error) {
+func (ss *StakerSharesModel) handleStakerDepositEvent(log *storage.TransactionLog) (*StateDiff, error) {
 	outputData, err := parseLogOutputForDepositEvent(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -151,14 +182,16 @@ func (ss *StakerSharesModel) handleStakerDepositEvent(log *storage.TransactionLo
 		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Shares)
 	}
 
-	return &StakerShareDeltas{
-		Staker:          stakerAddress,
-		Strategy:        outputData.Strategy,
-		Shares:          shares.String(),
-		StrategyIndex:   uint64(0),
-		LogIndex:        log.LogIndex,
-		TransactionHash: log.TransactionHash,
-		BlockNumber:     log.BlockNumber,
+	return &StateDiff{
+		Event: &StakerShareDeltas{
+			Staker:          stakerAddress,
+			Strategy:        outputData.Strategy,
+			Shares:          shares.String(),
+			StrategyIndex:   uint64(0),
+			LogIndex:        log.LogIndex,
+			TransactionHash: log.TransactionHash,
+			BlockNumber:     log.BlockNumber,
+		},
 	}, nil
 }
 
@@ -178,7 +211,7 @@ func parseLogOutputForPodSharesUpdatedEvent(outputDataStr string) (*podSharesUpd
 	return outputData, err
 }
 
-func (ss *StakerSharesModel) handlePodSharesUpdatedEvent(log *storage.TransactionLog) (*StakerShareDeltas, error) {
+func (ss *StakerSharesModel) handlePodSharesUpdatedEvent(log *storage.TransactionLog) (*StateDiff, error) {
 	arguments, err := ss.ParseLogArguments(log)
 	if err != nil {
 		return nil, err
@@ -197,18 +230,20 @@ func (ss *StakerSharesModel) handlePodSharesUpdatedEvent(log *storage.Transactio
 		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", sharesDelta)
 	}
 
-	return &StakerShareDeltas{
-		Staker:          staker,
-		Strategy:        "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0",
-		Shares:          sharesDelta.String(),
-		StrategyIndex:   uint64(0),
-		LogIndex:        log.LogIndex,
-		TransactionHash: log.TransactionHash,
-		BlockNumber:     log.BlockNumber,
+	return &StateDiff{
+		Event: &StakerShareDeltas{
+			Staker:          staker,
+			Strategy:        "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0",
+			Shares:          sharesDelta.String(),
+			StrategyIndex:   uint64(0),
+			LogIndex:        log.LogIndex,
+			TransactionHash: log.TransactionHash,
+			BlockNumber:     log.BlockNumber,
+		},
 	}, nil
 }
 
-func (ss *StakerSharesModel) handleM1StakerWithdrawals(log *storage.TransactionLog) (*StakerShareDeltas, error) {
+func (ss *StakerSharesModel) handleM1StakerWithdrawals(log *storage.TransactionLog) (*StateDiff, error) {
 	outputData, err := parseLogOutputForDepositEvent(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -231,14 +266,16 @@ func (ss *StakerSharesModel) handleM1StakerWithdrawals(log *storage.TransactionL
 		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Shares)
 	}
 
-	return &StakerShareDeltas{
-		Staker:          stakerAddress,
-		Strategy:        outputData.Strategy,
-		Shares:          shares.Mul(shares, big.NewInt(-1)).String(),
-		StrategyIndex:   uint64(0),
-		LogIndex:        log.LogIndex,
-		TransactionHash: log.TransactionHash,
-		BlockNumber:     log.BlockNumber,
+	return &StateDiff{
+		Event: &StakerShareDeltas{
+			Staker:          stakerAddress,
+			Strategy:        outputData.Strategy,
+			Shares:          shares.Mul(shares, big.NewInt(-1)).String(),
+			StrategyIndex:   uint64(0),
+			LogIndex:        log.LogIndex,
+			TransactionHash: log.TransactionHash,
+			BlockNumber:     log.BlockNumber,
+		},
 	}, nil
 }
 
@@ -265,7 +302,7 @@ func parseLogOutputForM2MigrationEvent(outputDataStr string) (*m2MigrationOutput
 // Since we have already counted M1 withdrawals due to processing events block-by-block, we need to handle not double subtracting.
 // Assuming that M2 WithdrawalQueued events always result in a subtraction, if we encounter a migration event, we need
 // to add the amount back to the shares to get the correct final state.
-func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.TransactionLog) ([]*StakerShareDeltas, error) {
+func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.TransactionLog) ([]*StateDiff, error) {
 	outputData, err := parseLogOutputForM2MigrationEvent(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -316,7 +353,7 @@ func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.Tran
 		return nil, res.Error
 	}
 
-	changes := make([]*StakerShareDeltas, 0)
+	changes := make([]*StateDiff, 0)
 	for _, l := range logs {
 		c, err := ss.handleStakerDepositEvent(&l)
 		if err != nil {
@@ -355,27 +392,29 @@ func parseLogOutputForM2WithdrawalEvent(outputDataStr string) (*m2WithdrawalOutp
 }
 
 // handleM2QueuedWithdrawal handles the WithdrawalQueued event from the DelegationManager contract for M2.
-func (ss *StakerSharesModel) handleM2QueuedWithdrawal(log *storage.TransactionLog) ([]*StakerShareDeltas, error) {
+func (ss *StakerSharesModel) handleM2QueuedWithdrawal(log *storage.TransactionLog) ([]*StateDiff, error) {
 	outputData, err := parseLogOutputForM2WithdrawalEvent(log.OutputData)
 	if err != nil {
 		return nil, err
 	}
 
-	records := make([]*StakerShareDeltas, 0)
+	records := make([]*StateDiff, 0)
 
 	for i, strategy := range outputData.Withdrawal.Strategies {
 		shares, success := numbers.NewBig257().SetString(outputData.Withdrawal.Shares[i].String(), 10)
 		if !success {
 			return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Withdrawal.Shares[i])
 		}
-		r := &StakerShareDeltas{
-			Staker:          outputData.Withdrawal.Staker,
-			Strategy:        strategy,
-			Shares:          shares.Mul(shares, big.NewInt(-1)).String(),
-			StrategyIndex:   uint64(i),
-			LogIndex:        log.LogIndex,
-			TransactionHash: log.TransactionHash,
-			BlockNumber:     log.BlockNumber,
+		r := &StateDiff{
+			Event: &StakerShareDeltas{
+				Staker:          outputData.Withdrawal.Staker,
+				Strategy:        strategy,
+				Shares:          shares.Mul(shares, big.NewInt(-1)).String(),
+				StrategyIndex:   uint64(i),
+				LogIndex:        log.LogIndex,
+				TransactionHash: log.TransactionHash,
+				BlockNumber:     log.BlockNumber,
+			},
 		}
 		records = append(records, r)
 	}
@@ -410,53 +449,97 @@ func parseLogOutputForSlashingWithdrawalQueuedEvent(outputDataStr string) (*slas
 }
 
 // handleM2QueuedWithdrawal handles the WithdrawalQueued event from the DelegationManager contract for M2.
-func (ss *StakerSharesModel) handleSlashingQueuedWithdrawal(log *storage.TransactionLog) ([]*StakerShareDeltas, error) {
+func (ss *StakerSharesModel) handleSlashingQueuedWithdrawal(log *storage.TransactionLog) ([]*StateDiff, error) {
 	outputData, err := parseLogOutputForSlashingWithdrawalQueuedEvent(log.OutputData)
 	if err != nil {
 		return nil, err
 	}
 
-	records := make([]*StakerShareDeltas, 0)
+	records := make([]*StateDiff, 0)
 
 	for i, strategy := range outputData.Withdrawal.Strategies {
 		shares, success := numbers.NewBig257().SetString(outputData.SharesToWithdraw[i].String(), 10)
 		if !success {
 			return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.SharesToWithdraw[i])
 		}
-		r := &StakerShareDeltas{
-			Staker:          outputData.Withdrawal.Staker,
-			Strategy:        strategy,
-			Shares:          shares.Mul(shares, big.NewInt(-1)).String(),
-			StrategyIndex:   uint64(i),
-			LogIndex:        log.LogIndex,
-			TransactionHash: log.TransactionHash,
-			BlockNumber:     log.BlockNumber,
+		r := &StateDiff{
+			Event: &StakerShareDeltas{
+				Staker:          outputData.Withdrawal.Staker,
+				Strategy:        strategy,
+				Shares:          shares.Mul(shares, big.NewInt(-1)).String(),
+				StrategyIndex:   uint64(i),
+				LogIndex:        log.LogIndex,
+				TransactionHash: log.TransactionHash,
+				BlockNumber:     log.BlockNumber,
+			},
 		}
 		records = append(records, r)
 	}
 	return records, nil
 }
 
-type AccumulatedStateChanges struct {
-	Changes []*AccumulatedStateChange
+type operatorSlashedOutputData struct {
+	Operator string `json:"operator"`
+	// OperatorSet struct {
+	// 	Avs           string `json:"avs"`
+	// 	OperatorSetId uint32 `json:"operatorSetId"`
+	// }
+	Strategies  []string      `json:"strategies"`
+	WadsSlashed []json.Number `json:"wadsSlashed"`
+	// Description string        `json:"description"`
 }
 
-func shareDeltaToAccumulatedStateChange(deltaRecord *StakerShareDeltas) *AccumulatedStateChange {
-	shares, _ := numbers.NewBig257().SetString(deltaRecord.Shares, 10)
-	return &AccumulatedStateChange{
-		Staker:      deltaRecord.Staker,
-		Strategy:    deltaRecord.Strategy,
-		Shares:      shares,
-		BlockNumber: deltaRecord.BlockNumber,
+func parseLogOutputForOperatorSlashedEvent(outputDataStr string) (*operatorSlashedOutputData, error) {
+	outputData := &operatorSlashedOutputData{}
+	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
+	decoder.UseNumber()
+
+	err := decoder.Decode(&outputData)
+	if err != nil {
+		return nil, err
 	}
+
+	return outputData, err
 }
 
-func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChanges], []uint64) {
-	stateChanges := make(types.StateTransitions[AccumulatedStateChanges])
+func (ss *StakerSharesModel) handleOperatorSlashedEvent(log *storage.TransactionLog) ([]*StateDiff, error) {
+	outputData, err := parseLogOutputForOperatorSlashedEvent(log.OutputData)
+	if err != nil {
+		return nil, err
+	}
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChanges, error) {
-		deltaRecords := make([]*StakerShareDeltas, 0)
-		var parsedRecords []*AccumulatedStateChange
+	stateDiffs := make([]*StateDiff, 0)
+
+	for i, strategy := range outputData.Strategies {
+		wadsSlashed, success := numbers.NewBig257().SetString(outputData.WadsSlashed[i].String(), 10)
+		if !success {
+			return nil, xerrors.Errorf("Failed to convert wadsSlashed to big.Int: %s", outputData.WadsSlashed[i])
+		}
+		stateDiffs = append(stateDiffs, &StateDiff{
+			Event: &SlashDiff{
+				Operator:        outputData.Operator,
+				Strategy:        strategy,
+				WadsSlashed:     wadsSlashed,
+				TransactionHash: log.TransactionHash,
+				LogIndex:        log.LogIndex,
+				BlockNumber:     log.BlockNumber,
+			},
+		})
+	}
+
+	return stateDiffs, nil
+}
+
+type AccumulatedStateDiffs struct {
+	StateDiffs []*StateDiff
+}
+
+func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateDiffs], []uint64) {
+	stateChanges := make(types.StateTransitions[AccumulatedStateDiffs])
+
+	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateDiffs, error) {
+		var stateDiff *StateDiff
+		var stateDiffs []*StateDiff
 		var err error
 
 		contractAddresses := ss.globalConfig.GetContractsMapForChain()
@@ -464,48 +547,22 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 		// Staker shares is a bit more complex and has 4 possible contract/event combinations
 		// that we need to handle
 		if log.Address == contractAddresses.StrategyManager && log.EventName == "Deposit" {
-			record, err := ss.handleStakerDepositEvent(log)
-			if err == nil {
-				deltaRecords = append(deltaRecords, record)
-				parsedRecords = append(parsedRecords, shareDeltaToAccumulatedStateChange(record))
-			}
+			stateDiff, err = ss.handleStakerDepositEvent(log)
+			stateDiffs = []*StateDiff{stateDiff}
 		} else if log.Address == contractAddresses.EigenpodManager && log.EventName == "PodSharesUpdated" {
-			record, err := ss.handlePodSharesUpdatedEvent(log)
-			if err == nil {
-				deltaRecords = append(deltaRecords, record)
-				parsedRecords = append(parsedRecords, shareDeltaToAccumulatedStateChange(record))
-			}
+			stateDiff, err = ss.handlePodSharesUpdatedEvent(log)
+			stateDiffs = []*StateDiff{stateDiff}
 		} else if log.Address == contractAddresses.StrategyManager && log.EventName == "ShareWithdrawalQueued" && log.TransactionHash != "0x62eb0d0865b2636c74ed146e2d161e39e42b09bac7f86b8905fc7a830935dc1e" {
-			record, err := ss.handleM1StakerWithdrawals(log)
-			if err == nil {
-				deltaRecords = append(deltaRecords, record)
-				parsedRecords = append(parsedRecords, shareDeltaToAccumulatedStateChange(record))
-			}
+			stateDiff, err = ss.handleM1StakerWithdrawals(log)
+			stateDiffs = []*StateDiff{stateDiff}
 		} else if log.Address == contractAddresses.DelegationManager && log.EventName == "WithdrawalQueued" {
-			records, err := ss.handleM2QueuedWithdrawal(log)
-			if err == nil && records != nil {
-				deltaRecords = append(deltaRecords, records...)
-				for _, record := range records {
-					parsedRecords = append(parsedRecords, shareDeltaToAccumulatedStateChange(record))
-				}
-			}
+			stateDiffs, err = ss.handleM2QueuedWithdrawal(log)
 		} else if log.Address == contractAddresses.DelegationManager && log.EventName == "WithdrawalMigrated" {
-			records, err := ss.handleMigratedM2StakerWithdrawals(log)
-			if err == nil {
-				// NOTE: we DONT add these to the delta table because they've already been handled
-
-				for _, record := range records {
-					parsedRecords = append(parsedRecords, shareDeltaToAccumulatedStateChange(record))
-				}
-			}
+			stateDiffs, err = ss.handleMigratedM2StakerWithdrawals(log)
 		} else if log.Address == contractAddresses.DelegationManager && log.EventName == "SlashingWithdrawalQueued" {
-			records, err := ss.handleSlashingQueuedWithdrawal(log)
-			if err == nil && records != nil {
-				deltaRecords = append(deltaRecords, records...)
-				for _, record := range records {
-					parsedRecords = append(parsedRecords, shareDeltaToAccumulatedStateChange(record))
-				}
-			}
+			stateDiffs, err = ss.handleSlashingQueuedWithdrawal(log)
+		} else if log.Address == contractAddresses.AllocationManager && log.EventName == "OperatorSlashed" {
+			stateDiffs, err = ss.handleOperatorSlashedEvent(log)
 		} else {
 			ss.logger.Sugar().Debugw("Got stakerShares event that we don't handle",
 				zap.String("eventName", log.EventName),
@@ -515,31 +572,15 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 		if err != nil {
 			return nil, err
 		}
-		if deltaRecords == nil {
-			return nil, nil
+
+		// Sanity check to make sure we've got an initialized accumulator maps for the block
+		if _, ok := ss.diffAccumulator[log.BlockNumber]; !ok {
+			return nil, xerrors.Errorf("no state accumulator found for block %d", log.BlockNumber)
 		}
 
-		// Sanity check to make sure we've got an initialized accumulator map for the block
-		if _, ok := ss.stateAccumulator[log.BlockNumber]; !ok {
-			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
-		}
+		ss.diffAccumulator[log.BlockNumber] = append(ss.diffAccumulator[log.BlockNumber], stateDiffs...)
 
-		for _, parsedRecord := range parsedRecords {
-			if parsedRecord == nil {
-				continue
-			}
-			slotId := NewSlotID(parsedRecord.Staker, parsedRecord.Strategy)
-			record, ok := ss.stateAccumulator[log.BlockNumber][slotId]
-			if !ok {
-				record = parsedRecord
-				ss.stateAccumulator[log.BlockNumber][slotId] = record
-			} else {
-				record.Shares = record.Shares.Add(record.Shares, parsedRecord.Shares)
-			}
-		}
-		ss.deltaAccumulator[log.BlockNumber] = append(ss.deltaAccumulator[log.BlockNumber], deltaRecords...)
-
-		return &AccumulatedStateChanges{Changes: parsedRecords}, nil
+		return &AccumulatedStateDiffs{StateDiffs: stateDiffs}, nil
 	}
 
 	// Create an ordered list of block numbers
@@ -570,6 +611,9 @@ func (ss *StakerSharesModel) getContractAddressesForEnvironment() map[string][]s
 		contracts.EigenpodManager: {
 			"PodSharesUpdated",
 		},
+		contracts.AllocationManager: {
+			"OperatorSlashed",
+		},
 	}
 }
 
@@ -579,25 +623,24 @@ func (ss *StakerSharesModel) IsInterestingLog(log *storage.TransactionLog) bool 
 }
 
 func (ss *StakerSharesModel) SetupStateForBlock(blockNumber uint64) error {
-	ss.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
+	ss.diffAccumulator[blockNumber] = make([]*StateDiff, 0)
 	ss.deltaAccumulator[blockNumber] = make([]*StakerShareDeltas, 0)
 	return nil
 }
 
 func (ss *StakerSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
-	delete(ss.stateAccumulator, blockNumber)
 	delete(ss.deltaAccumulator, blockNumber)
 	return nil
 }
 
 func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := ss.GetStateTransitions()
+	StateDiffs, sortedBlockNumbers := ss.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
 		if log.BlockNumber >= blockNumber {
 			ss.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
 
-			change, err := stateChanges[blockNumber](log)
+			change, err := StateDiffs[blockNumber](log)
 			if err != nil {
 				return nil, err
 			}
@@ -612,86 +655,165 @@ func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (int
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
 func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerSharesDiff, error) {
-	preparedState := make([]*StakerSharesDiff, 0)
+	// keep track of the updated staker shares
+	updatedStakerShares := make(map[types.SlotID]*StakerSharesDiff)
 
-	accumulatedState, ok := ss.stateAccumulator[blockNumber]
-	if !ok {
-		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
-		ss.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
-		return nil, err
-	}
+	for _, diff := range ss.diffAccumulator[blockNumber] {
+		switch diff.Event.(type) {
+		case *StakerShareDeltas:
+			shareDelta := diff.Event.(*StakerShareDeltas)
+			slotID := shareDelta.SlotID()
 
-	slotIds := make([]types.SlotID, 0)
-	for slotId := range accumulatedState {
-		slotIds = append(slotIds, slotId)
-	}
+			// append the delta to the delta accumulator
+			ss.deltaAccumulator[blockNumber] = append(ss.deltaAccumulator[blockNumber], shareDelta)
 
-	// Find only the records from the previous block, that are modified in this block
-	query := `
-		with ranked_rows as (
-			select
-				staker,
-				strategy,
-				shares,
-				block_number,
-				ROW_NUMBER() OVER (PARTITION BY staker, strategy ORDER BY block_number desc) as rn
-			from staker_shares
-			where
-				concat(staker, '_', strategy) in @slotIds
-		)
-		select
-			rr.staker,
-			rr.strategy,
-			rr.shares,
-			rr.block_number
-		from ranked_rows as rr
-		where rn = 1
-	`
-	existingRecords := make([]StakerShares, 0)
-	res := ss.DB.Model(&StakerShares{}).
-		Raw(query,
-			sql.Named("slotIds", slotIds),
-		).
-		Scan(&existingRecords)
+			currStakerShares, ok := updatedStakerShares[slotID]
+			if !ok {
+				stakerShares := &StakerShares{}
+				// get the record from the database with the given staker and strategy with the latest blockNumber
+				res := ss.DB.Model(&StakerShares{}).Where("staker = ? AND strategy = ?", shareDelta.Staker, shareDelta.Strategy).Order("block_number desc").First(&stakerShares)
+				if res.Error != nil && res.Error != gorm.ErrRecordNotFound {
+					ss.logger.Sugar().Errorw("Failed to fetch staker_shares", zap.Error(res.Error))
+					return nil, res.Error
+				}
 
-	if res.Error != nil {
-		ss.logger.Sugar().Errorw("Failed to fetch staker_shares", zap.Error(res.Error))
-		return nil, res.Error
-	}
+				// if the record is not found, create a new record with shares as 0
+				if res.Error == gorm.ErrRecordNotFound {
+					stakerShares = &StakerShares{
+						Staker:      shareDelta.Staker,
+						Strategy:    shareDelta.Strategy,
+						Shares:      "0",
+						BlockNumber: blockNumber,
+					}
+				}
 
-	// Map the existing records to a map for easier lookup
-	mappedRecords := make(map[types.SlotID]StakerShares)
-	for _, record := range existingRecords {
-		slotId := NewSlotID(record.Staker, record.Strategy)
-		mappedRecords[slotId] = record
-	}
-
-	// Loop over our new state changes.
-	// If the record exists in the previous block, add the shares to the existing shares
-	for slotId, newState := range accumulatedState {
-		prepared := &StakerSharesDiff{
-			Staker:      newState.Staker,
-			Strategy:    newState.Strategy,
-			Shares:      newState.Shares,
-			BlockNumber: blockNumber,
-		}
-
-		if existingRecord, ok := mappedRecords[slotId]; ok {
-			existingShares, success := numbers.NewBig257().SetString(existingRecord.Shares, 10)
-			if !success {
-				ss.logger.Sugar().Errorw("Failed to convert existing shares to big.Int",
-					zap.String("shares", existingRecord.Shares),
-					zap.String("staker", existingRecord.Staker),
-					zap.String("strategy", existingRecord.Strategy),
-					zap.Uint64("blockNumber", blockNumber),
-				)
-				continue
+				var err error
+				currStakerShares, err = stakerShares.ToStakerSharesDiff()
+				if err != nil {
+					return nil, err
+				}
 			}
-			prepared.Shares = existingShares.Add(existingShares, newState.Shares)
-		}
 
-		preparedState = append(preparedState, prepared)
+			// add the shares to the existing shares
+			shareDeltaShares, success := new(big.Int).SetString(shareDelta.Shares, 10)
+			if !success {
+				return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", shareDelta.Shares)
+			}
+			currStakerShares.Shares = currStakerShares.Shares.Add(currStakerShares.Shares, shareDeltaShares)
+
+			// update the local cache
+			updatedStakerShares[slotID] = currStakerShares
+		case *SlashDiff:
+			slashDiff := diff.Event.(*SlashDiff)
+			query := `
+				with ranked_staker_delegations as (
+					select
+						staker,
+						operator,
+						delegated,
+						ROW_NUMBER() OVER (PARTITION BY staker ORDER BY block_number desc, log_index desc) as rn
+					from staker_delegation_changes
+					where
+						block_number <= @blockNumber and
+						log_index <= @logIndex
+				),
+				delegated_stakers as (
+					select
+						lsd.staker
+					from ranked_staker_delegations as lsd
+					where
+						lsd.operator = @operator
+						and lsd.rn = 1
+				),
+				ranked_staker_shares as (
+					select
+						ds.staker,
+						ss.strategy,
+						COALESCE(ss.shares, 0) as shares,
+						COALESCE(ss.block_number, 0) as block_number, -- Assign a default block number if needed
+						ROW_NUMBER() OVER (
+							PARTITION BY ds.staker, ss.strategy 
+							ORDER BY ss.block_number desc
+						) AS rn
+					from 
+						delegated_stakers as ds
+					left join 
+						staker_shares as ss
+						on ss.staker = ds.staker
+						and ss.strategy = @strategy
+				),
+				latest_staker_shares as (
+					select
+						ls.staker,
+						ls.strategy,
+						ls.shares,
+						ls.block_number
+					from ranked_staker_shares as ls
+					where
+						ls.rn = 1
+				)
+				select * from latest_staker_shares
+			`
+			stakerShares := make([]StakerShares, 0)
+
+			// get the staker shares for the stakers who were delegated to the operator
+			// and update the shares with the new max magnitude
+			res := ss.DB.Raw(query,
+				sql.Named("blockNumber", slashDiff.BlockNumber),
+				sql.Named("logIndex", slashDiff.LogIndex),
+				sql.Named("operator", slashDiff.Operator),
+				sql.Named("strategy", slashDiff.Strategy),
+			).Scan(&stakerShares)
+			if res.Error != nil && res.Error != gorm.ErrRecordNotFound {
+				ss.logger.Sugar().Errorw("Failed to fetch staker_shares", zap.Error(res.Error))
+				return nil, res.Error
+			}
+
+			for _, stakerSharesRecord := range stakerShares {
+				slotID := NewShareDeltaSlotID(stakerSharesRecord.Staker, slashDiff.Strategy)
+				var err error
+				currStakerShares, ok := updatedStakerShares[slotID]
+				// if we have not cached but the staker exists in the database for the strategy
+				if !ok && stakerSharesRecord.Strategy == slashDiff.Strategy {
+					currStakerShares, err = stakerSharesRecord.ToStakerSharesDiff()
+					if err != nil {
+						return nil, err
+					}
+				} else if !ok {
+					// otherwise the staker is for a different strategy, so we skip
+					continue
+				}
+
+				diffShares := new(big.Int).Div(new(big.Int).Mul(currStakerShares.Shares, slashDiff.WadsSlashed), WAD)
+				diffShares = diffShares.Mul(diffShares, big.NewInt(-1))
+
+				// append the delta to the delta accumulator
+				ss.deltaAccumulator[blockNumber] = append(ss.deltaAccumulator[blockNumber], &StakerShareDeltas{
+					Staker:          stakerSharesRecord.Staker,
+					Strategy:        slashDiff.Strategy,
+					Shares:          diffShares.String(),
+					StrategyIndex:   0,
+					TransactionHash: slashDiff.TransactionHash,
+					LogIndex:        slashDiff.LogIndex,
+					BlockNumber:     slashDiff.BlockNumber,
+				})
+				// update the shares with wadsLeft
+				currStakerShares.Shares = currStakerShares.Shares.Add(currStakerShares.Shares, diffShares)
+				currStakerShares.BlockNumber = blockNumber
+
+				// update the local cache
+				updatedStakerShares[slotID] = currStakerShares
+			}
+		default:
+		}
 	}
+
+	// return the values as a slice
+	preparedState := make([]*StakerSharesDiff, 0, len(updatedStakerShares))
+	for _, v := range updatedStakerShares {
+		preparedState = append(preparedState, v)
+	}
+
 	return preparedState, nil
 }
 
@@ -775,7 +897,7 @@ func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerSharesDiff) 
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, diff := range diffs {
 		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: NewSlotID(diff.Staker, diff.Strategy),
+			SlotID: NewShareDeltaSlotID(diff.Staker, diff.Strategy),
 			Value:  diff.Shares.Bytes(),
 		})
 	}

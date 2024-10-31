@@ -3,9 +3,10 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/spf13/viper"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 type EnvScope string
@@ -121,6 +122,7 @@ type ContractAddresses struct {
 	StrategyManager    string
 	DelegationManager  string
 	AvsDirectory       string
+	AllocationManager  string
 }
 
 func (c *Config) GetContractsMapForChain() *ContractAddresses {
@@ -131,6 +133,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			StrategyManager:    "0xf9fbf2e35d8803273e214c99bf15174139f4e67a",
 			DelegationManager:  "0x75dfe5b44c2e530568001400d3f704bc8ae350cc",
 			AvsDirectory:       "0x141d6995556135d4997b2ff72eb443be300353bc",
+			AllocationManager:  "0x16D3F63d18549f035Bc69b553006684B69cE8148",
 		}
 	} else if c.Chain == Chain_Holesky {
 		return &ContractAddresses{
@@ -139,6 +142,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			StrategyManager:    "0xdfb5f6ce42aaa7830e94ecfccad411bef4d4d5b6",
 			DelegationManager:  "0xa44151489861fe9e3055d95adc98fbd462b948e7",
 			AvsDirectory:       "0x055733000064333caddbc92763c58bf0192ffebf",
+			AllocationManager:  "0x16D3F63d18549f035Bc69b553006684B69cE8148",
 		}
 	} else if c.Chain == Chain_Mainnet {
 		return &ContractAddresses{
@@ -147,6 +151,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			StrategyManager:    "0x858646372cc42e1a627fce94aa7a7033e7cf075a",
 			DelegationManager:  "0x39053d51b77dc0d36036fc1fcc8cb819df8ef37a",
 			AvsDirectory:       "0x135dda560e946695d6f155dacafc6f1f25c1f5af",
+			AllocationManager:  "0x16D3F63d18549f035Bc69b553006684B69cE8148",
 		}
 	} else {
 		return nil
