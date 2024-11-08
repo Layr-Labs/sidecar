@@ -27,7 +27,7 @@ type GoldRow struct {
 func (rc *RewardsCalculator) GenerateGold8FinalTable(snapshotDate string) error {
 	allTableNames := getGoldTableNames(snapshotDate)
 
-	rc.logger.Sugar().Infow("Generating rewards for all table",
+	rc.logger.Sugar().Infow("Generating gold final table",
 		zap.String("cutoffDate", snapshotDate),
 	)
 

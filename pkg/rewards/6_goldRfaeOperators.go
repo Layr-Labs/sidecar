@@ -39,7 +39,7 @@ func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string
 	allTableNames := getGoldTableNames(snapshotDate)
 	destTableName := allTableNames[Table_6_RfaeOperators]
 
-	rc.logger.Sugar().Infow("Generating rewards for all table",
+	rc.logger.Sugar().Infow("Generating rfae operators table",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)

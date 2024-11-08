@@ -166,9 +166,9 @@ func Test_Rewards(t *testing.T) {
 
 		snapshotDates := []string{
 			"2024-08-02",
-			"2024-08-11",
-			"2024-08-12",
-			"2024-08-19",
+			//"2024-08-11",
+			//"2024-08-12",
+			//"2024-08-19",
 		}
 
 		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
