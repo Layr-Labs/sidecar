@@ -193,7 +193,7 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) GetStateTransitions() (types
 		}
 
 		for _, rewardSubmission := range rewardSubmissions.Submissions {
-			slotId := NewSlotID(rewardSubmission.RewardHash, rewardSubmission.Strategy)
+			slotId := NewSlotID(rewardSubmission.RewardHash, rewardSubmission.Strategy, rewardSubmission.Operator)
 
 			_, ok := odrs.stateAccumulator[log.BlockNumber][slotId]
 			if ok {
