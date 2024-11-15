@@ -26,6 +26,8 @@ type OperatorDirectedRewardSubmission struct {
 	Avs             string
 	RewardHash      string
 	Token           string
+	Operator        string
+	OperatorIndex   uint64
 	Amount          string
 	Strategy        string
 	StrategyIndex   uint64
@@ -34,13 +36,12 @@ type OperatorDirectedRewardSubmission struct {
 	EndTimestamp    *time.Time
 	Duration        uint64
 	BlockNumber     uint64
-	RewardType      string // avs, all_stakers, all_earners
 	TransactionHash string
 	LogIndex        uint64
 }
 
-func NewSlotID(transactionHash string, logIndex uint64, rewardHash string, strategyIndex uint64) types.SlotID {
-	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%d", rewardHash, strategyIndex))
+func NewSlotID(transactionHash string, logIndex uint64, rewardHash string, strategyIndex uint64, operatorIndex uint64) types.SlotID {
+	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%d_%d", rewardHash, strategyIndex, operatorIndex))
 }
 
 type OperatorDirectedRewardSubmissionsModel struct {
@@ -72,7 +73,7 @@ func NewOperatorDirectedRewardSubmissionsModel(
 		stateAccumulator: make(map[uint64]map[types.SlotID]*OperatorDirectedRewardSubmission),
 	}
 
-	esm.RegisterState(model, 5)
+	esm.RegisterState(model, 7)
 	return model, nil
 }
 
@@ -165,7 +166,6 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) handleRewardSubmissionCreate
 			EndTimestamp:    &endTimestamp,
 			Duration:        actualOuputData.Duration,
 			BlockNumber:     log.BlockNumber,
-			RewardType:      rewardType,
 			TransactionHash: log.TransactionHash,
 			LogIndex:        log.LogIndex,
 			StrategyIndex:   uint64(i),
@@ -186,7 +186,7 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) GetStateTransitions() (types
 		}
 
 		for _, rewardSubmission := range rewardSubmissions {
-			slotId := NewSlotID(rewardSubmission.TransactionHash, rewardSubmission.LogIndex, rewardSubmission.RewardHash, rewardSubmission.StrategyIndex)
+			slotId := NewSlotID(rewardSubmission.TransactionHash, rewardSubmission.LogIndex, rewardSubmission.RewardHash, rewardSubmission.StrategyIndex, rewardSubmission.OperatorIndex)
 
 			_, ok := odrs.stateAccumulator[log.BlockNumber][slotId]
 			if ok {
@@ -219,11 +219,7 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) getContractAddressesForEnvir
 	contracts := odrs.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.RewardsCoordinator: {
-			"RangePaymentForAllCreated",
-			"RewardsSubmissionForAllCreated",
-			"RangePaymentCreated",
-			"AVSRewardsSubmissionCreated",
-			"RewardsSubmissionForAllEarnersCreated",
+			"OperatorDirectedAVSRewardsSubmissionCreated",
 		},
 	}
 }
@@ -326,7 +322,7 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) GenerateStateRoot(blockNumbe
 func (odrs *OperatorDirectedRewardSubmissionsModel) sortValuesForMerkleTree(submissions []*OperatorDirectedRewardSubmission) []*base.MerkleTreeInput {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, submission := range submissions {
-		slotID := NewSlotID(submission.TransactionHash, submission.LogIndex, submission.RewardHash, submission.StrategyIndex)
+		slotID := NewSlotID(submission.TransactionHash, submission.LogIndex, submission.RewardHash, submission.StrategyIndex, submission.OperatorIndex)
 		value := "added"
 		inputs = append(inputs, &base.MerkleTreeInput{
 			SlotID: slotID,
@@ -342,5 +338,5 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) sortValuesForMerkleTree(subm
 }
 
 func (odrs *OperatorDirectedRewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return odrs.BaseEigenState.DeleteState("reward_submissions", startBlockNumber, endBlockNumber, odrs.DB)
+	return odrs.BaseEigenState.DeleteState("operator_directed_reward_submissions", startBlockNumber, endBlockNumber, odrs.DB)
 }
