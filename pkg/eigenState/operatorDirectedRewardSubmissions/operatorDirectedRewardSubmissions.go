@@ -81,20 +81,24 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) GetModelName() string {
 	return "OperatorDirectedRewardSubmissionsModel"
 }
 
-type genericRewardPaymentData struct {
-	Token                    string
-	Amount                   json.Number
-	StartTimestamp           uint64
-	Duration                 uint64
+type operatorDirectedRewardData struct {
 	StrategiesAndMultipliers []struct {
-		Strategy   string
-		Multiplier json.Number
+		Strategy   string      `json:"strategy"`
+		Multiplier json.Number `json:"multiplier"`
 	} `json:"strategiesAndMultipliers"`
+	Token           string `json:"token"`
+	OperatorRewards []struct {
+		Operator string      `json:"operator"`
+		Amount   json.Number `json:"amount"`
+	} `json:"operatorRewards"`
+	StartTimestamp uint64 `json:"startTimestamp"`
+	Duration       uint64 `json:"duration"`
+	Description    string `json:"description"`
 }
 
 type operatorDirectedRewardSubmissionOutputData struct {
-	RewardsSubmission *genericRewardPaymentData `json:"rewardsSubmission"`
-	RangePayment      *genericRewardPaymentData `json:"rangePayment"`
+	SubmissionNonce                   json.Number                 `json:"submissionNonce"`
+	OperatorDirectedRewardsSubmission *operatorDirectedRewardData `json:"operatorDirectedRewardsSubmission"`
 }
 
 func parseRewardSubmissionOutputData(outputDataStr string) (*operatorDirectedRewardSubmissionOutputData, error) {
@@ -120,46 +124,45 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) handleOperatorDirectedReward
 	if err != nil {
 		return nil, err
 	}
-
-	var actualOuputData *genericRewardPaymentData
-	if log.EventName == "RangePaymentCreated" || log.EventName == "RangePaymentForAllCreated" {
-		actualOuputData = outputData.RangePayment
-	} else {
-		actualOuputData = outputData.RewardsSubmission
-	}
+	outputRewardData := outputData.OperatorDirectedRewardsSubmission
 
 	rewardSubmissions := make([]*OperatorDirectedRewardSubmission, 0)
 
-	for i, strategyAndMultiplier := range actualOuputData.StrategiesAndMultipliers {
-		startTimestamp := time.Unix(int64(actualOuputData.StartTimestamp), 0)
-		endTimestamp := startTimestamp.Add(time.Duration(actualOuputData.Duration) * time.Second)
-
-		amountBig, success := numbers.NewBig257().SetString(actualOuputData.Amount.String(), 10)
-		if !success {
-			return nil, xerrors.Errorf("Failed to parse amount to Big257: %s", actualOuputData.Amount.String())
-		}
+	for i, strategyAndMultiplier := range outputRewardData.StrategiesAndMultipliers {
+		startTimestamp := time.Unix(int64(outputRewardData.StartTimestamp), 0)
+		endTimestamp := startTimestamp.Add(time.Duration(outputRewardData.Duration) * time.Second)
 
 		multiplierBig, success := numbers.NewBig257().SetString(strategyAndMultiplier.Multiplier.String(), 10)
 		if !success {
-			return nil, xerrors.Errorf("Failed to parse multiplier to Big257: %s", actualOuputData.Amount.String())
+			return nil, xerrors.Errorf("Failed to parse multiplier to Big257: %s", strategyAndMultiplier.Multiplier.String())
 		}
 
-		rewardSubmission := &OperatorDirectedRewardSubmission{
-			Avs:             strings.ToLower(arguments[0].Value.(string)),
-			RewardHash:      strings.ToLower(arguments[2].Value.(string)),
-			Token:           strings.ToLower(actualOuputData.Token),
-			Amount:          amountBig.String(),
-			Strategy:        strategyAndMultiplier.Strategy,
-			Multiplier:      multiplierBig.String(),
-			StartTimestamp:  &startTimestamp,
-			EndTimestamp:    &endTimestamp,
-			Duration:        actualOuputData.Duration,
-			BlockNumber:     log.BlockNumber,
-			TransactionHash: log.TransactionHash,
-			LogIndex:        log.LogIndex,
-			StrategyIndex:   uint64(i),
+		for j, operatorReward := range outputRewardData.OperatorRewards {
+			amountBig, success := numbers.NewBig257().SetString(operatorReward.Amount.String(), 10)
+			if !success {
+				return nil, xerrors.Errorf("Failed to parse amount to Big257: %s", operatorReward.Amount.String())
+			}
+
+			rewardSubmission := &OperatorDirectedRewardSubmission{
+				Avs:             strings.ToLower(arguments[1].Value.(string)),
+				RewardHash:      strings.ToLower(arguments[2].Value.(string)),
+				Token:           strings.ToLower(outputRewardData.Token),
+				Operator:        strings.ToLower(operatorReward.Operator),
+				OperatorIndex:   uint64(j),
+				Amount:          amountBig.String(),
+				Strategy:        strings.ToLower(strategyAndMultiplier.Strategy),
+				StrategyIndex:   uint64(i),
+				Multiplier:      multiplierBig.String(),
+				StartTimestamp:  &startTimestamp,
+				EndTimestamp:    &endTimestamp,
+				Duration:        outputRewardData.Duration,
+				BlockNumber:     log.BlockNumber,
+				TransactionHash: log.TransactionHash,
+				LogIndex:        log.LogIndex,
+			}
+
+			rewardSubmissions = append(rewardSubmissions, rewardSubmission)
 		}
-		rewardSubmissions = append(rewardSubmissions, rewardSubmission)
 	}
 
 	return rewardSubmissions, nil
