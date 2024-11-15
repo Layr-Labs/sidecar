@@ -144,17 +144,6 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) handleRewardSubmissionCreate
 			return nil, xerrors.Errorf("Failed to parse multiplier to Big257: %s", actualOuputData.Amount.String())
 		}
 
-		var rewardType string
-		if log.EventName == "RewardsSubmissionForAllCreated" || log.EventName == "RangePaymentForAllCreated" {
-			rewardType = "all_stakers"
-		} else if log.EventName == "RangePaymentCreated" || log.EventName == "AVSRewardsSubmissionCreated" {
-			rewardType = "avs"
-		} else if log.EventName == "RewardsSubmissionForAllEarnersCreated" {
-			rewardType = "all_earners"
-		} else {
-			return nil, xerrors.Errorf("Unknown event name: %s", log.EventName)
-		}
-
 		rewardSubmission := &OperatorDirectedRewardSubmission{
 			Avs:             strings.ToLower(arguments[0].Value.(string)),
 			RewardHash:      strings.ToLower(arguments[2].Value.(string)),
