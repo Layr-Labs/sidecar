@@ -1,16 +1,16 @@
 package eigenState
 
 import (
-	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/avsOperators"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/disabledDistributionRoots"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/operatorDirectedRewardSubmissions"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/operatorShares"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/rewardSubmissions"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stakerDelegations"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stakerShares"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stateManager"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/submittedDistributionRoots"
+	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/avsOperators"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/disabledDistributionRoots"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorDirectedRewardSubmissions"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorShares"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/rewardSubmissions"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerDelegations"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerShares"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/submittedDistributionRoots"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
