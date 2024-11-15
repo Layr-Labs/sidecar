@@ -110,7 +110,7 @@ func parseRewardSubmissionOutputData(outputDataStr string) (*operatorDirectedRew
 	return outputData, err
 }
 
-func (odrs *OperatorDirectedRewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storage.TransactionLog) ([]*OperatorDirectedRewardSubmission, error) {
+func (odrs *OperatorDirectedRewardSubmissionsModel) handleOperatorDirectedRewardSubmissionCreatedEvent(log *storage.TransactionLog) ([]*OperatorDirectedRewardSubmission, error) {
 	arguments, err := odrs.ParseLogArguments(log)
 	if err != nil {
 		return nil, err
@@ -169,7 +169,7 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) GetStateTransitions() (types
 	stateChanges := make(types.StateTransitions[[]*OperatorDirectedRewardSubmission])
 
 	stateChanges[0] = func(log *storage.TransactionLog) ([]*OperatorDirectedRewardSubmission, error) {
-		rewardSubmissions, err := odrs.handleRewardSubmissionCreatedEvent(log)
+		rewardSubmissions, err := odrs.handleOperatorDirectedRewardSubmissionCreatedEvent(log)
 		if err != nil {
 			return nil, err
 		}
