@@ -3,6 +3,8 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
+	"time"
+
 	_202409061249_bootstrapDb "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061249_bootstrapDb"
 	_202409061250_eigenlayerStateTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061250_eigenlayerStateTables"
 	_202409061720_operatorShareChanges "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061720_operatorShareChanges"
@@ -32,10 +34,11 @@ import (
 	_202411120947_disabledDistributionRoots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411120947_disabledDistributionRoots"
 	_202411130953_addHashColumns "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411130953_addHashColumns"
 	_202411131200_eigenStateModelConstraints "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411131200_eigenStateModelConstraints"
+	_202411151931_operatorDirectedRewardSubmissions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411151931_operatorDirectedRewardSubmissions"
 	_202411191947_cleanupUnusedTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191947_cleanupUnusedTables"
+
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"time"
 )
 
 type Migration interface {
@@ -103,6 +106,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202411120947_disabledDistributionRoots.Migration{},
 		&_202411130953_addHashColumns.Migration{},
 		&_202411131200_eigenStateModelConstraints.Migration{},
+		&_202411151931_operatorDirectedRewardSubmissions.Migration{},
 		&_202411191947_cleanupUnusedTables.Migration{},
 	}
 
