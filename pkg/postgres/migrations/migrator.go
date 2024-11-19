@@ -35,6 +35,8 @@ import (
 	_202411131200_eigenStateModelConstraints "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411131200_eigenStateModelConstraints"
 	_202411151931_operatorDirectedRewardSubmissions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411151931_operatorDirectedRewardSubmissions"
 	_202411191550_operatorAVSSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191550_operatorAVSSplits"
+	_202411191708_operatorPISplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191708_operatorPISplits"
+	_202411191710_blockNumberFkConstraint "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191710_blockNumberFkConstraint"
 	_202411191947_cleanupUnusedTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191947_cleanupUnusedTables"
 	_202412021311_stakerOperatorTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412021311_stakerOperatorTables"
 	_202412061553_addBlockNumberIndexes "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412061553_addBlockNumberIndexes"
@@ -113,6 +115,8 @@ func (m *Migrator) MigrateAll() error {
 		&_202411131200_eigenStateModelConstraints.Migration{},
 		&_202411151931_operatorDirectedRewardSubmissions.Migration{},
 		&_202411191550_operatorAVSSplits.Migration{},
+		&_202411191708_operatorPISplits.Migration{},
+		&_202411191710_blockNumberFkConstraint.Migration{},
 		&_202411191947_cleanupUnusedTables.Migration{},
 		&_202412021311_stakerOperatorTables.Migration{},
 		&_202412061553_addBlockNumberIndexes.Migration{},
