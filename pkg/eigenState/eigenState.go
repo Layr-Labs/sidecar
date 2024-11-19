@@ -4,6 +4,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/avsOperators"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/disabledDistributionRoots"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAVSSplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorDirectedRewardSubmissions"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/rewardSubmissions"
@@ -51,6 +52,10 @@ func LoadEigenStateModels(
 	}
 	if _, err := operatorDirectedRewardSubmissions.NewOperatorDirectedRewardSubmissionsModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Errorw("Failed to create OperatorDirectedRewardSubmissionsModel", zap.Error(err))
+		return err
+	}
+	if _, err := operatorAVSSplits.NewOperatorAVSSplitModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create OperatorAVSSplitModel", zap.Error(err))
 		return err
 	}
 	return nil
