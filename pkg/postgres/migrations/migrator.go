@@ -37,7 +37,6 @@ import (
 	_202411151931_operatorDirectedRewardSubmissions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411151931_operatorDirectedRewardSubmissions"
 	_202411191550_operatorAVSSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191550_operatorAVSSplits"
 	_202411191708_operatorPISplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191708_operatorPISplits"
-	_202411191710_blockNumberFkConstraint "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191710_blockNumberFkConstraint"
 	_202411191947_cleanupUnusedTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191947_cleanupUnusedTables"
 
 	"go.uber.org/zap"
@@ -112,7 +111,6 @@ func (m *Migrator) MigrateAll() error {
 		&_202411151931_operatorDirectedRewardSubmissions.Migration{},
 		&_202411191550_operatorAVSSplits.Migration{},
 		&_202411191708_operatorPISplits.Migration{},
-		&_202411191710_blockNumberFkConstraint.Migration{},
 		&_202411191947_cleanupUnusedTables.Migration{},
 	}
 
