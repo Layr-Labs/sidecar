@@ -66,7 +66,7 @@ func createBlock(model *OperatorDirectedRewardSubmissionsModel, blockNumber uint
 }
 
 func Test_OperatorDirectedRewardSubmissions(t *testing.T) {
-	_, grm, l, cfg, err := setup()
+	dbName, grm, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
@@ -168,6 +168,6 @@ func Test_OperatorDirectedRewardSubmissions(t *testing.T) {
 	})
 
 	t.Cleanup(func() {
-		// postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
 }
