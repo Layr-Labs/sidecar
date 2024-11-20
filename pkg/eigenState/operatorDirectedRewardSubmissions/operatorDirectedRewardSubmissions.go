@@ -312,7 +312,7 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) sortValuesForMerkleTree(subm
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, submission := range submissions {
 		slotID := NewSlotID(submission.TransactionHash, submission.LogIndex, submission.RewardHash, submission.StrategyIndex, submission.OperatorIndex)
-		value := "added"
+		value := fmt.Sprintf("%s_%s_%s_%s_%s", submission.RewardHash, submission.Strategy, submission.Multiplier, submission.Operator, submission.Amount)
 		inputs = append(inputs, &base.MerkleTreeInput{
 			SlotID: slotID,
 			Value:  []byte(value),
