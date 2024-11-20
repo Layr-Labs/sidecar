@@ -27,7 +27,8 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			block_number bigint not null,
 			transaction_hash varchar not null,
 			log_index bigint not null,
-			unique(transaction_hash, log_index, block_number, reward_hash, strategy_index, operator_index)
+			unique(transaction_hash, log_index, block_number, reward_hash, strategy_index, operator_index),
+			CONSTRAINT operator_directed_reward_submissions_block_number_fkey FOREIGN KEY (block_number) REFERENCES blocks(number) ON DELETE CASCADE
 		);
 	`
 	if err := grm.Exec(query).Error; err != nil {
