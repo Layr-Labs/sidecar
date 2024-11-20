@@ -180,9 +180,8 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) GetStateTransitions() (types
 
 			_, ok := odrs.stateAccumulator[log.BlockNumber][slotId]
 			if ok {
-				fmt.Printf("Submissions: %+v\n", odrs.stateAccumulator[log.BlockNumber])
-				err := xerrors.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
-				odrs.logger.Sugar().Errorw("Duplicate distribution root submitted", zap.Error(err))
+				err := xerrors.Errorf("Duplicate operator directed reward submission submitted for slot %s at block %d", slotId, log.BlockNumber)
+				odrs.logger.Sugar().Errorw("Duplicate operator directed reward submission submitted", zap.Error(err))
 				return nil, err
 			}
 

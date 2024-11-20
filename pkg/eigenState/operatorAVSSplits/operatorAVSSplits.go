@@ -2,7 +2,6 @@ package operatorAVSSplits
 
 import (
 	"encoding/json"
-	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -128,9 +127,8 @@ func (oas *OperatorAVSSplitModel) GetStateTransitions() (types.StateTransitions[
 
 		_, ok := oas.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
-			fmt.Printf("Submissions: %+v\n", oas.stateAccumulator[log.BlockNumber])
-			err := xerrors.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
-			oas.logger.Sugar().Errorw("Duplicate distribution root submitted", zap.Error(err))
+			err := xerrors.Errorf("Duplicate operator AVS split submitted for slot %s at block %d", slotId, log.BlockNumber)
+			oas.logger.Sugar().Errorw("Duplicate operator AVS split submitted", zap.Error(err))
 			return nil, err
 		}
 
