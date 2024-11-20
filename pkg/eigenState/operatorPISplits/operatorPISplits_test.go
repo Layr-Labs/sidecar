@@ -66,7 +66,7 @@ func createBlock(model *OperatorPISplitModel, blockNumber uint64) error {
 }
 
 func Test_OperatorPISplit(t *testing.T) {
-	_, grm, l, cfg, err := setup()
+	dbName, grm, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
@@ -137,6 +137,6 @@ func Test_OperatorPISplit(t *testing.T) {
 	})
 
 	t.Cleanup(func() {
-		// postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
 }
