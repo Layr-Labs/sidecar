@@ -2,7 +2,6 @@ package operatorPISplits
 
 import (
 	"encoding/json"
-	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -126,9 +125,8 @@ func (ops *OperatorPISplitModel) GetStateTransitions() (types.StateTransitions[*
 
 		_, ok := ops.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
-			fmt.Printf("Submissions: %+v\n", ops.stateAccumulator[log.BlockNumber])
-			err := xerrors.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
-			ops.logger.Sugar().Errorw("Duplicate distribution root submitted", zap.Error(err))
+			err := xerrors.Errorf("Duplicate operator PI split submitted for slot %s at block %d", slotId, log.BlockNumber)
+			ops.logger.Sugar().Errorw("Duplicate operator PI split submitted", zap.Error(err))
 			return nil, err
 		}
 
