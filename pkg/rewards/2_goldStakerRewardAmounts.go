@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"database/sql"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
@@ -108,29 +109,41 @@ staker_operator_total_tokens AS (
     END as total_staker_operator_payout
   FROM staker_proportion
 ),
--- Calculate the token breakdown for each (staker, operator) pair
+-- Include the operator_avs_split_snapshots table
+operator_avs_splits_cte AS (
+  SELECT
+    operator,
+    avs,
+    snapshot,
+    split
+  FROM operator_avs_split_snapshots
+),
+-- Calculate the token breakdown for each (staker, operator) pair with dynamic split logic
+-- If no split is found, default to 1000 (10%)
 token_breakdowns AS (
-  SELECT *,
+  SELECT sot.*,
     CASE
       WHEN snapshot < @amazonHardforkDate AND reward_submission_date < @amazonHardforkDate THEN
-        cast(total_staker_operator_payout * 0.10 AS DECIMAL(38,0))
+        CAST(total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0 AS DECIMAL(38, 0))
       WHEN snapshot < @nileHardforkDate AND reward_submission_date < @nileHardforkDate THEN
-        (total_staker_operator_payout * 0.10)::text::decimal(38,0)
+        (total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)::TEXT::DECIMAL(38, 0)
       ELSE
-        floor(total_staker_operator_payout * 0.10)
-    END as operator_tokens,
+        FLOOR(total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)
+    END AS operator_tokens,
     CASE
       WHEN snapshot < @amazonHardforkDate AND reward_submission_date < @amazonHardforkDate THEN
-        total_staker_operator_payout - cast(total_staker_operator_payout * 0.10 as DECIMAL(38,0))
+        total_staker_operator_payout - CAST(total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0 AS DECIMAL(38, 0))
       WHEN snapshot < @nileHardforkDate AND reward_submission_date < @nileHardforkDate THEN
-        total_staker_operator_payout - ((total_staker_operator_payout * 0.10)::text::decimal(38,0))
+        total_staker_operator_payout - (total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)::TEXT::DECIMAL(38, 0)
       ELSE
-        total_staker_operator_payout - floor(total_staker_operator_payout * 0.10)
-    END as staker_tokens
-  FROM staker_operator_total_tokens
+        total_staker_operator_payout - FLOOR(total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)
+    END AS staker_tokens
+  FROM staker_operator_total_tokens sot
+  LEFT JOIN operator_avs_splits_cte oas
+  ON sot.operator = oas.operator AND sot.avs = oas.avs AND sot.snapshot = oas.snapshot
 )
-SELECT * from token_breakdowns
-ORDER BY reward_hash, snapshot, staker, operator
+SELECT * FROM token_breakdowns
+ORDER BY reward_hash, snapshot, staker, operator;
 `
 
 func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate string, forks config.ForkMap) error {
