@@ -124,26 +124,26 @@ token_breakdowns AS (
   SELECT sot.*,
     CASE
       WHEN snapshot < @amazonHardforkDate AND reward_submission_date < @amazonHardforkDate THEN
-        CAST(total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0 AS DECIMAL(38, 0))
+        cast(total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0 AS DECIMAL(38,0))
       WHEN snapshot < @nileHardforkDate AND reward_submission_date < @nileHardforkDate THEN
-        (total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)::TEXT::DECIMAL(38, 0)
+        (total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)::text::decimal(38,0)
       ELSE
-        FLOOR(total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)
-    END AS operator_tokens,
+        floor(total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)
+    END as operator_tokens,
     CASE
       WHEN snapshot < @amazonHardforkDate AND reward_submission_date < @amazonHardforkDate THEN
-        total_staker_operator_payout - CAST(total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0 AS DECIMAL(38, 0))
+        total_staker_operator_payout - cast(total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0 AS DECIMAL(38, 0))
       WHEN snapshot < @nileHardforkDate AND reward_submission_date < @nileHardforkDate THEN
-        total_staker_operator_payout - (total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)::TEXT::DECIMAL(38, 0)
+        total_staker_operator_payout - ((total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)::text::decimal(38, 0))
       ELSE
-        total_staker_operator_payout - FLOOR(total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)
-    END AS staker_tokens
+        total_staker_operator_payout - floor(total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)
+    END as staker_tokens
   FROM staker_operator_total_tokens sot
   LEFT JOIN operator_avs_splits_cte oas
   ON sot.operator = oas.operator AND sot.avs = oas.avs AND sot.snapshot = oas.snapshot
 )
-SELECT * FROM token_breakdowns
-ORDER BY reward_hash, snapshot, staker, operator;
+SELECT * from token_breakdowns
+ORDER BY reward_hash, snapshot, staker, operator
 `
 
 func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate string, forks config.ForkMap) error {
