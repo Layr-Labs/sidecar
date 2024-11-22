@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
@@ -11,12 +13,12 @@ import (
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-merkletree/v2"
 	"gorm.io/gorm/clause"
-	"time"
+
+	"text/template"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"text/template"
 )
 
 type RewardsCalculator struct {
@@ -305,6 +307,18 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated staker delegation snapshots")
+
+	if err = rc.GenerateAndInsertOperatorAvsSplitSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator avs split snapshots", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated operator avs split snapshots")
+
+	if err = rc.GenerateAndInsertOperatorPISplitSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator pi snapshots", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated operator pi snapshots")
 
 	return nil
 }
