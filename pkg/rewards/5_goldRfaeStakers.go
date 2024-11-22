@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"database/sql"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
@@ -107,12 +108,23 @@ staker_operator_total_tokens AS (
     FLOOR(staker_proportion * tokens_per_day_decimal) as total_staker_operator_payout
   FROM staker_proportion
 ),
--- Calculate the token breakdown for each (staker, operator) pair
+-- Include the operator_pi_split_snapshots table
+operator_pi_splits_cte AS (
+  SELECT
+    operator,
+    snapshot,
+    split
+  FROM operator_pi_split_snapshots
+),
+-- Calculate the token breakdown for each (staker, operator) pair with dynamic split logic
+-- If no split is found, default to 1000 (10%)
 token_breakdowns AS (
-  SELECT *,
-    floor(total_staker_operator_payout * 0.10) as operator_tokens,
-    total_staker_operator_payout - floor(total_staker_operator_payout * 0.10) as staker_tokens
-  FROM staker_operator_total_tokens
+  SELECT sot.*,
+    floor(total_staker_operator_payout * COALESCE(ops.split, 1000) / 10000.0) as operator_tokens,
+    total_staker_operator_payout - floor(total_staker_operator_payout * COALESCE(ops.split, 1000) / 10000.0) as staker_tokens
+  FROM staker_operator_total_tokens sot 
+  LEFT JOIN operator_pi_splits_cte ops
+  ON sot.operator = ops.operator AND sot.snapshot = ops.snapshot
 )
 SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
