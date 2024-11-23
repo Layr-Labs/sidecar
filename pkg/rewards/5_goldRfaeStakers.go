@@ -119,12 +119,12 @@ operator_pi_splits_cte AS (
 -- Calculate the token breakdown for each (staker, operator) pair with dynamic split logic
 -- If no split is found, default to 1000 (10%)
 token_breakdowns AS (
-  SELECT sot.*,
-    floor(total_staker_operator_payout * COALESCE(ops.split, 1000) / 10000.0) as operator_tokens,
-    total_staker_operator_payout - floor(total_staker_operator_payout * COALESCE(ops.split, 1000) / 10000.0) as staker_tokens
-  FROM staker_operator_total_tokens sot 
+  SELECT sott.*,
+    floor(sott.total_staker_operator_payout * COALESCE(ops.split, 1000) / 10000.0) as operator_tokens,
+    sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * COALESCE(ops.split, 1000) / 10000.0) as staker_tokens
+  FROM staker_operator_total_tokens sott
   LEFT JOIN operator_pi_splits_cte ops
-  ON sot.operator = ops.operator AND sot.snapshot = ops.snapshot
+  ON sott.operator = ops.operator AND sott.snapshot = ops.snapshot
 )
 SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
