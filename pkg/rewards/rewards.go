@@ -358,6 +358,11 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
+	if err := rc.Generate7ActiveODRewards(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate active od rewards", "error", err)
+		return err
+	}
+
 	if err := rc.GenerateGold7StagingTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate gold staging", "error", err)
 		return err
