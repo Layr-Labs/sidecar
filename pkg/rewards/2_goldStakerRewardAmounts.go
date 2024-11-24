@@ -109,15 +109,6 @@ staker_operator_total_tokens AS (
     END as total_staker_operator_payout
   FROM staker_proportion
 ),
--- Include the operator_avs_split_snapshots table
-operator_avs_splits_cte AS (
-  SELECT
-    operator,
-    avs,
-    snapshot,
-    split
-  FROM operator_avs_split_snapshots
-),
 -- Calculate the token breakdown for each (staker, operator) pair with dynamic split logic
 -- If no split is found, default to 1000 (10%)
 token_breakdowns AS (
@@ -139,7 +130,7 @@ token_breakdowns AS (
         sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)
     END as staker_tokens
   FROM staker_operator_total_tokens sott
-  LEFT JOIN operator_avs_splits_cte oas
+  LEFT JOIN operator_avs_split_snapshots oas
   ON sott.operator = oas.operator AND sott.avs = oas.avs AND sott.snapshot = oas.snapshot
 )
 SELECT * from token_breakdowns
