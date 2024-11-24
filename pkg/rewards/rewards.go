@@ -409,25 +409,33 @@ func (rc *RewardsCalculator) generateAndInsertFromQuery(
 }
 
 var (
-	Table_1_ActiveRewards         = "gold_1_active_rewards"
-	Table_2_StakerRewardAmounts   = "gold_2_staker_reward_amounts"
-	Table_3_OperatorRewardAmounts = "gold_3_operator_reward_amounts"
-	Table_4_RewardsForAll         = "gold_4_rewards_for_all"
-	Table_5_RfaeStakers           = "gold_5_rfae_stakers"
-	Table_6_RfaeOperators         = "gold_6_rfae_operators"
-	Table_7_GoldStaging           = "gold_7_staging"
-	Table_8_GoldTable             = "gold_table"
+	Table_1_ActiveRewards           = "gold_1_active_rewards"
+	Table_2_StakerRewardAmounts     = "gold_2_staker_reward_amounts"
+	Table_3_OperatorRewardAmounts   = "gold_3_operator_reward_amounts"
+	Table_4_RewardsForAll           = "gold_4_rewards_for_all"
+	Table_5_RfaeStakers             = "gold_5_rfae_stakers"
+	Table_6_RfaeOperators           = "gold_6_rfae_operators"
+	Table_7_ActiveODRewards         = "gold_7_active_od_rewards"
+	Table_8_StakerODRewardAmounts   = "gold_8_staker_od_reward_amounts"
+	Table_9_OperatorODRewardAmounts = "gold_9_operator_od_reward_amounts"
+	Table_10_AvsODRewardAmounts     = "gold_10_avs_od_reward_amounts"
+	Table_7_GoldStaging             = "gold_7_staging"
+	Table_8_GoldTable               = "gold_table"
 )
 
 var goldTableBaseNames = map[string]string{
-	Table_1_ActiveRewards:         "gold_1_active_rewards",
-	Table_2_StakerRewardAmounts:   "gold_2_staker_reward_amounts",
-	Table_3_OperatorRewardAmounts: "gold_3_operator_reward_amounts",
-	Table_4_RewardsForAll:         "gold_4_rewards_for_all",
-	Table_5_RfaeStakers:           "gold_5_rfae_stakers",
-	Table_6_RfaeOperators:         "gold_6_rfae_operators",
-	Table_7_GoldStaging:           "gold_7_staging",
-	Table_8_GoldTable:             "gold_table",
+	Table_1_ActiveRewards:           "gold_1_active_rewards",
+	Table_2_StakerRewardAmounts:     "gold_2_staker_reward_amounts",
+	Table_3_OperatorRewardAmounts:   "gold_3_operator_reward_amounts",
+	Table_4_RewardsForAll:           "gold_4_rewards_for_all",
+	Table_5_RfaeStakers:             "gold_5_rfae_stakers",
+	Table_6_RfaeOperators:           "gold_6_rfae_operators",
+	Table_7_ActiveODRewards:         "gold_7_active_od_rewards",
+	Table_8_StakerODRewardAmounts:   "gold_8_staker_od_reward_amounts",
+	Table_9_OperatorODRewardAmounts: "gold_9_operator_od_reward_amounts",
+	Table_10_AvsODRewardAmounts:     "gold_10_avs_od_reward_amounts",
+	Table_7_GoldStaging:             "gold_7_staging",
+	Table_8_GoldTable:               "gold_table",
 }
 
 func getGoldTableNames(snapshotDate string) map[string]string {
