@@ -10,7 +10,7 @@ WITH operator_pi_splits_with_block_info as (
 		ops.log_index,
 		b.block_time::timestamp(6) as block_time
 	from operator_pi_splits as ops
-	left join blocks as b on (b.number = ops.block_number)
+	join blocks as b on (b.number = ops.block_number)
 	where activated_at < TIMESTAMP '{{.cutoffDate}}'
 ),
 -- Rank the records for each combination of (operator, activation date) by activation time, block time and log index
