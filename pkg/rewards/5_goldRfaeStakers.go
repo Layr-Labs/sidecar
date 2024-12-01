@@ -111,8 +111,8 @@ staker_operator_total_tokens AS (
 -- If no split is found, default to 1000 (10%)
 token_breakdowns AS (
   SELECT sott.*,
-    floor(sott.total_staker_operator_payout * COALESCE(ops.split, 1000) / 10000.0) as operator_tokens,
-    sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * COALESCE(ops.split, 1000) / 10000.0) as staker_tokens
+    floor(sott.total_staker_operator_payout * COALESCE(ops.split, 1000) / CAST(10000 AS DECIMAL)) as operator_tokens,
+    sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * COALESCE(ops.split, 1000) / CAST(10000 AS DECIMAL)) as staker_tokens
   FROM staker_operator_total_tokens sott
   LEFT JOIN operator_pi_split_snapshots ops
   ON sott.operator = ops.operator AND sott.snapshot = ops.snapshot

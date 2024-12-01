@@ -118,7 +118,7 @@ token_breakdowns AS (
       WHEN sott.snapshot < @nileHardforkDate AND sott.reward_submission_date < @nileHardforkDate THEN
         (sott.total_staker_operator_payout * 0.10)::text::decimal(38,0)
       ELSE
-        floor(sott.total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)
+        floor(sott.total_staker_operator_payout * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL))
     END as operator_tokens,
     CASE
       WHEN sott.snapshot < @amazonHardforkDate AND sott.reward_submission_date < @amazonHardforkDate THEN
@@ -126,7 +126,7 @@ token_breakdowns AS (
       WHEN sott.snapshot < @nileHardforkDate AND sott.reward_submission_date < @nileHardforkDate THEN
         sott.total_staker_operator_payout - ((sott.total_staker_operator_payout * 0.10)::text::decimal(38,0))
       ELSE
-        sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * COALESCE(oas.split, 1000) / 10000.0)
+        sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL))
     END as staker_tokens
   FROM staker_operator_total_tokens sott
   LEFT JOIN operator_avs_split_snapshots oas
