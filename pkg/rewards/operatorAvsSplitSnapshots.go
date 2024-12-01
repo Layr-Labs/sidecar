@@ -11,7 +11,7 @@ WITH operator_avs_splits_with_block_info as (
 		oas.log_index,
 		b.block_time::timestamp(6) as block_time
 	from operator_avs_splits as oas
-	left join blocks as b on (b.number = oas.block_number)
+	join blocks as b on (b.number = oas.block_number)
 	where activated_at < TIMESTAMP '{{.cutoffDate}}'
 ),
 -- Rank the records for each combination of (operator, avs, activation date) by activation time, block time and log index
