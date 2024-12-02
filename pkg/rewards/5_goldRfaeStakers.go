@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"database/sql"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
@@ -107,12 +108,25 @@ staker_operator_total_tokens AS (
     FLOOR(staker_proportion * tokens_per_day_decimal) as total_staker_operator_payout
   FROM staker_proportion
 ),
--- Calculate the token breakdown for each (staker, operator) pair
+-- Calculate the token breakdown for each (staker, operator) pair with dynamic split logic
+-- If no split is found, default to 1000 (10%)
 token_breakdowns AS (
-  SELECT *,
-    floor(total_staker_operator_payout * 0.10) as operator_tokens,
-    total_staker_operator_payout - floor(total_staker_operator_payout * 0.10) as staker_tokens
-  FROM staker_operator_total_tokens
+  SELECT sott.*,
+    CASE
+      WHEN sott.snapshot < @arnoHardforkDate AND sott.reward_submission_date < @arnoHardforkDate THEN
+        floor(sott.total_staker_operator_payout * 0.10)
+      ELSE
+        floor(sott.total_staker_operator_payout * COALESCE(ops.split, 1000) / CAST(10000 AS DECIMAL))
+    END as operator_tokens,
+    CASE
+      WHEN sott.snapshot < @arnoHardforkDate AND sott.reward_submission_date < @arnoHardforkDate THEN
+        sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * 0.10)
+      ELSE
+        sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * COALESCE(ops.split, 1000) / CAST(10000 AS DECIMAL))
+    END as staker_tokens
+  FROM staker_operator_total_tokens sott
+  LEFT JOIN operator_pi_split_snapshots ops
+  ON sott.operator = ops.operator AND sott.snapshot = ops.snapshot
 )
 SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
@@ -125,6 +139,7 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 	rc.logger.Sugar().Infow("Generating rfae stakers table",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
+		zap.String("arnoHardforkDate", forks[config.Fork_Arno]),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_5_goldRfaeStakersQuery, map[string]string{
@@ -139,6 +154,7 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 	res := rc.grm.Exec(query,
 		sql.Named("panamaForkDate", forks[config.Fork_Panama]),
 		sql.Named("network", rc.globalConfig.Chain.String()),
+		sql.Named("arnoHardforkDate", forks[config.Fork_Arno]),
 	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to generate gold_rfae_stakers", "error", res.Error)
