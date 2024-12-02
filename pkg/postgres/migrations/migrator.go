@@ -37,7 +37,10 @@ import (
 	_202411191550_operatorAVSSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191550_operatorAVSSplits"
 	_202411191708_operatorPISplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191708_operatorPISplits"
 	_202411191947_cleanupUnusedTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191947_cleanupUnusedTables"
+	_202411221331_operatorAVSSplitSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411221331_operatorAVSSplitSnapshots"
+	_202411221331_operatorPISplitSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411221331_operatorPISplitSnapshots"
 	_202412021311_stakerOperatorTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412021311_stakerOperatorTables"
+
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -115,6 +118,8 @@ func (m *Migrator) MigrateAll() error {
 		&_202411191708_operatorPISplits.Migration{},
 		&_202411191947_cleanupUnusedTables.Migration{},
 		&_202412021311_stakerOperatorTables.Migration{},
+		&_202411221331_operatorAVSSplitSnapshots.Migration{},
+		&_202411221331_operatorPISplitSnapshots.Migration{},
 	}
 
 	for _, migration := range migrations {
