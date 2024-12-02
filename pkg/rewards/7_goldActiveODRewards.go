@@ -26,7 +26,7 @@ WITH od_rewards_with_block_info as (
 			b.block_time::timestamp(6),
 			to_char(b.block_time, 'YYYY-MM-DD') AS block_date,
 		from operator_directed_reward_submissions as odrs
-		left join blocks as b on (b.number = odrs.block_number)
+		join blocks as b on (b.number = odrs.block_number)
 		where b.block_time < TIMESTAMP '{{.cutoffDate}}'
 ),
 active_rewards_modified as (
