@@ -118,6 +118,8 @@ token_breakdowns AS (
         cast(sott.total_staker_operator_payout * 0.10 AS DECIMAL(38,0))
       WHEN sott.snapshot < @nileHardforkDate AND sott.reward_submission_date < @nileHardforkDate THEN
         (sott.total_staker_operator_payout * 0.10)::text::decimal(38,0)
+      WHEN sott.snapshot < @arnoHardforkDate AND sott.reward_submission_date < @arnoHardforkDate THEN
+        floor(sott.total_staker_operator_payout * 0.10)
       ELSE
         floor(sott.total_staker_operator_payout * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL))
     END as operator_tokens,
@@ -126,6 +128,8 @@ token_breakdowns AS (
         sott.total_staker_operator_payout - cast(sott.total_staker_operator_payout * 0.10 as DECIMAL(38,0))
       WHEN sott.snapshot < @nileHardforkDate AND sott.reward_submission_date < @nileHardforkDate THEN
         sott.total_staker_operator_payout - ((sott.total_staker_operator_payout * 0.10)::text::decimal(38,0))
+      WHEN sott.snapshot < @arnoHardforkDate AND sott.reward_submission_date < @arnoHardforkDate THEN
+        sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * 0.10)
       ELSE
         sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL))
     END as staker_tokens
@@ -146,6 +150,7 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 		zap.String("destTableName", destTableName),
 		zap.String("amazonHardforkDate", forks[config.Fork_Amazon]),
 		zap.String("nileHardforkDate", forks[config.Fork_Nile]),
+		zap.String("arnoHardforkDate", forks[config.Fork_Arno]),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_2_goldStakerRewardAmountsQuery, map[string]string{
@@ -160,6 +165,7 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 	res := rc.grm.Exec(query,
 		sql.Named("amazonHardforkDate", forks[config.Fork_Amazon]),
 		sql.Named("nileHardforkDate", forks[config.Fork_Nile]),
+		sql.Named("arnoHardforkDate", forks[config.Fork_Arno]),
 	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_staker_reward_amounts", "error", res.Error)
