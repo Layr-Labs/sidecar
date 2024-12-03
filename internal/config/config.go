@@ -185,6 +185,7 @@ type ContractAddresses struct {
 	StrategyManager    string
 	DelegationManager  string
 	AvsDirectory       string
+	AllocationManager  string
 }
 
 func (c *Config) GetContractsMapForChain() *ContractAddresses {
