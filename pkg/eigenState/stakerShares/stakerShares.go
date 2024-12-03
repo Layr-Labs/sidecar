@@ -355,6 +355,62 @@ func (ss *StakerSharesModel) handleM2QueuedWithdrawal(log *storage.TransactionLo
 	return records, nil
 }
 
+type slashingWithdrawalQueuedOutputData struct {
+	Withdrawal struct {
+		Nonce        int           `json:"nonce"`
+		ScaledShares []json.Number `json:"scaledShares"`
+		Staker       string        `json:"staker"`
+		StartBlock   uint64        `json:"startBlock"`
+		Strategies   []string      `json:"strategies"`
+	} `json:"withdrawal"`
+	WithdrawalRoot       []byte        `json:"withdrawalRoot"`
+	SharesToWithdraw     []json.Number `json:"sharesToWithdraw"`
+	WithdrawalRootString string
+}
+
+func parseLogOutputForSlashingWithdrawalQueuedEvent(outputDataStr string) (*slashingWithdrawalQueuedOutputData, error) {
+	outputData := &slashingWithdrawalQueuedOutputData{}
+	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
+	decoder.UseNumber()
+
+	err := decoder.Decode(&outputData)
+	if err != nil {
+		return nil, err
+	}
+	outputData.Withdrawal.Staker = strings.ToLower(outputData.Withdrawal.Staker)
+	outputData.WithdrawalRootString = hex.EncodeToString(outputData.WithdrawalRoot)
+	return outputData, err
+}
+
+// handleSlashingWithdrawalQueued handles the WithdrawalQueued event from the DelegationManager contract for slashing
+func (ss *StakerSharesModel) handleSlashingWithdrawalQueued(log *storage.TransactionLog) ([]*StakerShareDeltas, error) {
+	// do the same thing as handleM2QueuedWithdrawal
+	outputData, err := parseLogOutputForSlashingWithdrawalQueuedEvent(log.OutputData)
+	if err != nil {
+		return nil, err
+	}
+
+	records := make([]*StakerShareDeltas, 0)
+	for i, strategy := range outputData.Withdrawal.Strategies {
+		shares, success := numbers.NewBig257().SetString(outputData.SharesToWithdraw[i].String(), 10)
+		if !success {
+			return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.SharesToWithdraw[i])
+		}
+		r := &StakerShareDeltas{
+			Staker:               outputData.Withdrawal.Staker,
+			Strategy:             strategy,
+			Shares:               shares.Mul(shares, big.NewInt(-1)).String(),
+			StrategyIndex:        uint64(i),
+			LogIndex:             log.LogIndex,
+			TransactionHash:      log.TransactionHash,
+			BlockNumber:          log.BlockNumber,
+			WithdrawalRootString: outputData.WithdrawalRootString,
+		}
+		records = append(records, r)
+	}
+	return records, nil
+}
+
 type AccumulatedStateChanges struct {
 	Changes []*StakerShareDeltas
 }
@@ -433,6 +489,11 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[*Accu
 					}
 					ss.stateAccumulator[log.BlockNumber] = filteredDeltas
 				}
+			}
+		} else if log.Address == contractAddresses.DelegationManager && log.EventName == "SlashingWithdrawalQueued" {
+			records, err := ss.handleSlashingWithdrawalQueued(log)
+			if err == nil && records != nil {
+				deltaRecords = append(deltaRecords, records...)
 			}
 		} else {
 			ss.logger.Sugar().Debugw("Got stakerShares event that we don't handle",
