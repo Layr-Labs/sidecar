@@ -3,9 +3,10 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/spf13/viper"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 type EnvScope string
@@ -124,6 +125,7 @@ type ContractAddresses struct {
 	StrategyManager    string
 	DelegationManager  string
 	AvsDirectory       string
+	AllocationManager  string
 }
 
 func (c *Config) GetContractsMapForChain() *ContractAddresses {
