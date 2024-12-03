@@ -456,6 +456,84 @@ func Test_StakerSharesState(t *testing.T) {
 		}
 		assert.Equal(t, 4, count)
 	})
+
+	t.Run("Should capture Slashing withdrawals", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+		blockNumber := uint64(200)
+		log := storage.TransactionLog{
+			TransactionHash:  "some hash",
+			TransactionIndex: big.NewInt(300).Uint64(),
+			BlockNumber:      blockNumber,
+			Address:          cfg.GetContractsMapForChain().DelegationManager,
+			Arguments:        `[{"Name": "withdrawalRoot", "Type": "bytes32", "Value": ""}, {"Name": "withdrawal", "Type": "(address,address,address,uint256,uint32,address[],uint256[])", "Value": ""}]`,
+			EventName:        "SlashingWithdrawalQueued",
+			LogIndex:         big.NewInt(600).Uint64(),
+			OutputData:       `{"withdrawal": {"nonce": 0, "scaledShares": [1000000000000000000], "staker": "0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c", "startBlock": 1215690, "strategies": ["0xd523267698c81a372191136e477fdebfa33d9fb4"], "withdrawer": "0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c", "delegatedTo": "0x2177dee1f66d6dbfbf517d9c4f316024c6a21aeb"}, "withdrawalRoot": [24, 23, 49, 137, 14, 63, 119, 12, 234, 225, 63, 35, 109, 249, 112, 24, 241, 118, 212, 52, 22, 107, 202, 56, 105, 37, 68, 47, 169, 23, 142, 135], "sharesToWithdraw": [50000000000000]}`,
+			CreatedAt:        time.Time{},
+			UpdatedAt:        time.Time{},
+			DeletedAt:        time.Time{},
+		}
+
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		change, err := model.HandleStateChange(&log)
+		assert.Nil(t, err)
+		assert.NotNil(t, change)
+
+		diffs := change.(*AccumulatedStateChanges)
+		assert.Equal(t, 1, len(diffs.Changes))
+
+		shareDiff := diffs.Changes[0]
+		assert.Equal(t, "-50000000000000", shareDiff.Shares)
+		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), shareDiff.Staker)
+		assert.Equal(t, "0xd523267698c81a372191136e477fdebfa33d9fb4", shareDiff.Strategy)
+	})
+
+	t.Run("Should capture Slashing withdrawals for multiple strategies", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+		blockNumber := uint64(200)
+		log := storage.TransactionLog{
+			TransactionHash:  "some hash",
+			TransactionIndex: big.NewInt(300).Uint64(),
+			BlockNumber:      blockNumber,
+			Address:          cfg.GetContractsMapForChain().DelegationManager,
+			Arguments:        `[{"Name": "withdrawalRoot", "Type": "bytes32", "Value": ""}, {"Name": "withdrawal", "Type": "(address,address,address,uint256,uint32,address[],uint256[])", "Value": ""}]`,
+			EventName:        "SlashingWithdrawalQueued",
+			LogIndex:         big.NewInt(600).Uint64(),
+			OutputData:       `{"withdrawal": {"nonce": 0, "scaledShares": [1000000000000000000, 2000000000000000000], "staker": "0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c", "startBlock": 1215690, "strategies": ["0xd523267698c81a372191136e477fdebfa33d9fb4", "0xe523267698c81a372191136e477fdebfa33d9fb5"], "withdrawer": "0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c", "delegatedTo": "0x2177dee1f66d6dbfbf517d9c4f316024c6a21aeb"}, "withdrawalRoot": [24, 23, 49, 137, 14, 63, 119, 12, 234, 225, 63, 35, 109, 249, 112, 24, 241, 118, 212, 52, 22, 107, 202, 56, 105, 37, 68, 47, 169, 23, 142, 135], "sharesToWithdraw": [50000000000000, 100000000000000]}`,
+			CreatedAt:        time.Time{},
+			UpdatedAt:        time.Time{},
+			DeletedAt:        time.Time{},
+		}
+
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		change, err := model.HandleStateChange(&log)
+		assert.Nil(t, err)
+		assert.NotNil(t, change)
+
+		diffs := change.(*AccumulatedStateChanges)
+		assert.Equal(t, 2, len(diffs.Changes))
+
+		shareDiff := diffs.Changes[0]
+		assert.Equal(t, "-50000000000000", shareDiff.Shares)
+		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), shareDiff.Staker)
+		assert.Equal(t, "0xd523267698c81a372191136e477fdebfa33d9fb4", shareDiff.Strategy)
+
+		shareDiff = diffs.Changes[1]
+		assert.Equal(t, "-100000000000000", shareDiff.Shares)
+		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), shareDiff.Staker)
+		assert.Equal(t, "0xe523267698c81a372191136e477fdebfa33d9fb5", shareDiff.Strategy)
+	})
+
 	t.Cleanup(func() {
 		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
