@@ -48,6 +48,22 @@ FROM (
 where block_time < '2024-08-20'
 ```
 
+preprod-rewardsV2
+```sql
+SELECT
+    staker,
+    operator,
+    log_index,
+    block_number,
+    case when src = 'undelegations' THEN false ELSE true END AS delegated
+FROM (
+         SELECT *, 'undelegations' AS src FROM dbt_preprod_holesky_rewards.staker_undelegations
+         UNION ALL
+         SELECT *, 'delegations' AS src FROM dbt_preprod_holesky_rewards.staker_delegations
+     ) as delegations_combined
+where block_time < '2024-12-10'
+```
+
 
 ```bash
 psql --host localhost --port 5435 --user blocklake --dbname blocklake --password < internal/tests/testdata/stakerDelegationSnapshots/generateExpectedResults.sql > internal/tests/testdata/stakerDelegationSnapshots/expectedResults.csv

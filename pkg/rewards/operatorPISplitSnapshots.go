@@ -7,7 +7,7 @@ WITH operator_pi_splits_with_block_info as (
 	select
 		ops.operator,
 		ops.activated_at::timestamp(6) as activated_at,
-		ops.new_operator_avs_split_bips as split,
+		ops.new_operator_pi_split_bips as split,
 		ops.block_number,
 		ops.log_index,
 		b.block_time::timestamp(6) as block_time
@@ -15,32 +15,53 @@ WITH operator_pi_splits_with_block_info as (
 	join blocks as b on (b.number = ops.block_number)
 	where activated_at < TIMESTAMP '{{.cutoffDate}}'
 ),
--- Rank the records for each combination of (operator, activation date) by activation time, block time and log index
+-- Rank the records for each operator by block time asc, log index asc (in the order they happened)
 ranked_operator_pi_split_records as (
-	SELECT *,
-		   ROW_NUMBER() OVER (PARTITION BY operator, cast(activated_at AS DATE) ORDER BY activated_at DESC, block_time DESC, log_index DESC) AS rn
+	SELECT
+	    *,
+	    -- round activated up to the nearest day
+	    date_trunc('day', activated_at) + INTERVAL '1' day AS rounded_activated_at,
+		ROW_NUMBER() OVER (PARTITION BY operator ORDER BY block_time asc, log_index asc) AS rn
 	FROM operator_pi_splits_with_block_info
 ),
--- Get the latest record for each day & round up to the snapshot day
-snapshotted_records as (
- SELECT
-	 operator,
-	 split,
-	 block_time,
-	 date_trunc('day', activated_at) + INTERVAL '1' day AS snapshot_time
- from ranked_operator_pi_split_records
- where rn = 1
+decorated_operator_splits as (
+    select
+        rops.*,
+        -- if there is a row, we have found another split that overlaps the current split
+        -- meaning the current split should be discarded
+        case when rops2.block_time is not null then false else true end as active
+    from ranked_operator_pi_split_records as rops
+    left join ranked_operator_pi_split_records as rops2 on (
+        rops.operator = rops2.operator
+        -- rn is orderd by block and log_index, so this should encapsulate rops2 occurring afer rops
+        and rops.rn > rops2.rn
+        -- only find the next split that overlaps with the current one
+        and rops2.rounded_activated_at <= rops.rounded_activated_at
+    )
+),
+-- filter in only splits flagged as active
+active_operator_splits as (
+    select
+        *,
+        rounded_activated_at as snapshot_time,
+        ROW_NUMBER() over (partition by operator order by rounded_activated_at asc) as rn
+    from decorated_operator_splits
+    where active = true
 ),
 -- Get the range for each operator
 operator_pi_split_windows as (
  SELECT
-	 operator, split, snapshot_time as start_time,
+	 operator,
+	 split,
+	 snapshot_time as start_time,
 	 CASE
 		 -- If the range does not have the end, use the current timestamp truncated to 0 UTC
 		 WHEN LEAD(snapshot_time) OVER (PARTITION BY operator ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}')
-		 ELSE LEAD(snapshot_time) OVER (PARTITION BY operator ORDER BY snapshot_time)
+
+		 -- need to subtract 1 day from the end time since generate_series will be inclusive below.
+		 ELSE LEAD(snapshot_time) OVER (PARTITION BY operator ORDER BY snapshot_time) - interval '1 day'
 		 END AS end_time
- FROM snapshotted_records
+ FROM active_operator_splits
 ),
 -- Clean up any records where start_time >= end_time
 cleaned_records as (

@@ -10,8 +10,8 @@ copy (with ranked_records AS (
             ORDER BY block_time DESC
             ) AS rn
     FROM public.operator_restaked_strategies
-    WHERE avs_directory_address = lower('0x055733000064333caddbc92763c58bf0192ffebf')
-    and block_time < '2024-09-17'
+    WHERE avs_directory_address = lower('0x141d6995556135d4997b2ff72eb443be300353bc')
+    and block_time < '2024-12-11'
 ),
      latest_records AS (
          SELECT
@@ -102,11 +102,11 @@ SELECT
     operator,
     avs,
     strategy,
-    cast(day AS DATE) AS snapshot
+    to_char(d, 'YYYY-MM-DD') AS snapshot
 FROM
     cleaned_records
         CROSS JOIN
-    generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+    generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
 )
 select * from final_results
 ) to STDOUT DELIMITER ',' CSV HEADER;
