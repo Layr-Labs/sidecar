@@ -1,5 +1,7 @@
 package rewards
 
+import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+
 const operatorPISplitSnapshotQuery = `
 WITH operator_pi_splits_with_block_info as (
 	select
@@ -62,7 +64,7 @@ select * from final_results
 func (r *RewardsCalculator) GenerateAndInsertOperatorPISplitSnapshots(snapshotDate string) error {
 	tableName := "operator_pi_split_snapshots"
 
-	query, err := renderQueryTemplate(operatorPISplitSnapshotQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(operatorPISplitSnapshotQuery, map[string]string{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
