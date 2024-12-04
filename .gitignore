@@ -2,6 +2,8 @@
 /*.sw*
 *.terraform
 *.terraform*
+*.sql
+*.dump
 /bin
 /scripts/runLocal
 sidecar.db*
@@ -30,5 +32,4 @@ node_modules
 chart_releases
 /snapshots/**/*.sql
 /snapshots/**/*.csv
-*.sql
-*.dump
+

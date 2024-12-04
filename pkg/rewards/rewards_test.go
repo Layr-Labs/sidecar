@@ -3,6 +3,12 @@ package rewards
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -14,11 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"os"
-	"path/filepath"
-	"strings"
-	"testing"
-	"time"
 )
 
 // const TOTAL_BLOCK_COUNT = 1229187
@@ -57,6 +58,8 @@ func getSnapshotDate() (string, error) {
 		return "2024-07-25", nil
 	case "mainnet-reduced":
 		return "2024-08-12", nil
+	case "preprod-rewardsV2":
+		return "2024-12-09", nil
 	}
 	return "", fmt.Errorf("Unknown context: %s", context)
 }
@@ -64,6 +67,24 @@ func getSnapshotDate() (string, error) {
 func hydrateAllBlocksTable(grm *gorm.DB, l *zap.Logger) (int, error) {
 	projectRoot := getProjectRootPath()
 	contents, err := tests.GetAllBlocksSqlFile(projectRoot)
+
+	if err != nil {
+		return 0, err
+	}
+
+	count := len(strings.Split(strings.Trim(contents, "\n"), "\n")) - 1
+
+	res := grm.Exec(contents)
+	if res.Error != nil {
+		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
+		return count, res.Error
+	}
+	return count, nil
+}
+
+func hydrateRewardsV2Blocks(grm *gorm.DB, l *zap.Logger) (int, error) {
+	projectRoot := getProjectRootPath()
+	contents, err := tests.GetRewardsV2Blocks(projectRoot)
 
 	if err != nil {
 		return 0, err
@@ -101,6 +122,30 @@ func setupRewards() (
 	cfg.Rewards.GenerateStakerOperatorsTable = true
 	cfg.Rewards.ValidateRewardsRoot = true
 	cfg.Chain = config.Chain_Mainnet
+
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
+	if err != nil {
+		return dbname, nil, nil, nil, err
+	}
+
+	return dbname, cfg, grm, l, nil
+}
+
+func setupRewardsV2() (
+	string,
+	*config.Config,
+	*gorm.DB,
+	*zap.Logger,
+	error,
+) {
+	cfg := tests.GetConfig()
+	cfg.Rewards.GenerateStakerOperatorsTable = true
+	cfg.Rewards.ValidateRewardsRoot = true
+	cfg.Chain = config.Chain_Preprod
 
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
@@ -249,16 +294,48 @@ func Test_Rewards(t *testing.T) {
 			fmt.Printf("\tRows in gold_6_rfae_operators: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
-			fmt.Printf("Running gold_7_staging\n")
-			err = rc.GenerateGold7StagingTable(snapshotDate)
+			fmt.Printf("Running gold_7_active_od_rewards\n")
+			err = rc.Generate7ActiveODRewards(snapshotDate)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_7_GoldStaging])
+			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_7_ActiveODRewards])
 			assert.Nil(t, err)
-			fmt.Printf("\tRows in gold_7_staging: %v - [time: %v]\n", rows, time.Since(testStart))
+			fmt.Printf("\tRows in gold_7_active_od_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
-			fmt.Printf("Running gold_8_final_table\n")
-			err = rc.GenerateGold8FinalTable(snapshotDate)
+			fmt.Printf("Running gold_8_operator_od_reward_amounts\n")
+			err = rc.GenerateGold8OperatorODRewardAmountsTable(snapshotDate)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_8_OperatorODRewardAmounts])
+			assert.Nil(t, err)
+			fmt.Printf("\tRows in gold_8_operator_od_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
+
+			fmt.Printf("Running gold_9_staker_od_reward_amounts\n")
+			err = rc.GenerateGold9StakerODRewardAmountsTable(snapshotDate)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_9_StakerODRewardAmounts])
+			assert.Nil(t, err)
+			fmt.Printf("\tRows in gold_9_staker_od_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
+
+			fmt.Printf("Running gold_10_avs_od_reward_amounts\n")
+			err = rc.GenerateGold10AvsODRewardAmountsTable(snapshotDate)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_10_AvsODRewardAmounts])
+			assert.Nil(t, err)
+			fmt.Printf("\tRows in gold_10_avs_od_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
+
+			fmt.Printf("Running gold_11_staging\n")
+			err = rc.GenerateGold11StagingTable(snapshotDate)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_11_GoldStaging])
+			assert.Nil(t, err)
+			fmt.Printf("\tRows in gold_11_staging: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
+
+			fmt.Printf("Running gold_12_final_table\n")
+			err = rc.GenerateGold12FinalTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, "gold_table")
 			assert.Nil(t, err)
