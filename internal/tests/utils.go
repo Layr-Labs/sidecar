@@ -99,6 +99,11 @@ func GetAllBlocksSqlFile(projectBase string) (string, error) {
 	return getSqlFile(path)
 }
 
+func GetRewardsV2Blocks(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/rewardsV2Blocks.sql")
+	return getSqlFile(path)
+}
+
 func GetOperatorAvsRegistrationsSqlFile(projectBase string) (string, error) {
 	path := getTestdataPathFromProjectRoot(projectBase, "/operatorAvsRegistrationSnapshots/operatorAvsRegistrations.sql")
 	return getSqlFile(path)
@@ -264,4 +269,22 @@ func GetStakerDelegationsTransactionLogsSqlFile(projectBase string) (string, err
 
 func LargeTestsEnabled() bool {
 	return os.Getenv("TEST_REWARDS") == "true" || os.Getenv("TEST_LARGE") == "true"
+}
+
+// ----------------------------------------------------------------------------
+// Rewards V2
+// ----------------------------------------------------------------------------
+func GetOperatorAvsSplitsSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorAvsSplitSnapshots/operatorAvsSplits.sql")
+	return getSqlFile(path)
+}
+
+func GetOperatorPISplitsSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorPISplitSnapshots/operatorPISplits.sql")
+	return getSqlFile(path)
+}
+
+func GetOperatorDirectedRewardsSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorDirectedRewardSubmissions/operatorDirectedRewardSubmissions.sql")
+	return getSqlFile(path)
 }
