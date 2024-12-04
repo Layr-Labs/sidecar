@@ -1,5 +1,7 @@
 package rewards
 
+import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+
 const operatorAvsSplitSnapshotQuery = `
 WITH operator_avs_splits_with_block_info as (
 	select
@@ -65,7 +67,7 @@ select * from final_results
 func (r *RewardsCalculator) GenerateAndInsertOperatorAvsSplitSnapshots(snapshotDate string) error {
 	tableName := "operator_avs_split_snapshots"
 
-	query, err := renderQueryTemplate(operatorAvsSplitSnapshotQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(operatorAvsSplitSnapshotQuery, map[string]string{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
