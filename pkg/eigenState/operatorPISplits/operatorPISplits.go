@@ -8,13 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Layr-Labs/sidecar/pkg/storage"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
-
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/base"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
+	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -229,28 +227,28 @@ func (ops *OperatorPISplitModel) CommitFinalState(blockNumber uint64) error {
 }
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
-func (ops *OperatorPISplitModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (ops *OperatorPISplitModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	inserts, err := ops.prepareState(blockNumber)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	inputs := ops.sortValuesForMerkleTree(inserts)
 
 	if len(inputs) == 0 {
-		return "", nil
+		return nil, nil
 	}
 
-	fullTree, err := ops.MerkleizeState(blockNumber, inputs)
+	fullTree, err := ops.MerkleizeEigenState(blockNumber, inputs)
 	if err != nil {
 		ops.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", inputs),
 		)
-		return "", err
+		return nil, err
 	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
+	return fullTree.Root(), nil
 }
 
 func (ops *OperatorPISplitModel) sortValuesForMerkleTree(splits []*OperatorPISplit) []*base.MerkleTreeInput {
