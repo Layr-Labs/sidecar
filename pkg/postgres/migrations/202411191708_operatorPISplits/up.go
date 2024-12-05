@@ -2,6 +2,7 @@ package _202411191708_operatorPISplits
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/sidecar/internal/config"
 
 	"gorm.io/gorm"
 )
@@ -9,7 +10,7 @@ import (
 type Migration struct {
 }
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	query := `
 		create table if not exists operator_pi_splits (
 			operator varchar not null,
