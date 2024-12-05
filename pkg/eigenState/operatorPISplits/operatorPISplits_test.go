@@ -31,7 +31,7 @@ func setup() (
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
 
-	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
 		return dbname, nil, nil, nil, err
 	}
