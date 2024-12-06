@@ -76,3 +76,16 @@ type OperatorShares struct {
 	BlockTime       time.Time
 	BlockDate       string
 }
+
+type OperatorAVSSplitSnapshots struct {
+	Operator string
+	Avs      string
+	Split    uint64
+	Snapshot time.Time
+}
+
+type OperatorPISplitSnapshots struct {
+	Operator string
+	Split    uint64
+	Snapshot time.Time
+}

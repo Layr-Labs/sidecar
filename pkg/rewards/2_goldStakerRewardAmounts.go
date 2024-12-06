@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"database/sql"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
@@ -108,26 +109,33 @@ staker_operator_total_tokens AS (
     END as total_staker_operator_payout
   FROM staker_proportion
 ),
--- Calculate the token breakdown for each (staker, operator) pair
+-- Calculate the token breakdown for each (staker, operator) pair with dynamic split logic
+-- If no split is found, default to 1000 (10%)
 token_breakdowns AS (
-  SELECT *,
+  SELECT sott.*,
     CASE
-      WHEN snapshot < @amazonHardforkDate AND reward_submission_date < @amazonHardforkDate THEN
-        cast(total_staker_operator_payout * 0.10 AS DECIMAL(38,0))
-      WHEN snapshot < @nileHardforkDate AND reward_submission_date < @nileHardforkDate THEN
-        (total_staker_operator_payout * 0.10)::text::decimal(38,0)
+      WHEN sott.snapshot < @amazonHardforkDate AND sott.reward_submission_date < @amazonHardforkDate THEN
+        cast(sott.total_staker_operator_payout * 0.10 AS DECIMAL(38,0))
+      WHEN sott.snapshot < @nileHardforkDate AND sott.reward_submission_date < @nileHardforkDate THEN
+        (sott.total_staker_operator_payout * 0.10)::text::decimal(38,0)
+      WHEN sott.snapshot < @arnoHardforkDate AND sott.reward_submission_date < @arnoHardforkDate THEN
+        floor(sott.total_staker_operator_payout * 0.10)
       ELSE
-        floor(total_staker_operator_payout * 0.10)
+        floor(sott.total_staker_operator_payout * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL))
     END as operator_tokens,
     CASE
-      WHEN snapshot < @amazonHardforkDate AND reward_submission_date < @amazonHardforkDate THEN
-        total_staker_operator_payout - cast(total_staker_operator_payout * 0.10 as DECIMAL(38,0))
-      WHEN snapshot < @nileHardforkDate AND reward_submission_date < @nileHardforkDate THEN
-        total_staker_operator_payout - ((total_staker_operator_payout * 0.10)::text::decimal(38,0))
+      WHEN sott.snapshot < @amazonHardforkDate AND sott.reward_submission_date < @amazonHardforkDate THEN
+        sott.total_staker_operator_payout - cast(sott.total_staker_operator_payout * 0.10 as DECIMAL(38,0))
+      WHEN sott.snapshot < @nileHardforkDate AND sott.reward_submission_date < @nileHardforkDate THEN
+        sott.total_staker_operator_payout - ((sott.total_staker_operator_payout * 0.10)::text::decimal(38,0))
+      WHEN sott.snapshot < @arnoHardforkDate AND sott.reward_submission_date < @arnoHardforkDate THEN
+        sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * 0.10)
       ELSE
-        total_staker_operator_payout - floor(total_staker_operator_payout * 0.10)
+        sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL))
     END as staker_tokens
-  FROM staker_operator_total_tokens
+  FROM staker_operator_total_tokens sott
+  LEFT JOIN operator_avs_split_snapshots oas
+  ON sott.operator = oas.operator AND sott.avs = oas.avs AND sott.snapshot = oas.snapshot
 )
 SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
@@ -142,6 +150,7 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 		zap.String("destTableName", destTableName),
 		zap.String("amazonHardforkDate", forks[config.Fork_Amazon]),
 		zap.String("nileHardforkDate", forks[config.Fork_Nile]),
+		zap.String("arnoHardforkDate", forks[config.Fork_Arno]),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_2_goldStakerRewardAmountsQuery, map[string]string{
@@ -156,6 +165,7 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 	res := rc.grm.Exec(query,
 		sql.Named("amazonHardforkDate", forks[config.Fork_Amazon]),
 		sql.Named("nileHardforkDate", forks[config.Fork_Nile]),
+		sql.Named("arnoHardforkDate", forks[config.Fork_Arno]),
 	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_staker_reward_amounts", "error", res.Error)
