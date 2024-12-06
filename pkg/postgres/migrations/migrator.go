@@ -40,10 +40,10 @@ import (
 	_202411221331_operatorAVSSplitSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411221331_operatorAVSSplitSnapshots"
 	_202411221331_operatorPISplitSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411221331_operatorPISplitSnapshots"
 	_202412021311_stakerOperatorTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412021311_stakerOperatorTables"
+	"time"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"time"
 )
 
 type Migration interface {
