@@ -89,11 +89,11 @@ func (idx *Indexer) getAndInsertRestakedStrategies(
 		zap.Int("count", len(results)),
 		zap.Uint64("blockNumber", blockNumber),
 	)
+	strategiesToInsert := make([]*storage.OperatorRestakedStrategies, 0)
 	for _, result := range results {
 		avs := result.Avs
 		operator := result.Operator
 
-		strategiesToInsert := make([]*storage.OperatorRestakedStrategies, 0)
 		for _, restakedStrategy := range result.Results {
 			strategiesToInsert = append(strategiesToInsert, &storage.OperatorRestakedStrategies{
 				AvsDirectoryAddress: strings.ToLower(avsDirectoryAddress),
@@ -104,20 +104,20 @@ func (idx *Indexer) getAndInsertRestakedStrategies(
 				Strategy:            restakedStrategy.String(),
 			})
 		}
-		inserted, err := idx.MetadataStore.BulkInsertOperatorRestakedStrategies(strategiesToInsert)
-		if err != nil {
-			idx.Logger.Sugar().Errorw("Failed to save restaked strategies",
-				zap.Error(err),
-				zap.String("avsDirectoryAddress", avsDirectoryAddress),
-				zap.Uint64("blockNumber", blockNumber),
-			)
-			return err
-		}
-		idx.Logger.Sugar().Infow("Inserted restaked strategies",
-			zap.Int("insertedCount", len(inserted)),
-			zap.Int("inputCount", len(strategiesToInsert)),
-		)
 	}
+	inserted, err := idx.MetadataStore.BulkInsertOperatorRestakedStrategies(strategiesToInsert)
+	if err != nil {
+		idx.Logger.Sugar().Errorw("Failed to save restaked strategies",
+			zap.Error(err),
+			zap.String("avsDirectoryAddress", avsDirectoryAddress),
+			zap.Uint64("blockNumber", blockNumber),
+		)
+		return err
+	}
+	idx.Logger.Sugar().Infow("Inserted restaked strategies",
+		zap.Int("insertedCount", len(inserted)),
+		zap.Int("inputCount", len(strategiesToInsert)),
+	)
 	return nil
 }
 

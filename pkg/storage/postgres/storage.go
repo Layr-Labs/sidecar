@@ -179,6 +179,9 @@ func (s *PostgresBlockStore) InsertOperatorRestakedStrategies(
 func (s *PostgresBlockStore) BulkInsertOperatorRestakedStrategies(
 	operatorRestakedStrategies []*storage.OperatorRestakedStrategies,
 ) ([]*storage.OperatorRestakedStrategies, error) {
+	if len(operatorRestakedStrategies) == 0 {
+		return operatorRestakedStrategies, nil
+	}
 	res := s.Db.Model(&storage.OperatorRestakedStrategies{}).Clauses(
 		clause.Returning{},
 		clause.OnConflict{
