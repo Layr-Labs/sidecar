@@ -10,37 +10,13 @@ import (
 var _7_goldActiveODRewardsQuery = `
 CREATE TABLE {{.destTableName}} AS
 WITH 
--- Step 1: Fetch rewards with block information
-od_rewards_with_block_info AS (
-    SELECT
-        odrs.avs,
-        odrs.reward_hash,
-        odrs.token,
-        odrs.operator,
-        odrs.operator_index,
-        odrs.amount,
-        odrs.strategy,
-        odrs.strategy_index,
-        odrs.multiplier,
-        odrs.start_timestamp::TIMESTAMP(6),
-        odrs.end_timestamp::TIMESTAMP(6),
-        odrs.duration,
-        odrs.block_number,
-        b.block_time::TIMESTAMP(6),
-        TO_CHAR(b.block_time, 'YYYY-MM-DD') AS block_date
-    FROM operator_directed_reward_submissions AS odrs
-    JOIN blocks AS b 
-        ON b.number = odrs.block_number
-    WHERE b.block_time < TIMESTAMP '{{.cutoffDate}}'
-),
-
 -- Step 2: Modify active rewards and compute tokens per day
 active_rewards_modified AS (
     SELECT 
         *,
         amount / (duration / 86400) AS tokens_per_day,
         CAST(@cutoffDate AS TIMESTAMP(6)) AS global_end_inclusive -- Inclusive means we DO USE this day as a snapshot
-    FROM od_rewards_with_block_info
+    FROM operator_directed_rewards
     WHERE end_timestamp >= TIMESTAMP '{{.rewardsStart}}'
       AND start_timestamp <= TIMESTAMP '{{.cutoffDate}}'
       AND block_time <= TIMESTAMP '{{.cutoffDate}}' -- Always ensure we're not using future data. Should never happen since we're never backfilling, but here for safety and consistency.

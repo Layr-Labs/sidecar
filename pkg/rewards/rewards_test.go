@@ -171,6 +171,9 @@ func Test_Rewards(t *testing.T) {
 		_, err = hydrateAllBlocksTable(grm, l)
 		assert.Nil(t, err)
 
+		_, err = hydrateRewardsV2Blocks(grm, l)
+		assert.Nil(t, err)
+
 		err = hydrateOperatorAvsStateChangesTable(grm, l)
 		assert.Nil(t, err)
 
@@ -187,6 +190,13 @@ func Test_Rewards(t *testing.T) {
 		assert.Nil(t, err)
 
 		err = hydrateRewardSubmissionsTable(grm, l)
+		assert.Nil(t, err)
+
+		// RewardsV2 tables
+		err = hydrateOperatorAvsSplits(grm, l)
+		assert.Nil(t, err)
+
+		err = hydrateOperatorPISplits(grm, l)
 		assert.Nil(t, err)
 
 		t.Log("Hydrated tables")
