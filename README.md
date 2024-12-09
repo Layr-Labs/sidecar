@@ -23,6 +23,21 @@ A core responsibility of the Sidecar is facilitating the calculations of [reward
 * MacOS
 * Linux (Ubuntu/Debian)
 
+# Diagram
+```mermaid
+graph TD;
+   Client[User Client]-->|Makes API Calls|SidecarService[Sidecar Service];
+   SidecarService-->|Queries|Database[PostgreSQL Database];
+   SidecarService-->|Fetches Data|BlockchainNode[Blockchain RPC Node];
+
+
+   style SidecarService fill:#ffffff,stroke:#000000,stroke-width:2px,font-size:16px,color:#000000
+   style Database fill:#ffffff,stroke:#000000,stroke-width:2px,font-size:16px,color:#000000
+   style BlockchainNode fill:#ffffff,stroke:#000000,stroke-width:2px,font-size:16px,color:#000000
+   style Client fill:#ffffff,stroke:#000000,stroke-width:2px,font-size:16px,color:#000000
+```
+
+
 ## Environment setup
 
 If you have basic build tools like `make` already installed, you can run:
@@ -172,6 +187,7 @@ go run main.go run \
     --database.password="..." \
     --database.db_name="sidecar"
 ```
+Helpful to use  -p 7100:7100 for testing/development
 
 ### Using the public Docker container
 
@@ -191,6 +207,7 @@ docker run -it --rm \
   --tty -i \
   public.ecr.aws/z6g0f8n7/go-sidecar:latest run
 ```
+Helpful to use  -p 7100:7100 for testing/development
 
 ### Build and run a container locally
 
@@ -256,4 +273,12 @@ grpcurl -plaintext -d '{}'  localhost:7100 eigenlayer.sidecar.api.v1.Rpc/GetBloc
 ### Get the stateroot at a block height
 
 ```bash
+#Example for mainnet ethereum
 grpcurl -plaintext -d '{ "blockNumber": 1140438 }'  localhost:7100 eigenlayer.sidecar.api.v1.Rpc/GetStateRoot
+```
+
+```bash
+# Example for holesky testnet
+grpcurl -plaintext -d '{ "blockNumber": 2800799 }'  localhost:7100 eigenlayer.sidecar.api.v1.Rpc/GetStateRoot
+```
+
