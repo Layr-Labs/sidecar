@@ -9,7 +9,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"slices"
@@ -86,7 +85,7 @@ func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[*AvsOp
 
 		// Sanity check to make sure we've got an initialized accumulator map for the block
 		if _, ok := a.stateAccumulator[log.BlockNumber]; !ok {
-			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
+			return nil, fmt.Errorf("No state accumulator found for block %d", log.BlockNumber)
 		}
 
 		operator := strings.ToLower(arguments[0].Value.(string))
@@ -180,7 +179,7 @@ func (a *AvsOperatorsModel) HandleStateChange(log *storage.TransactionLog) (inte
 func (a *AvsOperatorsModel) prepareState(blockNumber uint64) ([]*AvsOperatorStateChange, error) {
 	accumulatedState, ok := a.stateAccumulator[blockNumber]
 	if !ok {
-		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
+		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
 		a.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, err
 	}

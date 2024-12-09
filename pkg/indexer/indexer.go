@@ -15,7 +15,6 @@ import (
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 )
 
 type Indexer struct {
@@ -119,7 +118,7 @@ func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fet
 				zap.String("txHash", tx.Hash.Value()),
 				zap.Uint64("block", tx.BlockNumber.Value()),
 			)
-			return nil, NewIndexError(IndexError_ReceiptNotFound, xerrors.Errorf("receipt not found for transaction")).
+			return nil, NewIndexError(IndexError_ReceiptNotFound, fmt.Errorf("receipt not found for transaction")).
 				WithBlockNumber(tx.BlockNumber.Value()).
 				WithTransactionHash(tx.Hash.Value())
 		}
@@ -162,7 +161,7 @@ func (idx *Indexer) ParseAndIndexTransactionLogs(ctx context.Context, fetchedBlo
 				zap.String("txHash", tx.Hash.Value()),
 				zap.Uint64("block", tx.BlockNumber.Value()),
 			)
-			return NewIndexError(IndexError_ReceiptNotFound, xerrors.Errorf("receipt not found for transaction")).
+			return NewIndexError(IndexError_ReceiptNotFound, fmt.Errorf("receipt not found for transaction")).
 				WithBlockNumber(tx.BlockNumber.Value()).
 				WithTransactionHash(tx.Hash.Value())
 		}
