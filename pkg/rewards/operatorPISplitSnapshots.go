@@ -7,7 +7,7 @@ WITH operator_pi_splits_with_block_info as (
 	select
 		ops.operator,
 		ops.activated_at::timestamp(6) as activated_at,
-		ops.new_operator_avs_split_bips as split,
+		ops.new_operator_pi_split_bips as split,
 		ops.block_number,
 		ops.log_index,
 		b.block_time::timestamp(6) as block_time
