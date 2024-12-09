@@ -276,3 +276,8 @@ func GetOperatorAvsSplitsSqlFile(projectBase string) (string, error) {
 	path := getTestdataPathFromProjectRoot(projectBase, "/operatorAvsSplitSnapshots/operatorAvsSplits.sql")
 	return getSqlFile(path)
 }
+
+func GetOperatorPISplitsSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorPISplitSnapshots/operatorPISplits.sql")
+	return getSqlFile(path)
+}
