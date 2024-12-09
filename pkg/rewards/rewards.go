@@ -620,6 +620,14 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	}
 	rc.logger.Sugar().Debugw("Generated staker delegation snapshots")
 
+	// ------------------------------------------------------------------------
+	// Rewards V2 snapshots
+	// ------------------------------------------------------------------------
+	if err = rc.GenerateAndInsertOperatorDirectedRewards(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator directed rewards", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated operator directed rewards")
 	if err = rc.GenerateAndInsertOperatorAvsSplitSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator avs split snapshots", "error", err)
 		return err
