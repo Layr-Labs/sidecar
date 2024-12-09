@@ -80,6 +80,24 @@ func hydrateAllBlocksTable(grm *gorm.DB, l *zap.Logger) (int, error) {
 	return count, nil
 }
 
+func hydrateRewardsV2Blocks(grm *gorm.DB, l *zap.Logger) (int, error) {
+	projectRoot := getProjectRootPath()
+	contents, err := tests.GetRewardsV2Blocks(projectRoot)
+
+	if err != nil {
+		return 0, err
+	}
+
+	count := len(strings.Split(strings.Trim(contents, "\n"), "\n")) - 1
+
+	res := grm.Exec(contents)
+	if res.Error != nil {
+		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
+		return count, res.Error
+	}
+	return count, nil
+}
+
 func getRowCountForTable(grm *gorm.DB, tableName string) (int, error) {
 	query := fmt.Sprintf("select count(*) as cnt from %s", tableName)
 	var count int
