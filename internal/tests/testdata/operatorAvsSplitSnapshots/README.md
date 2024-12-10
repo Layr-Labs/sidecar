@@ -1,5 +1,4 @@
-
-## seed data
+## preprod rewardsv2
 
 ```sql
 select
