@@ -77,14 +77,24 @@ staker_od_rewards AS (
   FROM {{.stakerODRewardAmountsTable}}
 ),
 avs_od_rewards AS (
+  with avs_refund_total_by_operator as (
+	  select
+		reward_hash,
+		snapshot,
+		token,
+		avs,
+		operator,
+		SUM(avs_tokens) as avs_tokens
+	  FROM {{.avsODRewardAmountsTable}}
+		group by 1, 2, 3, 4, 5
+  )             
   SELECT DISTINCT
-    -- We can select DISTINCT here because the avs's tokens are the same for each strategy in the reward hash
     avs as earner,
     snapshot,
     reward_hash,
     token,
     avs_tokens as amount
-  FROM {{.avsODRewardAmountsTable}}
+  FROM avs_refund_total_by_operator
 ),
 combined_rewards AS (
   SELECT * FROM operator_rewards

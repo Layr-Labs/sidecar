@@ -58,6 +58,8 @@ func getSnapshotDate() (string, error) {
 		return "2024-07-25", nil
 	case "mainnet-reduced":
 		return "2024-08-12", nil
+	case "preprod-rewardsV2":
+		return "2024-12-09", nil
 	}
 	return "", fmt.Errorf("Unknown context: %s", context)
 }
@@ -133,6 +135,30 @@ func setupRewards() (
 	return dbname, cfg, grm, l, nil
 }
 
+func setupRewardsV2() (
+	string,
+	*config.Config,
+	*gorm.DB,
+	*zap.Logger,
+	error,
+) {
+	cfg := tests.GetConfig()
+	cfg.Rewards.GenerateStakerOperatorsTable = true
+	cfg.Rewards.ValidateRewardsRoot = true
+	cfg.Chain = config.Chain_Preprod
+
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
+	if err != nil {
+		return dbname, nil, nil, nil, err
+	}
+
+	return dbname, cfg, grm, l, nil
+}
+
 func Test_Rewards(t *testing.T) {
 	if !rewardsTestsEnabled() {
 		t.Skipf("Skipping %s", t.Name())
@@ -171,9 +197,6 @@ func Test_Rewards(t *testing.T) {
 		_, err = hydrateAllBlocksTable(grm, l)
 		assert.Nil(t, err)
 
-		_, err = hydrateRewardsV2Blocks(grm, l)
-		assert.Nil(t, err)
-
 		err = hydrateOperatorAvsStateChangesTable(grm, l)
 		assert.Nil(t, err)
 
@@ -190,16 +213,6 @@ func Test_Rewards(t *testing.T) {
 		assert.Nil(t, err)
 
 		err = hydrateRewardSubmissionsTable(grm, l)
-		assert.Nil(t, err)
-
-		// RewardsV2 tables
-		err = hydrateOperatorAvsSplits(grm, l)
-		assert.Nil(t, err)
-
-		err = hydrateOperatorPISplits(grm, l)
-		assert.Nil(t, err)
-
-		err = hydrateOperatorDirectedRewardSubmissionsTable(grm, l)
 		assert.Nil(t, err)
 
 		t.Log("Hydrated tables")

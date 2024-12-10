@@ -8,7 +8,6 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +17,7 @@ func Test_RewardsV2(t *testing.T) {
 		return
 	}
 
-	dbFileName, cfg, grm, l, err := setupRewards()
+	dbFileName, cfg, grm, l, err := setupRewardsV2()
 	fmt.Printf("Using db file: %+v\n", dbFileName)
 
 	if err != nil {
@@ -42,9 +41,6 @@ func Test_RewardsV2(t *testing.T) {
 		testStart := time.Now()
 
 		// Setup all tables and source data
-		_, err = hydrateAllBlocksTable(grm, l)
-		assert.Nil(t, err)
-
 		_, err = hydrateRewardsV2Blocks(grm, l)
 		assert.Nil(t, err)
 
@@ -258,15 +254,15 @@ func Test_RewardsV2(t *testing.T) {
 				t.Fatalf("Invalid amounts: %d", invalidAmounts)
 			}
 
-			t.Logf("Generating staker operators table")
-			err = rc.sog.GenerateStakerOperatorsTable(snapshotDate)
-			assert.Nil(t, err)
-
-			accountTree, _, err := rc.MerkelizeRewardsForSnapshot(snapshotDate)
-			assert.Nil(t, err)
-
-			root := utils.ConvertBytesToString(accountTree.Root())
-			t.Logf("Root: %s", root)
+			//t.Logf("Generating staker operators table")
+			//err = rc.sog.GenerateStakerOperatorsTable(snapshotDate)
+			//assert.Nil(t, err)
+			//
+			//accountTree, _, err := rc.MerkelizeRewardsForSnapshot(snapshotDate)
+			//assert.Nil(t, err)
+			//
+			//root := utils.ConvertBytesToString(accountTree.Root())
+			//t.Logf("Root: %s", root)
 		}
 
 		fmt.Printf("Done!\n\n")

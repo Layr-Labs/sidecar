@@ -21,7 +21,7 @@ WITH reward_snapshot_operators AS (
         ap.strategy,
         ap.multiplier,
         ap.reward_submission_date
-    FROM {{.activeRewardsTable}} ap
+    FROM {{.activeODRewardsTable}} ap
     JOIN operator_avs_registration_snapshots oar
         ON ap.avs = oar.avs 
        AND ap.snapshot = oar.snapshot 
@@ -74,8 +74,8 @@ func (rc *RewardsCalculator) GenerateGold8OperatorODRewardAmountsTable(snapshotD
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_8_goldOperatorODRewardAmountsQuery, map[string]string{
-		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_7_ActiveODRewards],
+		"destTableName":        destTableName,
+		"activeODRewardsTable": allTableNames[rewardsUtils.Table_7_ActiveODRewards],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

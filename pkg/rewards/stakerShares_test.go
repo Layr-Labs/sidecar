@@ -55,7 +55,7 @@ func hydrateStakerShareDeltas(grm *gorm.DB, l *zap.Logger) error {
 
 	res := grm.Exec(contents)
 	if res.Error != nil {
-		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error), zap.String("query", contents))
+		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
 		return res.Error
 	}
 	return nil

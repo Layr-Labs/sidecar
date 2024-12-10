@@ -74,8 +74,8 @@ func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate 
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_10_goldAvsODRewardAmountsQuery, map[string]string{
-		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_7_ActiveODRewards],
+		"destTableName":        destTableName,
+		"activeODRewardsTable": allTableNames[rewardsUtils.Table_7_ActiveODRewards],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
