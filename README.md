@@ -187,7 +187,6 @@ go run main.go run \
     --database.password="..." \
     --database.db_name="sidecar"
 ```
-Helpful to use  -p 7100:7100 for testing/development
 
 ### Using the public Docker container
 
@@ -204,10 +203,10 @@ docker run -it --rm \
   -e SIDECAR_DATABASE_USER="sidecar" \
   -e SIDECAR_DATABASE_PASSWORD="..." \
   -e SIDECAR_DATABASE_DB_NAME="sidecar" \
+  -p 7100:7100 \
   --tty -i \
   public.ecr.aws/z6g0f8n7/go-sidecar:latest run
 ```
-Helpful to use  -p 7100:7100 for testing/development
 
 ### Build and run a container locally
 
