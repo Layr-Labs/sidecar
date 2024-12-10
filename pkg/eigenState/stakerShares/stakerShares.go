@@ -28,9 +28,14 @@ import (
 )
 
 type SlashDiff struct {
-	Operator        string
+	// the entity that was slashed, the operator in the case of an EigenLayer slashing,
+	// the pod owner in the case of a beacon chain slashing. Note that an EigenLayer slashing
+	// still slashes all of the stakers that are delegated to the operator.
+	SlashedEntity string
+	// whether the slashing was done by the beacon chain or an EigenLayer AVS
+	BeaconChain     bool
 	Strategy        string
-	WadsSlashed     *big.Int
+	WadSlashed      *big.Int
 	TransactionHash string
 	LogIndex        uint64
 	BlockTime       time.Time
@@ -449,14 +454,15 @@ func (ss *StakerSharesModel) handleOperatorSlashedEvent(log *storage.Transaction
 	stateDiffs := make([]*SlashDiff, 0)
 
 	for i, strategy := range outputData.Strategies {
-		wadsSlashed, success := numbers.NewBig257().SetString(outputData.WadsSlashed[i].String(), 10)
+		wadSlashed, success := numbers.NewBig257().SetString(outputData.WadsSlashed[i].String(), 10)
 		if !success {
 			return nil, xerrors.Errorf("Failed to convert wadsSlashed to big.Int: %s", outputData.WadsSlashed[i])
 		}
 		stateDiffs = append(stateDiffs, &SlashDiff{
-			Operator:        outputData.Operator,
+			SlashedEntity:   outputData.Operator,
+			BeaconChain:     false,
 			Strategy:        strategy,
-			WadsSlashed:     wadsSlashed,
+			WadSlashed:      wadSlashed,
 			TransactionHash: log.TransactionHash,
 			LogIndex:        log.LogIndex,
 			BlockNumber:     log.BlockNumber,
@@ -464,6 +470,52 @@ func (ss *StakerSharesModel) handleOperatorSlashedEvent(log *storage.Transaction
 	}
 
 	return stateDiffs, nil
+}
+
+// event BeaconChainSlashingFactorDecreased(
+//
+//	address staker, uint64 prevBeaconChainSlashingFactor, uint64 newBeaconChainSlashingFactor
+//
+// );
+type beaconChainSlashingFactorDecreasedOutputData struct {
+	Staker                        string `json:"staker"`
+	PrevBeaconChainSlashingFactor uint64 `json:"prevBeaconChainSlashingFactor"`
+	NewBeaconChainSlashingFactor  uint64 `json:"newBeaconChainSlashingFactor"`
+}
+
+func parseLogOutputForBeaconChainSlashingFactorDecreasedEvent(outputDataStr string) (*beaconChainSlashingFactorDecreasedOutputData, error) {
+	outputData := &beaconChainSlashingFactorDecreasedOutputData{}
+	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
+	decoder.UseNumber()
+
+	err := decoder.Decode(&outputData)
+	if err != nil {
+		return nil, err
+	}
+
+	return outputData, err
+}
+
+func (ss *StakerSharesModel) handleBeaconChainSlashingFactorDecreasedEvent(log *storage.TransactionLog) (*SlashDiff, error) {
+	outputData, err := parseLogOutputForBeaconChainSlashingFactorDecreasedEvent(log.OutputData)
+	if err != nil {
+		return nil, err
+	}
+
+	wadSlashed := big.NewInt(1e18)
+	wadSlashed = wadSlashed.Mul(wadSlashed, new(big.Int).SetUint64(outputData.NewBeaconChainSlashingFactor))
+	wadSlashed = wadSlashed.Div(wadSlashed, new(big.Int).SetUint64(outputData.PrevBeaconChainSlashingFactor))
+	wadSlashed = wadSlashed.Sub(big.NewInt(1e18), wadSlashed)
+
+	return &SlashDiff{
+		SlashedEntity:   outputData.Staker,
+		BeaconChain:     true,
+		Strategy:        "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0",
+		WadSlashed:      wadSlashed,
+		TransactionHash: log.TransactionHash,
+		LogIndex:        log.LogIndex,
+		BlockNumber:     log.BlockNumber,
+	}, nil
 }
 
 type AccumulatedStateChanges struct {
@@ -557,6 +609,11 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[*Accu
 			if err == nil && records != nil {
 				slashDiffs = append(slashDiffs, records...)
 			}
+		} else if log.Address == contractAddresses.EigenpodManager && log.EventName == "BeaconChainSlashingFactorDecreased" {
+			record, err := ss.handleBeaconChainSlashingFactorDecreasedEvent(log)
+			if err == nil {
+				slashDiffs = append(slashDiffs, record)
+			}
 		} else {
 			ss.logger.Sugar().Debugw("Got stakerShares event that we don't handle",
 				zap.String("eventName", log.EventName),
@@ -599,6 +656,7 @@ func (ss *StakerSharesModel) getContractAddressesForEnvironment() map[string][]s
 		},
 		contracts.EigenpodManager: {
 			"PodSharesUpdated",
+			"BeaconChainSlashingFactorDecreased",
 		},
 		contracts.AllocationManager: {
 			"OperatorSlashed",
@@ -698,7 +756,7 @@ func (ss *StakerSharesModel) GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff 
 	res := ss.DB.Raw(query,
 		sql.Named("blockNumber", slashDiff.BlockNumber),
 		sql.Named("logIndex", slashDiff.LogIndex),
-		sql.Named("operator", slashDiff.Operator),
+		sql.Named("operator", slashDiff.SlashedEntity),
 	).Scan(&stakerShares)
 	if res.Error != nil {
 		ss.logger.Sugar().Errorw("Failed to fetch staker_shares", zap.Error(res.Error))
@@ -712,6 +770,43 @@ func (ss *StakerSharesModel) GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff 
 			zap.String("strategy", stakerShare.Strategy),
 			zap.String("shares", stakerShare.Shares),
 		)
+	}
+
+	return &stakerShares, nil
+}
+
+func (ss *StakerSharesModel) GetStakerSharesFromDB(staker string, strategy string) (*[]StakerShares, error) {
+	query := `
+        select
+            staker,
+            strategy,
+            sum(shares) as shares
+        from staker_share_deltas
+        where
+            staker = @staker
+            and strategy = @strategy
+        group by
+            staker,
+            strategy
+    `
+	// there should only be one record for the pair
+	stakerShares := make([]StakerShares, 0)
+	res := ss.DB.Raw(query,
+		sql.Named("staker", staker),
+		sql.Named("strategy", strategy),
+	).Scan(&stakerShares)
+	if res.Error != nil {
+		ss.logger.Sugar().Errorw("Failed to fetch staker_shares", zap.Error(res.Error))
+		return nil, res.Error
+	}
+
+	// if there are no shares, return a record with 0 shares
+	if len(stakerShares) == 0 {
+		stakerShares = append(stakerShares, StakerShares{
+			Staker:   staker,
+			Strategy: strategy,
+			Shares:   "0",
+		})
 	}
 
 	return &stakerShares, nil
@@ -768,17 +863,24 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 
 			shareDeltaIndex++
 		} else {
-			stakerShares, err := ss.GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff)
+
+			ss.logger.Sugar().Infow("Slashing",
+				zap.String("slashedEntity", slashDiff.SlashedEntity),
+				zap.Bool("beaconChain", slashDiff.BeaconChain),
+				zap.String("strategy", slashDiff.Strategy),
+				zap.String("wadSlashed", slashDiff.WadSlashed.String()),
+			)
+
+			var stakerShares *[]StakerShares
+			var err error
+			if !slashDiff.BeaconChain {
+				stakerShares, err = ss.GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff)
+			} else {
+				stakerShares, err = ss.GetStakerSharesFromDB(slashDiff.SlashedEntity, slashDiff.Strategy)
+			}
 			if err != nil {
 				return nil, err
 			}
-
-			ss.logger.Sugar().Infow("Slashing",
-				zap.String("operator", slashDiff.Operator),
-				zap.String("strategy", slashDiff.Strategy),
-				zap.String("wadsSlashed", slashDiff.WadsSlashed.String()),
-				zap.Uint64("num staker shares", uint64(len(*stakerShares))),
-			)
 
 			for _, stakerShare := range *stakerShares {
 				// loop through every delegated staker
@@ -792,13 +894,13 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 					}
 
 					// add the net delta in this block
-					if _, ok := netDeltas[key]; !ok {
+					if !relevantDeltasInCurrentBlock {
 						netDeltas[key] = big.NewInt(0)
 					}
 					sharesBeforeSlash = sharesBeforeSlash.Add(sharesBeforeSlash, netDeltas[key])
 
 					// add a delta for the slashing
-					sharesSlashed := new(big.Int).Div(new(big.Int).Mul(sharesBeforeSlash, slashDiff.WadsSlashed), big.NewInt(-1e18))
+					sharesSlashed := new(big.Int).Div(new(big.Int).Mul(sharesBeforeSlash, slashDiff.WadSlashed), big.NewInt(-1e18))
 					records = append(records, &StakerShareDeltas{
 						Staker:          stakerShare.Staker,
 						Strategy:        slashDiff.Strategy,
@@ -808,14 +910,6 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 						LogIndex:        slashDiff.LogIndex,
 						BlockNumber:     slashDiff.BlockNumber,
 					})
-
-					ss.logger.Sugar().Infow("Slashing",
-						zap.String("staker", stakerShare.Staker),
-						zap.String("strategy", slashDiff.Strategy),
-						zap.String("sharesBeforeSlash", sharesBeforeSlash.String()),
-						zap.String("sharesSlashed", sharesSlashed.String()),
-						zap.String("wadsSlashed", slashDiff.WadsSlashed.String()),
-					)
 
 					// subtract (add the negative) the slashed shares from the net delta
 					netDeltas[key] = netDeltas[key].Add(netDeltas[key], sharesSlashed)

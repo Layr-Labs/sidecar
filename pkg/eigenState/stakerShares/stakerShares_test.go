@@ -586,9 +586,10 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, 1, len(diffs.SlashDiffs))
 
 		slashDiff := diffs.SlashDiffs[0]
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
+		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.SlashedEntity)
+		assert.False(t, slashDiff.BeaconChain)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
-		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
+		assert.Equal(t, "100000000000000000", slashDiff.WadSlashed.String())
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -647,16 +648,8 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDeposit(model, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", big.NewInt(2e18))
 		assert.Nil(t, err)
 
-		change, err := processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
+		_, err = processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
 		assert.Nil(t, err)
-
-		diffs := change.(*AccumulatedStateChanges)
-		assert.Equal(t, 1, len(diffs.SlashDiffs))
-
-		slashDiff := diffs.SlashDiffs[0]
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
-		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
-		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -732,16 +725,8 @@ func Test_StakerSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		change, err := processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
+		_, err = processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
 		assert.Nil(t, err)
-
-		diffs := change.(*AccumulatedStateChanges)
-		assert.Equal(t, 1, len(diffs.SlashDiffs))
-
-		slashDiff := diffs.SlashDiffs[0]
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
-		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
-		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -802,9 +787,10 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, 1, len(diffs.SlashDiffs))
 
 		slashDiff := diffs.SlashDiffs[0]
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
+		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.SlashedEntity)
+		assert.False(t, slashDiff.BeaconChain)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
-		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
+		assert.Equal(t, "100000000000000000", slashDiff.WadSlashed.String())
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -864,16 +850,8 @@ func Test_StakerSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		change, err := processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
+		_, err = processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
 		assert.Nil(t, err)
-
-		diffs := change.(*AccumulatedStateChanges)
-		assert.Equal(t, 1, len(diffs.SlashDiffs))
-
-		slashDiff := diffs.SlashDiffs[0]
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
-		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
-		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -932,16 +910,8 @@ func Test_StakerSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		change, err := processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
+		_, err = processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
 		assert.Nil(t, err)
-
-		diffs := change.(*AccumulatedStateChanges)
-		assert.Equal(t, 1, len(diffs.SlashDiffs))
-
-		slashDiff := diffs.SlashDiffs[0]
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
-		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
-		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
 
 		_, err = processDeposit(model, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 600, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", big.NewInt(1e18))
 		assert.Nil(t, err)
@@ -1022,14 +992,16 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, 2, len(diffs.SlashDiffs))
 
 		slashDiff := diffs.SlashDiffs[0]
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
+		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.SlashedEntity)
+		assert.False(t, slashDiff.BeaconChain)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
-		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
+		assert.Equal(t, "100000000000000000", slashDiff.WadSlashed.String())
 
 		slashDiff = diffs.SlashDiffs[1]
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
+		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.SlashedEntity)
+		assert.False(t, slashDiff.BeaconChain)
 		assert.Equal(t, "0x1234567890abcdef1234567890abcdef12345678", slashDiff.Strategy)
-		assert.Equal(t, "900000000000000000", slashDiff.WadsSlashed.String())
+		assert.Equal(t, "900000000000000000", slashDiff.WadSlashed.String())
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -1094,16 +1066,8 @@ func Test_StakerSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		change, err := processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e18)})
+		_, err = processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e18)})
 		assert.Nil(t, err)
-
-		diffs := change.(*AccumulatedStateChanges)
-		assert.Equal(t, 1, len(diffs.SlashDiffs))
-
-		slashDiff := diffs.SlashDiffs[0]
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
-		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
-		assert.Equal(t, "1000000000000000000", slashDiff.WadsSlashed.String())
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -1169,9 +1133,10 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, 1, len(diffs.SlashDiffs))
 
 		slashDiff := diffs.SlashDiffs[0]
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.Operator)
+		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.SlashedEntity)
+		assert.False(t, slashDiff.BeaconChain)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
-		assert.Equal(t, "100000000000000000", slashDiff.WadsSlashed.String())
+		assert.Equal(t, "100000000000000000", slashDiff.WadSlashed.String())
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -1187,6 +1152,390 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, 1, len(results))
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", results[0].Staker)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[0].Strategy)
+		assert.Equal(t, "0", results[0].Shares)
+
+		teardown(grm)
+	})
+
+	t.Run("Should handle beacon chain slashing of deposit in same block", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+
+		blockNumber := uint64(200)
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		// Process a deposit of beacon chain ETH
+		_, err = processDeposit(model, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400,
+			"0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d",
+			"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", // Beacon chain strategy address
+			big.NewInt(1e18))
+		assert.Nil(t, err)
+
+		// Process beacon chain slashing in same block
+		change, err := processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager,
+			blockNumber, 500,
+			"0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d",
+			1e18, 9e17) // 10% slash
+		assert.Nil(t, err)
+
+		diffs := change.(*AccumulatedStateChanges)
+		assert.Equal(t, 1, len(diffs.SlashDiffs))
+
+		slashDiff := diffs.SlashDiffs[0]
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", slashDiff.SlashedEntity)
+		assert.True(t, slashDiff.BeaconChain)
+		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", slashDiff.Strategy)
+		assert.Equal(t, "100000000000000000", slashDiff.WadSlashed.String())
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		// Query the database to verify the share deltas
+		query := `
+			select * from staker_share_deltas
+			where block_number = ?
+			order by log_index asc
+		`
+		results := []*StakerShareDeltas{}
+		res := model.DB.Raw(query, blockNumber).Scan(&results)
+		assert.Nil(t, res.Error)
+
+		assert.Equal(t, 2, len(results))
+
+		// First record should be the deposit
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
+		assert.Equal(t, "1000000000000000000", results[0].Shares)
+
+		// Second record should be the slash
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[1].Staker)
+		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[1].Strategy)
+		assert.Equal(t, "-100000000000000000", results[1].Shares)
+
+		teardown(grm)
+	})
+	t.Run("Should handle beacon chain slashing of deposit in previous block", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+
+		blockNumber := uint64(200)
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		// Process a deposit of beacon chain ETH
+		_, err = processDeposit(model, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400,
+			"0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d",
+			"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", // Beacon chain strategy address
+			big.NewInt(1e18))
+		assert.Nil(t, err)
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		blockNumber = blockNumber + 1
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		// Process beacon chain slashing
+		_, err = processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager,
+			blockNumber, 500,
+			"0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d",
+			1e18, 9e17)
+		assert.Nil(t, err)
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		// Query the database to verify the share deltas
+		query := `
+			select * from staker_share_deltas
+			where block_number = ?
+			order by log_index asc
+		`
+		results := []*StakerShareDeltas{}
+		res := model.
+			DB.Raw(query, blockNumber).
+			Scan(&results)
+		assert.Nil(t, res.Error)
+
+		assert.Equal(t, 1, len(results))
+
+		// First record should be the slash
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
+		assert.Equal(t, "-100000000000000000", results[0].Shares)
+
+		teardown(grm)
+	})
+	t.Run("Should handle beacon chain slashing and eigenlayer slashing in same block", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+
+		blockNumber := uint64(200)
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		delegationModel, err := stakerDelegations.NewStakerDelegationsModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = delegationModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 300, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0xbde83df53bc7d159700e966ad5d21e8b7c619459")
+		assert.Nil(t, err)
+
+		err = delegationModel.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		_, err = processDeposit(model, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", big.NewInt(1e18))
+		assert.Nil(t, err)
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		blockNumber = blockNumber + 1
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		_, err = processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0"}, []*big.Int{big.NewInt(5e17)})
+		assert.Nil(t, err)
+
+		_, err = processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager, blockNumber, 600, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", 1e18, 5e17)
+		assert.Nil(t, err)
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		query := `
+				select * from staker_share_deltas
+				where block_number = ?
+				order by log_index, staker asc
+			`
+		results := []*StakerShares{}
+		res := model.DB.Raw(query, blockNumber).Scan(&results)
+		assert.Nil(t, res.Error)
+
+		assert.Equal(t, 2, len(results))
+
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
+		assert.Equal(t, "-500000000000000000", results[0].Shares)
+
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[1].Staker)
+		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[1].Strategy)
+		assert.Equal(t, "-250000000000000000", results[1].Shares)
+
+		teardown(grm)
+	})
+	t.Run("Should handle beacon chain slashing in a block after eigenlayer slashing", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+
+		blockNumber := uint64(200)
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		delegationModel, err := stakerDelegations.NewStakerDelegationsModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = delegationModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 300, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0xbde83df53bc7d159700e966ad5d21e8b7c619459")
+		assert.Nil(t, err)
+
+		err = delegationModel.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		_, err = processDeposit(model, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", big.NewInt(1e18))
+		assert.Nil(t, err)
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		blockNumber = blockNumber + 1
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		_, err = processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0"}, []*big.Int{big.NewInt(5e17)})
+		assert.Nil(t, err)
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		blockNumber = blockNumber + 1
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		_, err = processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager, blockNumber, 600, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", 1e18, 5e17)
+		assert.Nil(t, err)
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		query := `
+				select * from staker_share_deltas
+				where block_number = ?
+				order by log_index, staker asc
+			`
+		results := []*StakerShares{}
+		res := model.DB.Raw(query, blockNumber).Scan(&results)
+		assert.Nil(t, res.Error)
+
+		assert.Equal(t, 1, len(results))
+
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
+		assert.Equal(t, "-250000000000000000", results[0].Shares)
+
+		teardown(grm)
+	})
+
+	t.Run("Should handle full beacon slashing", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+
+		blockNumber := uint64(200)
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		// Process a deposit of beacon chain ETH
+		_, err = processDeposit(model, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400,
+			"0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d",
+			"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", // Beacon chain strategy address
+			big.NewInt(1e18))
+		assert.Nil(t, err)
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		blockNumber = blockNumber + 1
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		// Process beacon chain slashing
+		_, err = processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager,
+			blockNumber, 500, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", 1e18, 0)
+		assert.Nil(t, err)
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		// Query the database to verify the share deltas
+		query := `
+			select * from staker_share_deltas
+			where block_number = ?
+			order by log_index asc
+		`
+		results := []*StakerShareDeltas{}
+		res := model.DB.Raw(query, blockNumber).Scan(&results)
+		assert.Nil(t, res.Error)
+
+		assert.Equal(t, 1, len(results))
+
+		// First record should be the slash
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
+		assert.Equal(t, "-1000000000000000000", results[0].Shares)
+
+		teardown(grm)
+	})
+
+	t.Run("Should handle beacon chain slashing when staker has 0 shares", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+
+		blockNumber := uint64(200)
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		// Process a deposit of beacon chain ETH
+		_, err = processDeposit(model, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400,
+			"0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", // Staker
+			"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", // Beacon chain strategy address
+			big.NewInt(0))
+		assert.Nil(t, err)
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		blockNumber = blockNumber + 1
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		// Process beacon chain slashing
+		_, err = processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager,
+			blockNumber, 500, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", 1e18, 9e17)
+		assert.Nil(t, err)
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		// Query the database to verify the share deltas
+		query := `
+			select * from staker_share_deltas
+			where block_number = ?
+			order by log_index asc
+		`
+
+		results := []*StakerShareDeltas{}
+		res := model.DB.Raw(query, blockNumber).Scan(&results)
+		assert.Nil(t, res.Error)
+
+		assert.Equal(t, 1, len(results))
+
+		// First record should be the slash
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
 		assert.Equal(t, "0", results[0].Shares)
 
 		teardown(grm)
@@ -1277,4 +1626,32 @@ func processSlashing(stakerSharesModel *StakerSharesModel, allocationManager str
 	}
 
 	return stakerSharesModel.HandleStateChange(&slashingLog)
+}
+
+func processBeaconChainSlashing(stakerSharesModel *StakerSharesModel, eigenpodManager string, blockNumber, logIndex uint64, staker string, prevBeaconChainScalingFactor, newBeaconChainScalingFactor uint64) (interface{}, error) {
+	beaconChainSlashingFactorDecreasedEvent := beaconChainSlashingFactorDecreasedOutputData{
+		Staker:                        staker,
+		PrevBeaconChainSlashingFactor: prevBeaconChainScalingFactor,
+		NewBeaconChainSlashingFactor:  newBeaconChainScalingFactor,
+	}
+	beaconChainSlashingFactorDecreasedJson, err := json.Marshal(beaconChainSlashingFactorDecreasedEvent)
+	if err != nil {
+		return nil, err
+	}
+
+	beaconChainSlashingFactorDecreasedLog := storage.TransactionLog{
+		TransactionHash:  "some hash",
+		TransactionIndex: 100,
+		BlockNumber:      blockNumber,
+		Address:          eigenpodManager,
+		Arguments:        ``,
+		EventName:        "BeaconChainSlashingFactorDecreased",
+		LogIndex:         logIndex,
+		OutputData:       string(beaconChainSlashingFactorDecreasedJson),
+		CreatedAt:        time.Time{},
+		UpdatedAt:        time.Time{},
+		DeletedAt:        time.Time{},
+	}
+
+	return stakerSharesModel.HandleStateChange(&beaconChainSlashingFactorDecreasedLog)
 }
