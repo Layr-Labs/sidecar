@@ -1181,7 +1181,7 @@ func Test_StakerSharesState(t *testing.T) {
 		change, err := processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager,
 			blockNumber, 500,
 			"0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d",
-			big.NewInt(1e17)) // 10% slash
+			1e18, 9e17) // 10% slash
 		assert.Nil(t, err)
 
 		diffs := change.(*AccumulatedStateChanges)
@@ -1254,7 +1254,7 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager,
 			blockNumber, 500,
 			"0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d",
-			big.NewInt(1e17)) // 10% slash
+			1e18, 9e17)
 		assert.Nil(t, err)
 
 		err = model.CommitFinalState(blockNumber)
@@ -1322,7 +1322,7 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0"}, []*big.Int{big.NewInt(5e17)})
 		assert.Nil(t, err)
 
-		_, err = processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager, blockNumber, 600, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", big.NewInt(5e17))
+		_, err = processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager, blockNumber, 600, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", 1e18, 5e17)
 		assert.Nil(t, err)
 
 		err = model.CommitFinalState(blockNumber)
@@ -1400,7 +1400,7 @@ func Test_StakerSharesState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		_, err = processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager, blockNumber, 600, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", big.NewInt(5e17))
+		_, err = processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager, blockNumber, 600, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", 1e18, 5e17)
 		assert.Nil(t, err)
 
 		err = model.CommitFinalState(blockNumber)
@@ -1456,7 +1456,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		// Process beacon chain slashing
 		_, err = processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager,
-			blockNumber, 500, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", big.NewInt(1e18))
+			blockNumber, 500, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", 1e18, 0)
 		assert.Nil(t, err)
 
 		err = model.CommitFinalState(blockNumber)
@@ -1514,7 +1514,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		// Process beacon chain slashing
 		_, err = processBeaconChainSlashing(model, cfg.GetContractsMapForChain().EigenpodManager,
-			blockNumber, 500, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", big.NewInt(1e17))
+			blockNumber, 500, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", 1e18, 9e17)
 		assert.Nil(t, err)
 
 		err = model.CommitFinalState(blockNumber)
@@ -1628,11 +1628,11 @@ func processSlashing(stakerSharesModel *StakerSharesModel, allocationManager str
 	return stakerSharesModel.HandleStateChange(&slashingLog)
 }
 
-func processBeaconChainSlashing(stakerSharesModel *StakerSharesModel, eigenpodManager string, blockNumber, logIndex uint64, staker string, wadSlashed *big.Int) (interface{}, error) {
+func processBeaconChainSlashing(stakerSharesModel *StakerSharesModel, eigenpodManager string, blockNumber, logIndex uint64, staker string, prevBeaconChainScalingFactor, newBeaconChainScalingFactor uint64) (interface{}, error) {
 	beaconChainSlashingFactorDecreasedEvent := beaconChainSlashingFactorDecreasedOutputData{
-		Staker:                       staker,
-		WadSlashed:                   json.Number(wadSlashed.String()),
-		NewBeaconChainSlashingFactor: 123,
+		Staker:                        staker,
+		PrevBeaconChainSlashingFactor: prevBeaconChainScalingFactor,
+		NewBeaconChainSlashingFactor:  newBeaconChainScalingFactor,
 	}
 	beaconChainSlashingFactorDecreasedJson, err := json.Marshal(beaconChainSlashingFactorDecreasedEvent)
 	if err != nil {

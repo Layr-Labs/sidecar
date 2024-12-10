@@ -472,12 +472,15 @@ func (ss *StakerSharesModel) handleOperatorSlashedEvent(log *storage.Transaction
 	return stateDiffs, nil
 }
 
-//     event BeaconChainSlashingFactorDecreased(address staker, uint256 wadSlashed, uint64 newBeaconChainSlashingFactor);
-
+// event BeaconChainSlashingFactorDecreased(
+//
+//	address staker, uint64 prevBeaconChainSlashingFactor, uint64 newBeaconChainSlashingFactor
+//
+// );
 type beaconChainSlashingFactorDecreasedOutputData struct {
-	Staker                       string      `json:"staker"`
-	WadSlashed                   json.Number `json:"wadSlashed"`
-	NewBeaconChainSlashingFactor uint64      `json:"newBeaconChainSlashingFactor"`
+	Staker                        string `json:"staker"`
+	PrevBeaconChainSlashingFactor uint64 `json:"prevBeaconChainSlashingFactor"`
+	NewBeaconChainSlashingFactor  uint64 `json:"newBeaconChainSlashingFactor"`
 }
 
 func parseLogOutputForBeaconChainSlashingFactorDecreasedEvent(outputDataStr string) (*beaconChainSlashingFactorDecreasedOutputData, error) {
@@ -499,10 +502,10 @@ func (ss *StakerSharesModel) handleBeaconChainSlashingFactorDecreasedEvent(log *
 		return nil, err
 	}
 
-	wadSlashed, success := numbers.NewBig257().SetString(outputData.WadSlashed.String(), 10)
-	if !success {
-		return nil, xerrors.Errorf("Failed to convert wadSlashed to big.Int: %s", outputData.WadSlashed)
-	}
+	wadSlashed := big.NewInt(1e18)
+	wadSlashed = wadSlashed.Mul(wadSlashed, new(big.Int).SetUint64(outputData.NewBeaconChainSlashingFactor))
+	wadSlashed = wadSlashed.Div(wadSlashed, new(big.Int).SetUint64(outputData.PrevBeaconChainSlashingFactor))
+	wadSlashed = wadSlashed.Sub(big.NewInt(1e18), wadSlashed)
 
 	return &SlashDiff{
 		SlashedEntity:   outputData.Staker,
