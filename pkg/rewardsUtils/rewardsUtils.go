@@ -64,7 +64,7 @@ func GetGoldTableNames(snapshotDate string) map[string]string {
 	return tableNames
 }
 
-func RenderQueryTemplate(query string, variables map[string]string) (string, error) {
+func RenderQueryTemplate(query string, variables map[string]interface{}) (string, error) {
 	queryTmpl := template.Must(template.New("").Parse(query))
 
 	var dest bytes.Buffer

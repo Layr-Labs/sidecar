@@ -85,7 +85,7 @@ select * from final_results
 func (r *RewardsCalculator) GenerateAndInsertOperatorPISplitSnapshots(snapshotDate string) error {
 	tableName := "operator_pi_split_snapshots"
 
-	query, err := rewardsUtils.RenderQueryTemplate(operatorPISplitSnapshotQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(operatorPISplitSnapshotQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {

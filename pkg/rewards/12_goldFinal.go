@@ -33,7 +33,7 @@ func (rc *RewardsCalculator) GenerateGold12FinalTable(snapshotDate string) error
 		zap.String("cutoffDate", snapshotDate),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_12_goldFinalQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_12_goldFinalQuery, map[string]interface{}{
 		"goldStagingTable": allTableNames[rewardsUtils.Table_11_GoldStaging],
 	})
 	if err != nil {

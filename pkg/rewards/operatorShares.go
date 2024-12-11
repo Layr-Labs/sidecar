@@ -19,7 +19,7 @@ const operatorSharesQuery = `
 func (r *RewardsCalculator) GenerateAndInsertOperatorShares(snapshotDate string) error {
 	tableName := "operator_shares"
 
-	query, err := rewardsUtils.RenderQueryTemplate(operatorSharesQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(operatorSharesQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
