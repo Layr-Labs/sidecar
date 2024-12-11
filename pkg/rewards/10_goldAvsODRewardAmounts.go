@@ -65,6 +65,16 @@ SELECT * FROM operator_token_sums
 `
 
 func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate string) error {
+	rewardsV2Enabled, err := rc.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
+		return err
+	}
+	if !rewardsV2Enabled {
+		rc.logger.Sugar().Infow("Rewards v2 is not enabled for this cutoff date, skipping GenerateGold10AvsODRewardAmountsTable")
+		return nil
+	}
+
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 	destTableName := allTableNames[rewardsUtils.Table_10_AvsODRewardAmounts]
 
@@ -73,7 +83,7 @@ func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate 
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_10_goldAvsODRewardAmountsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_10_goldAvsODRewardAmountsQuery, map[string]interface{}{
 		"destTableName":        destTableName,
 		"activeODRewardsTable": allTableNames[rewardsUtils.Table_7_ActiveODRewards],
 	})
