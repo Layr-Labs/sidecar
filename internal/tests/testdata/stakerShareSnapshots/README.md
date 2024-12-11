@@ -48,6 +48,23 @@ where block_time < '2024-08-20'
 
 ```
 
+preprod rewardsV2
+
+```sql
+select
+    staker,
+    strategy,
+    shares,
+    strategy_index,
+    transaction_hash,
+    log_index,
+    block_time,
+    block_date,
+    block_number
+from dbt_preprod_holesky_rewards.staker_shares
+where block_time < '2024-12-10'
+```
+
 ## Expected results
 
 _See `generateExpectedResults.sql`_
