@@ -76,7 +76,7 @@ func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_4_goldRewardsForAllQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_4_goldRewardsForAllQuery, map[string]interface{}{
 		"destTableName":      destTableName,
 		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
 	})
