@@ -89,10 +89,10 @@ func Test_OperatorPISplit(t *testing.T) {
 				TransactionIndex: big.NewInt(100).Uint64(),
 				BlockNumber:      blockNumber,
 				Address:          cfg.GetContractsMapForChain().RewardsCoordinator,
-				Arguments:        `[{"Name": "caller", "Type": "address", "Value": "0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101", "Indexed": true}, {"Name": "operator", "Type": "address", "Value": "0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101", "Indexed": true}, {"Name": "activatedAt", "Type": "uint32", "Value": 1725494400, "Indexed": false}, {"Name": "oldOperatorAVSSplitBips", "Type": "uint16", "Value": 1000, "Indexed": false}, {"Name": "newOperatorAVSSplitBips", "Type": "uint16", "Value": 2000, "Indexed": false}]`,
+				Arguments:        `[{"Name": "caller", "Type": "address", "Value": "0xcf4f3453828f09f5b526101b81d0199d2de39ec5", "Indexed": true}, {"Name": "operator", "Type": "address", "Value": "0xcf4f3453828f09f5b526101b81d0199d2de39ec5", "Indexed": true}, {"Name": "activatedAt", "Type": "uint32", "Value": null, "Indexed": false}, {"Name": "oldOperatorPISplitBips", "Type": "uint16", "Value": null, "Indexed": false}, {"Name": "newOperatorPISplitBips", "Type": "uint16", "Value": null, "Indexed": false}]`,
 				EventName:        "OperatorPISplitBipsSet",
 				LogIndex:         big.NewInt(12).Uint64(),
-				OutputData:       `{"activatedAt": 1725494400, "oldOperatorAVSSplitBips": 1000, "newOperatorAVSSplitBips": 2000}`,
+				OutputData:       `{"activatedAt": 1733341104, "newOperatorPISplitBips": 6545, "oldOperatorPISplitBips": 1000}`,
 			}
 
 			err = model.SetupStateForBlock(blockNumber)
@@ -107,10 +107,10 @@ func Test_OperatorPISplit(t *testing.T) {
 
 			split := change.(*OperatorPISplit)
 
-			assert.Equal(t, strings.ToLower("0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101"), strings.ToLower(split.Operator))
-			assert.Equal(t, int64(1725494400), split.ActivatedAt.Unix())
-			assert.Equal(t, uint64(1000), split.OldOperatorAVSSplitBips)
-			assert.Equal(t, uint64(2000), split.NewOperatorAVSSplitBips)
+			assert.Equal(t, strings.ToLower("0xcf4f3453828f09f5b526101b81d0199d2de39ec5"), strings.ToLower(split.Operator))
+			assert.Equal(t, int64(1733341104), split.ActivatedAt.Unix())
+			assert.Equal(t, uint64(6545), split.NewOperatorPISplitBips)
+			assert.Equal(t, uint64(1000), split.OldOperatorPISplitBips)
 
 			err = model.CommitFinalState(blockNumber)
 			assert.Nil(t, err)

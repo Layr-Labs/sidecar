@@ -134,7 +134,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert4RfaeStakerStrategyPayout(
 	tableName := "sot_4_rfae_staker_strategy_payout"
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_4_rfaeStakerStrategyPayoutsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_4_rfaeStakerStrategyPayoutsQuery, map[string]interface{}{
 		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
 		"rfaeStakerTable":    allTableNames[rewardsUtils.Table_5_RfaeStakers],
 	})
