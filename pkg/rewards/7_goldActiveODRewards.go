@@ -127,6 +127,16 @@ SELECT * FROM active_rewards_final
 // @param startDate: The lower bound of when to calculate rewards from. If we're running rewards for the first time,
 // this will be "1970-01-01". If this is a subsequent run, this will be the last snapshot date.
 func (r *RewardsCalculator) Generate7ActiveODRewards(snapshotDate string) error {
+	rewardsV2Enabled, err := r.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
+		return err
+	}
+	if !rewardsV2Enabled {
+		r.logger.Sugar().Infow("Rewards v2 is not enabled for this cutoff date, skipping Generate7ActiveODRewards")
+		return nil
+	}
+
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 	destTableName := allTableNames[rewardsUtils.Table_7_ActiveODRewards]
 
@@ -138,7 +148,7 @@ func (r *RewardsCalculator) Generate7ActiveODRewards(snapshotDate string) error 
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_7_goldActiveODRewardsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_7_goldActiveODRewardsQuery, map[string]interface{}{
 		"destTableName": destTableName,
 		"rewardsStart":  rewardsStart,
 		"cutoffDate":    snapshotDate,

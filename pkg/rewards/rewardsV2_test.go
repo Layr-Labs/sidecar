@@ -72,7 +72,7 @@ func Test_RewardsV2(t *testing.T) {
 		t.Log("Hydrated tables")
 
 		snapshotDates := []string{
-			"2024-12-11",
+			"2024-12-12",
 		}
 
 		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
@@ -148,36 +148,47 @@ func Test_RewardsV2(t *testing.T) {
 			// ------------------------------------------------------------------------
 			// Rewards V2
 			// ------------------------------------------------------------------------
+			rewardsV2Enabled, err := cfg.IsRewardsV2EnabledForCutoffDate(snapshotDate)
+			assert.Nil(t, err)
+
 			fmt.Printf("Running gold_7_active_od_rewards\n")
 			err = rc.Generate7ActiveODRewards(snapshotDate)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_7_ActiveODRewards])
-			assert.Nil(t, err)
-			fmt.Printf("\tRows in gold_7_active_od_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
+			if rewardsV2Enabled {
+				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_7_ActiveODRewards])
+				assert.Nil(t, err)
+				fmt.Printf("\tRows in gold_7_active_od_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
+			}
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_8_operator_od_reward_amounts\n")
 			err = rc.GenerateGold8OperatorODRewardAmountsTable(snapshotDate)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_8_OperatorODRewardAmounts])
-			assert.Nil(t, err)
-			fmt.Printf("\tRows in gold_8_operator_od_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
+			if rewardsV2Enabled {
+				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_8_OperatorODRewardAmounts])
+				assert.Nil(t, err)
+				fmt.Printf("\tRows in gold_8_operator_od_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
+			}
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_9_staker_od_reward_amounts\n")
 			err = rc.GenerateGold9StakerODRewardAmountsTable(snapshotDate)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_9_StakerODRewardAmounts])
-			assert.Nil(t, err)
-			fmt.Printf("\tRows in gold_9_staker_od_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
+			if rewardsV2Enabled {
+				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_9_StakerODRewardAmounts])
+				assert.Nil(t, err)
+				fmt.Printf("\tRows in gold_9_staker_od_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
+			}
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_10_avs_od_reward_amounts\n")
 			err = rc.GenerateGold10AvsODRewardAmountsTable(snapshotDate)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_10_AvsODRewardAmounts])
-			assert.Nil(t, err)
-			fmt.Printf("\tRows in gold_10_avs_od_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
+			if rewardsV2Enabled {
+				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_10_AvsODRewardAmounts])
+				assert.Nil(t, err)
+				fmt.Printf("\tRows in gold_10_avs_od_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
+			}
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_11_staging\n")
