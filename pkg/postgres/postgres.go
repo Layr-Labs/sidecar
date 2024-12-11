@@ -3,6 +3,8 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
@@ -11,7 +13,6 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"regexp"
 )
 
 type PostgresConfig struct {
@@ -29,6 +30,25 @@ type Postgres struct {
 }
 
 func GetTestPostgresDatabase(cfg config.DatabaseConfig, gCfg *config.Config, l *zap.Logger) (
+	string,
+	*sql.DB,
+	*gorm.DB,
+	error,
+) {
+	testDbName, pg, grm, err := GetTestPostgresDatabaseNoMigrations(cfg, l)
+	if err != nil {
+		return testDbName, nil, nil, err
+	}
+
+	migrator := migrations.NewMigrator(pg, grm, l, gCfg)
+	if err = migrator.MigrateAll(); err != nil {
+		return testDbName, nil, nil, err
+	}
+
+	return testDbName, pg, grm, nil
+}
+
+func GetTestPostgresDatabaseNoMigrations(cfg config.DatabaseConfig, l *zap.Logger) (
 	string,
 	*sql.DB,
 	*gorm.DB,
@@ -53,10 +73,6 @@ func GetTestPostgresDatabase(cfg config.DatabaseConfig, gCfg *config.Config, l *
 		return testDbName, nil, nil, err
 	}
 
-	migrator := migrations.NewMigrator(pg.Db, grm, l, gCfg)
-	if err = migrator.MigrateAll(); err != nil {
-		return testDbName, nil, nil, err
-	}
 	return testDbName, pg.Db, grm, nil
 }
 

@@ -3,9 +3,10 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/spf13/viper"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 type EnvScope string
@@ -54,6 +55,11 @@ type DatabaseConfig struct {
 	SchemaName string
 }
 
+type SnapshotConfig struct {
+	OutputFile string
+	InputFile  string
+}
+
 type RpcConfig struct {
 	GrpcPort int
 	HttpPort int
@@ -82,6 +88,7 @@ type Config struct {
 	Debug             bool
 	EthereumRpcConfig EthereumRpcConfig
 	DatabaseConfig    DatabaseConfig
+	SnapshotConfig    SnapshotConfig
 	RpcConfig         RpcConfig
 	Chain             Chain
 	Rewards           RewardsConfig
@@ -104,6 +111,9 @@ var (
 	DatabasePassword   = "database.password"
 	DatabaseDbName     = "database.db_name"
 	DatabaseSchemaName = "database.schema_name"
+
+	SnapshotOutputFile = "output_file"
+	SnapshotInputFile  = "input_file"
 
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
@@ -141,6 +151,11 @@ func NewConfig() *Config {
 			Password:   viper.GetString(normalizeFlagName(DatabasePassword)),
 			DbName:     viper.GetString(normalizeFlagName(DatabaseDbName)),
 			SchemaName: viper.GetString(normalizeFlagName(DatabaseSchemaName)),
+		},
+
+		SnapshotConfig: SnapshotConfig{
+			OutputFile: viper.GetString(normalizeFlagName(SnapshotOutputFile)),
+			InputFile:  viper.GetString(normalizeFlagName(SnapshotInputFile)),
 		},
 
 		RpcConfig: RpcConfig{
