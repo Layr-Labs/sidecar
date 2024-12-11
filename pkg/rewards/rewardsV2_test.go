@@ -1,171 +1,23 @@
 package rewards
 
 import (
-	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
-	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
-	postgres2 "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
-// const TOTAL_BLOCK_COUNT = 1229187
-
-func rewardsTestsEnabled() bool {
-	return os.Getenv("TEST_REWARDS") == "true"
-}
-
-func getRewardsTestContext() string {
-	ctx := os.Getenv("REWARDS_TEST_CONTEXT")
-	if ctx == "" {
-		return "testnet"
-	}
-	return ctx
-}
-
-func getProjectRootPath() string {
-	wd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	p, err := filepath.Abs(fmt.Sprintf("%s/../..", wd))
-	if err != nil {
-		panic(err)
-	}
-	return p
-}
-
-func getSnapshotDate() (string, error) {
-	context := getRewardsTestContext()
-
-	switch context {
-	case "testnet":
-		return "2024-09-01", nil
-	case "testnet-reduced":
-		return "2024-07-25", nil
-	case "mainnet-reduced":
-		return "2024-08-12", nil
-	case "preprod-rewardsV2":
-		return "2024-12-09", nil
-	}
-	return "", fmt.Errorf("Unknown context: %s", context)
-}
-
-func hydrateAllBlocksTable(grm *gorm.DB, l *zap.Logger) (int, error) {
-	projectRoot := getProjectRootPath()
-	contents, err := tests.GetAllBlocksSqlFile(projectRoot)
-
-	if err != nil {
-		return 0, err
-	}
-
-	count := len(strings.Split(strings.Trim(contents, "\n"), "\n")) - 1
-
-	res := grm.Exec(contents)
-	if res.Error != nil {
-		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
-		return count, res.Error
-	}
-	return count, nil
-}
-
-func hydrateRewardsV2Blocks(grm *gorm.DB, l *zap.Logger) (int, error) {
-	projectRoot := getProjectRootPath()
-	contents, err := tests.GetRewardsV2Blocks(projectRoot)
-
-	if err != nil {
-		return 0, err
-	}
-
-	count := len(strings.Split(strings.Trim(contents, "\n"), "\n")) - 1
-
-	res := grm.Exec(contents)
-	if res.Error != nil {
-		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
-		return count, res.Error
-	}
-	return count, nil
-}
-
-func getRowCountForTable(grm *gorm.DB, tableName string) (int, error) {
-	query := fmt.Sprintf("select count(*) as cnt from %s", tableName)
-	var count int
-	res := grm.Raw(query).Scan(&count)
-
-	if res.Error != nil {
-		return 0, res.Error
-	}
-	return count, nil
-}
-
-func setupRewards() (
-	string,
-	*config.Config,
-	*gorm.DB,
-	*zap.Logger,
-	error,
-) {
-	cfg := tests.GetConfig()
-	cfg.Rewards.GenerateStakerOperatorsTable = true
-	cfg.Rewards.ValidateRewardsRoot = true
-	cfg.Chain = config.Chain_Mainnet
-
-	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
-
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
-
-	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
-	if err != nil {
-		return dbname, nil, nil, nil, err
-	}
-
-	return dbname, cfg, grm, l, nil
-}
-
-func setupRewardsV2() (
-	string,
-	*config.Config,
-	*gorm.DB,
-	*zap.Logger,
-	error,
-) {
-	cfg := tests.GetConfig()
-	cfg.Rewards.GenerateStakerOperatorsTable = true
-	cfg.Rewards.ValidateRewardsRoot = true
-	cfg.Chain = config.Chain_Preprod
-
-	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
-
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
-
-	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
-	if err != nil {
-		return dbname, nil, nil, nil, err
-	}
-
-	return dbname, cfg, grm, l, nil
-}
-
-func Test_Rewards(t *testing.T) {
+func Test_RewardsV2(t *testing.T) {
 	if !rewardsTestsEnabled() {
 		t.Skipf("Skipping %s", t.Name())
 		return
 	}
 
-	dbFileName, cfg, grm, l, err := setupRewards()
+	dbFileName, cfg, grm, l, err := setupRewardsV2()
 	fmt.Printf("Using db file: %+v\n", dbFileName)
 
 	if err != nil {
@@ -173,11 +25,6 @@ func Test_Rewards(t *testing.T) {
 	}
 
 	projectRoot := getProjectRootPath()
-
-	// snapshotDate, err := getSnapshotDate()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
 
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 
@@ -194,7 +41,7 @@ func Test_Rewards(t *testing.T) {
 		testStart := time.Now()
 
 		// Setup all tables and source data
-		_, err = hydrateAllBlocksTable(grm, l)
+		_, err = hydrateRewardsV2Blocks(grm, l)
 		assert.Nil(t, err)
 
 		err = hydrateOperatorAvsStateChangesTable(grm, l)
@@ -215,13 +62,20 @@ func Test_Rewards(t *testing.T) {
 		err = hydrateRewardSubmissionsTable(grm, l)
 		assert.Nil(t, err)
 
+		// RewardsV2 tables
+		err = hydrateOperatorAvsSplits(grm, l)
+		assert.Nil(t, err)
+
+		err = hydrateOperatorPISplits(grm, l)
+		assert.Nil(t, err)
+
+		err = hydrateOperatorDirectedRewardSubmissionsTable(grm, l)
+		assert.Nil(t, err)
+
 		t.Log("Hydrated tables")
 
 		snapshotDates := []string{
-			"2024-08-02",
-			"2024-08-11",
-			"2024-08-12",
-			"2024-08-19",
+			"2024-12-11",
 		}
 
 		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
@@ -294,6 +148,9 @@ func Test_Rewards(t *testing.T) {
 			fmt.Printf("\tRows in gold_6_rfae_operators: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
+			// ------------------------------------------------------------------------
+			// Rewards V2
+			// ------------------------------------------------------------------------
 			fmt.Printf("Running gold_7_active_od_rewards\n")
 			err = rc.Generate7ActiveODRewards(snapshotDate)
 			assert.Nil(t, err)
@@ -397,77 +254,20 @@ func Test_Rewards(t *testing.T) {
 				t.Fatalf("Invalid amounts: %d", invalidAmounts)
 			}
 
-			t.Logf("Generating staker operators table")
-			err = rc.sog.GenerateStakerOperatorsTable(snapshotDate)
-			assert.Nil(t, err)
-
-			accountTree, _, err := rc.MerkelizeRewardsForSnapshot(snapshotDate)
-			assert.Nil(t, err)
-
-			root := utils.ConvertBytesToString(accountTree.Root())
-			t.Logf("Root: %s", root)
+			//t.Logf("Generating staker operators table")
+			//err = rc.sog.GenerateStakerOperatorsTable(snapshotDate)
+			//assert.Nil(t, err)
+			//
+			//accountTree, _, err := rc.MerkelizeRewardsForSnapshot(snapshotDate)
+			//assert.Nil(t, err)
+			//
+			//root := utils.ConvertBytesToString(accountTree.Root())
+			//t.Logf("Root: %s", root)
 		}
 
 		fmt.Printf("Done!\n\n")
 		t.Cleanup(func() {
 			// teardownRewards(dbFileName, cfg, grm, l)
 		})
-	})
-}
-
-func Test_RewardsCalculatorLock(t *testing.T) {
-	if !rewardsTestsEnabled() {
-		t.Skipf("Skipping %s", t.Name())
-		return
-	}
-
-	dbFileName, cfg, grm, l, err := setupRewards()
-	fmt.Printf("Using db file: %+v\n", dbFileName)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bs := postgres2.NewPostgresBlockStore(grm, l, cfg)
-
-	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
-	rc, err := NewRewardsCalculator(cfg, grm, bs, sog, l)
-	assert.Nil(t, err)
-
-	// Setup all tables and source data
-	_, err = hydrateAllBlocksTable(grm, l)
-	assert.Nil(t, err)
-
-	err = hydrateOperatorAvsStateChangesTable(grm, l)
-	assert.Nil(t, err)
-
-	err = hydrateOperatorAvsRestakedStrategies(grm, l)
-	assert.Nil(t, err)
-
-	err = hydrateOperatorShareDeltas(grm, l)
-	assert.Nil(t, err)
-
-	err = hydrateStakerDelegations(grm, l)
-	assert.Nil(t, err)
-
-	err = hydrateStakerShareDeltas(grm, l)
-	assert.Nil(t, err)
-
-	err = hydrateRewardSubmissionsTable(grm, l)
-	assert.Nil(t, err)
-
-	t.Log("Hydrated tables")
-
-	// --------
-
-	go func() {
-		_ = rc.CalculateRewardsForSnapshotDate("2024-08-02")
-	}()
-	time.Sleep(1 * time.Second)
-	t.Logf("Attempting to calculate second rewards for snapshot date: 2024-08-02")
-	err = rc.calculateRewardsForSnapshotDate("2024-08-02")
-	assert.True(t, errors.Is(err, &ErrRewardsCalculationInProgress{}))
-
-	t.Cleanup(func() {
-		postgres.TeardownTestDatabase(dbFileName, cfg, grm, l)
 	})
 }

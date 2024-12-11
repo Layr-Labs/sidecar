@@ -20,13 +20,13 @@ import (
 )
 
 type OperatorPISplit struct {
-	Operator                string
-	ActivatedAt             *time.Time
-	OldOperatorAVSSplitBips uint64
-	NewOperatorAVSSplitBips uint64
-	BlockNumber             uint64
-	TransactionHash         string
-	LogIndex                uint64
+	Operator               string
+	ActivatedAt            *time.Time
+	OldOperatorPISplitBips uint64
+	NewOperatorPISplitBips uint64
+	BlockNumber            uint64
+	TransactionHash        string
+	LogIndex               uint64
 }
 
 type OperatorPISplitModel struct {
@@ -67,9 +67,9 @@ func (ops *OperatorPISplitModel) GetModelName() string {
 }
 
 type operatorPISplitOutputData struct {
-	ActivatedAt             uint64 `json:"activatedAt"`
-	OldOperatorAVSSplitBips uint64 `json:"oldOperatorAVSSplitBips"`
-	NewOperatorAVSSplitBips uint64 `json:"newOperatorAVSSplitBips"`
+	ActivatedAt            uint64 `json:"activatedAt"`
+	OldOperatorPISplitBips uint64 `json:"oldOperatorPISplitBips"`
+	NewOperatorPISplitBips uint64 `json:"newOperatorPISplitBips"`
 }
 
 func parseOperatorPISplitOutputData(outputDataStr string) (*operatorPISplitOutputData, error) {
@@ -99,13 +99,13 @@ func (ops *OperatorPISplitModel) handleOperatorPISplitBipsSetEvent(log *storage.
 	activatedAt := time.Unix(int64(outputData.ActivatedAt), 0)
 
 	split := &OperatorPISplit{
-		Operator:                strings.ToLower(arguments[1].Value.(string)),
-		ActivatedAt:             &activatedAt,
-		OldOperatorAVSSplitBips: outputData.OldOperatorAVSSplitBips,
-		NewOperatorAVSSplitBips: outputData.NewOperatorAVSSplitBips,
-		BlockNumber:             log.BlockNumber,
-		TransactionHash:         log.TransactionHash,
-		LogIndex:                log.LogIndex,
+		Operator:               strings.ToLower(arguments[1].Value.(string)),
+		ActivatedAt:            &activatedAt,
+		OldOperatorPISplitBips: outputData.OldOperatorPISplitBips,
+		NewOperatorPISplitBips: outputData.NewOperatorPISplitBips,
+		BlockNumber:            log.BlockNumber,
+		TransactionHash:        log.TransactionHash,
+		LogIndex:               log.LogIndex,
 	}
 
 	return split, nil
@@ -255,7 +255,7 @@ func (ops *OperatorPISplitModel) sortValuesForMerkleTree(splits []*OperatorPISpl
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, split := range splits {
 		slotID := base.NewSlotID(split.TransactionHash, split.LogIndex)
-		value := fmt.Sprintf("%s_%d_%d_%d", split.Operator, split.ActivatedAt.Unix(), split.OldOperatorAVSSplitBips, split.NewOperatorAVSSplitBips)
+		value := fmt.Sprintf("%s_%d_%d_%d", split.Operator, split.ActivatedAt.Unix(), split.OldOperatorPISplitBips, split.NewOperatorPISplitBips)
 		inputs = append(inputs, &base.MerkleTreeInput{
 			SlotID: slotID,
 			Value:  []byte(value),

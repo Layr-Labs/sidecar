@@ -261,7 +261,7 @@ func (c *Config) GetForkDates() (ForkMap, error) {
 			Fork_Amazon: "1970-01-01", // Amazon hard fork was never on testnet as we backfilled
 			Fork_Nile:   "2024-08-13", // Last calculation end timestamp was 8-12: https://holesky.etherscan.io/tx/0x5fc81b5ed2a78b017ef313c181d8627737a97fef87eee85acedbe39fc8708c56#eventlog
 			Fork_Panama: "2024-10-01",
-			Fork_Arno:   "2024-12-10",
+			Fork_Arno:   "2024-12-12",
 		}, nil
 	case Chain_Mainnet:
 		return ForkMap{

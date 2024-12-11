@@ -32,6 +32,15 @@ from dbt_mainnet_ethereum_rewards.operator_shares
 where block_time < '2024-08-20'
 ```
 
+preprod-rewardsV2
+
+```sql
+select
+    *
+from dbt_preprod_holesky_rewards.operator_shares
+where block_time < '2024-12-10'
+```
+
 ## Expected results
 
 _See `generateExpectedResults.sql`_

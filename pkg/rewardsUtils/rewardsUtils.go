@@ -3,36 +3,45 @@ package rewardsUtils
 import (
 	"bytes"
 	"fmt"
+	"text/template"
+
 	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"text/template"
 )
 
 var (
-	Table_1_ActiveRewards         = "gold_1_active_rewards"
-	Table_2_StakerRewardAmounts   = "gold_2_staker_reward_amounts"
-	Table_3_OperatorRewardAmounts = "gold_3_operator_reward_amounts"
-	Table_4_RewardsForAll         = "gold_4_rewards_for_all"
-	Table_5_RfaeStakers           = "gold_5_rfae_stakers"
-	Table_6_RfaeOperators         = "gold_6_rfae_operators"
-	Table_7_GoldStaging           = "gold_7_staging"
-	Table_8_GoldTable             = "gold_table"
+	Table_1_ActiveRewards           = "gold_1_active_rewards"
+	Table_2_StakerRewardAmounts     = "gold_2_staker_reward_amounts"
+	Table_3_OperatorRewardAmounts   = "gold_3_operator_reward_amounts"
+	Table_4_RewardsForAll           = "gold_4_rewards_for_all"
+	Table_5_RfaeStakers             = "gold_5_rfae_stakers"
+	Table_6_RfaeOperators           = "gold_6_rfae_operators"
+	Table_7_ActiveODRewards         = "gold_7_active_od_rewards"
+	Table_8_OperatorODRewardAmounts = "gold_8_operator_od_reward_amounts"
+	Table_9_StakerODRewardAmounts   = "gold_9_staker_od_reward_amounts"
+	Table_10_AvsODRewardAmounts     = "gold_10_avs_od_reward_amounts"
+	Table_11_GoldStaging            = "gold_11_staging"
+	Table_12_GoldTable              = "gold_table"
 
 	Sot_6_StakerOperatorStaging = "sot_6_staker_operator_staging"
 	Sot_7_StakerOperatorTable   = "staker_operator"
 )
 
 var goldTableBaseNames = map[string]string{
-	Table_1_ActiveRewards:         Table_1_ActiveRewards,
-	Table_2_StakerRewardAmounts:   Table_2_StakerRewardAmounts,
-	Table_3_OperatorRewardAmounts: Table_3_OperatorRewardAmounts,
-	Table_4_RewardsForAll:         Table_4_RewardsForAll,
-	Table_5_RfaeStakers:           Table_5_RfaeStakers,
-	Table_6_RfaeOperators:         Table_6_RfaeOperators,
-	Table_7_GoldStaging:           Table_7_GoldStaging,
-	Table_8_GoldTable:             Table_8_GoldTable,
+	Table_1_ActiveRewards:           Table_1_ActiveRewards,
+	Table_2_StakerRewardAmounts:     Table_2_StakerRewardAmounts,
+	Table_3_OperatorRewardAmounts:   Table_3_OperatorRewardAmounts,
+	Table_4_RewardsForAll:           Table_4_RewardsForAll,
+	Table_5_RfaeStakers:             Table_5_RfaeStakers,
+	Table_6_RfaeOperators:           Table_6_RfaeOperators,
+	Table_7_ActiveODRewards:         Table_7_ActiveODRewards,
+	Table_8_OperatorODRewardAmounts: Table_8_OperatorODRewardAmounts,
+	Table_9_StakerODRewardAmounts:   Table_9_StakerODRewardAmounts,
+	Table_10_AvsODRewardAmounts:     Table_10_AvsODRewardAmounts,
+	Table_11_GoldStaging:            Table_11_GoldStaging,
+	Table_12_GoldTable:              Table_12_GoldTable,
 
 	Sot_6_StakerOperatorStaging: Sot_6_StakerOperatorStaging,
 }
