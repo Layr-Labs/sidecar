@@ -28,7 +28,7 @@ WITH reward_snapshot_operators AS (
        AND ap.operator = oar.operator
 ),
 
--- Step 2: Calculate the total staker split for each operator reward with dynamic split logic
+-- Calculate the total staker split for each operator reward with dynamic split logic
 -- If no split is found, default to 1000 (10%)
 staker_splits AS (
     SELECT 
@@ -40,20 +40,7 @@ staker_splits AS (
        AND rso.avs = oas.avs 
        AND rso.snapshot = oas.snapshot
 ),
-
--- Step 3: Filter operators restaked in strategies
-_operator_restaked_strategies AS (
-    SELECT
-        ss.*
-    FROM staker_splits ss
-    JOIN operator_avs_strategy_snapshots oas
-        ON ss.operator = oas.operator 
-       AND ss.avs = oas.avs 
-       AND ss.strategy = oas.strategy 
-       AND ss.snapshot = oas.snapshot
-),
-
--- Step 4: Get the stakers that were delegated to the operator for the snapshot
+-- Get the stakers that were delegated to the operator for the snapshot
 staker_delegated_operators AS (
     SELECT
         ors.*,
@@ -64,7 +51,7 @@ staker_delegated_operators AS (
        AND ors.snapshot = sds.snapshot
 ),
 
--- Step 5: Get the shares for stakers delegated to the operator
+-- Get the shares for stakers delegated to the operator
 staker_avs_strategy_shares AS (
     SELECT
         sdo.*,
@@ -78,15 +65,14 @@ staker_avs_strategy_shares AS (
     WHERE sss.shares > 0 AND sdo.multiplier != 0
 ),
 
--- Step 6: Calculate the weight of each staker
+-- Calculate the weight of each staker
 staker_weights AS (
     SELECT 
         *,
         SUM(multiplier * shares) OVER (PARTITION BY staker, reward_hash, snapshot) AS staker_weight
     FROM staker_avs_strategy_shares
 ),
-
--- Step 7: Get distinct stakers since their weights are already calculated
+-- Get distinct stakers since their weights are already calculated
 distinct_stakers AS (
     SELECT *
     FROM (
@@ -103,32 +89,28 @@ distinct_stakers AS (
     WHERE rn = 1
     ORDER BY reward_hash, snapshot, staker
 ),
-
--- Step 8: Calculate the sum of all staker weights for each reward and snapshot
+-- Calculate the sum of all staker weights for each reward and snapshot
 staker_weight_sum AS (
     SELECT 
         *,
         SUM(staker_weight) OVER (PARTITION BY reward_hash, snapshot) AS total_weight
     FROM distinct_stakers
 ),
-
--- Step 9: Calculate staker proportion of tokens for each reward and snapshot
+-- Calculate staker proportion of tokens for each reward and snapshot
 staker_proportion AS (
     SELECT 
         *,
         FLOOR((staker_weight / total_weight) * 1000000000000000) / 1000000000000000 AS staker_proportion
     FROM staker_weight_sum
 ),
-
--- Step 10: Calculate the staker reward amounts
+-- Calculate the staker reward amounts
 staker_reward_amounts AS (
     SELECT 
         *,
         FLOOR(staker_proportion * staker_split) AS staker_tokens
     FROM staker_proportion
 )
-
--- Step 11: Output the final table
+-- Output the final table
 SELECT * FROM staker_reward_amounts
 `
 

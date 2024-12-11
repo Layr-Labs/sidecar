@@ -21,7 +21,7 @@ WITH reward_snapshot_operators AS (
         ap.strategy,
         ap.multiplier,
         ap.reward_submission_date
-    FROM {{.activeRewardsTable}} ap
+    FROM {{.activeODRewardsTable}} ap
     LEFT JOIN operator_avs_registration_snapshots oar
         ON ap.avs = oar.avs 
        AND ap.snapshot = oar.snapshot 

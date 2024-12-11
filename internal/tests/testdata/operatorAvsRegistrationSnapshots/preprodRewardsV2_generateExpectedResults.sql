@@ -1,7 +1,7 @@
 COPY (
      with filtered as (
     select * from dbt_preprod_holesky_rewards.operator_avs_status
-    where block_time < '2024-12-10'
+    where block_time < '2024-12-11'
 ),
 marked_statuses AS (
     SELECT
@@ -34,7 +34,7 @@ marked_statuses AS (
              operator,
              avs,
              block_time AS start_time,
-             COALESCE(next_block_time, TIMESTAMP '2024-12-10') AS end_time,
+             COALESCE(next_block_time, TIMESTAMP '2024-12-11') AS end_time,
              registered
          FROM removed_same_day_deregistrations
          WHERE registered = TRUE

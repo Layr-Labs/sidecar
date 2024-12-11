@@ -52,6 +52,7 @@ distinct_operators AS (
 operator_splits AS (
     SELECT 
         dop.*,
+        COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL) as split_pct,
         FLOOR(dop.tokens_per_day_decimal * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL)) AS operator_tokens
     FROM distinct_operators dop
     LEFT JOIN operator_avs_split_snapshots oas
