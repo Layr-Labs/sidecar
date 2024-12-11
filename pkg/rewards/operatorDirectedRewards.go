@@ -46,7 +46,7 @@ const operatorDirectedRewardsQuery = `
 func (r *RewardsCalculator) GenerateAndInsertOperatorDirectedRewards(snapshotDate string) error {
 	tableName := "operator_directed_rewards"
 
-	query, err := rewardsUtils.RenderQueryTemplate(operatorDirectedRewardsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(operatorDirectedRewardsQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
