@@ -120,7 +120,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert2OperatorStrategyRewards(c
 		return err
 	}
 
-	query, err := rewardsUtils.RenderQueryTemplate(_2_operatorStrategyRewardsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_2_operatorStrategyRewardsQuery, map[string]interface{}{
 		"destTableName":              destTableName,
 		"activeRewardsTable":         rewardsTables[rewardsUtils.Table_1_ActiveRewards],
 		"operatorRewardAmountsTable": rewardsTables[rewardsUtils.Table_3_OperatorRewardAmounts],

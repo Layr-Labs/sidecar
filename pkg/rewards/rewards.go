@@ -493,7 +493,7 @@ func (rc *RewardsCalculator) fetchRewardsForSnapshot(snapshotDate string) ([]*Re
 		where snapshot <= date '{{.snapshotDate}}'
 		group by 1, 2
 		order by snapshot desc
-    `, map[string]string{"snapshotDate": snapshotDate})
+    `, map[string]interface{}{"snapshotDate": snapshotDate})
 
 	if err != nil {
 		return nil, err
