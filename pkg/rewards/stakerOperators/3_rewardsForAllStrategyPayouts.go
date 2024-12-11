@@ -102,7 +102,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert3RewardsForAllStrategyPayo
 	tableName := "sot_3_rewards_for_all_strategy_payout"
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_3_rewardsForAllStrategyPayoutsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_3_rewardsForAllStrategyPayoutsQuery, map[string]interface{}{
 		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
 		"rewardsForAllTable": allTableNames[rewardsUtils.Table_4_RewardsForAll],
 	})
