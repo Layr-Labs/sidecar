@@ -274,4 +274,3 @@ grpcurl -plaintext -d '{}'  localhost:7100 eigenlayer.sidecar.api.v1.Rpc/GetBloc
 ```bash
 grpcurl -plaintext -d '{ "blockNumber": 2800799 }'  localhost:7100 eigenlayer.sidecar.api.v1.Rpc/GetStateRoot
 ```
-
