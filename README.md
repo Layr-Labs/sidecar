@@ -272,12 +272,6 @@ grpcurl -plaintext -d '{}'  localhost:7100 eigenlayer.sidecar.api.v1.Rpc/GetBloc
 ### Get the stateroot at a block height
 
 ```bash
-#Example for mainnet ethereum
-grpcurl -plaintext -d '{ "blockNumber": 1140438 }'  localhost:7100 eigenlayer.sidecar.api.v1.Rpc/GetStateRoot
-```
-
-```bash
-# Example for holesky testnet
 grpcurl -plaintext -d '{ "blockNumber": 2800799 }'  localhost:7100 eigenlayer.sidecar.api.v1.Rpc/GetStateRoot
 ```
 
