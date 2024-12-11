@@ -42,6 +42,7 @@ import (
 	_202412021311_stakerOperatorTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412021311_stakerOperatorTables"
 	_202412061553_addBlockNumberIndexes "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412061553_addBlockNumberIndexes"
 	_202412061626_operatorRestakedStrategiesConstraint "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412061626_operatorRestakedStrategiesConstraint"
+	_202412091100_fixOperatorPiSplitsFields "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412091100_fixOperatorPiSplitsFields"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -123,6 +124,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202412061626_operatorRestakedStrategiesConstraint.Migration{},
 		&_202411221331_operatorAVSSplitSnapshots.Migration{},
 		&_202411221331_operatorPISplitSnapshots.Migration{},
+		&_202412091100_fixOperatorPiSplitsFields.Migration{},
 	}
 
 	for _, migration := range migrations {
@@ -166,6 +168,7 @@ func (m *Migrator) Migrate(migration Migration) error {
 		m.Logger.Sugar().Debugf("Migration %s already run", name)
 		return nil
 	}
+	m.Logger.Sugar().Infof("Migration %s applied", name)
 	return nil
 }
 
