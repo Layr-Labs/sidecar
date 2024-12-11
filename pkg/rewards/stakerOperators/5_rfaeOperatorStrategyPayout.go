@@ -116,8 +116,8 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert5RfaeOperatorStrategyPayou
 		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
 		return err
 	}
-	
-	query, err := rewardsUtils.RenderQueryTemplate(_5_rfaeOperatorStrategyPayoutsQuery, map[string]string{
+
+	query, err := rewardsUtils.RenderQueryTemplate(_5_rfaeOperatorStrategyPayoutsQuery, map[string]interface{}{
 		"destTableName":      destTableName,
 		"activeRewardsTable": rewardsTables[rewardsUtils.Table_1_ActiveRewards],
 		"rfaeOperatorsTable": rewardsTables[rewardsUtils.Table_6_RfaeOperators],

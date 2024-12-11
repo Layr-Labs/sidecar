@@ -21,7 +21,7 @@ const stakerSharesQuery = `
 func (r *RewardsCalculator) GenerateAndInsertStakerShares(snapshotDate string) error {
 	tableName := "staker_shares"
 
-	query, err := rewardsUtils.RenderQueryTemplate(stakerSharesQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(stakerSharesQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
