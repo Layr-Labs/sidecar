@@ -142,7 +142,7 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 		zap.String("arnoHardforkDate", forks[config.Fork_Arno]),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_5_goldRfaeStakersQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_5_goldRfaeStakersQuery, map[string]interface{}{
 		"destTableName":      destTableName,
 		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
 	})
