@@ -66,6 +66,15 @@ SELECT * FROM operator_splits
 `
 
 func (rc *RewardsCalculator) GenerateGold8OperatorODRewardAmountsTable(snapshotDate string) error {
+	rewardsV2Enabled, err := rc.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
+		return err
+	}
+	if !rewardsV2Enabled {
+		rc.logger.Sugar().Infow("Rewards v2 is not enabled for this cutoff date, skipping GenerateGold8OperatorODRewardAmountsTable")
+		return nil
+	}
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 	destTableName := allTableNames[rewardsUtils.Table_8_OperatorODRewardAmounts]
 
@@ -74,7 +83,7 @@ func (rc *RewardsCalculator) GenerateGold8OperatorODRewardAmountsTable(snapshotD
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_8_goldOperatorODRewardAmountsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_8_goldOperatorODRewardAmountsQuery, map[string]interface{}{
 		"destTableName":        destTableName,
 		"activeODRewardsTable": allTableNames[rewardsUtils.Table_7_ActiveODRewards],
 	})

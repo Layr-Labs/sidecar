@@ -123,7 +123,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert5RfaeOperatorStrategyPayou
 	tableName := "sot_5_rfae_operator_strategy_payout"
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_5_rfaeOperatorStrategyPayoutsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_5_rfaeOperatorStrategyPayoutsQuery, map[string]interface{}{
 		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
 		"rfaeOperatorTable":  allTableNames[rewardsUtils.Table_6_RfaeOperators],
 	})
