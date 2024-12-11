@@ -89,3 +89,21 @@ type OperatorPISplitSnapshots struct {
 	Split    uint64
 	Snapshot time.Time
 }
+
+type OperatorDirectedRewards struct {
+	Avs             string
+	RewardHash      string
+	Token           string
+	Operator        string
+	OperatorIndex   uint64
+	Amount          string
+	Strategy        string
+	StrategyIndex   uint64
+	Multiplier      string
+	StartTimestamp  *time.Time
+	EndTimestamp    *time.Time
+	Duration        uint64
+	BlockNumber     uint64
+	TransactionHash string
+	LogIndex        uint64
+}

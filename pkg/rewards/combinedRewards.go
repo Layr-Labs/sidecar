@@ -45,7 +45,7 @@ const rewardsCombinedQuery = `
 func (r *RewardsCalculator) GenerateAndInsertCombinedRewards(snapshotDate string) error {
 	tableName := "combined_rewards"
 
-	query, err := rewardsUtils.RenderQueryTemplate(rewardsCombinedQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(rewardsCombinedQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
