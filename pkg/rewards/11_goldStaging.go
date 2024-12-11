@@ -56,6 +56,7 @@ rewards_for_all_earners_operators AS (
     operator_tokens as amount
   FROM {{.rfaeOperatorTable}}
 ),
+{{ if .enableRewardsV2 }}
 operator_od_rewards AS (
   SELECT DISTINCT
     -- We can select DISTINCT here because the operator's tokens are the same for each strategy in the reward hash
@@ -86,6 +87,7 @@ avs_od_rewards AS (
     avs_tokens as amount
   FROM {{.avsODRewardAmountsTable}}
 ),
+{{ end }}
 combined_rewards AS (
   SELECT * FROM operator_rewards
   UNION ALL
@@ -96,12 +98,14 @@ combined_rewards AS (
   SELECT * FROM rewards_for_all_earners_stakers
   UNION ALL
   SELECT * FROM rewards_for_all_earners_operators
+{{ if .enableRewardsV2 }}
   UNION ALL
   SELECT * FROM operator_od_rewards
   UNION ALL
   SELECT * FROM staker_od_rewards
   UNION ALL
   SELECT * FROM avs_od_rewards
+{{ end }}
 ),
 -- Dedupe earners, primarily operators who are also their own staker.
 deduped_earners AS (
@@ -131,7 +135,14 @@ func (rc *RewardsCalculator) GenerateGold11StagingTable(snapshotDate string) err
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_11_goldStagingQuery, map[string]string{
+	isRewardsV2Enabled, err := rc.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Infow("Is RewardsV2 enabled?", "enabled", isRewardsV2Enabled)
+
+	query, err := rewardsUtils.RenderQueryTemplate(_11_goldStagingQuery, map[string]interface{}{
 		"destTableName":                destTableName,
 		"stakerRewardAmountsTable":     allTableNames[rewardsUtils.Table_2_StakerRewardAmounts],
 		"operatorRewardAmountsTable":   allTableNames[rewardsUtils.Table_3_OperatorRewardAmounts],
@@ -141,6 +152,7 @@ func (rc *RewardsCalculator) GenerateGold11StagingTable(snapshotDate string) err
 		"operatorODRewardAmountsTable": allTableNames[rewardsUtils.Table_8_OperatorODRewardAmounts],
 		"stakerODRewardAmountsTable":   allTableNames[rewardsUtils.Table_9_StakerODRewardAmounts],
 		"avsODRewardAmountsTable":      allTableNames[rewardsUtils.Table_10_AvsODRewardAmounts],
+		"enableRewardsV2":              isRewardsV2Enabled,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -167,21 +179,22 @@ func (rc *RewardsCalculator) ListGoldStagingRowsForSnapshot(snapshotDate string)
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 
 	results := make([]*GoldStagingRow, 0)
-	query, err := rewardsUtils.RenderQueryTemplate(`
+	query := `
 	SELECT
 		earner,
 		snapshot::text as snapshot,
 		reward_hash,
 		token,
 		amount
-	FROM {{.goldStagingTable}} WHERE DATE(snapshot) < @cutoffDate`, map[string]string{
+	FROM {{.goldStagingTable}} WHERE DATE(snapshot) < @cutoffDate`
+	query, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
 		"goldStagingTable": allTableNames[rewardsUtils.Table_11_GoldStaging],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return nil, err
 	}
-	res := rc.grm.Raw(query,
+	res := rc.grm.Debug().Raw(query,
 		sql.Named("cutoffDate", snapshotDate),
 	).Scan(&results)
 	if res.Error != nil {
