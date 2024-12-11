@@ -17,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 )
 
 const (
@@ -292,7 +291,7 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 	}
 	requestBody, err := json.Marshal(requests)
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to marshal requests: %s", err)
+		return nil, fmt.Errorf("Failed to marshal requests: %s", err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second*20)
@@ -300,7 +299,7 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.clientConfig.BaseUrl, bytes.NewReader(requestBody))
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to make request: %s", err)
+		return nil, fmt.Errorf("Failed to make request: %s", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -308,16 +307,16 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 
 	response, err := c.httpClient.Do(request)
 	if err != nil {
-		return nil, xerrors.Errorf("Request failed %v", err)
+		return nil, fmt.Errorf("Request failed %v", err)
 	}
 
 	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to read body %v", err)
+		return nil, fmt.Errorf("Failed to read body %v", err)
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, xerrors.Errorf("received http error code %+v", response.StatusCode)
+		return nil, fmt.Errorf("received http error code %+v", response.StatusCode)
 	}
 
 	destination := []*RPCResponse{}
@@ -325,13 +324,13 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 	if strings.HasPrefix(string(responseBody), "{") {
 		errorResponse := RPCResponse{}
 		if err := json.Unmarshal(responseBody, &errorResponse); err != nil {
-			return nil, xerrors.Errorf("failed to unmarshal error response: %s", err)
+			return nil, fmt.Errorf("failed to unmarshal error response: %s", err)
 		}
 		c.Logger.Sugar().Debugw("Error payload returned from batch call",
 			zap.String("error", string(responseBody)),
 		)
 		if errorResponse.Error.Message != "empty batch" {
-			return nil, xerrors.Errorf("Error payload returned from batch call: %s", string(responseBody))
+			return nil, fmt.Errorf("Error payload returned from batch call: %s", string(responseBody))
 		}
 	} else {
 		if err := json.Unmarshal(responseBody, &destination); err != nil {
@@ -339,7 +338,7 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 				zap.Error(err),
 				zap.String("response", string(responseBody)),
 			)
-			return nil, xerrors.Errorf("failed to unmarshal response: %s", err)
+			return nil, fmt.Errorf("failed to unmarshal response: %s", err)
 		}
 	}
 	response.Body.Close()
@@ -492,7 +491,7 @@ func (c *Client) chunkedBatchCall(ctx context.Context, requests []*RPCRequest) (
 	}
 
 	if len(allResults) != len(requests) {
-		return nil, xerrors.Errorf("Failed to fetch results for all requests. Expected %d, got %d", len(requests), len(allResults))
+		return nil, fmt.Errorf("Failed to fetch results for all requests. Expected %d, got %d", len(requests), len(allResults))
 	}
 	return allResults, nil
 }
@@ -517,7 +516,7 @@ func (c *Client) call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.clientConfig.BaseUrl, bytes.NewReader(requestBody))
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to make request %s", err)
+		return nil, fmt.Errorf("Failed to make request %s", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -525,24 +524,24 @@ func (c *Client) call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse
 
 	response, err := c.httpClient.Do(request)
 	if err != nil {
-		return nil, xerrors.Errorf("Request failed %s", err)
+		return nil, fmt.Errorf("Request failed %s", err)
 	}
 
 	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to read body %s", err)
+		return nil, fmt.Errorf("Failed to read body %s", err)
 	}
 	if response.StatusCode != http.StatusOK {
-		return nil, xerrors.Errorf("received http error code %+v", response.StatusCode)
+		return nil, fmt.Errorf("received http error code %+v", response.StatusCode)
 	}
 
 	destination := &RPCResponse{}
 	if err := json.Unmarshal(responseBody, destination); err != nil {
-		return nil, xerrors.Errorf("failed to unmarshal response: %s", err)
+		return nil, fmt.Errorf("failed to unmarshal response: %s", err)
 	}
 
 	if destination.Error != nil {
-		return nil, xerrors.Errorf("received error response: %+v", destination.Error)
+		return nil, fmt.Errorf("received error response: %+v", destination.Error)
 	}
 
 	response.Body.Close()
@@ -572,5 +571,5 @@ func (c *Client) Call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse
 		time.Sleep(time.Second * time.Duration(backoff))
 	}
 	c.Logger.Sugar().Errorw("Exceeded retries for Call", zap.Any("rpcRequest", rpcRequest))
-	return nil, xerrors.Errorf("Exceeded retries for Call")
+	return nil, fmt.Errorf("Exceeded retries for Call")
 }

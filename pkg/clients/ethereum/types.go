@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"golang.org/x/xerrors"
 )
 
 type (
@@ -158,7 +157,7 @@ func (v EthereumHexString) MarshalJSON() ([]byte, error) {
 func (v *EthereumHexString) UnmarshalJSON(input []byte) error {
 	var s string
 	if err := json.Unmarshal(input, &s); err != nil {
-		return xerrors.Errorf("failed to unmarshal EthereumHexString: %w", err)
+		return fmt.Errorf("failed to unmarshal EthereumHexString: %w", err)
 	}
 	s = strings.ToLower(s)
 
@@ -179,7 +178,7 @@ func (v *EthereumQuantity) UnmarshalJSON(input []byte) error {
 	if len(input) > 0 && input[0] != '"' {
 		var i uint64
 		if err := json.Unmarshal(input, &i); err != nil {
-			return xerrors.Errorf("failed to unmarshal EthereumQuantity into uint64: %w", err)
+			return fmt.Errorf("failed to unmarshal EthereumQuantity into uint64: %w", err)
 		}
 
 		*v = EthereumQuantity(i)
@@ -188,7 +187,7 @@ func (v *EthereumQuantity) UnmarshalJSON(input []byte) error {
 
 	var s string
 	if err := json.Unmarshal(input, &s); err != nil {
-		return xerrors.Errorf("failed to unmarshal EthereumQuantity into string: %w", err)
+		return fmt.Errorf("failed to unmarshal EthereumQuantity into string: %w", err)
 	}
 
 	if s == "" {
@@ -198,7 +197,7 @@ func (v *EthereumQuantity) UnmarshalJSON(input []byte) error {
 
 	i, err := hexutil.DecodeUint64(s)
 	if err != nil {
-		return xerrors.Errorf("failed to decode EthereumQuantity %v: %w", s, err)
+		return fmt.Errorf("failed to decode EthereumQuantity %v: %w", s, err)
 	}
 
 	*v = EthereumQuantity(i)
@@ -222,7 +221,7 @@ func (v EthereumBigQuantity) MarshalJSON() ([]byte, error) {
 func (v *EthereumBigQuantity) UnmarshalJSON(input []byte) error {
 	var s string
 	if err := json.Unmarshal(input, &s); err != nil {
-		return xerrors.Errorf("failed to unmarshal EthereumBigQuantity: %w", err)
+		return fmt.Errorf("failed to unmarshal EthereumBigQuantity: %w", err)
 	}
 
 	if s == "" {
@@ -232,7 +231,7 @@ func (v *EthereumBigQuantity) UnmarshalJSON(input []byte) error {
 
 	i, err := hexutil.DecodeBig(s)
 	if err != nil {
-		return xerrors.Errorf("failed to decode EthereumBigQuantity %v: %w", s, err)
+		return fmt.Errorf("failed to decode EthereumBigQuantity %v: %w", s, err)
 	}
 
 	*v = EthereumBigQuantity(*i)
@@ -247,7 +246,7 @@ func (v EthereumBigQuantity) Value() string {
 func (v EthereumBigQuantity) Uint64() (uint64, error) {
 	i := big.Int(v)
 	if !i.IsUint64() {
-		return 0, xerrors.Errorf("failed to parse EthereumBigQuantity to uint64 %v", v.Value())
+		return 0, fmt.Errorf("failed to parse EthereumBigQuantity to uint64 %v", v.Value())
 	}
 	return i.Uint64(), nil
 }
@@ -261,7 +260,7 @@ func (v EthereumBigFloat) MarshalJSON() ([]byte, error) {
 func (v *EthereumBigFloat) UnmarshalJSON(input []byte) error {
 	var s string
 	if err := json.Unmarshal(input, &s); err != nil {
-		return xerrors.Errorf("failed to unmarshal EthereumBigFloat: %w", err)
+		return fmt.Errorf("failed to unmarshal EthereumBigFloat: %w", err)
 	}
 
 	if s == "" {
@@ -272,7 +271,7 @@ func (v *EthereumBigFloat) UnmarshalJSON(input []byte) error {
 	scalar := new(big.Float)
 	scalar, ok := scalar.SetString(s)
 	if !ok {
-		return xerrors.Errorf("cannot parse EthereumBigFloat")
+		return fmt.Errorf("cannot parse EthereumBigFloat")
 	}
 
 	*v = EthereumBigFloat(*scalar)

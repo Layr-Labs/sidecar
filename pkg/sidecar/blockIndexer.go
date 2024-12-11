@@ -91,7 +91,7 @@ func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 }
 
 func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
-	latestBlock, err := s.GetLastIndexedBlock()
+	lastIndexedBlock, err := s.GetLastIndexedBlock()
 	if err != nil {
 		return err
 	}
@@ -104,32 +104,25 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 
 	if latestStateRoot == nil {
 		s.Logger.Sugar().Infow("No state roots found, starting from EL genesis")
-		latestBlock = 0
+		lastIndexedBlock = 0
 	}
 
-	if latestBlock == 0 {
+	if lastIndexedBlock == 0 {
 		s.Logger.Sugar().Infow("No blocks indexed, starting from genesis block", zap.Uint64("genesisBlock", s.Config.GenesisBlockNumber))
-		latestBlock = int64(s.Config.GenesisBlockNumber)
+		lastIndexedBlock = int64(s.Config.GenesisBlockNumber)
 	} else {
 		s.Logger.Sugar().Infow("Comparing latest block and latest state root",
-			zap.Int64("latestBlock", latestBlock),
+			zap.Int64("lastIndexedBlock", lastIndexedBlock),
 			zap.Uint64("latestStateRootBlock", latestStateRoot.EthBlockNumber),
 		)
-		if latestStateRoot.EthBlockNumber == uint64(latestBlock) {
-			s.Logger.Sugar().Infow("Latest block and latest state root are in sync, starting from latest block + 1",
-				zap.Int64("latestBlock", latestBlock),
-				zap.Uint64("latestStateRootBlock", latestStateRoot.EthBlockNumber),
-			)
-			return nil
-		}
 		// if the latest state root is behind the latest block, delete the corrupted state and set the
 		// latest block to the latest state root + 1
-		if latestStateRoot != nil && latestStateRoot.EthBlockNumber < uint64(latestBlock) {
+		if latestStateRoot != nil && latestStateRoot.EthBlockNumber < uint64(lastIndexedBlock) {
 			s.Logger.Sugar().Infow("Latest state root is behind latest block, deleting corrupted state",
 				zap.Uint64("latestStateRoot", latestStateRoot.EthBlockNumber),
-				zap.Int64("latestBlock", latestBlock),
+				zap.Int64("lastIndexedBlock", lastIndexedBlock),
 			)
-			if err := s.StateManager.DeleteCorruptedState(latestStateRoot.EthBlockNumber+1, uint64(latestBlock)); err != nil {
+			if err := s.StateManager.DeleteCorruptedState(latestStateRoot.EthBlockNumber+1, uint64(lastIndexedBlock)); err != nil {
 				s.Logger.Sugar().Errorw("Failed to delete corrupted state", zap.Error(err))
 				return err
 			}
@@ -137,45 +130,65 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 				s.Logger.Sugar().Errorw("Failed to purge corrupted rewards", zap.Error(err))
 				return err
 			}
-			if err := s.Storage.DeleteCorruptedState(uint64(latestStateRoot.EthBlockNumber+1), uint64(latestBlock)); err != nil {
+			if err := s.Storage.DeleteCorruptedState(uint64(latestStateRoot.EthBlockNumber+1), uint64(lastIndexedBlock)); err != nil {
 				s.Logger.Sugar().Errorw("Failed to delete corrupted state", zap.Error(err))
 				return err
 			}
-			latestBlock = int64(latestStateRoot.EthBlockNumber + 1)
+			lastIndexedBlock = int64(latestStateRoot.EthBlockNumber + 1)
 			s.Logger.Sugar().Infow("Deleted corrupted state, starting from latest state root + 1",
 				zap.Uint64("latestStateRoot", latestStateRoot.EthBlockNumber),
-				zap.Int64("latestBlock", latestBlock),
+				zap.Int64("lastIndexedBlock", lastIndexedBlock),
 			)
 		} else {
-			// otherwise, start from the latest block + 1
-			latestBlock++
+			// This should tehcnically never happen, but if the latest state root is ahead of the latest block,
+			// something is very wrong and we should fail.
+			if latestStateRoot.EthBlockNumber > uint64(lastIndexedBlock) {
+				return fmt.Errorf("Latest state root (%d) is ahead of latest stored block (%d), which should never happen, so something is very wrong", latestStateRoot.EthBlockNumber, lastIndexedBlock)
+			}
+			if latestStateRoot.EthBlockNumber == uint64(lastIndexedBlock) {
+				s.Logger.Sugar().Infow("Latest block and latest state root are in sync, starting from latest block + 1",
+					zap.Int64("latestBlock", lastIndexedBlock),
+					zap.Uint64("latestStateRootBlock", latestStateRoot.EthBlockNumber),
+				)
+			}
+			lastIndexedBlock++
 		}
 	}
 
-	// Get the latest safe block as a starting point
-	blockNumber, err := s.EthereumClient.GetLatestSafeBlock(ctx)
-	if err != nil {
-		s.Logger.Sugar().Fatalw("Failed to get current tip", zap.Error(err))
-	}
+	retryCount := 0
+	var latestSafeBlockNumber uint64
 
-	s.Logger.Sugar().Infow("Starting indexing process",
-		zap.Int64("latestBlock", latestBlock),
-		zap.Uint64("currentTip", blockNumber),
-	)
+	for retryCount < 3 {
+		// Get the latest safe block as a starting point
+		latestSafeBlockNumber, err := s.EthereumClient.GetLatestSafeBlock(ctx)
+		if err != nil {
+			s.Logger.Sugar().Fatalw("Failed to get current tip", zap.Error(err))
+		}
 
-	if blockNumber < uint64(latestBlock) {
-		return errors.New("Current tip is less than latest block. Please make sure your node is synced to tip.")
+		s.Logger.Sugar().Infow("Starting indexing process",
+			zap.Int64("latestBlock", lastIndexedBlock),
+			zap.Uint64("currentTip", latestSafeBlockNumber),
+		)
+
+		if latestSafeBlockNumber < uint64(lastIndexedBlock) {
+			if retryCount == 2 {
+				s.Logger.Sugar().Fatalw("Current tip is less than latest block, but retry count is 2, exiting")
+				return errors.New("Current tip is less than latest block, but retry count is 2, exiting")
+			}
+			s.Logger.Sugar().Infow("Current tip is less than latest block sleeping for 7 minutes to allow for the node to catch up")
+			time.Sleep(7 * time.Minute)
+		}
 	}
 
 	s.Logger.Sugar().Infow("Indexing from current to tip",
-		zap.Uint64("currentTip", blockNumber),
-		zap.Int64("latestBlock", latestBlock),
-		zap.Uint64("difference", blockNumber-uint64(latestBlock)),
+		zap.Uint64("currentTip", latestSafeBlockNumber),
+		zap.Int64("lastIndexedBlock", lastIndexedBlock),
+		zap.Uint64("difference", latestSafeBlockNumber-uint64(lastIndexedBlock)),
 	)
 
 	// Use an atomic variable to track the current tip
 	currentTip := atomic.Uint64{}
-	currentTip.Store(blockNumber)
+	currentTip.Store(latestSafeBlockNumber)
 
 	indexComplete := atomic.Bool{}
 	indexComplete.Store(false)
@@ -215,20 +228,20 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	runningAvg := float64(0)
 	totalDurationMs := int64(0)
 
-	originalStartBlock := latestBlock
+	originalStartBlock := lastIndexedBlock
 
 	//nolint:all
-	lastBlockParsed := latestBlock
+	currentBlock := lastIndexedBlock
 
-	s.Logger.Sugar().Infow("Starting indexing process", zap.Int64("latestBlock", latestBlock), zap.Uint64("currentTip", currentTip.Load()))
+	s.Logger.Sugar().Infow("Starting indexing process", zap.Int64("currentBlock", currentBlock), zap.Uint64("currentTip", currentTip.Load()))
 
-	for uint64(latestBlock) <= currentTip.Load() {
+	for uint64(currentBlock) <= currentTip.Load() {
 		if s.shouldShutdown.Load() {
 			s.Logger.Sugar().Infow("Shutting down block processor")
 			return nil
 		}
 		tip := currentTip.Load()
-		blocksRemaining := tip - uint64(latestBlock)
+		blocksRemaining := tip - uint64(currentBlock)
 		totalBlocksToProcess := tip - uint64(originalStartBlock)
 
 		var pctComplete float64
@@ -240,34 +253,38 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		estTimeRemainingHours := float64(estTimeRemainingMs) / 1000 / 60 / 60
 
 		startTime := time.Now()
-		endBlock := int64(latestBlock + 100)
+		endBlock := int64(currentBlock + 100)
 		if endBlock > int64(tip) {
 			endBlock = int64(tip)
 		}
-		if err := s.Pipeline.RunForBlockBatch(ctx, uint64(latestBlock), uint64(endBlock), true); err != nil {
+		if err := s.Pipeline.RunForBlockBatch(ctx, uint64(currentBlock), uint64(endBlock), true); err != nil {
 			s.Logger.Sugar().Errorw("Failed to run pipeline for block batch",
 				zap.Error(err),
-				zap.Uint64("startBlock", uint64(latestBlock)),
+				zap.Uint64("startBlock", uint64(currentBlock)),
 				zap.Int64("endBlock", endBlock),
 			)
 			return err
 		}
 
-		lastBlockParsed = int64(endBlock)
+		currentBlock = int64(endBlock)
 		delta := time.Since(startTime).Milliseconds()
-		blocksProcessed += (endBlock - latestBlock)
+		blocksProcessed += (endBlock - currentBlock)
 
 		totalDurationMs += delta
-		runningAvg = float64(totalDurationMs / blocksProcessed)
+		if blocksProcessed == 0 {
+			runningAvg = 0
+		} else {
+			runningAvg = float64(totalDurationMs / blocksProcessed)
+		}
 
 		s.Logger.Sugar().Infow("Progress",
 			zap.String("percentComplete", fmt.Sprintf("%.2f", pctComplete)),
 			zap.Uint64("blocksRemaining", blocksRemaining),
 			zap.Float64("estimatedTimeRemaining (hrs)", estTimeRemainingHours),
 			zap.Float64("avgBlockProcessTime (ms)", float64(runningAvg)),
-			zap.Uint64("lastBlockParsed", uint64(lastBlockParsed)),
+			zap.Uint64("currentBlock", uint64(currentBlock)),
 		)
-		latestBlock = endBlock + 1
+		currentBlock = endBlock + 1
 	}
 
 	return nil

@@ -22,6 +22,7 @@ func (idx *Indexer) getAbi(json string) (*abi.ABI, error) {
 
 	if err != nil {
 		foundMatch := false
+		// patterns that we're fine to ignore and not treat as an error
 		patterns := []*regexp.Regexp{
 			regexp.MustCompile(`only single receive is allowed`),
 			regexp.MustCompile(`only single fallback is allowed`),
@@ -33,9 +34,11 @@ func (idx *Indexer) getAbi(json string) (*abi.ABI, error) {
 				break
 			}
 		}
-		// Ignore really common compilation error
+
+		// If the error isnt one that we can ignore, return it
 		if !foundMatch {
 			idx.Logger.Sugar().Warnw("Error unmarshaling abi json", zap.Error(err))
+			return nil, err
 		}
 	}
 

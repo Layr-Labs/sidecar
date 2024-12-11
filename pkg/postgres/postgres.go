@@ -8,7 +8,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -156,14 +155,14 @@ func CreateDatabaseIfNotExists(cfg *PostgresConfig) error {
 func NewPostgres(cfg *PostgresConfig) (*Postgres, error) {
 	if cfg.CreateDbIfNotExists {
 		if err := CreateDatabaseIfNotExists(cfg); err != nil {
-			return nil, xerrors.Errorf("Failed to create database if not exists %+v", err)
+			return nil, fmt.Errorf("Failed to create database if not exists %+v", err)
 		}
 	}
 	connectString := getPostgresConnectionString(cfg)
 
 	db, err := sql.Open("postgres", connectString)
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to setup database %+v", err)
+		return nil, fmt.Errorf("Failed to setup database %+v", err)
 	}
 
 	return &Postgres{
@@ -178,7 +177,7 @@ func NewGormFromPostgresConnection(pgDb *sql.DB) (*gorm.DB, error) {
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to setup database %+v", err)
+		return nil, fmt.Errorf("Failed to setup database %+v", err)
 	}
 
 	return db, nil

@@ -24,7 +24,6 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rs/cors"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -144,7 +143,7 @@ func (s *Sidecar) WithRpcServer(
 	grpcLis, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
 	if err != nil {
 		s.Logger.Sugar().Errorw("Failed to listen", zap.Error(err), zap.Int("port", grpcPort))
-		return xerrors.Errorf("failed to listen: %w", err)
+		return fmt.Errorf("failed to listen: %w", err)
 	}
 
 	grpcServer := grpc.NewServer(

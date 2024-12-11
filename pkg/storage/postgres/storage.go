@@ -12,7 +12,6 @@ import (
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -81,7 +80,7 @@ func (s *PostgresBlockStore) InsertBlockTransaction(
 	result := s.Db.Model(&storage.Transaction{}).Clauses(clause.Returning{}).Create(&tx)
 
 	if result.Error != nil {
-		return nil, xerrors.Errorf("Failed to insert block transaction '%d' - '%s': %w", blockNumber, txHash, result.Error)
+		return nil, fmt.Errorf("Failed to insert block transaction '%d' - '%s': %w", blockNumber, txHash, result.Error)
 	}
 	return tx, nil
 }
@@ -116,7 +115,7 @@ func (s *PostgresBlockStore) InsertTransactionLog(
 	result := s.Db.Model(&storage.TransactionLog{}).Clauses(clause.Returning{}).Create(&txLog)
 
 	if result.Error != nil {
-		return nil, xerrors.Errorf("Failed to insert transaction log: %w - %+v", result.Error, txLog)
+		return nil, fmt.Errorf("Failed to insert transaction log: %w - %+v", result.Error, txLog)
 	}
 	return txLog, nil
 }
@@ -133,7 +132,7 @@ func (s *PostgresBlockStore) GetLatestBlock() (*storage.Block, error) {
 
 	result := s.Db.Model(&storage.Block{}).Raw(query).Scan(&block)
 	if result.Error != nil {
-		return nil, xerrors.Errorf("Failed to get latest block: %w", result.Error)
+		return nil, fmt.Errorf("Failed to get latest block: %w", result.Error)
 	}
 	return block, nil
 }
@@ -171,7 +170,7 @@ func (s *PostgresBlockStore) InsertOperatorRestakedStrategies(
 	result := s.Db.Model(&storage.OperatorRestakedStrategies{}).Clauses(clause.Returning{}).Create(&ors)
 
 	if result.Error != nil {
-		return nil, xerrors.Errorf("Failed to insert operator restaked strategies: %w", result.Error)
+		return nil, fmt.Errorf("Failed to insert operator restaked strategies: %w", result.Error)
 	}
 	return ors, nil
 }
@@ -190,7 +189,7 @@ func (s *PostgresBlockStore) BulkInsertOperatorRestakedStrategies(
 		},
 	).Create(&operatorRestakedStrategies)
 	if res.Error != nil {
-		return nil, xerrors.Errorf("Failed to insert operator restaked strategies: %w", res.Error)
+		return nil, fmt.Errorf("Failed to insert operator restaked strategies: %w", res.Error)
 	}
 	return operatorRestakedStrategies, nil
 }
@@ -218,7 +217,7 @@ func (s *PostgresBlockStore) GetLatestActiveAvsOperators(blockNumber uint64, avs
 	`
 	result := s.Db.Raw(query, avsDirectoryAddress, blockNumber).Scan(&rows)
 	if result.Error != nil {
-		return nil, xerrors.Errorf("Failed to get latest active AVS operators: %w", result.Error)
+		return nil, fmt.Errorf("Failed to get latest active AVS operators: %w", result.Error)
 	}
 	return rows, nil
 }
@@ -254,7 +253,7 @@ func (s *PostgresBlockStore) DeleteCorruptedState(startBlockNumber uint64, endBl
 			sql.Named("endBlockNumber", endBlockNumber),
 		)
 		if res.Error != nil {
-			return xerrors.Errorf("Failed to delete corrupted state from table '%s': %w", tableName, res.Error)
+			return fmt.Errorf("Failed to delete corrupted state from table '%s': %w", tableName, res.Error)
 		}
 	}
 	blocksQuery := `
@@ -269,7 +268,7 @@ func (s *PostgresBlockStore) DeleteCorruptedState(startBlockNumber uint64, endBl
 		sql.Named("endBlockNumber", endBlockNumber),
 	)
 	if res.Error != nil {
-		return xerrors.Errorf("Failed to delete corrupted state from table 'blocks': %w", res.Error)
+		return fmt.Errorf("Failed to delete corrupted state from table 'blocks': %w", res.Error)
 	}
 	return nil
 }
