@@ -147,7 +147,7 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(snapsh
 	tableName := "operator_avs_strategy_snapshots"
 	contractAddresses := r.globalConfig.GetContractsMapForChain()
 
-	query, err := rewardsUtils.RenderQueryTemplate(operatorAvsStrategyWindowsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(operatorAvsStrategyWindowsQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
