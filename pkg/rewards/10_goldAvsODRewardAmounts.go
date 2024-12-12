@@ -22,11 +22,8 @@ WITH reward_snapshot_operators AS (
         ap.multiplier,
         ap.reward_submission_date
     FROM {{.activeODRewardsTable}} ap
-    LEFT JOIN operator_avs_registration_snapshots oar
-        ON ap.avs = oar.avs 
-       AND ap.snapshot = oar.snapshot 
-       AND ap.operator = oar.operator
-    WHERE oar.avs IS NULL OR oar.operator IS NULL
+    WHERE
+        num_registered_snapshots = 0
 ),
 
 -- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
