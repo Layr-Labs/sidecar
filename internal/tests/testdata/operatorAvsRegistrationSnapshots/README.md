@@ -98,7 +98,7 @@ FROM transaction_logs t
     LEFT JOIN blocks b ON t.block_sequence_id = b.id
 WHERE t.address = '0x141d6995556135d4997b2ff72eb443be300353bc'
   AND t.event_name = 'OperatorAVSRegistrationStatusUpdated'
-  AND date_trunc('day', b.block_time) < TIMESTAMP '2024-12-10'
+  AND date_trunc('day', b.block_time) < TIMESTAMP '2024-12-13'
     )
 select
     operator,
