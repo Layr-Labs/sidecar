@@ -52,10 +52,8 @@ active_rewards_updated_start_timestamps AS (
         COALESCE(MAX(g.snapshot), ap.reward_start_exclusive) AS reward_start_exclusive,
         ap.reward_end_inclusive,
         ap.token,
-        -- We use floor to ensure we are always underesimating total tokens per day
+        -- We use floor to ensure we are always underestimating total tokens per day
         FLOOR(ap.amount) AS amount_decimal,
-        -- Round down to 15 sigfigs for double precision, ensuring know errouneous round up or down
-        ap.amount * ((POW(10, 15) - 1) / POW(10, 15)) AS amount,
         ap.multiplier,
         ap.strategy,
         ap.reward_hash,
@@ -70,7 +68,7 @@ active_rewards_updated_start_timestamps AS (
         ap.operator, 
         ap.reward_end_inclusive, 
         ap.token, 
-        ap.amount, 
+        ap.amount,
         ap.multiplier, 
         ap.strategy, 
         ap.reward_hash, 
@@ -109,7 +107,6 @@ active_rewards_cleaned AS (
         operator,
         CAST(day AS DATE) AS snapshot,
         token,
-        amount,
         amount_decimal,
         multiplier,
         strategy,
@@ -142,7 +139,7 @@ op_avs_num_registered_snapshots AS (
     GROUP BY ar.reward_hash, ar.operator        
 ),
 
--- Step 9: Divide amount to pay by the number of snapshots that the operator was registered
+-- Step 10: Divide amount to pay by the number of snapshots that the operator was registered
 active_rewards_with_registered_snapshots AS (
     SELECT
         arc.*,
@@ -154,7 +151,7 @@ active_rewards_with_registered_snapshots AS (
         AND arc.operator = nrs.operator
 ),
 
--- Step 10: Divide amount to pay by the number of snapshots that the operator was registered
+-- Step 11: Divide amount to pay by the number of snapshots that the operator was registered
 active_rewards_final AS (
     SELECT
         ar.*,
@@ -162,12 +159,7 @@ active_rewards_final AS (
             -- If the operator was not registered for any snapshots, just get regular tokens per day to refund the AVS
             WHEN ar.num_registered_snapshots = 0 THEN ar.amount_decimal / (duration / 86400)
             ELSE ar.amount_decimal / ar.num_registered_snapshots
-        END AS tokens_per_registered_snapshot_decimal,
-        CASE
-            -- If the operator was not registered for any snapshots, just get regular tokens per day to refund the AVS
-            WHEN ar.num_registered_snapshots = 0 THEN ar.amount / (duration / 86400)
-            ELSE ar.amount / ar.num_registered_snapshots
-        END AS tokens_per_registered_snapshot
+        END AS tokens_per_registered_snapshot_decimal
     FROM active_rewards_with_registered_snapshots ar
 )
 
