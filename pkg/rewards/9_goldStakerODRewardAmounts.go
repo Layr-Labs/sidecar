@@ -14,7 +14,6 @@ WITH reward_snapshot_operators AS (
         ap.reward_hash,
         ap.snapshot AS snapshot,
         ap.token,
-        ap.tokens_per_registered_snapshot,
         ap.tokens_per_registered_snapshot_decimal,
         ap.avs AS avs,
         ap.operator AS operator,
