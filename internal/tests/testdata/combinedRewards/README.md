@@ -87,5 +87,5 @@ select
     duration,
     block_number as block_number
 from dbt_preprod_holesky_rewards.rewards_combined
-where block_time < '2024-12-10'
+where block_time < '2024-12-13'
 ```
