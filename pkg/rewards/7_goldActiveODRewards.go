@@ -162,12 +162,12 @@ active_rewards_final AS (
             -- If the operator was not registered for any snapshots, just get regular tokens per day to refund the AVS
             WHEN ar.num_registered_snapshots = 0 THEN ar.amount_decimal / (duration / 86400)
             ELSE ar.amount_decimal / ar.num_registered_snapshots
-        END AS tokens_per_day_decimal,
+        END AS tokens_per_registered_snapshot_decimal,
         CASE
             -- If the operator was not registered for any snapshots, just get regular tokens per day to refund the AVS
             WHEN ar.num_registered_snapshots = 0 THEN ar.amount / (duration / 86400)
             ELSE ar.amount / ar.num_registered_snapshots
-        END AS tokens_per_day
+        END AS tokens_per_registered_snapshot
     FROM active_rewards_with_registered_snapshots ar
 )
 

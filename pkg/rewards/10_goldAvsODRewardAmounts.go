@@ -14,8 +14,8 @@ WITH reward_snapshot_operators AS (
         ap.reward_hash,
         ap.snapshot AS snapshot,
         ap.token,
-        ap.tokens_per_day,
-        ap.tokens_per_day_decimal,
+        ap.tokens_per_registered_snapshot,
+        ap.tokens_per_registered_snapshot_decimal,
         ap.avs AS avs,
         ap.operator AS operator,
         ap.strategy,
@@ -53,7 +53,7 @@ operator_token_sums AS (
         token,
         avs,
         operator,
-        SUM(tokens_per_day_decimal) OVER (PARTITION BY reward_hash, snapshot) AS avs_tokens
+        SUM(tokens_per_registered_snapshot_decimal) OVER (PARTITION BY reward_hash, snapshot) AS avs_tokens
     FROM distinct_operators
 )
 
