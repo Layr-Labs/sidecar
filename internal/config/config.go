@@ -332,7 +332,7 @@ func (c *Config) CanIgnoreIncorrectRewardsRoot(blockNumber uint64) bool {
 		}
 
 		// ignore rewards-v2 deployment/testing range
-		if blockNumber > 2877938 && blockNumber <= 2909856 {
+		if blockNumber >= 2877938 && blockNumber <= 2909856 {
 			return true
 		}
 	case Chain_Holesky:
