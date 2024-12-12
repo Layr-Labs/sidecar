@@ -120,9 +120,9 @@ active_rewards_cleaned AS (
 -- Step 8: Divide by the number of snapshots that the operator was registered
 op_avs_num_registered_snapshots AS (
     SELECT
-        arc.avs,
+        arc.reward_hash,
         arc.operator,
-        COUNT(*) AS num_registered_snapshots,
+        COUNT(*) AS num_registered_snapshots
     FROM active_rewards_cleaned arc
     JOIN operator_avs_registration_snapshots oar
     ON
@@ -140,7 +140,7 @@ active_rewards_with_registered_snapshots AS (
     FROM active_rewards_cleaned arc
     LEFT JOIN op_avs_num_registered_snapshots nrs
     ON
-        arc.avs = nrs.avs
+        arc.reward_hash = nrs.reward_hash
         AND arc.operator = nrs.operator
 ),
 
