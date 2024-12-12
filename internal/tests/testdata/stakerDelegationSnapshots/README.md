@@ -61,7 +61,7 @@ FROM (
          UNION ALL
          SELECT *, 'delegations' AS src FROM dbt_preprod_holesky_rewards.staker_delegations
      ) as delegations_combined
-where block_time < '2024-12-10'
+where block_time < '2024-12-13'
 ```
 
 
