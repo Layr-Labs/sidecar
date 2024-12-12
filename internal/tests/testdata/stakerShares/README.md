@@ -131,28 +131,28 @@ SELECT
     block_date,
     block_number
 FROM (
-    SELECT staker, strategy, shares, 0 as strategy_index, transaction_hash, log_index, block_time, block_date, block_number
-    FROM dbt_mainnet_ethereum_rewards.staker_deposits
-    where block_date < '2024-08-20'
+         SELECT staker, strategy, shares, 0 as strategy_index, transaction_hash, log_index, block_time, block_date, block_number
+         FROM dbt_preprod_holesky_rewards.staker_deposits
+         where block_date < '2024-12-13'
 
-    UNION ALL
+         UNION ALL
 
-    -- Subtract m1 & m2 withdrawals
-    SELECT staker, strategy, shares * -1, 0 as strategy_index, transaction_hash, log_index, block_time, block_date, block_number
-    FROM dbt_mainnet_ethereum_rewards.m1_staker_withdrawals
-    where block_date < '2024-08-20'
+         -- Subtract m1 & m2 withdrawals
+         SELECT staker, strategy, shares * -1, 0 as strategy_index, transaction_hash, log_index, block_time, block_date, block_number
+         FROM dbt_preprod_holesky_rewards.m1_staker_withdrawals
+         where block_date < '2024-12-13'
 
-    UNION ALL
+         UNION ALL
 
-    SELECT staker, strategy, shares * -1, strategy_index, transaction_hash, log_index, block_time, block_date, block_number
-    FROM dbt_mainnet_ethereum_rewards.m2_staker_withdrawals
-    where block_date < '2024-08-20'
+         SELECT staker, strategy, shares * -1, strategy_index, transaction_hash, log_index, block_time, block_date, block_number
+         FROM dbt_preprod_holesky_rewards.m2_staker_withdrawals
+         where block_date < '2024-12-13'
 
-    UNION all
+         UNION all
 
-    -- Shares in eigenpod are positive or negative, so no need to multiply by -1
-    SELECT staker, '0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0' as strategy, shares, 0 as strategy_index, transaction_hash, log_index, block_time, block_date, block_number
-    FROM dbt_mainnet_ethereum_rewards.eigenpod_shares
-    where block_date < '2024-08-20'
-) combined_staker_shares
+         -- Shares in eigenpod are positive or negative, so no need to multiply by -1
+         SELECT staker, '0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0' as strategy, shares, 0 as strategy_index, transaction_hash, log_index, block_time, block_date, block_number
+         FROM dbt_preprod_holesky_rewards.eigenpod_shares
+         where block_date < '2024-12-13'
+     ) combined_staker_shares
 ```

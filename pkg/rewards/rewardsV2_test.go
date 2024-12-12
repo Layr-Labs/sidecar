@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -72,7 +73,7 @@ func Test_RewardsV2(t *testing.T) {
 		t.Log("Hydrated tables")
 
 		snapshotDates := []string{
-			"2024-12-12",
+			"2024-12-14",
 		}
 
 		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
@@ -210,6 +211,13 @@ func Test_RewardsV2(t *testing.T) {
 			assert.Nil(t, err)
 
 			t.Logf("Gold staging rows for snapshot %s: %d", snapshotDate, len(goldRows))
+			for i, row := range goldRows {
+				if strings.EqualFold(row.RewardHash, strings.ToLower("0xB38AB57E8E858F197C07D0CDF61F34EB07C3D0FC58390417DDAD0BF528681909")) &&
+					strings.EqualFold(row.Earner, strings.ToLower("0xaFF71569D30ED876987088a62E0EA881EBc761E6")) {
+					t.Logf("%d: %s %s %s %s %s", i, row.Earner, row.Snapshot.String(), row.RewardHash, row.Token, row.Amount)
+				}
+				// t.Logf("%d: %s %s %s %s %s", i, row.Earner, row.Snapshot.String(), row.RewardHash, row.Token, row.Amount)
+			}
 
 			fmt.Printf("Total duration for rewards compute %s: %v\n", snapshotDate, time.Since(snapshotStartTime))
 			testStart = time.Now()
