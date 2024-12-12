@@ -22,7 +22,7 @@ const operatorDirectedRewardsQuery = `
 			TO_CHAR(b.block_time, 'YYYY-MM-DD') AS block_date
 		FROM operator_directed_reward_submissions AS odrs
 		JOIN blocks AS b ON(b.number = odrs.block_number)
-		WHERE b.block_time <= TIMESTAMP '{{.cutoffDate}}'
+		WHERE b.block_time < TIMESTAMP '{{.cutoffDate}}'
 	)
 	select
 		avs,
