@@ -210,6 +210,9 @@ func Test_RewardsV2(t *testing.T) {
 			assert.Nil(t, err)
 
 			t.Logf("Gold staging rows for snapshot %s: %d", snapshotDate, len(goldRows))
+			for i, row := range goldRows {
+				t.Logf("%d: %s %s %s %s %s", i, row.Earner, row.Snapshot.String(), row.RewardHash, row.Token, row.Amount)
+			}
 
 			fmt.Printf("Total duration for rewards compute %s: %v\n", snapshotDate, time.Since(snapshotStartTime))
 			testStart = time.Now()

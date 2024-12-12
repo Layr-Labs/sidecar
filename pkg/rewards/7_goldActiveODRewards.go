@@ -115,7 +115,7 @@ active_rewards_cleaned AS (
     FROM exploded_active_range_rewards
     -- Remove snapshots on the start day
     WHERE day != reward_start_exclusive
-)
+),
 
 -- Step 8: Divide by the number of snapshots that the operator was registered
 op_avs_num_registered_snapshots AS (
@@ -136,7 +136,7 @@ op_avs_num_registered_snapshots AS (
 active_rewards_with_registered_snapshots AS (
     SELECT
         arc.*,
-        COALESCE(nrs.num_registered_snapshots, 0) as num_registered_snapshots,
+        COALESCE(nrs.num_registered_snapshots, 0) as num_registered_snapshots
     FROM active_rewards_cleaned arc
     LEFT JOIN op_avs_num_registered_snapshots nrs
     ON
