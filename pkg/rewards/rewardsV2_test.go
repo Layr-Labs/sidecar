@@ -73,7 +73,7 @@ func Test_RewardsV2(t *testing.T) {
 		t.Log("Hydrated tables")
 
 		snapshotDates := []string{
-			"2024-12-12",
+			"2024-12-14",
 		}
 
 		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
