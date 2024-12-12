@@ -38,7 +38,7 @@ preprod-rewardsV2
 select
     *
 from dbt_preprod_holesky_rewards.operator_shares
-where block_time < '2024-12-10'
+where block_time < '2024-12-13'
 ```
 
 ## Expected results
