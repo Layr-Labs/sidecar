@@ -38,6 +38,7 @@ active_rewards_updated_end_timestamps AS (
         multiplier,
         strategy,
         reward_hash,
+        duration,
         global_end_inclusive,
         block_date AS reward_submission_date
     FROM active_rewards_modified
@@ -58,6 +59,7 @@ active_rewards_updated_start_timestamps AS (
         ap.multiplier,
         ap.strategy,
         ap.reward_hash,
+        ap.duration,
         ap.global_end_inclusive,
         ap.reward_submission_date
     FROM active_rewards_updated_end_timestamps ap
@@ -72,6 +74,7 @@ active_rewards_updated_start_timestamps AS (
         ap.multiplier, 
         ap.strategy, 
         ap.reward_hash, 
+        ap.duration,
         ap.global_end_inclusive, 
         ap.reward_start_exclusive, 
         ap.reward_submission_date
@@ -110,6 +113,7 @@ active_rewards_cleaned AS (
         amount_decimal,
         multiplier,
         strategy,
+        duration,
         reward_hash,
         reward_submission_date
     FROM exploded_active_range_rewards
