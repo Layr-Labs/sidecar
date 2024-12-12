@@ -14,7 +14,6 @@ WITH
 active_rewards_modified AS (
     SELECT 
         *,
-        amount / (duration / 86400) AS tokens_per_day,
         CAST(@cutoffDate AS TIMESTAMP(6)) AS global_end_inclusive -- Inclusive means we DO USE this day as a snapshot
     FROM operator_directed_rewards
     WHERE end_timestamp >= TIMESTAMP '{{.rewardsStart}}'
@@ -34,11 +33,12 @@ active_rewards_updated_end_timestamps AS (
          */
         start_timestamp AS reward_start_exclusive,
         LEAST(global_end_inclusive, end_timestamp) AS reward_end_inclusive,
-        tokens_per_day,
+        amount,
         token,
         multiplier,
         strategy,
         reward_hash,
+        duration,
         global_end_inclusive,
         block_date AS reward_submission_date
     FROM active_rewards_modified
@@ -52,13 +52,12 @@ active_rewards_updated_start_timestamps AS (
         COALESCE(MAX(g.snapshot), ap.reward_start_exclusive) AS reward_start_exclusive,
         ap.reward_end_inclusive,
         ap.token,
-        -- We use floor to ensure we are always underesimating total tokens per day
-        FLOOR(ap.tokens_per_day) AS tokens_per_day_decimal,
-        -- Round down to 15 sigfigs for double precision, ensuring know errouneous round up or down
-        ap.tokens_per_day * ((POW(10, 15) - 1) / POW(10, 15)) AS tokens_per_day,
+        -- We use floor to ensure we are always underestimating total tokens per day
+        FLOOR(ap.amount) AS amount_decimal,
         ap.multiplier,
         ap.strategy,
         ap.reward_hash,
+        ap.duration,
         ap.global_end_inclusive,
         ap.reward_submission_date
     FROM active_rewards_updated_end_timestamps ap
@@ -69,10 +68,11 @@ active_rewards_updated_start_timestamps AS (
         ap.operator, 
         ap.reward_end_inclusive, 
         ap.token, 
-        ap.tokens_per_day, 
+        ap.amount,
         ap.multiplier, 
         ap.strategy, 
         ap.reward_hash, 
+        ap.duration,
         ap.global_end_inclusive, 
         ap.reward_start_exclusive, 
         ap.reward_submission_date
@@ -100,22 +100,67 @@ exploded_active_range_rewards AS (
     ) AS day
 ),
 
--- Step 7: Prepare final active rewards
-active_rewards_final AS (
+-- Step 7: Prepare cleaned active rewards
+active_rewards_cleaned AS (
     SELECT
         avs,
         operator,
         CAST(day AS DATE) AS snapshot,
         token,
-        tokens_per_day,
-        tokens_per_day_decimal,
+        amount_decimal,
         multiplier,
         strategy,
+        duration,
         reward_hash,
         reward_submission_date
     FROM exploded_active_range_rewards
     -- Remove snapshots on the start day
     WHERE day != reward_start_exclusive
+),
+
+-- Step 8: Dedupe the active rewards by (avs, snapshot, operator, reward_hash)
+active_rewards_reduced_deduped AS (
+    SELECT DISTINCT avs, snapshot, operator, reward_hash
+    FROM active_rewards_cleaned
+),
+
+-- Step 9: Divide by the number of snapshots that the operator was registered
+op_avs_num_registered_snapshots AS (
+    SELECT
+        ar.reward_hash,
+        ar.operator,
+        COUNT(*) AS num_registered_snapshots
+    FROM active_rewards_reduced_deduped ar
+    JOIN operator_avs_registration_snapshots oar
+    ON
+        ar.avs = oar.avs
+        AND ar.snapshot = oar.snapshot 
+        AND ar.operator = oar.operator
+    GROUP BY ar.reward_hash, ar.operator        
+),
+
+-- Step 10: Divide amount to pay by the number of snapshots that the operator was registered
+active_rewards_with_registered_snapshots AS (
+    SELECT
+        arc.*,
+        COALESCE(nrs.num_registered_snapshots, 0) as num_registered_snapshots
+    FROM active_rewards_cleaned arc
+    LEFT JOIN op_avs_num_registered_snapshots nrs
+    ON
+        arc.reward_hash = nrs.reward_hash
+        AND arc.operator = nrs.operator
+),
+
+-- Step 11: Divide amount to pay by the number of snapshots that the operator was registered
+active_rewards_final AS (
+    SELECT
+        ar.*,
+        CASE
+            -- If the operator was not registered for any snapshots, just get regular tokens per day to refund the AVS
+            WHEN ar.num_registered_snapshots = 0 THEN ar.amount_decimal / (duration / 86400)
+            ELSE ar.amount_decimal / ar.num_registered_snapshots
+        END AS tokens_per_registered_snapshot_decimal
+    FROM active_rewards_with_registered_snapshots ar
 )
 
 SELECT * FROM active_rewards_final

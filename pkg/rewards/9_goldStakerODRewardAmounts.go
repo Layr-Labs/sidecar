@@ -14,8 +14,7 @@ WITH reward_snapshot_operators AS (
         ap.reward_hash,
         ap.snapshot AS snapshot,
         ap.token,
-        ap.tokens_per_day,
-        ap.tokens_per_day_decimal,
+        ap.tokens_per_registered_snapshot_decimal,
         ap.avs AS avs,
         ap.operator AS operator,
         ap.strategy,
@@ -33,7 +32,7 @@ WITH reward_snapshot_operators AS (
 staker_splits AS (
     SELECT 
         rso.*,
-        rso.tokens_per_day_decimal - FLOOR(rso.tokens_per_day_decimal * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL)) AS staker_split
+        rso.tokens_per_registered_snapshot_decimal - FLOOR(rso.tokens_per_registered_snapshot_decimal * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL)) AS staker_split
     FROM reward_snapshot_operators rso
     LEFT JOIN operator_avs_split_snapshots oas
         ON rso.operator = oas.operator 
