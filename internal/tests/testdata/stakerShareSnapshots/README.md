@@ -62,7 +62,7 @@ select
     block_date,
     block_number
 from dbt_preprod_holesky_rewards.staker_shares
-where block_time < '2024-12-10'
+where block_time < '2024-12-13'
 ```
 
 ## Expected results
