@@ -298,24 +298,6 @@ func (c *Config) GetOperatorRestakedStrategiesStartBlock() uint64 {
 	return 0
 }
 
-func (c *Config) ShouldSkipRewardsGeneration(blockNumber uint64) bool {
-	switch c.Chain {
-	case Chain_Preprod:
-		// During this period we deployed the rewards-v2 contracts before updating the sidecar.
-		// This results in missed events which have to be filled by some means. To fill them in,
-		// we needed to manually delete delete blocks >= 2871534 and re-index. The trouble here
-		// is that re-indexing introduces new state which was not present at the original process time.
-		if blockNumber >= 2871534 && blockNumber <= 2909856 {
-			return true
-		}
-	case Chain_Holesky:
-		// Skip rewards generation for holesky
-	case Chain_Mainnet:
-		// Skip rewards generation for mainnet
-	}
-	return false
-}
-
 func (c *Config) IsRewardsV2EnabledForCutoffDate(cutoffDate string) (bool, error) {
 	forks, err := c.GetForkDates()
 	if err != nil {
@@ -346,6 +328,11 @@ func (c *Config) CanIgnoreIncorrectRewardsRoot(blockNumber uint64) bool {
 		}
 		// test root posted that was invalid for 2024-11-23 (cutoff date 2024-11-24)
 		if blockNumber == 2812052 {
+			return true
+		}
+
+		// ignore rewards-v2 deployment/testing range
+		if blockNumber > 2877938 && blockNumber <= 2909856 {
 			return true
 		}
 	case Chain_Holesky:
