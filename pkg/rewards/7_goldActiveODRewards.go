@@ -121,19 +121,25 @@ active_rewards_cleaned AS (
     WHERE day != reward_start_exclusive
 ),
 
--- Step 8: Divide by the number of snapshots that the operator was registered
+-- Step 8: Dedupe the active rewards by (avs, snapshot, operator, reward_hash)
+active_rewards_reduced_deduped AS (
+    SELECT DISTINCT avs, snapshot, operator, reward_hash
+    FROM active_rewards_cleaned
+),
+
+-- Step 9: Divide by the number of snapshots that the operator was registered
 op_avs_num_registered_snapshots AS (
     SELECT
-        arc.reward_hash,
-        arc.operator,
+        ar.reward_hash,
+        ar.operator,
         COUNT(*) AS num_registered_snapshots
-    FROM active_rewards_cleaned arc
+    FROM active_rewards_reduced_deduped ar
     JOIN operator_avs_registration_snapshots oar
     ON
-        arc.avs = oar.avs
-        AND arc.snapshot = oar.snapshot 
-        AND arc.operator = oar.operator
-    GROUP BY arc.reward_hash, arc.operator        
+        ar.avs = oar.avs
+        AND ar.snapshot = oar.snapshot 
+        AND ar.operator = oar.operator
+    GROUP BY ar.reward_hash, ar.operator        
 ),
 
 -- Step 9: Divide amount to pay by the number of snapshots that the operator was registered

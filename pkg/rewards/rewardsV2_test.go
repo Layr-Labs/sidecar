@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -211,7 +212,11 @@ func Test_RewardsV2(t *testing.T) {
 
 			t.Logf("Gold staging rows for snapshot %s: %d", snapshotDate, len(goldRows))
 			for i, row := range goldRows {
-				t.Logf("%d: %s %s %s %s %s", i, row.Earner, row.Snapshot.String(), row.RewardHash, row.Token, row.Amount)
+				if strings.EqualFold(row.RewardHash, strings.ToLower("0xC3C123332AEA9A1C02504E6E8A9BF50A7ECA379B5A4BC0A19AE20952A7ED7F9F")) ||
+					strings.EqualFold(row.RewardHash, strings.ToLower("0x3204CB6FEF151C5E90324EE77729854CACF74C2BA742AD666F0EA758E0117203")) {
+					t.Logf("%d: %s %s %s %s %s", i, row.Earner, row.Snapshot.String(), row.RewardHash, row.Token, row.Amount)
+				}
+				// t.Logf("%d: %s %s %s %s %s", i, row.Earner, row.Snapshot.String(), row.RewardHash, row.Token, row.Amount)
 			}
 
 			fmt.Printf("Total duration for rewards compute %s: %v\n", snapshotDate, time.Since(snapshotStartTime))
