@@ -54,7 +54,7 @@ select
     avs_directory_address
 from operator_restaked_strategies
 where avs_directory_address = '0x141d6995556135d4997b2ff72eb443be300353bc'
-and block_time < '2024-12-10'
+and block_time < '2024-12-13'
 ```
 
 ## Expected results
