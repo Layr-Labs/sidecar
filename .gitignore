@@ -33,3 +33,4 @@ chart_releases
 /snapshots/**/*.sql
 /snapshots/**/*.csv
 
+.env

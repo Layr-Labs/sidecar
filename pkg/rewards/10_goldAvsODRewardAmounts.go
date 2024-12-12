@@ -14,19 +14,16 @@ WITH reward_snapshot_operators AS (
         ap.reward_hash,
         ap.snapshot AS snapshot,
         ap.token,
-        ap.tokens_per_day,
-        ap.tokens_per_day_decimal,
+        ap.tokens_per_registered_snapshot,
+        ap.tokens_per_registered_snapshot_decimal,
         ap.avs AS avs,
         ap.operator AS operator,
         ap.strategy,
         ap.multiplier,
         ap.reward_submission_date
     FROM {{.activeODRewardsTable}} ap
-    LEFT JOIN operator_avs_registration_snapshots oar
-        ON ap.avs = oar.avs 
-       AND ap.snapshot = oar.snapshot 
-       AND ap.operator = oar.operator
-    WHERE oar.avs IS NULL OR oar.operator IS NULL
+    WHERE
+        ap.num_registered_snapshots = 0
 ),
 
 -- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
@@ -56,7 +53,7 @@ operator_token_sums AS (
         token,
         avs,
         operator,
-        SUM(tokens_per_day_decimal) OVER (PARTITION BY reward_hash, snapshot) AS avs_tokens
+        SUM(tokens_per_registered_snapshot_decimal) OVER (PARTITION BY reward_hash, snapshot) AS avs_tokens
     FROM distinct_operators
 )
 
