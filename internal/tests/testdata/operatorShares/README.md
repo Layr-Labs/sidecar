@@ -70,5 +70,29 @@ FROM (
          FROM dbt_mainnet_ethereum_rewards.operator_share_decreases
          where block_date < '2024-08-20'
      ) combined_shares
+```
 
+### preprod-rewardsv2
+
+```sql
+SELECT
+    operator,
+    strategy,
+    shares,
+    transaction_hash,
+    log_index,
+    block_time,
+    block_date,
+    block_number
+FROM (
+         SELECT operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number
+         FROM dbt_testnet_holesky_rewards.operator_share_increases
+         where block_date < '2024-12-13'
+
+         UNION ALL
+
+         SELECT operator, strategy, shares * -1 AS shares, transaction_hash, log_index, block_time, block_date, block_number
+         FROM dbt_testnet_holesky_rewards.operator_share_decreases
+         where block_date < '2024-12-13'
+     ) combined_shares
 ```
