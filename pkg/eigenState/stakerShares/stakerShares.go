@@ -394,7 +394,7 @@ func (ss *StakerSharesModel) handleSlashingWithdrawalQueued(log *storage.Transac
 	for i, strategy := range outputData.Withdrawal.Strategies {
 		shares, success := numbers.NewBig257().SetString(outputData.SharesToWithdraw[i].String(), 10)
 		if !success {
-			return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.SharesToWithdraw[i])
+			return nil, fmt.Errorf("Failed to convert shares to big.Int: %s", outputData.SharesToWithdraw[i])
 		}
 		r := &StakerShareDeltas{
 			Staker:               outputData.Withdrawal.Staker,
