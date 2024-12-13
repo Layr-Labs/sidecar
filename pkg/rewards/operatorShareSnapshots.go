@@ -50,7 +50,7 @@ FROM
 func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(snapshotDate string) error {
 	tableName := "operator_share_snapshots"
 
-	query, err := rewardsUtils.RenderQueryTemplate(operatorShareSnapshotsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(operatorShareSnapshotsQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
