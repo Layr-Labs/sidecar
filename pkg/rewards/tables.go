@@ -76,3 +76,34 @@ type OperatorShares struct {
 	BlockTime       time.Time
 	BlockDate       string
 }
+
+type OperatorAVSSplitSnapshots struct {
+	Operator string
+	Avs      string
+	Split    uint64
+	Snapshot time.Time
+}
+
+type OperatorPISplitSnapshots struct {
+	Operator string
+	Split    uint64
+	Snapshot time.Time
+}
+
+type OperatorDirectedRewards struct {
+	Avs             string
+	RewardHash      string
+	Token           string
+	Operator        string
+	OperatorIndex   uint64
+	Amount          string
+	Strategy        string
+	StrategyIndex   uint64
+	Multiplier      string
+	StartTimestamp  *time.Time
+	EndTimestamp    *time.Time
+	Duration        uint64
+	BlockNumber     uint64
+	TransactionHash string
+	LogIndex        uint64
+}

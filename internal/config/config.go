@@ -3,9 +3,11 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/spf13/viper"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/spf13/viper"
 )
 
 type EnvScope string
@@ -29,6 +31,7 @@ const (
 	Fork_Nile   ForkName = "nile"
 	Fork_Amazon ForkName = "amazon"
 	Fork_Panama ForkName = "panama"
+	Fork_Arno   ForkName = "arno"
 
 	ENV_PREFIX = "SIDECAR"
 )
@@ -253,18 +256,21 @@ func (c *Config) GetForkDates() (ForkMap, error) {
 			Fork_Amazon: "1970-01-01", // Amazon hard fork was never on preprod as we backfilled
 			Fork_Nile:   "2024-08-14", // Last calculation end timestamp was 8-13: https://holesky.etherscan.io/tx/0xb5a6855e88c79312b7c0e1c9f59ae9890b97f157ea27e69e4f0fadada4712b64#eventlog
 			Fork_Panama: "2024-10-01",
+			Fork_Arno:   "2024-12-11",
 		}, nil
 	case Chain_Holesky:
 		return ForkMap{
 			Fork_Amazon: "1970-01-01", // Amazon hard fork was never on testnet as we backfilled
 			Fork_Nile:   "2024-08-13", // Last calculation end timestamp was 8-12: https://holesky.etherscan.io/tx/0x5fc81b5ed2a78b017ef313c181d8627737a97fef87eee85acedbe39fc8708c56#eventlog
 			Fork_Panama: "2024-10-01",
+			Fork_Arno:   "2024-12-13",
 		}, nil
 	case Chain_Mainnet:
 		return ForkMap{
 			Fork_Amazon: "2024-08-02", // Last calculation end timestamp was 8-01: https://etherscan.io/tx/0x2aff6f7b0132092c05c8f6f41a5e5eeeb208aa0d95ebcc9022d7823e343dd012#eventlog
 			Fork_Nile:   "2024-08-12", // Last calculation end timestamp was 8-11: https://etherscan.io/tx/0x922d29d93c02d189fc2332041f01a80e0007cd7a625a5663ef9d30082f7ef66f#eventlog
 			Fork_Panama: "2024-10-01",
+			Fork_Arno:   "2025-01-07",
 		}, nil
 	}
 	return nil, errors.New("unsupported chain")
@@ -292,6 +298,23 @@ func (c *Config) GetOperatorRestakedStrategiesStartBlock() uint64 {
 	return 0
 }
 
+func (c *Config) IsRewardsV2EnabledForCutoffDate(cutoffDate string) (bool, error) {
+	forks, err := c.GetForkDates()
+	if err != nil {
+		return false, err
+	}
+	cutoffDateTime, err := time.Parse(time.DateOnly, cutoffDate)
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("failed to parse cutoff date %s", cutoffDate), err)
+	}
+	arnoForkDateTime, err := time.Parse(time.DateOnly, forks[Fork_Arno])
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("failed to parse Arno fork date %s", forks[Fork_Arno]), err)
+	}
+
+	return cutoffDateTime.Compare(arnoForkDateTime) >= 0, nil
+}
+
 // CanIgnoreIncorrectRewardsRoot returns true if the rewards root can be ignored for the given block number
 //
 // Due to inconsistencies in the rewards root calculation on testnet, we know that some roots
@@ -305,6 +328,11 @@ func (c *Config) CanIgnoreIncorrectRewardsRoot(blockNumber uint64) bool {
 		}
 		// test root posted that was invalid for 2024-11-23 (cutoff date 2024-11-24)
 		if blockNumber == 2812052 {
+			return true
+		}
+
+		// ignore rewards-v2 deployment/testing range
+		if blockNumber >= 2877938 && blockNumber <= 2909856 {
 			return true
 		}
 	case Chain_Holesky:
