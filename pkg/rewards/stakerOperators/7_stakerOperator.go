@@ -62,7 +62,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert7StakerOperator(cutoffDate
 		zap.String("cutoffDate", cutoffDate),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_7_stakerOperator, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_7_stakerOperator, map[string]interface{}{
 		"destTableName":         destTableName,
 		"stakerOperatorStaging": allTableNames[rewardsUtils.Sot_6_StakerOperatorStaging],
 	})
