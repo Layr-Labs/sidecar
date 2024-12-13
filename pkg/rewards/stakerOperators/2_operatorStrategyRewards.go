@@ -106,7 +106,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert2OperatorStrategyRewards(c
 		"cutoffDate", cutoffDate,
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_2_operatorStrategyRewardsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_2_operatorStrategyRewardsQuery, map[string]interface{}{
 		"destTableName":              destTableName,
 		"activeRewardsTable":         allTableNames[rewardsUtils.Table_1_ActiveRewards],
 		"operatorRewardAmountsTable": allTableNames[rewardsUtils.Table_3_OperatorRewardAmounts],

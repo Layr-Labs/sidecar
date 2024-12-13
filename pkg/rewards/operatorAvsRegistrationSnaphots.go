@@ -105,7 +105,7 @@ CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, 
 func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate string) error {
 	tableName := "operator_avs_registration_snapshots"
 
-	query, err := rewardsUtils.RenderQueryTemplate(operatorAvsRegistrationSnapshotsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(operatorAvsRegistrationSnapshotsQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
