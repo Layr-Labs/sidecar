@@ -4,11 +4,23 @@ The EigenLayer Sidecar is an open source, permissionless, verified indexer enabl
 
 A core responsibility of the Sidecar is facilitating the calculations of [rewards](https://docs.eigenlayer.xyz/eigenlayer/rewards-claiming/rewards-claiming-overview) distributed to stakers and operators by AVSs.
 
+# Current versions
+
+* Mainnet: Sidecar v1 ([v1.0.0-rc.9](https://github.com/Layr-Labs/sidecar/releases/tag/v1.0.0-rc.9))
+* Testnet: Sidecar v1 ([v1.0.0-rc.9](https://github.com/Layr-Labs/sidecar/releases/tag/v1.0.0-rc.9))
+* Preprod: Rewards V2 ([v1.0.0-preprod.1](https://github.com/Layr-Labs/sidecar/releases/tag/v1.0.0-preprod.1))
+
 **Helpful Links**
 
 * [Rewards overview](https://docs.eigenlayer.xyz/eigenlayer/rewards-claiming/rewards-claiming-overview)
 * [RewardsCoordinator contract technical documentation](https://github.com/Layr-Labs/eigenlayer-contracts/blob/dev/docs/core/RewardsCoordinator.md)
 * [EigenLayer Rewards Calculation Process](https://hackmd.io/u-NHKEvtQ7m7CVDb4_42bA)
+
+# Runtime dependencies
+
+* MacOS or Linux (arm64 or amd64)
+* PostgreSQL >= 15.x
+* Access to an Ethereum archive node (execution client)
 
 # Development
 
