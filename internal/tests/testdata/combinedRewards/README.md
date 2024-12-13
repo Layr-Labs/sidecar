@@ -69,3 +69,23 @@ select
 from dbt_mainnet_ethereum_rewards.rewards_combined
 where block_time < '2024-08-20'
 ```
+
+## preprod rewardsv2
+
+```sql
+select
+    avs,
+    reward_hash,
+    token,
+    amount as amount,
+    strategy,
+    strategy_index,
+    multiplier as multiplier,
+    start_timestamp::timestamp(6) as start_timestamp,
+    end_timestamp::timestamp(6) as end_timestamp,
+    reward_type,
+    duration,
+    block_number as block_number
+from dbt_preprod_holesky_rewards.rewards_combined
+where block_time < '2024-12-13'
+```
