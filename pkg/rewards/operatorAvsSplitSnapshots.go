@@ -57,9 +57,7 @@ operator_avs_split_windows as (
 	 CASE
 		 -- If the range does not have the end, use the current timestamp truncated to 0 UTC
 		 WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, avs ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}')
-
-		-- need to subtract 1 day from the end time since generate_series will be inclusive below.
-		 ELSE LEAD(snapshot_time) OVER (PARTITION BY operator, avs ORDER BY snapshot_time) - interval '1 day'
+		 ELSE LEAD(snapshot_time) OVER (PARTITION BY operator, avs ORDER BY snapshot_time)
 		 END AS end_time
  FROM active_operator_splits
 ),
