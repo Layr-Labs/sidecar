@@ -752,7 +752,7 @@ func Test_StakerSharesState(t *testing.T) {
 		teardown(grm)
 	})
 
-	t.Run("Should slash deposits in previous block with greater logIndex", func(t *testing.T) {
+	t.Run("Should slash deposits and delegations in previous block with greater logIndex", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
 
 		blockNumber := uint64(200)
