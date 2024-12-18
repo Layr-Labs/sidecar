@@ -30,8 +30,11 @@ var (
 	Sot_3_RewardsForAllStrategyPayout = "sot_3_rewards_for_all_strategy_payout"
 	Sot_4_RfaeStakers                 = "sot_4_rfae_stakers"
 	Sot_5_RfaeOperators               = "sot_5_rfae_operators"
-	Sot_6_StakerOperatorStaging       = "sot_6_staker_operator_staging"
-	Sot_7_StakerOperatorTable         = "staker_operator"
+	Sot_6_OperatorODStrategyPayouts   = "sot_6_operator_od_strategy_payouts"
+	Sot_7_StakerODStrategyPayouts     = "sot_7_staker_od_strategy_payouts"
+	Sot_8_AvsODStrategyPayouts        = "sot_8_avs_od_strategy_payouts"
+	Sot_9_StakerOperatorStaging       = "sot_9_staker_operator_staging"
+	Sot_10_StakerOperatorTable        = "staker_operator"
 )
 
 var goldTableBaseNames = map[string]string{
@@ -53,7 +56,10 @@ var goldTableBaseNames = map[string]string{
 	Sot_3_RewardsForAllStrategyPayout: Sot_3_RewardsForAllStrategyPayout,
 	Sot_4_RfaeStakers:                 Sot_4_RfaeStakers,
 	Sot_5_RfaeOperators:               Sot_5_RfaeOperators,
-	Sot_6_StakerOperatorStaging:       Sot_6_StakerOperatorStaging,
+	Sot_6_OperatorODStrategyPayouts:   Sot_6_OperatorODStrategyPayouts,
+	Sot_7_StakerODStrategyPayouts:     Sot_7_StakerODStrategyPayouts,
+	Sot_8_AvsODStrategyPayouts:        Sot_8_AvsODStrategyPayouts,
+	Sot_9_StakerOperatorStaging:       Sot_9_StakerOperatorStaging,
 }
 
 func GetGoldTableNames(snapshotDate string) map[string]string {

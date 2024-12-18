@@ -85,6 +85,54 @@ SELECT
   reward_hash,
   snapshot
 FROM {{.sot5RfaeOperatorStrategyPayout}}
+
+UNION ALL
+
+SELECT
+	operator as earner,
+	operator as operator,
+	'operator_od_reward' as reward_type,
+	avs,
+	token,
+	'0x0000000000000000000000000000000000000000' as strategy,
+	'0' as multiplier,
+	'0' as shares,
+	operator_tokens as amount,
+	reward_hash,
+	snapshot
+from {{.sot6OperatorODStrategyPayouts}}
+
+UNION ALL
+
+SELECT
+	staker as earner,
+	operator,
+	'staker_od_reward' as reward_type,
+	avs,
+	token,
+	strategy,
+	multiplier,
+	shares,
+	staker_tokens as amount,
+	reward_hash,
+	snapshot
+from {{.sot7StakerODStrategyPayouts}}
+
+UNION ALL
+
+SELECT
+	avs as earner,
+	operator,
+	'avs_od_reward' as reward_type,
+	avs,
+	token,
+	'0x0000000000000000000000000000000000000000' as strategy,
+	'0' as multiplier,
+	'0' as shares,
+	avs_tokens as amount,
+	reward_hash,
+	snapshot
+from {{.sot8AvsODStrategyPayouts}}
 `
 
 type StakerOperatorStaging struct {
@@ -101,11 +149,11 @@ type StakerOperatorStaging struct {
 	Snapshot   time.Time
 }
 
-func (sog *StakerOperatorsGenerator) GenerateAndInsert6StakerOperatorStaging(cutoffDate string) error {
+func (sog *StakerOperatorsGenerator) GenerateAndInsert9StakerOperatorStaging(cutoffDate string) error {
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
-	destTableName := allTableNames[rewardsUtils.Sot_6_StakerOperatorStaging]
+	destTableName := allTableNames[rewardsUtils.Sot_9_StakerOperatorStaging]
 
-	sog.logger.Sugar().Infow("Generating and inserting 6_stakerOperatorsStaging",
+	sog.logger.Sugar().Infow("Generating and inserting 9_stakerOperatorsStaging",
 		zap.String("cutoffDate", cutoffDate),
 	)
 
@@ -114,7 +162,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert6StakerOperatorStaging(cut
 		return err
 	}
 
-	sog.logger.Sugar().Infow("Generating 6_stakerOperatorsStaging",
+	sog.logger.Sugar().Infow("Generating 9_stakerOperatorsStaging",
 		zap.String("destTableName", destTableName),
 		zap.String("cutoffDate", cutoffDate),
 	)
@@ -126,9 +174,12 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert6StakerOperatorStaging(cut
 		"sot3RewardsForAllStrategyPayouts": allTableNames[rewardsUtils.Sot_3_RewardsForAllStrategyPayout],
 		"sot4RfaeStakerStrategyPayout":     allTableNames[rewardsUtils.Sot_4_RfaeStakers],
 		"sot5RfaeOperatorStrategyPayout":   allTableNames[rewardsUtils.Sot_5_RfaeOperators],
+		"sot6OperatorODStrategyPayouts":    allTableNames[rewardsUtils.Sot_6_OperatorODStrategyPayouts],
+		"sot7StakerODStrategyPayouts":      allTableNames[rewardsUtils.Sot_7_StakerODStrategyPayouts],
+		"sot8AvsODStrategyPayouts":         allTableNames[rewardsUtils.Sot_8_AvsODStrategyPayouts],
 	})
 	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to render 6_stakerOperatorsStaging query", "error", err)
+		sog.logger.Sugar().Errorw("Failed to render 9_stakerOperatorsStaging query", "error", err)
 		return err
 	}
 
