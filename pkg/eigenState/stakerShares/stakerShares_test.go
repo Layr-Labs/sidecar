@@ -752,6 +752,67 @@ func Test_StakerSharesState(t *testing.T) {
 		teardown(grm)
 	})
 
+	t.Run("Should slash deposits in previous block with greater logIndex", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+
+		blockNumber := uint64(200)
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		delegationModel, err := stakerDelegations.NewStakerDelegationsModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = delegationModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 10000, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0xbde83df53bc7d159700e966ad5d21e8b7c619459")
+		assert.Nil(t, err)
+
+		err = delegationModel.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		_, err = processDeposit(model, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 1000, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", big.NewInt(1e18))
+		assert.Nil(t, err)
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		blockNumber = blockNumber + 1
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		_, err = processSlashing(model, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
+		assert.Nil(t, err)
+
+		err = model.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		query := `
+				select * from staker_share_deltas
+				where block_number = ?
+				order by log_index, staker asc
+			`
+		results := []*StakerShareDeltas{}
+		res := model.DB.Raw(query, blockNumber).Scan(&results)
+		assert.Nil(t, res.Error)
+
+		assert.Equal(t, 1, len(results))
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[0].Strategy)
+		assert.Equal(t, "-100000000000000000", results[0].Shares)
+
+		teardown(grm)
+	})
+
 	t.Run("Should not slash delegated staker in a different strategy for a deposit in same block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
 
