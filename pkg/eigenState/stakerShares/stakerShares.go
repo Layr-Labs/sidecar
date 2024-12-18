@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgconn"
 	"math"
 	"math/big"
 	"slices"
@@ -870,6 +871,8 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 				zap.Bool("beaconChain", slashDiff.BeaconChain),
 				zap.String("strategy", slashDiff.Strategy),
 				zap.String("wadSlashed", slashDiff.WadSlashed.String()),
+				zap.String("transactionHash", slashDiff.TransactionHash),
+				zap.Uint64("logIndex", slashDiff.LogIndex),
 			)
 
 			var stakerShares *[]StakerShares
@@ -947,7 +950,21 @@ func (ss *StakerSharesModel) writeDeltaRecords(blockNumber uint64) error {
 
 	res = ss.DB.Model(&StakerShareDeltas{}).Clauses(clause.Returning{}).Create(&records)
 	if res.Error != nil {
-		ss.logger.Sugar().Errorw("Failed to insert delta records", zap.Error(res.Error))
+		ss.logger.Sugar().Errorw("Failed to insert delta records",
+			zap.String("blockNumber", fmt.Sprint(blockNumber)),
+			zap.Error(res.Error),
+		)
+
+		var pgError *pgconn.PgError
+		if errors.As(res.Error, &pgError) {
+			ss.logger.Sugar().Errorw("Postgres error",
+				zap.String("code", pgError.Code),
+				zap.String("detail", pgError.Detail),
+				zap.String("hint", pgError.Hint),
+				zap.String("message", pgError.Message),
+				zap.String("where", pgError.Where),
+			)
+		}
 		return res.Error
 	}
 	return nil
