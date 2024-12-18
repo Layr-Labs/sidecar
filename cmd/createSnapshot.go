@@ -5,15 +5,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/spf13/cobra"
 )
 
 var (
-	output          string
-	snapshotType    string
-	compressionType string
+	output       string
+	snapshotType string
+	s3Path       string
 )
 
 var createSnapshotCmd = &cobra.Command{
@@ -33,11 +34,8 @@ Currently available Type levels:
 			os.Exit(1)
 		}
 
-		// Validate compression type
-		if compressionType != "" && compressionType != "custom" {
-			l.Sugar().Fatalw("Invalid compression type", "compressionType", compressionType)
-			os.Exit(1)
-		}
+		// Log the start of the snapshot creation process with a timestamp
+		l.Sugar().Infow("Starting snapshot creation process", "timestamp", fmt.Sprintf("%v", time.Now()))
 
 		// Retrieve database connection details from global flags
 		dbHost, err := cmd.Flags().GetString("database.host")
@@ -94,16 +92,12 @@ Currently available Type levels:
 		dumpCmd := []string{
 			"pg_dump",
 			connectionString,
+			"-Fc", // Always use pg_dump's custom compression, https://www.postgresql.org/docs/current/app-pgdump.html for more details
 		}
 
 		// If a schema is specified, tell pg_dump to limit dump to that schema
 		if schemaName != "" {
 			dumpCmd = append(dumpCmd, "-n", schemaName)
-		}
-
-		// If compression is requested, use the -Fc option
-		if compressionType == "custom" {
-			dumpCmd = append(dumpCmd, "-Fc")
 		}
 
 		if output != "" {
@@ -139,6 +133,21 @@ Currently available Type levels:
 
 		l.Sugar().Infow("Successfully created snapshot", "file", output)
 
+		// Upload to S3 if s3Path is specified
+		if s3Path != "" {
+			l.Sugar().Infow("Uploading to S3", "path", s3Path)
+			s3Cmd := exec.Command("aws", "s3", "cp", output, s3Path)
+			s3Cmd.Stdout = os.Stdout
+			s3Cmd.Stderr = os.Stderr
+
+			if err := s3Cmd.Run(); err != nil {
+				l.Sugar().Errorw("Upload to S3 failed", "error", err)
+				return fmt.Errorf("upload to S3 failed: %w", err)
+			}
+
+			l.Sugar().Infow("Successfully uploaded snapshot to S3", "file", output)
+		}
+
 		return nil
 	},
 }
@@ -147,5 +156,5 @@ func init() {
 	rootCmd.AddCommand(createSnapshotCmd)
 	createSnapshotCmd.Flags().StringVarP(&output, "output", "f", "", "Path to save the snapshot file to (default is stdout if not specified)")
 	createSnapshotCmd.Flags().StringVar(&snapshotType, "snapshot-type", "archive", "The type of the snapshot: 'archive' only currently supported.")
-	createSnapshotCmd.Flags().StringVar(&compressionType, "compression-type", "", "Compression type for the snapshot: 'none' (default if empty), 'custom' for -Fc")
+	createSnapshotCmd.Flags().StringVar(&s3Path, "s3-path", "", "Optional S3 path to upload the snapshot to (e.g., s3://bucket/folder/). By default, it doesn't upload.")
 }

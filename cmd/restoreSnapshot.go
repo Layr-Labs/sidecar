@@ -10,7 +10,6 @@ import (
 )
 
 var restoreSnapshotFromPath string
-var cleanRestoreFlag bool
 
 var restoreSnapshotCmd = &cobra.Command{
 	Use:   "restore-snapshot",
@@ -66,10 +65,7 @@ var restoreSnapshotCmd = &cobra.Command{
 		restoreCmd := []string{
 			"pg_restore",
 			"--dbname", connectionString,
-		}
-
-		if cleanRestoreFlag {
-			restoreCmd = append(restoreCmd, "--clean")
+			"--no-owner",
 		}
 
 		if restoreSnapshotFromPath != "" {
@@ -94,5 +90,4 @@ var restoreSnapshotCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(restoreSnapshotCmd)
 	restoreSnapshotCmd.Flags().StringVarP(&restoreSnapshotFromPath, "restore-snapshot-from-path", "p", "", "Path to snapshot file (use standard input if not specified)")
-	restoreSnapshotCmd.Flags().BoolVar(&cleanRestoreFlag, "clean", false, "Clean restore (default false)")
 }
