@@ -103,12 +103,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert5RfaeOperatorStrategyPayou
 		"cutoffDate", cutoffDate,
 	)
 
-	if err := rewardsUtils.DropTableIfExists(sog.db, destTableName, sog.logger); err != nil {
-		sog.logger.Sugar().Errorw("Failed to drop table", "error", err)
-		return err
-	}
-
-	query, err := rewardsUtils.RenderQueryTemplate(_5_rfaeOperatorStrategyPayoutsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_5_rfaeOperatorStrategyPayoutsQuery, map[string]interface{}{
 		"destTableName":      destTableName,
 		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
 		"rfaeOperatorsTable": allTableNames[rewardsUtils.Table_6_RfaeOperators],

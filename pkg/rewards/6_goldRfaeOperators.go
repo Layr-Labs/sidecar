@@ -45,7 +45,7 @@ func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_6_goldRfaeOperatorsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_6_goldRfaeOperatorsQuery, map[string]interface{}{
 		"destTableName":    destTableName,
 		"rfaeStakersTable": allTableNames[rewardsUtils.Table_5_RfaeStakers],
 	})

@@ -62,7 +62,7 @@ select * from final_results
 func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(snapshotDate string) error {
 	tableName := "staker_delegation_snapshots"
 
-	query, err := rewardsUtils.RenderQueryTemplate(stakerDelegationSnapshotsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(stakerDelegationSnapshotsQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {

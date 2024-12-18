@@ -81,6 +81,34 @@ select
 from filtered
 ```
 
+preprod rewardsv2
+
+```sql
+with filtered as (
+    SELECT
+        lower(t.arguments #>> '{0,Value}') as operator,
+        lower(t.arguments #>> '{1,Value}') as avs,
+        case when (t.output_data ->> 'status')::integer = 1 then true else false end as status,
+    t.transaction_hash,
+    t.log_index,
+    b.block_time::timestamp(6),
+    to_char(b.block_time, 'YYYY-MM-DD') AS block_date,
+    t.block_number
+FROM transaction_logs t
+    LEFT JOIN blocks b ON t.block_sequence_id = b.id
+WHERE t.address = '0x141d6995556135d4997b2ff72eb443be300353bc'
+  AND t.event_name = 'OperatorAVSRegistrationStatusUpdated'
+  AND date_trunc('day', b.block_time) < TIMESTAMP '2024-12-13'
+    )
+select
+    operator,
+    avs,
+    status as registered,
+    log_index,
+    block_number
+from filtered
+```
+
 ## Expected results
 
 _See `generateExpectedResults.sql`_
