@@ -708,12 +708,12 @@ func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (int
 }
 
 type StakerShares struct {
-	Staker   string
-	Strategy string
-	Shares   string
+	Staker string
+	Shares string
 }
 
-// GetDelegatedStakerSharesAtTimeOfSlashing returns the shares of the stakers that were delegated to the operator at the time of slashing
+// GetDelegatedStakerSharesAtTimeOfSlashing returns the shares of the stakers that were delegated to the operator at the time of slashing for the strategy being slashed
+// it will return 0 shares for stakers were delegated, but have no shares in the strategy being slashed
 func (ss *StakerSharesModel) GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff *SlashDiff) (*[]StakerShares, error) {
 	query := `
 		with ranked_staker_delegations as (
@@ -738,18 +738,17 @@ func (ss *StakerSharesModel) GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff 
 		)
 		select
 			ds.staker as staker,
-			ssd.strategy as strategy,
 			COALESCE(sum(ssd.shares), 0) as shares
 		from
 			delegated_stakers as ds
 		left join
 			staker_share_deltas as ssd
 			on ssd.staker = ds.staker
+			and ssd.strategy = @strategy
 			and ssd.block_number <= @blockNumber
 			and ssd.log_index <= @logIndex
 		group by
-			ds.staker,
-			ssd.strategy
+			ds.staker
 	`
 	stakerShares := make([]StakerShares, 0)
 
@@ -759,6 +758,7 @@ func (ss *StakerSharesModel) GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff 
 		sql.Named("blockNumber", slashDiff.BlockNumber),
 		sql.Named("logIndex", slashDiff.LogIndex),
 		sql.Named("operator", slashDiff.SlashedEntity),
+		sql.Named("strategy", slashDiff.Strategy),
 	).Scan(&stakerShares)
 	if res.Error != nil {
 		ss.logger.Sugar().Errorw("Failed to fetch staker_shares", zap.Error(res.Error))
@@ -769,7 +769,7 @@ func (ss *StakerSharesModel) GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff 
 	for _, stakerShare := range stakerShares {
 		ss.logger.Sugar().Infow("Staker shares",
 			zap.String("staker", stakerShare.Staker),
-			zap.String("strategy", stakerShare.Strategy),
+			zap.String("strategy", slashDiff.Strategy),
 			zap.String("shares", stakerShare.Shares),
 		)
 	}
@@ -781,7 +781,6 @@ func (ss *StakerSharesModel) GetStakerSharesFromDB(staker string, strategy strin
 	query := `
         select
             staker,
-            strategy,
             sum(shares) as shares
         from staker_share_deltas
         where
@@ -805,9 +804,8 @@ func (ss *StakerSharesModel) GetStakerSharesFromDB(staker string, strategy strin
 	// if there are no shares, return a record with 0 shares
 	if len(stakerShares) == 0 {
 		stakerShares = append(stakerShares, StakerShares{
-			Staker:   staker,
-			Strategy: strategy,
-			Shares:   "0",
+			Staker: staker,
+			Shares: "0",
 		})
 	}
 
@@ -858,7 +856,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 			}
 			shares, success := numbers.NewBig257().SetString(shareDelta.Shares, 10)
 			if !success {
-				return nil, fmt.Errorf("Failed to convert shares to big.Int: %s", shareDelta.Shares)
+				return nil, fmt.Errorf("failed to convert shares to big.Int: %s", shareDelta.Shares)
 			}
 			netDeltas[key] = netDeltas[key].Add(netDeltas[key], shares)
 			records = append(records, shareDelta)
@@ -888,13 +886,15 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 
 			for _, stakerShare := range *stakerShares {
 				// loop through every delegated staker
-				// if they have shares in the strategy being slashed from previous or current block, slash them
+				// check if they have previous deposits, withdrawals, or slashes in the current block that need to be taken into account
 				key := fmt.Sprintf("%s-%s", stakerShare.Staker, slashDiff.Strategy)
 				_, relevantDeltasInCurrentBlock := netDeltas[key]
-				if stakerShare.Strategy == slashDiff.Strategy || relevantDeltasInCurrentBlock {
+				// if they have shares in the strategy being slashed before the current block
+				// or they have deltas for the strategy being slashed in the current block
+				if !strings.EqualFold(stakerShare.Shares, "0") || relevantDeltasInCurrentBlock {
 					sharesBeforeSlash, success := numbers.NewBig257().SetString(stakerShare.Shares, 10)
 					if !success {
-						return nil, fmt.Errorf("Failed to convert shares to big.Int: %s", stakerShare.Shares)
+						return nil, fmt.Errorf("failed to convert shares to big.Int: %s", stakerShare.Shares)
 					}
 
 					// add the net delta in this block

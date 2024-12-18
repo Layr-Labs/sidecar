@@ -924,7 +924,7 @@ func Test_StakerSharesState(t *testing.T) {
 				where block_number = ?
 				order by log_index, staker asc
 			`
-		results := []*StakerShares{}
+		results := []*StakerShareDeltas{}
 		res := model.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 
@@ -972,7 +972,10 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDeposit(model, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", big.NewInt(1e18))
 		assert.Nil(t, err)
 
-		_, err = processDeposit(model, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0x4444444444444444444444444444444444444444", "0x1234567890abcdef1234567890abcdef12345678", big.NewInt(2e18))
+		_, err = processDeposit(model, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0x1234567890abcdef1234567890abcdef12345678", big.NewInt(2e18))
+		assert.Nil(t, err)
+
+		_, err = processDeposit(model, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0x4444444444444444444444444444444444444444", "0x1234567890abcdef1234567890abcdef12345678", big.NewInt(4e18))
 		assert.Nil(t, err)
 
 		err = model.CommitFinalState(blockNumber)
@@ -1009,21 +1012,25 @@ func Test_StakerSharesState(t *testing.T) {
 		query := `
 				select * from staker_share_deltas
 				where block_number = ?
-				order by log_index, staker asc
+				order by log_index, staker, strategy asc
 			`
-		results := []*StakerShares{}
+		results := []*StakerShareDeltas{}
 		res := model.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 
-		assert.Equal(t, 2, len(results))
+		assert.Equal(t, 3, len(results))
 
 		assert.Equal(t, "0x4444444444444444444444444444444444444444", results[0].Staker)
 		assert.Equal(t, "0x1234567890abcdef1234567890abcdef12345678", results[0].Strategy)
-		assert.Equal(t, "-1800000000000000000", results[0].Shares)
+		assert.Equal(t, "-3600000000000000000", results[0].Shares)
 
 		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[1].Staker)
-		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[1].Strategy)
-		assert.Equal(t, "-100000000000000000", results[1].Shares)
+		assert.Equal(t, "0x1234567890abcdef1234567890abcdef12345678", results[1].Strategy)
+		assert.Equal(t, "-1800000000000000000", results[1].Shares)
+
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[2].Staker)
+		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[2].Strategy)
+		assert.Equal(t, "-100000000000000000", results[2].Shares)
 
 		teardown(grm)
 	})
@@ -1076,7 +1083,7 @@ func Test_StakerSharesState(t *testing.T) {
 				select * from staker_share_deltas
 				where block_number = ?
 			`
-		results := []*StakerShares{}
+		results := []*StakerShareDeltas{}
 		res := model.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 
@@ -1088,7 +1095,7 @@ func Test_StakerSharesState(t *testing.T) {
 		teardown(grm)
 	})
 
-	t.Run("Should slash when staker has 0 shares", func(t *testing.T) {
+	t.Run("Should not slash when staker has 0 shares", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
 
 		blockNumber := uint64(200)
@@ -1145,14 +1152,11 @@ func Test_StakerSharesState(t *testing.T) {
 				select * from staker_share_deltas
 				where block_number = ?
 			`
-		results := []*StakerShares{}
+		results := []*StakerShareDeltas{}
 		res := model.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 
-		assert.Equal(t, 1, len(results))
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", results[0].Staker)
-		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[0].Strategy)
-		assert.Equal(t, "0", results[0].Shares)
+		assert.Equal(t, 0, len(results))
 
 		teardown(grm)
 	})
@@ -1333,7 +1337,7 @@ func Test_StakerSharesState(t *testing.T) {
 				where block_number = ?
 				order by log_index, staker asc
 			`
-		results := []*StakerShares{}
+		results := []*StakerShareDeltas{}
 		res := model.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 
@@ -1411,7 +1415,7 @@ func Test_StakerSharesState(t *testing.T) {
 				where block_number = ?
 				order by log_index, staker asc
 			`
-		results := []*StakerShares{}
+		results := []*StakerShareDeltas{}
 		res := model.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 
@@ -1482,7 +1486,7 @@ func Test_StakerSharesState(t *testing.T) {
 		teardown(grm)
 	})
 
-	t.Run("Should handle beacon chain slashing when staker has 0 shares", func(t *testing.T) {
+	t.Run("Should not beacon chain slash when staker has 0 shares", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
 
 		blockNumber := uint64(200)
@@ -1531,12 +1535,7 @@ func Test_StakerSharesState(t *testing.T) {
 		res := model.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 
-		assert.Equal(t, 1, len(results))
-
-		// First record should be the slash
-		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
-		assert.Equal(t, "0", results[0].Shares)
+		assert.Equal(t, 0, len(results))
 
 		teardown(grm)
 	})
