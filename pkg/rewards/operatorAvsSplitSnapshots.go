@@ -20,35 +20,19 @@ WITH operator_avs_splits_with_block_info as (
 ranked_operator_avs_split_records as (
 	SELECT
 	    *,
-	    -- round activated up to the nearest day
-	    date_trunc('day', activated_at) + INTERVAL '1' day AS rounded_activated_at,
-		ROW_NUMBER() OVER (PARTITION BY operator, avs ORDER BY block_time asc, log_index asc) AS rn
+		ROW_NUMBER() OVER (PARTITION BY operator, avs, cast(activated_at AS DATE) ORDER BY activated_at DESC, block_time DESC, log_index DESC) AS rn
 	FROM operator_avs_splits_with_block_info
 ),
-decorated_operator_avs_splits as (
-    select
-        rops.*,
-        -- if there is a row, we have found another split that overlaps the current split
-        -- meaning the current split should be discarded
-        case when rops2.block_time is not null then false else true end as active
-    from ranked_operator_avs_split_records as rops
-    left join ranked_operator_avs_split_records as rops2 on (
-        rops.operator = rops2.operator
-		and rops.avs = rops2.avs
-        -- rn is orderd by block and log_index, so this should encapsulate rops2 occurring afer rops
-        and rops.rn > rops2.rn
-        -- only find the next split that overlaps with the current one
-        and rops2.rounded_activated_at <= rops.rounded_activated_at
-    )
-),
--- filter in only splits flagged as active
-active_operator_splits as (
-    select
-        *,
-        rounded_activated_at as snapshot_time,
-        ROW_NUMBER() over (partition by operator, avs order by rounded_activated_at asc) as rn
-    from decorated_operator_avs_splits
-    where active = true
+-- Get the latest record for each day & round up to the snapshot day
+snapshotted_records as (
+ SELECT
+	 operator,
+	 avs,
+	 split,
+	 block_time,
+	 date_trunc('day', activated_at) + INTERVAL '1' day AS snapshot_time
+ from ranked_operator_avs_split_records
+ where rn = 1
 ),
 -- Get the range for each operator, avs pairing
 operator_avs_split_windows as (
@@ -57,11 +41,9 @@ operator_avs_split_windows as (
 	 CASE
 		 -- If the range does not have the end, use the current timestamp truncated to 0 UTC
 		 WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, avs ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}')
-
-		-- need to subtract 1 day from the end time since generate_series will be inclusive below.
-		 ELSE LEAD(snapshot_time) OVER (PARTITION BY operator ORDER BY snapshot_time) - interval '1 day'
+		 ELSE LEAD(snapshot_time) OVER (PARTITION BY operator, avs ORDER BY snapshot_time)
 		 END AS end_time
- FROM active_operator_splits
+ FROM snapshotted_records
 ),
 -- Clean up any records where start_time >= end_time
 cleaned_records as (
