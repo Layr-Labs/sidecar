@@ -822,7 +822,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 		ss.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
 		return nil, errors.New(msg)
 	}
-	_, ok = ss.slashingAccumulator[blockNumber]
+	slashes, ok := ss.slashingAccumulator[blockNumber]
 	if !ok {
 		msg := "slashing accumulator was not initialized"
 		ss.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
@@ -923,7 +923,20 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 			slashingIndex++
 		}
 	}
-
+	if len(slashes) > 0 {
+		ss.logger.Sugar().Infow("Slashes found, printing records...")
+		for _, r := range records {
+			ss.logger.Sugar().Infow("Staker shares",
+				zap.String("staker", r.Staker),
+				zap.String("strategy", r.Strategy),
+				zap.String("shares", r.Shares),
+				zap.Int("strategyIndex", int(r.StrategyIndex)),
+				zap.String("transactionHash", r.TransactionHash),
+				zap.Uint64("logIndex", r.LogIndex),
+				zap.Uint64("blockNumber", r.BlockNumber),
+			)
+		}
+	}
 	return records, nil
 }
 
