@@ -232,6 +232,7 @@ func (c *Config) GetInterestingAddressForConfigEnv() []string {
 		addresses.StrategyManager,
 		addresses.DelegationManager,
 		addresses.AvsDirectory,
+		addresses.AllocationManager,
 	}
 }
 

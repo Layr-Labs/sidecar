@@ -228,12 +228,12 @@
 		{
 			"contract_address": "0xb8d8952f572e67b11e43bc21250967772fa883ff",
 			"proxy_contract_address": "0xe55a9ea92b1134aff44fb81e667fd5f74e6a47e5",
-			"block_number": 2931296
+			"block_number": 2930477
 		},
 		{
 			"contract_address": "0xfdd5749e11977d60850e06bf5b13221ad95eb6b4",
 			"proxy_contract_address": "0xc7618dc8607503c15f4393782068b79655104a24",
-			"block_number": 2931296
+			"block_number": 2930475
 		}
 	]
 }
