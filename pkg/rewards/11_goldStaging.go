@@ -194,7 +194,7 @@ func (rc *RewardsCalculator) ListGoldStagingRowsForSnapshot(snapshotDate string)
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return nil, err
 	}
-	res := rc.grm.Debug().Raw(query,
+	res := rc.grm.Raw(query,
 		sql.Named("cutoffDate", snapshotDate),
 	).Scan(&results)
 	if res.Error != nil {
