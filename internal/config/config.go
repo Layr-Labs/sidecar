@@ -185,6 +185,7 @@ type ContractAddresses struct {
 	StrategyManager    string
 	DelegationManager  string
 	AvsDirectory       string
+	AllocationManager  string
 }
 
 func (c *Config) GetContractsMapForChain() *ContractAddresses {
@@ -195,6 +196,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			StrategyManager:    "0xf9fbf2e35d8803273e214c99bf15174139f4e67a",
 			DelegationManager:  "0x75dfe5b44c2e530568001400d3f704bc8ae350cc",
 			AvsDirectory:       "0x141d6995556135d4997b2ff72eb443be300353bc",
+			AllocationManager:  "0xfdd5749e11977d60850e06bf5b13221ad95eb6b4",
 		}
 	} else if c.Chain == Chain_Holesky {
 		return &ContractAddresses{
@@ -230,6 +232,7 @@ func (c *Config) GetInterestingAddressForConfigEnv() []string {
 		addresses.StrategyManager,
 		addresses.DelegationManager,
 		addresses.AvsDirectory,
+		addresses.AllocationManager,
 	}
 }
 
