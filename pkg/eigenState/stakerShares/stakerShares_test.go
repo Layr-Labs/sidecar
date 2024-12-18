@@ -1541,6 +1541,37 @@ func Test_StakerSharesState(t *testing.T) {
 		teardown(grm)
 	})
 
+	t.Run("Should handle failed unmarshalling gracefully", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		blockNumber := uint64(200)
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		beaconChainSlashingFactorDecreasedLog := storage.TransactionLog{
+			TransactionHash:  "some hash",
+			TransactionIndex: 100,
+			BlockNumber:      blockNumber,
+			Address:          cfg.GetContractsMapForChain().EigenpodManager,
+			Arguments:        ``,
+			EventName:        "BeaconChainSlashingFactorDecreased",
+			LogIndex:         400,
+			OutputData:       "i'm a bad log output data json",
+			CreatedAt:        time.Time{},
+			UpdatedAt:        time.Time{},
+			DeletedAt:        time.Time{},
+		}
+
+		_, err = model.HandleStateChange(&beaconChainSlashingFactorDecreasedLog)
+		assert.Error(t, err)
+	})
+
 	t.Cleanup(func() {
 		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
