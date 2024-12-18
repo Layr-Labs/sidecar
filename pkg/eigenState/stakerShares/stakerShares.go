@@ -425,9 +425,9 @@ func (ss *StakerSharesModel) handleSlashingWithdrawalQueued(log *storage.Transac
 }
 
 type operatorSlashedOutputData struct {
-	Operator    string        `json:"operator"`
-	Strategies  []string      `json:"strategies"`
-	WadsSlashed []json.Number `json:"wadsSlashed"`
+	Operator   string        `json:"operator"`
+	Strategies []string      `json:"strategies"`
+	WadSlashed []json.Number `json:"wadSlashed"`
 }
 
 func parseLogOutputForOperatorSlashedEvent(outputDataStr string) (*operatorSlashedOutputData, error) {
@@ -452,9 +452,9 @@ func (ss *StakerSharesModel) handleOperatorSlashedEvent(log *storage.Transaction
 	stateDiffs := make([]*SlashDiff, 0)
 
 	for i, strategy := range outputData.Strategies {
-		wadSlashed, success := numbers.NewBig257().SetString(outputData.WadsSlashed[i].String(), 10)
+		wadSlashed, success := numbers.NewBig257().SetString(outputData.WadSlashed[i].String(), 10)
 		if !success {
-			return nil, fmt.Errorf("Failed to convert wadsSlashed to big.Int: %s", outputData.WadsSlashed[i])
+			return nil, fmt.Errorf("Failed to convert wadSlashed to big.Int: %s", outputData.WadSlashed[i])
 		}
 		stateDiffs = append(stateDiffs, &SlashDiff{
 			SlashedEntity:   outputData.Operator,

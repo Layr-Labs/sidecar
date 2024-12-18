@@ -1595,16 +1595,16 @@ func processDeposit(stakerSharesModel *StakerSharesModel, strategyManager string
 	return stakerSharesModel.HandleStateChange(&depositLog)
 }
 
-func processSlashing(stakerSharesModel *StakerSharesModel, allocationManager string, blockNumber, logIndex uint64, operator string, strategies []string, wadsSlashed []*big.Int) (interface{}, error) {
-	wadsSlashedJson := make([]json.Number, len(wadsSlashed))
-	for i, wad := range wadsSlashed {
-		wadsSlashedJson[i] = json.Number(wad.String())
+func processSlashing(stakerSharesModel *StakerSharesModel, allocationManager string, blockNumber, logIndex uint64, operator string, strategies []string, wadSlashed []*big.Int) (interface{}, error) {
+	wadSlashedJson := make([]json.Number, len(wadSlashed))
+	for i, wad := range wadSlashed {
+		wadSlashedJson[i] = json.Number(wad.String())
 	}
 
 	operatorSlashedEvent := operatorSlashedOutputData{
-		Operator:    operator,
-		Strategies:  strategies,
-		WadsSlashed: wadsSlashedJson,
+		Operator:   operator,
+		Strategies: strategies,
+		WadSlashed: wadSlashedJson,
 	}
 	operatorJson, err := json.Marshal(operatorSlashedEvent)
 	if err != nil {
