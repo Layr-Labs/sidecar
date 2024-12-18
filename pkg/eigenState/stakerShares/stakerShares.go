@@ -551,75 +551,78 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[*Accu
 	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChanges, error) {
 		shareDeltaRecords := make([]*StakerShareDeltas, 0)
 		slashDiffs := make([]*SlashDiff, 0)
-		var err error
-
 		contractAddresses := ss.globalConfig.GetContractsMapForChain()
 
 		// Staker shares is a bit more complex and has 4 possible contract/event combinations
 		// that we need to handle
 		if log.Address == contractAddresses.StrategyManager && log.EventName == "Deposit" {
 			record, err := ss.handleStakerDepositEvent(log)
-			if err == nil {
-				shareDeltaRecords = append(shareDeltaRecords, record)
+			if err != nil {
+				return nil, err
 			}
+			shareDeltaRecords = append(shareDeltaRecords, record)
 		} else if log.Address == contractAddresses.EigenpodManager && log.EventName == "PodSharesUpdated" {
 			record, err := ss.handlePodSharesUpdatedEvent(log)
-			if err == nil {
-				shareDeltaRecords = append(shareDeltaRecords, record)
+			if err != nil {
+				return nil, err
 			}
-		} else if log.Address == contractAddresses.StrategyManager && log.EventName == "ShareWithdrawalQueued" && log.TransactionHash != "0x62eb0d0865b2636c74ed146e2d161e39e42b09bac7f86b8905fc7a830935dc1e" {
+			shareDeltaRecords = append(shareDeltaRecords, record)
+		} else if log.Address == contractAddresses.StrategyManager && log.EventName == "ShareWithdrawalQueued" {
 			record, err := ss.handleM1StakerWithdrawals(log)
-			if err == nil {
-				shareDeltaRecords = append(shareDeltaRecords, record)
+			if err != nil {
+				return nil, err
 			}
+			shareDeltaRecords = append(shareDeltaRecords, record)
 		} else if log.Address == contractAddresses.DelegationManager && log.EventName == "WithdrawalQueued" {
 			records, err := ss.handleM2QueuedWithdrawal(log)
-			if err == nil && records != nil {
-				shareDeltaRecords = append(shareDeltaRecords, records...)
+			if err != nil {
+				return nil, err
 			}
+			shareDeltaRecords = append(shareDeltaRecords, records...)
 		} else if log.Address == contractAddresses.DelegationManager && log.EventName == "WithdrawalMigrated" {
 			migratedM2WithdrawalsToRemove, err := ss.handleMigratedM2StakerWithdrawals(log)
-			if err == nil {
-				// Iterate over the list of M2 withdrawals to remove to prevent double counting
-				for _, record := range migratedM2WithdrawalsToRemove {
+			if err != nil {
+				return nil, err
+			}
+			// Iterate over the list of M2 withdrawals to remove to prevent double counting
+			for _, record := range migratedM2WithdrawalsToRemove {
 
-					// The massive caveat with this is that it assumes that the M2 withdrawal and corresponding
-					// migration events are processed in the same block, which was in fact the case.
-					//
-					// The M2 WithdrawalQueued event will come first
-					// then the M2 WithdrawalMigrated event will come second
-					filteredDeltas := make([]*StakerShareDeltas, 0)
-					for _, delta := range ss.shareDeltaAccumulator[log.BlockNumber] {
-						if delta.WithdrawalRootString != record.WithdrawalRootString {
-							filteredDeltas = append(filteredDeltas, delta)
-						}
+				// The massive caveat with this is that it assumes that the M2 withdrawal and corresponding
+				// migration events are processed in the same block, which was in fact the case.
+				//
+				// The M2 WithdrawalQueued event will come first
+				// then the M2 WithdrawalMigrated event will come second
+				filteredDeltas := make([]*StakerShareDeltas, 0)
+				for _, delta := range ss.shareDeltaAccumulator[log.BlockNumber] {
+					if delta.WithdrawalRootString != record.WithdrawalRootString {
+						filteredDeltas = append(filteredDeltas, delta)
 					}
-					ss.shareDeltaAccumulator[log.BlockNumber] = filteredDeltas
 				}
+				ss.shareDeltaAccumulator[log.BlockNumber] = filteredDeltas
 			}
 		} else if log.Address == contractAddresses.DelegationManager && log.EventName == "SlashingWithdrawalQueued" {
 			records, err := ss.handleSlashingWithdrawalQueued(log)
-			if err == nil && records != nil {
-				shareDeltaRecords = append(shareDeltaRecords, records...)
+			if err != nil {
+				return nil, err
 			}
+			shareDeltaRecords = append(shareDeltaRecords, records...)
 		} else if log.Address == contractAddresses.AllocationManager && log.EventName == "OperatorSlashed" {
 			records, err := ss.handleOperatorSlashedEvent(log)
-			if err == nil && records != nil {
-				slashDiffs = append(slashDiffs, records...)
+			if err != nil {
+				return nil, err
 			}
+			slashDiffs = append(slashDiffs, records...)
 		} else if log.Address == contractAddresses.EigenpodManager && log.EventName == "BeaconChainSlashingFactorDecreased" {
 			record, err := ss.handleBeaconChainSlashingFactorDecreasedEvent(log)
-			if err == nil {
-				slashDiffs = append(slashDiffs, record)
+			if err != nil {
+				return nil, err
 			}
+			slashDiffs = append(slashDiffs, record)
 		} else {
 			ss.logger.Sugar().Debugw("Got stakerShares event that we don't handle",
 				zap.String("eventName", log.EventName),
 				zap.String("address", log.Address),
 			)
-		}
-		if err != nil {
-			return nil, err
 		}
 
 		ss.shareDeltaAccumulator[log.BlockNumber] = append(ss.shareDeltaAccumulator[log.BlockNumber], shareDeltaRecords...)
