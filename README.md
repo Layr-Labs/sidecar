@@ -23,21 +23,6 @@ A core responsibility of the Sidecar is facilitating the calculations of [reward
 * MacOS
 * Linux (Ubuntu/Debian)
 
-# Diagram
-```mermaid
-graph TD;
-   Client[User Client]-->|Makes API Calls|SidecarService[Sidecar Service];
-   SidecarService-->|Queries|Database[PostgreSQL Database];
-   SidecarService-->|Fetches Data|BlockchainNode[Blockchain RPC Node];
-
-
-   style SidecarService fill:#ffffff,stroke:#000000,stroke-width:2px,font-size:16px,color:#000000
-   style Database fill:#ffffff,stroke:#000000,stroke-width:2px,font-size:16px,color:#000000
-   style BlockchainNode fill:#ffffff,stroke:#000000,stroke-width:2px,font-size:16px,color:#000000
-   style Client fill:#ffffff,stroke:#000000,stroke-width:2px,font-size:16px,color:#000000
-```
-
-
 ## Environment setup
 
 If you have basic build tools like `make` already installed, you can run:
