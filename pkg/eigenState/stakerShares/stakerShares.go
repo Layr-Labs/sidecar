@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgconn"
 	"math"
 	"math/big"
 	"slices"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/types/numbers"
@@ -849,6 +850,12 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 
 		if shareDelta.LogIndex < slashDiff.LogIndex {
 			key := fmt.Sprintf("%s-%s", shareDelta.Staker, shareDelta.Strategy)
+
+			ss.logger.Sugar().Infow("regular share delta",
+				zap.String("staker", shareDelta.Staker),
+				zap.String("strategy", shareDelta.Strategy),
+				zap.String("shares", shareDelta.Shares),
+			)
 
 			// apply the shareDelta
 			if _, ok := netDeltas[key]; !ok {
