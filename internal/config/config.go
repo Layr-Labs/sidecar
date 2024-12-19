@@ -205,6 +205,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			StrategyManager:    "0xdfb5f6ce42aaa7830e94ecfccad411bef4d4d5b6",
 			DelegationManager:  "0xa44151489861fe9e3055d95adc98fbd462b948e7",
 			AvsDirectory:       "0x055733000064333caddbc92763c58bf0192ffebf",
+			AllocationManager:  "0x78469728304326cbc65f8f95fa756b0b73164462",
 		}
 	} else if c.Chain == Chain_Mainnet {
 		return &ContractAddresses{
