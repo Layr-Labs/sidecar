@@ -200,6 +200,7 @@ docker run -it --rm \
   -e SIDECAR_DATABASE_USER="sidecar" \
   -e SIDECAR_DATABASE_PASSWORD="..." \
   -e SIDECAR_DATABASE_DB_NAME="sidecar" \
+  -p 7100:7100 \
   --tty -i \
   public.ecr.aws/z6g0f8n7/go-sidecar:latest run
 ```
@@ -269,3 +270,4 @@ grpcurl -plaintext -d '{}'  localhost:7100 eigenlayer.sidecar.api.v1.Rpc/GetBloc
 
 ```bash
 grpcurl -plaintext -d '{ "blockNumber": 1140438 }'  localhost:7100 eigenlayer.sidecar.api.v1.Rpc/GetStateRoot
+```
