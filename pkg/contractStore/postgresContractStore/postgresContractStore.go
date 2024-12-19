@@ -216,6 +216,35 @@ func (s *PostgresContractStore) FindOrCreateProxyContract(
 	return upsertedContract, found, err
 }
 
+func (s *PostgresContractStore) GetProxyContractWithImplementations(contractAddress string) ([]*contractStore.Contract, error) {
+	contractAddress = strings.ToLower(contractAddress)
+	contracts := make([]*contractStore.Contract, 0)
+
+	query := `select
+		c.contract_address,
+		c.contract_abi,
+		c.bytecode_hash
+	from contracts as c
+	where c.contract_address = @contractAddress
+	or c.contract_address in (
+		select proxy_contract_address from proxy_contracts where contract_address = @contractAddress
+	)
+	`
+	result := s.Db.Raw(query,
+		sql.Named("contractAddress", contractAddress),
+	).Scan(&contracts)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			s.Logger.Sugar().Debug(fmt.Sprintf("Proxy contract not found '%s'", contractAddress))
+			return nil, result.Error
+		}
+		return nil, result.Error
+	}
+
+	return contracts, nil
+}
+
 // GetContractWithProxyContract retrieves a contract and its associated proxy contract (if any)
 // for the given address at the specified block number.
 // It returns a ContractsTree containing the contract and proxy information.
@@ -332,7 +361,8 @@ func (s *PostgresContractStore) InitializeContracts(contractsData *contractStore
 			contractType,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to create core contract: %w", err)
+			s.Logger.Sugar().Errorw("Failed to create core contract", zap.Error(err), zap.String("contractAddress", contract.ContractAddress), zap.String("contractAbi", contract.ContractAbi), zap.String("bytecodeHash", contract.BytecodeHash))
+			return fmt.Errorf("Failed to create core contract: %w", err)
 		}
 		if found {
 			s.Logger.Sugar().Debugw("Contract already exists", zap.String("contractAddress", contract.ContractAddress))
