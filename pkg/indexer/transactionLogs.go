@@ -124,7 +124,14 @@ func (idx *Indexer) ParseTransactionLogs(
 		decodedLog, err := idx.DecodeLogWithAbi(a, receipt, lg)
 		if err != nil {
 			msg := fmt.Sprintf("Error decoding log - index: '%d' - '%s'", i, transaction.Hash.Value())
-			idx.Logger.Sugar().Debugw(msg, zap.Error(err))
+			idx.Logger.Sugar().Errorw(msg,
+				zap.String("logAddress", lg.Address.Value()),
+				zap.String("logData", lg.Data.Value()),
+				zap.Uint64("blockNumber", transaction.BlockNumber.Value()),
+				zap.String("transactionHash", transaction.Hash.Value()),
+				zap.Uint64("logIndex", lg.LogIndex.Value()),
+				zap.Error(err),
+			)
 			return nil, NewIndexError(IndexError_FailedToDecodeLog, err).
 				WithMessage(msg).
 				WithBlockNumber(transaction.BlockNumber.Value()).
@@ -224,7 +231,13 @@ func (idx *Indexer) DecodeLog(a *abi.ABI, lg *ethereum.EthereumEventLog) (*parse
 
 	event, err := a.EventByID(topicHash)
 	if err != nil {
-		idx.Logger.Sugar().Debugw(fmt.Sprintf("Failed to find event by ID '%s'", topicHash))
+		idx.Logger.Sugar().Errorw(fmt.Sprintf("Failed to find event by ID '%s'", topicHash),
+			zap.Error(err),
+			zap.String("address", logAddress.String()),
+			zap.Uint64("logIndex", lg.LogIndex.Value()),
+			zap.String("transactionHash", lg.TransactionHash.Value()),
+			zap.Uint64("blockNumber", lg.BlockNumber.Value()),
+		)
 		return decodedLog, err
 	}
 
