@@ -235,6 +235,7 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 			true,
 		)
 		if err != nil {
+			s.Logger.Sugar().Errorw("Failed to create core contract", zap.Error(err), zap.String("contractAddress", contract.ContractAddress), zap.String("contractAbi", contract.ContractAbi), zap.String("bytecodeHash", contract.BytecodeHash))
 			return fmt.Errorf("Failed to create core contract: %w", err)
 		}
 		if found {

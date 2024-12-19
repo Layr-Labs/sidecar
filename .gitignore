@@ -32,5 +32,6 @@ node_modules
 chart_releases
 /snapshots/**/*.sql
 /snapshots/**/*.csv
-
+*.sql
+*.dump
 .env
