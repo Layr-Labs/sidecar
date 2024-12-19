@@ -1,10 +1,11 @@
 package stateManager
 
 import (
+	"encoding/binary"
 	"errors"
-	"fmt"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
+	"github.com/ethereum/go-ethereum/common"
 	"slices"
 	"time"
 
@@ -102,10 +103,10 @@ func (e *EigenStateManager) CleanupProcessedStateForBlock(blockNumber uint64) er
 
 func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64, blockHash string) (types.StateRoot, error) {
 	sortedIndexes := e.GetSortedModelIndexes()
+	common.FromHex(blockHash)
 	roots := [][]byte{
-		types.MerkleLeafPrefix_Block,
-		[]byte(fmt.Sprintf("%d", blockNumber)),
-		[]byte(blockHash),
+		append(types.MerkleLeafPrefix_Block, binary.BigEndian.AppendUint64([]byte{}, blockNumber)...),
+		append(types.MerkleLeafPrefix_BlockHash, common.FromHex(blockHash)...),
 	}
 
 	for _, state := range sortedIndexes {

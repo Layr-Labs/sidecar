@@ -72,7 +72,6 @@ type BatchTransaction struct {
 }
 
 type OperatorRestakedStrategies struct {
-	Id                  uint64 `gorm:"type:serial"`
 	AvsDirectoryAddress string
 	BlockNumber         uint64
 	Operator            string

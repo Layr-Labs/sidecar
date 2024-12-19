@@ -5,19 +5,10 @@ import (
 	"time"
 )
 
-/**
- * This table calculates the tokens for each staker from the pay for all rewards on a per-strategy basis
- *
- * Reward_snapshot_stakers: Get the stakers that are being paid out for a given snapshot
- * Rejoined_staker_strategies: Join the strategies that were not included in staker_rewards originally
- * Staker_strategy_weights: Calculate the weight of a staker for each of their strategies
- * Staker_strategy_weights_sum: Calculate sum of all staker_strategy_weight for each rewards and snapshot across all relevant strategies and stakers
- * Staker_strategy_proportions: Calculate staker strategy proportion of tokens for each rewards and snapshot
- * Staker_strategy_p4a_tokens: Calculate the tokens for each staker from the pay for all rewards on a per-strategy basis
- */
 const _3_rewardsForAllStrategyPayoutsQuery = `
+create table {{.destTableName}} as
 WITH reward_snapshot_stakers AS (
-  SELECT 
+  SELECT
     ap.reward_hash,
     ap.snapshot,
     ap.token,
@@ -29,91 +20,80 @@ WITH reward_snapshot_stakers AS (
     sss.staker,
     sss.shares
   FROM {{.activeRewardsTable}} ap
-  JOIN staker_share_snapshots sss
+  JOIN staker_share_snapshots as sss
   ON ap.strategy = sss.strategy and ap.snapshot = sss.snapshot
   WHERE ap.reward_type = 'all_stakers'
+  -- Parse out negative shares and zero multiplier so there is no division by zero case
+  AND sss.shares > 0 and ap.multiplier != 0
 ),
--- Join the strategies that were not included in pay for all rewards originally
-rejoined_staker_strategies AS (
-  SELECT
-    rss.*,
-    rfa.staker_tokens
-  FROM reward_snapshot_stakers rss
-  JOIN {{.rewardsForAllTable}} rfa
-  ON
-    rss.snapshot = rfa.snapshot AND
-    rss.reward_hash = rfa.reward_hash AND
-    rss.staker = rfa.staker
-  WHERE rss.shares > 0 and rss.multiplier != 0
-),
--- Calculate the weight of a staker for each of their strategies
-staker_strategy_weights AS (
+-- Calculate the weight of a staker
+staker_weights AS (
   SELECT *,
-    multiplier * shares AS staker_strategy_weight
-  FROM rejoined_staker_strategies
-  ORDER BY reward_hash, snapshot, staker, strategy
+    multiplier * shares AS staker_weight
+  FROM reward_snapshot_stakers
 ),
--- Calculate sum of all staker_strategy_weight for each reward and snapshot across all relevant strategies and stakers
-staker_strategy_weights_sum AS (
+-- Calculate sum of all staker weights
+staker_weight_sum AS (
   SELECT *,
-    SUM(staker_strategy_weight) OVER (PARTITION BY staker, reward_hash, snapshot) as staker_total_strategy_weight
-  FROM staker_strategy_weights
+    SUM(staker_weight) OVER (PARTITION BY staker, reward_hash, snapshot) as total_staker_weight
+  FROM staker_weights
 ),
--- Calculate staker strategy proportion of tokens for each reward and snapshot
-staker_strategy_proportions AS (
+-- Calculate staker token proportion
+staker_proportion AS (
   SELECT *,
-    FLOOR((staker_strategy_weight / staker_total_strategy_weight) * 1000000000000000) / 1000000000000000 as staker_strategy_proportion
-  FROM staker_strategy_weights_sum
+    FLOOR((staker_weight / total_staker_weight) * 1000000000000000) / 1000000000000000 AS staker_proportion
+  FROM staker_weight_sum
 ),
-staker_strategy_p4a_tokens AS (
+-- Calculate total tokens to staker
+staker_tokens AS (
   SELECT *,
-    floor(staker_strategy_proportion * staker_tokens) as staker_strategy_tokens
-  FROM staker_strategy_proportions
+  -- TODO: update to using floor when we reactivate this
+  (tokens_per_day * staker_proportion)::text::decimal(38,0) as staker_strategy_tokens
+  FROM staker_proportion
 )
-SELECT * from staker_strategy_p4a_tokens 
+SELECT * from staker_tokens
 `
 
 type RewardsForAllStrategyPayout struct {
-	RewardHash                string
-	Snapshot                  time.Time
-	Token                     string
-	TokensPerDay              float64
-	Avs                       string
-	Strategy                  string
-	Multiplier                string
-	RewardType                string
-	Staker                    string
-	Shares                    string
-	StakerTokens              string
-	StakerStrategyWeight      string
-	StakerTotalStrategyWeight string
-	StakerStrategyProportion  string
-	StakerStrategyTokens      string
-}
-
-func (osr *RewardsForAllStrategyPayout) TableName() string {
-	return "sot_3_rewards_for_all_strategy_payout"
+	RewardHash           string
+	Snapshot             time.Time
+	Token                string
+	TokensPerDay         float64
+	Avs                  string
+	Strategy             string
+	Multiplier           string
+	RewardType           string
+	Staker               string
+	Shares               string
+	StakerStrategyTokens string
 }
 
 func (sog *StakerOperatorsGenerator) GenerateAndInsert3RewardsForAllStrategyPayout(cutoffDate string) error {
-	sog.logger.Sugar().Infow("Generating and inserting 3_rewardsForAllStrategyPayoutsQuery",
+	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
+	destTableName := allTableNames[rewardsUtils.Sot_3_RewardsForAllStrategyPayout]
+
+	sog.logger.Sugar().Infow("Generating and inserting 3_rewardsForAllStrategyPayouts",
 		"cutoffDate", cutoffDate,
 	)
-	tableName := "sot_3_rewards_for_all_strategy_payout"
-	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_3_rewardsForAllStrategyPayoutsQuery, map[string]string{
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
-		"rewardsForAllTable": allTableNames[rewardsUtils.Table_4_RewardsForAll],
-	})
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to render 3_rewardsForAllStrategyPayoutsQuery query", "error", err)
+	if err := rewardsUtils.DropTableIfExists(sog.db, destTableName, sog.logger); err != nil {
+		sog.logger.Sugar().Errorw("Failed to drop table", "error", err)
 		return err
 	}
 
-	err = rewardsUtils.GenerateAndInsertFromQuery(sog.db, tableName, query, nil, sog.logger)
+	query, err := rewardsUtils.RenderQueryTemplate(_3_rewardsForAllStrategyPayoutsQuery, map[string]string{
+		"destTableName":      destTableName,
+		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
+	})
 	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to generate 3_rewardsForAllStrategyPayoutsQuery", "error", err)
+		sog.logger.Sugar().Errorw("Failed to render 3_rewardsForAllStrategyPayouts query", "error", err)
+		return err
+	}
+
+	res := sog.db.Exec(query)
+
+	if res.Error != nil {
+		sog.logger.Sugar().Errorw("Failed to generate 3_rewardsForAllStrategyPayouts", "error", res.Error)
 		return err
 	}
 	return nil

@@ -17,7 +17,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -132,7 +131,7 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[*O
 
 		// Sanity check to make sure we've got an initialized accumulator map for the block
 		if _, ok := osm.stateAccumulator[log.BlockNumber]; !ok {
-			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
+			return nil, fmt.Errorf("No state accumulator found for block %d", log.BlockNumber)
 		}
 		operator := strings.ToLower(arguments[0].Value.(string))
 
@@ -145,7 +144,7 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[*O
 				zap.Uint64("transactionIndex", log.TransactionIndex),
 				zap.Uint64("blockNumber", log.BlockNumber),
 			)
-			return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", sharesStr)
+			return nil, fmt.Errorf("Failed to convert shares to big.Int: %s", sharesStr)
 		}
 
 		// All shares are emitted as ABS(shares), so we need to negate the shares if the event is a decrease

@@ -55,7 +55,8 @@ type MerkleLeafPrefix []byte
 
 var (
 	MerkleLeafPrefix_Block            MerkleLeafPrefix = []byte("0x00")
-	MerkleLeafPrefix_EigenStateRoot   MerkleLeafPrefix = []byte("0x01")
-	MerkleLeafPrefix_EigenStateBlock  MerkleLeafPrefix = []byte("0x02")
-	MerkleLeafPrefix_EigenStateChange MerkleLeafPrefix = []byte("0x03")
+	MerkleLeafPrefix_BlockHash        MerkleLeafPrefix = []byte("0x01")
+	MerkleLeafPrefix_EigenStateRoot   MerkleLeafPrefix = []byte("0x02")
+	MerkleLeafPrefix_EigenStateBlock  MerkleLeafPrefix = []byte("0x03")
+	MerkleLeafPrefix_EigenStateChange MerkleLeafPrefix = []byte("0x04")
 )

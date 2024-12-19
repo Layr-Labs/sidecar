@@ -5,21 +5,8 @@ import (
 	"time"
 )
 
-/**
- * This view calculates the tokens returned to each operator for rewards_for_all_earners on a per-strategy basis
- *
- * 1. avs_opted_operators: Get the operators who have registered for an AVS for a given snapshot
- * 2. reward_snapshot_operators: Get the operators for the avs's strategy reward
- * 3. staker_delegated_operators: Get the stakers that were delegated to the operator for the snapshot
- * 4. staker_avs_strategy_shares: Get the shares for staker delegated to the operator
- * 5. rejoined_staker_strategies: Join the strategies that were not included in rewards_for_all_earners originally
- * 6. staker_strategy_weights: Calculate the weight of a staker for each of their strategies
- * 7. staker_strategy_weights_sum: Calculate sum of all staker_strategy_weight for each (staker, reward, snapshot)
- * 8. staker_strategy_proportions: Calculate staker strategy proportion of tokens for each reward and snapshot
- * 9. staker_strategy_tokens: Calculate the tokens returned to each staker on a per-strategy basis
- */
-
 const _5_rfaeOperatorStrategyPayoutsQuery = `
+create table {{.destTableName}} as
 WITH avs_opted_operators AS (
   SELECT DISTINCT
     snapshot,
@@ -59,7 +46,7 @@ rejoined_operator_strategies AS (
     oss.*,
     rfao.operator_tokens
   FROM operator_strategy_shares oss
-  JOIN {{.rfaeOperatorTable}} rfao
+  JOIN {{.rfaeOperatorsTable}} rfao
   ON
     oss.snapshot = rfao.snapshot AND
     oss.reward_hash = rfao.reward_hash AND
@@ -95,57 +82,47 @@ SELECT * FROM operator_strategy_tokens
 `
 
 type RfaeOperatorStrategyPayout struct {
-	RewardHash                  string
-	Snapshot                    time.Time
-	Token                       string
-	TokensPerDay                float64
-	Avs                         string
-	Strategy                    string
-	Multiplier                  string
-	RewardType                  string
-	Operator                    string
-	Shares                      string
-	OperatorTokens              string
-	OperatorStrategyWeight      string
-	OperatorTotalStrategyWeight string
-	OperatorStrategyProportion  string
-	OperatorStrategyTokens      string
-}
-
-func (osr *RfaeOperatorStrategyPayout) TableName() string {
-	return "sot_5_rfae_operator_strategy_payout"
+	RewardHash             string
+	Snapshot               time.Time
+	Token                  string
+	TokensPerDay           float64
+	Avs                    string
+	Strategy               string
+	Multiplier             string
+	RewardType             string
+	Operator               string
+	Shares                 string
+	OperatorStrategyTokens string
 }
 
 func (sog *StakerOperatorsGenerator) GenerateAndInsert5RfaeOperatorStrategyPayout(cutoffDate string) error {
-	sog.logger.Sugar().Infow("Generating and inserting 5_rfaeOperatorStrategyPayout",
+	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
+	destTableName := allTableNames[rewardsUtils.Sot_5_RfaeOperators]
+
+	sog.logger.Sugar().Infow("Generating and inserting 5_rfaeOperatorStrategyPayouts",
 		"cutoffDate", cutoffDate,
 	)
-	tableName := "sot_5_rfae_operator_strategy_payout"
-	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_5_rfaeOperatorStrategyPayoutsQuery, map[string]string{
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
-		"rfaeOperatorTable":  allTableNames[rewardsUtils.Table_6_RfaeOperators],
-	})
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to render 5_rfaeOperatorStrategyPayoutsQuery query", "error", err)
+	if err := rewardsUtils.DropTableIfExists(sog.db, destTableName, sog.logger); err != nil {
+		sog.logger.Sugar().Errorw("Failed to drop table", "error", err)
 		return err
 	}
 
-	err = rewardsUtils.GenerateAndInsertFromQuery(sog.db, tableName, query, nil, sog.logger)
+	query, err := rewardsUtils.RenderQueryTemplate(_5_rfaeOperatorStrategyPayoutsQuery, map[string]string{
+		"destTableName":      destTableName,
+		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
+		"rfaeOperatorsTable": allTableNames[rewardsUtils.Table_6_RfaeOperators],
+	})
 	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to generate 5_rfaeOperatorStrategyPayoutsQuery", "error", err)
+		sog.logger.Sugar().Errorw("Failed to render 5_rfaeOperatorStrategyPayouts query", "error", err)
+		return err
+	}
+
+	res := sog.db.Exec(query)
+
+	if res.Error != nil {
+		sog.logger.Sugar().Errorw("Failed to generate 5_rfaeOperatorStrategyPayouts", "error", res.Error)
 		return err
 	}
 	return nil
-}
-
-func (sog *StakerOperatorsGenerator) List5RfaeOperatorStrategyPayout() ([]*RfaeOperatorStrategyPayout, error) {
-	var rewards []*RfaeOperatorStrategyPayout
-	res := sog.db.Model(&RfaeOperatorStrategyPayout{}).Find(&rewards)
-	if res.Error != nil {
-		sog.logger.Sugar().Errorw("Failed to list 5_rfaeOperatorStrategyPayoutsQuery", "error", res.Error)
-		return nil, res.Error
-	}
-	return rewards, nil
 }

@@ -4,6 +4,6 @@ description: A Helm chart for the EigenLayer sidecar
 
 type: application
 
-version: 1.0.0-rc.4
+version: 1.0.0-rc.9
 
-appVersion: "v1.0.0-rc.6"
+appVersion: "v1.0.0-rc.9"

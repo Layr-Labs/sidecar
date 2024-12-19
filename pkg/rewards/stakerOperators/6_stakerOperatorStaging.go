@@ -20,7 +20,7 @@ SELECT
   staker_strategy_tokens as amount,
   reward_hash,
   snapshot
-FROM sot_1_staker_strategy_payouts
+FROM {{.sot1StakerStrategyPayouts}}
 
 UNION ALL
 
@@ -36,7 +36,7 @@ SELECT
   operator_strategy_tokens as amount,
   reward_hash,
   snapshot
-FROM sot_2_operator_strategy_rewards
+FROM {{.sot2OperatorStrategyPayouts}}
 
 UNION all
 
@@ -52,7 +52,7 @@ SELECT
   staker_strategy_tokens as amount,
   reward_hash,
   snapshot
-FROM sot_3_rewards_for_all_strategy_payout
+FROM {{.sot3RewardsForAllStrategyPayouts}}
 
 UNION ALL
 
@@ -68,7 +68,7 @@ SELECT
   staker_strategy_tokens as amount,
   reward_hash,
   snapshot
-FROM sot_4_rfae_staker_strategy_payout
+FROM {{.sot4RfaeStakerStrategyPayout}}
 
 UNION ALL
 
@@ -84,7 +84,7 @@ SELECT
   operator_strategy_tokens as amount,
   reward_hash,
   snapshot
-FROM sot_5_rfae_operator_strategy_payout
+FROM {{.sot5RfaeOperatorStrategyPayout}}
 `
 
 type StakerOperatorStaging struct {
@@ -102,11 +102,17 @@ type StakerOperatorStaging struct {
 }
 
 func (sog *StakerOperatorsGenerator) GenerateAndInsert6StakerOperatorStaging(cutoffDate string) error {
+	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
+	destTableName := allTableNames[rewardsUtils.Sot_6_StakerOperatorStaging]
+
 	sog.logger.Sugar().Infow("Generating and inserting 6_stakerOperatorsStaging",
 		zap.String("cutoffDate", cutoffDate),
 	)
-	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
-	destTableName := allTableNames[rewardsUtils.Sot_6_StakerOperatorStaging]
+
+	if err := rewardsUtils.DropTableIfExists(sog.db, destTableName, sog.logger); err != nil {
+		sog.logger.Sugar().Errorw("Failed to drop table", "error", err)
+		return err
+	}
 
 	sog.logger.Sugar().Infow("Generating 6_stakerOperatorsStaging",
 		zap.String("destTableName", destTableName),
@@ -114,7 +120,12 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert6StakerOperatorStaging(cut
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_6_stakerOperatorsStaging, map[string]string{
-		"destTableName": destTableName,
+		"destTableName":                    destTableName,
+		"sot1StakerStrategyPayouts":        allTableNames[rewardsUtils.Sot_1_StakerStrategyPayouts],
+		"sot2OperatorStrategyPayouts":      allTableNames[rewardsUtils.Sot_2_OperatorStrategyPayouts],
+		"sot3RewardsForAllStrategyPayouts": allTableNames[rewardsUtils.Sot_3_RewardsForAllStrategyPayout],
+		"sot4RfaeStakerStrategyPayout":     allTableNames[rewardsUtils.Sot_4_RfaeStakers],
+		"sot5RfaeOperatorStrategyPayout":   allTableNames[rewardsUtils.Sot_5_RfaeOperators],
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 6_stakerOperatorsStaging query", "error", err)
@@ -131,14 +142,4 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert6StakerOperatorStaging(cut
 	}
 
 	return nil
-}
-
-func (sog *StakerOperatorsGenerator) List6StakerOperatorStaging() ([]*StakerOperatorStaging, error) {
-	var rewards []*StakerOperatorStaging
-	res := sog.db.Model(&StakerOperatorStaging{}).Find(&rewards)
-	if res.Error != nil {
-		sog.logger.Sugar().Errorw("Failed to list 6_stakerOperatorsStaging", "error", res.Error)
-		return nil, res.Error
-	}
-	return rewards, nil
 }

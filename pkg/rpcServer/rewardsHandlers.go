@@ -25,17 +25,9 @@ func (rpc *RpcServer) GenerateRewards(ctx context.Context, req *sidecarV1.Genera
 		CalculationType: rewardsCalculatorQueue.RewardsCalculationType_CalculateRewards,
 		CutoffDate:      cutoffDate,
 	}
-	if req.GetWaitForComplete() {
-		data, qErr := rpc.rewardsQueue.EnqueueAndWait(ctx, msg)
-		cutoffDate = data.CutoffDate
-		err = qErr
-	} else {
-		rpc.rewardsQueue.Enqueue(&rewardsCalculatorQueue.RewardsCalculationMessage{
-			Data:         msg,
-			ResponseChan: make(chan *rewardsCalculatorQueue.RewardsCalculatorResponse),
-		})
-		queued = true
-	}
+	data, qErr := rpc.rewardsQueue.EnqueueAndWait(ctx, msg)
+	cutoffDate = data.CutoffDate
+	err = qErr
 
 	if err != nil {
 		if errors.Is(err, &rewards.ErrRewardsCalculationInProgress{}) {
@@ -55,6 +47,9 @@ func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *sidecarV1.Ge
 		return nil, status.Error(codes.InvalidArgument, "snapshot date is required")
 	}
 
+	rpc.Logger.Sugar().Infow("Requesting rewards generation for snapshot date",
+		zap.String("cutoffDate", cutoffDate),
+	)
 	_, err := rpc.rewardsQueue.EnqueueAndWait(context.Background(), rewardsCalculatorQueue.RewardsCalculationData{
 		CalculationType: rewardsCalculatorQueue.RewardsCalculationType_CalculateRewards,
 		CutoffDate:      cutoffDate,
@@ -63,6 +58,9 @@ func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *sidecarV1.Ge
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	rpc.Logger.Sugar().Infow("Getting max snapshot for cutoff date",
+		zap.String("cutoffDate", cutoffDate),
+	)
 	rewardsCalcEndDate, err := rpc.rewardsCalculator.GetMaxSnapshotDateForCutoffDate(cutoffDate)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())

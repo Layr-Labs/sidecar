@@ -658,7 +658,7 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 func (rc *RewardsCalculator) generateAndInsertFromQuery(
 	tableName string,
 	query string,
-	variables map[string]interface{},
+	variables []interface{},
 ) error {
 	return rewardsUtils.GenerateAndInsertFromQuery(
 		rc.grm,

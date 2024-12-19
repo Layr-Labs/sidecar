@@ -20,8 +20,13 @@ var (
 	Table_7_GoldStaging           = "gold_7_staging"
 	Table_8_GoldTable             = "gold_table"
 
-	Sot_6_StakerOperatorStaging = "sot_6_staker_operator_staging"
-	Sot_7_StakerOperatorTable   = "staker_operator"
+	Sot_1_StakerStrategyPayouts       = "sot_1_staker_strategy_payouts"
+	Sot_2_OperatorStrategyPayouts     = "sot_2_operator_strategy_payouts"
+	Sot_3_RewardsForAllStrategyPayout = "sot_3_rewards_for_all_strategy_payout"
+	Sot_4_RfaeStakers                 = "sot_4_rfae_stakers"
+	Sot_5_RfaeOperators               = "sot_5_rfae_operators"
+	Sot_6_StakerOperatorStaging       = "sot_6_staker_operator_staging"
+	Sot_7_StakerOperatorTable         = "staker_operator"
 )
 
 var goldTableBaseNames = map[string]string{
@@ -34,7 +39,12 @@ var goldTableBaseNames = map[string]string{
 	Table_7_GoldStaging:           Table_7_GoldStaging,
 	Table_8_GoldTable:             Table_8_GoldTable,
 
-	Sot_6_StakerOperatorStaging: Sot_6_StakerOperatorStaging,
+	Sot_1_StakerStrategyPayouts:       Sot_1_StakerStrategyPayouts,
+	Sot_2_OperatorStrategyPayouts:     Sot_2_OperatorStrategyPayouts,
+	Sot_3_RewardsForAllStrategyPayout: Sot_3_RewardsForAllStrategyPayout,
+	Sot_4_RfaeStakers:                 Sot_4_RfaeStakers,
+	Sot_5_RfaeOperators:               Sot_5_RfaeOperators,
+	Sot_6_StakerOperatorStaging:       Sot_6_StakerOperatorStaging,
 }
 
 func GetGoldTableNames(snapshotDate string) map[string]string {
@@ -63,7 +73,7 @@ func GenerateAndInsertFromQuery(
 	grm *gorm.DB,
 	tableName string,
 	query string,
-	variables map[string]interface{},
+	variables []interface{},
 	l *zap.Logger,
 ) error {
 	tmpTableName := fmt.Sprintf("%s_tmp", tableName)
@@ -78,8 +88,8 @@ func GenerateAndInsertFromQuery(
 		}
 		for i, query := range queries {
 			var res *gorm.DB
-			if i == 0 && variables != nil {
-				res = tx.Exec(query, variables)
+			if i == 0 && variables != nil && len(variables) > 0 {
+				res = tx.Exec(query, variables...)
 			} else {
 				res = tx.Exec(query)
 			}
@@ -92,4 +102,14 @@ func GenerateAndInsertFromQuery(
 	}, grm, nil)
 
 	return err
+}
+
+func DropTableIfExists(grm *gorm.DB, tableName string, l *zap.Logger) error {
+	query := fmt.Sprintf(`drop table if exists %s`, tableName)
+	res := grm.Exec(query)
+	if res.Error != nil {
+		l.Sugar().Errorw("Failed to drop table", "table", tableName, "error", res.Error)
+		return res.Error
+	}
+	return nil
 }

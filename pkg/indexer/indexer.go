@@ -12,10 +12,10 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"gorm.io/gorm"
 	"slices"
+	"strings"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 )
 
 type Indexer struct {
@@ -38,6 +38,8 @@ const (
 	IndexError_FailedToCombineAbis      IndexErrorType = 3
 	IndexError_FailedToFindContract     IndexErrorType = 4
 	IndexError_FailedToParseAbi         IndexErrorType = 5
+	IndexError_EmptyAbi                 IndexErrorType = 6
+	IndexError_FailedToDecodeLog        IndexErrorType = 7
 )
 
 type IndexError struct {
@@ -45,7 +47,7 @@ type IndexError struct {
 	Err             error
 	BlockNumber     uint64
 	TransactionHash string
-	LogIndex        int
+	LogIndex        uint64
 	Metadata        map[string]interface{}
 	Message         string
 }
@@ -72,7 +74,7 @@ func (e *IndexError) WithTransactionHash(txHash string) *IndexError {
 	return e
 }
 
-func (e *IndexError) WithLogIndex(logIndex int) *IndexError {
+func (e *IndexError) WithLogIndex(logIndex uint64) *IndexError {
 	e.LogIndex = logIndex
 	return e
 }
@@ -119,7 +121,7 @@ func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fet
 				zap.String("txHash", tx.Hash.Value()),
 				zap.Uint64("block", tx.BlockNumber.Value()),
 			)
-			return nil, NewIndexError(IndexError_ReceiptNotFound, xerrors.Errorf("receipt not found for transaction")).
+			return nil, NewIndexError(IndexError_ReceiptNotFound, fmt.Errorf("receipt not found for transaction")).
 				WithBlockNumber(tx.BlockNumber.Value()).
 				WithTransactionHash(tx.Hash.Value())
 		}
@@ -152,51 +154,6 @@ func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fet
 		}
 	}
 	return parsedTransactions, nil
-}
-
-func (idx *Indexer) ParseAndIndexTransactionLogs(ctx context.Context, fetchedBlock *fetcher.FetchedBlock) *IndexError {
-	for i, tx := range fetchedBlock.Block.Transactions {
-		txReceipt, ok := fetchedBlock.TxReceipts[tx.Hash.Value()]
-		if !ok {
-			idx.Logger.Sugar().Errorw("Receipt not found for transaction",
-				zap.String("txHash", tx.Hash.Value()),
-				zap.Uint64("block", tx.BlockNumber.Value()),
-			)
-			return NewIndexError(IndexError_ReceiptNotFound, xerrors.Errorf("receipt not found for transaction")).
-				WithBlockNumber(tx.BlockNumber.Value()).
-				WithTransactionHash(tx.Hash.Value())
-		}
-
-		parsedTransactionLogs, err := idx.ParseTransactionLogs(tx, txReceipt)
-		if err != nil {
-			idx.Logger.Sugar().Errorw("failed to process transaction logs",
-				zap.Error(err.Err),
-				zap.String("txHash", tx.Hash.Value()),
-				zap.Uint64("block", tx.BlockNumber.Value()),
-			)
-			continue
-		}
-		if parsedTransactionLogs == nil {
-			idx.Logger.Sugar().Debugw("Log line is nil",
-				zap.String("txHash", tx.Hash.Value()),
-				zap.Uint64("block", tx.BlockNumber.Value()),
-				zap.Int("logIndex", i),
-			)
-			continue
-		}
-
-		for _, log := range parsedTransactionLogs.Logs {
-			_, err := idx.IndexLog(ctx, fetchedBlock.Block.Number.Value(), tx.Hash.Value(), tx.Index.Value(), log)
-			if err != nil {
-				idx.Logger.Sugar().Errorw("failed to index log",
-					zap.Error(err),
-					zap.String("txHash", tx.Hash.Value()),
-					zap.Uint64("block", tx.BlockNumber.Value()),
-				)
-			}
-		}
-	}
-	return nil
 }
 
 func (idx *Indexer) IndexFetchedBlock(fetchedBlock *fetcher.FetchedBlock) (*storage.Block, bool, error) {
@@ -235,7 +192,7 @@ func (idx *Indexer) IsInterestingAddress(addr string) bool {
 	if addr == "" {
 		return false
 	}
-	return slices.Contains(idx.Config.GetInterestingAddressForConfigEnv(), addr)
+	return slices.Contains(idx.Config.GetInterestingAddressForConfigEnv(), strings.ToLower(addr))
 }
 
 func (idx *Indexer) IsInterestingTransaction(txn *ethereum.EthereumTransaction, receipt *ethereum.EthereumTransactionReceipt) bool {

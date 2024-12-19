@@ -11,7 +11,6 @@ import (
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -198,18 +197,18 @@ func (s *PostgresContractStore) loadContractData() (*contractStore.CoreContracts
 	case config.Chain_Preprod:
 		filename = "preprod.json"
 	default:
-		return nil, xerrors.Errorf("Unknown environment.")
+		return nil, fmt.Errorf("Unknown environment.")
 	}
 	jsonData, err := contractStore.CoreContracts.ReadFile(fmt.Sprintf("coreContracts/%s", filename))
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to open core contracts file: %w", err)
+		return nil, fmt.Errorf("Failed to open core contracts file: %w", err)
 	}
 
 	// read entire file and marshal it into a CoreContractsData struct
 	data := &contractStore.CoreContractsData{}
 	err = json.Unmarshal(jsonData, &data)
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to decode core contracts data: %w", err)
+		return nil, fmt.Errorf("Failed to decode core contracts data: %w", err)
 	}
 	return data, nil
 }
@@ -217,13 +216,13 @@ func (s *PostgresContractStore) loadContractData() (*contractStore.CoreContracts
 func (s *PostgresContractStore) InitializeCoreContracts() error {
 	coreContracts, err := s.loadContractData()
 	if err != nil {
-		return xerrors.Errorf("Failed to load core contracts: %w", err)
+		return fmt.Errorf("Failed to load core contracts: %w", err)
 	}
 
 	contracts := make([]*contractStore.Contract, 0)
 	res := s.Db.Find(&contracts)
 	if res.Error != nil {
-		return xerrors.Errorf("Failed to fetch contracts: %w", res.Error)
+		return fmt.Errorf("Failed to fetch contracts: %w", res.Error)
 	}
 
 	for _, contract := range coreContracts.CoreContracts {
@@ -236,7 +235,7 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 			true,
 		)
 		if err != nil {
-			return xerrors.Errorf("Failed to create core contract: %w", err)
+			return fmt.Errorf("Failed to create core contract: %w", err)
 		}
 		if found {
 			s.Logger.Sugar().Infow("Contract already exists", zap.String("contractAddress", contract.ContractAddress))
@@ -245,7 +244,7 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 
 		_, err = s.SetContractCheckedForProxy(contract.ContractAddress)
 		if err != nil {
-			return xerrors.Errorf("Failed to create core contract: %w", err)
+			return fmt.Errorf("Failed to create core contract: %w", err)
 		}
 		s.Logger.Sugar().Infow("Created core contract", zap.String("contractAddress", contract.ContractAddress))
 	}
@@ -256,7 +255,7 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 			proxy.ProxyContractAddress,
 		)
 		if err != nil {
-			return xerrors.Errorf("Failed to create core proxy contract: %w", err)
+			return fmt.Errorf("Failed to create core proxy contract: %w", err)
 		}
 		if found {
 			s.Logger.Sugar().Infow("Proxy contract already exists",

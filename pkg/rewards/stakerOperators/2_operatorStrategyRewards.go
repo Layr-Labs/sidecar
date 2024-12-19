@@ -6,6 +6,7 @@ import (
 )
 
 const _2_operatorStrategyRewardsQuery = `
+create table {{.destTableName}} as
 WITH reward_snapshot_operators as (
   SELECT 
     ap.reward_hash,
@@ -84,35 +85,29 @@ SELECT * FROM operator_strategy_tokens
 `
 
 type OperatorStrategyRewards struct {
-	RewardHash                  string
-	Snapshot                    time.Time
-	Token                       string
-	TokensPerDay                float64
-	Avs                         string
-	Strategy                    string
-	Multiplier                  string
-	RewardType                  string
-	Operator                    string
-	Shares                      string
-	OperatorTokens              string
-	OperatorStrategyWeight      string
-	OperatorTotalStrategyWeight string
-	OperatorStrategyProportion  string
-	OperatorStrategyTokens      string
-}
-
-func (osr *OperatorStrategyRewards) TableName() string {
-	return "sot_2_operator_strategy_rewards"
+	RewardHash             string
+	Snapshot               time.Time
+	Token                  string
+	TokensPerDay           float64
+	Avs                    string
+	Strategy               string
+	Multiplier             string
+	RewardType             string
+	Operator               string
+	OperatorStrategyTokens string
+	Shares                 string
 }
 
 func (sog *StakerOperatorsGenerator) GenerateAndInsert2OperatorStrategyRewards(cutoffDate string) error {
+	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
+	destTableName := allTableNames[rewardsUtils.Sot_2_OperatorStrategyPayouts]
+
 	sog.logger.Sugar().Infow("Generating and inserting 2_operatorStrategyRewards",
 		"cutoffDate", cutoffDate,
 	)
-	tableName := "sot_2_operator_strategy_rewards"
-	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_2_operatorStrategyRewardsQuery, map[string]string{
+		"destTableName":              destTableName,
 		"activeRewardsTable":         allTableNames[rewardsUtils.Table_1_ActiveRewards],
 		"operatorRewardAmountsTable": allTableNames[rewardsUtils.Table_3_OperatorRewardAmounts],
 	})
@@ -121,20 +116,10 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert2OperatorStrategyRewards(c
 		return err
 	}
 
-	err = rewardsUtils.GenerateAndInsertFromQuery(sog.db, tableName, query, nil, sog.logger)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to generate 2_operatorStrategyRewards", "error", err)
-		return err
+	res := sog.db.Exec(query)
+	if res.Error != nil {
+		sog.logger.Sugar().Errorw("Failed to create 2_operatorStrategyRewards", "error", res.Error)
+		return res.Error
 	}
 	return nil
-}
-
-func (sog *StakerOperatorsGenerator) List2OperatorStrategyRewards() ([]*OperatorStrategyRewards, error) {
-	var rewards []*OperatorStrategyRewards
-	res := sog.db.Model(&OperatorStrategyRewards{}).Find(&rewards)
-	if res.Error != nil {
-		sog.logger.Sugar().Errorw("Failed to list 2_operatorStrategyRewards", "error", res.Error)
-		return nil, res.Error
-	}
-	return rewards, nil
 }

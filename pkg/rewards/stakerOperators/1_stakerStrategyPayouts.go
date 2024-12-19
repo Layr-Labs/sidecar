@@ -1,22 +1,27 @@
 package stakerOperators
 
 import (
+	"database/sql"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"time"
 )
 
 const _1_stakerStrategyPayoutsQuery = `
+create table {{.destTableName}} as
 WITH reward_snapshot_operators as (
-  SELECT 
+  SELECT
     ap.reward_hash,
     ap.snapshot,
     ap.token,
     ap.tokens_per_day,
+    ap.tokens_per_day_decimal,
     ap.avs,
     ap.strategy,
     ap.multiplier,
     ap.reward_type,
-    oar.operator
+    oar.operator,
+    ap.reward_submission_date
   FROM {{.activeRewardsTable}} ap
   JOIN operator_avs_registration_snapshots oar
   ON ap.avs = oar.avs and ap.snapshot = oar.snapshot
@@ -89,46 +94,51 @@ staker_strategy_proportions AS (
     FLOOR((staker_strategy_weight / staker_total_strategy_weight) * 1000000000000000) / 1000000000000000 as staker_strategy_proportion
   FROM staker_strategy_weights_sum
 ),
-staker_strategy_tokens AS (
+staker_operator_total_tokens AS (
   SELECT *,
-    floor(staker_strategy_proportion * staker_tokens) as staker_strategy_tokens
+    CASE
+      -- For snapshots that are before the hard fork AND submitted before the hard fork, we use the old calc method
+      WHEN snapshot < @amazonHardforkDate AND reward_submission_date < @amazonHardforkDate THEN
+        cast(staker_strategy_proportion * staker_tokens AS DECIMAL(38,0))
+      WHEN snapshot < @nileHardforkDate AND reward_submission_date < @nileHardforkDate THEN
+        (staker_strategy_proportion * staker_tokens)::text::decimal(38,0)
+      ELSE
+        FLOOR(staker_strategy_proportion * staker_tokens)
+    END as staker_strategy_tokens
   FROM staker_strategy_proportions
 )
-SELECT * from staker_strategy_tokens
+select * from staker_operator_total_tokens
 `
 
 type StakerStrategyPayout struct {
-	RewardHash                string
-	Snapshot                  time.Time
-	Token                     string
-	TokensPerDay              float64
-	Avs                       string
-	Strategy                  string
-	Multiplier                string
-	RewardType                string
-	Operator                  string
-	Staker                    string
-	Shares                    string
-	StakerTokens              string
-	StakerStrategyWeight      string
-	StakerTotalStrategyWeight string
-	StakerStrategyProportion  string
-	StakerStrategyTokens      string
+	RewardHash           string
+	Snapshot             time.Time
+	Token                string
+	TokensPerDay         float64
+	Avs                  string
+	Strategy             string
+	Multiplier           string
+	RewardType           string
+	Staker               string
+	Shares               string
+	StakerStrategyTokens string
 }
 
-func (ssp *StakerStrategyPayout) TableName() string {
-	return "sot_1_staker_strategy_payouts"
-}
+func (sog *StakerOperatorsGenerator) GenerateAndInsert1StakerStrategyPayouts(cutoffDate string, forks config.ForkMap) error {
+	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
+	destTableName := allTableNames[rewardsUtils.Sot_1_StakerStrategyPayouts]
 
-func (sog *StakerOperatorsGenerator) GenerateAndInsert1StakerStrategyPayouts(cutoffDate string) error {
 	sog.logger.Sugar().Infow("Generating and inserting 1_stakerStrategyPayouts",
 		"cutoffDate", cutoffDate,
 	)
 
-	tableName := "sot_1_staker_strategy_payouts"
-	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
+	if err := rewardsUtils.DropTableIfExists(sog.db, destTableName, sog.logger); err != nil {
+		sog.logger.Sugar().Errorw("Failed to drop table", "error", err)
+		return err
+	}
 
 	query, err := rewardsUtils.RenderQueryTemplate(_1_stakerStrategyPayoutsQuery, map[string]string{
+		"destTableName":            destTableName,
 		"activeRewardsTable":       allTableNames[rewardsUtils.Table_1_ActiveRewards],
 		"stakerRewardAmountsTable": allTableNames[rewardsUtils.Table_2_StakerRewardAmounts],
 	})
@@ -137,20 +147,14 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert1StakerStrategyPayouts(cut
 		return err
 	}
 
-	err = rewardsUtils.GenerateAndInsertFromQuery(sog.db, tableName, query, nil, sog.logger)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to generate 1_stakerStrategyPayouts", "error", err)
+	res := sog.db.Debug().Exec(query,
+		sql.Named("amazonHardforkDate", forks[config.Fork_Amazon]),
+		sql.Named("nileHardforkDate", forks[config.Fork_Nile]),
+	)
+
+	if res.Error != nil {
+		sog.logger.Sugar().Errorw("Failed to generate 1_stakerStrategyPayouts", "error", res.Error)
 		return err
 	}
 	return nil
-}
-
-func (sog *StakerOperatorsGenerator) List1StakerStrategyPayouts() ([]*StakerStrategyPayout, error) {
-	var stakerStrategyRewards []*StakerStrategyPayout
-	res := sog.db.Model(&StakerStrategyPayout{}).Find(&stakerStrategyRewards)
-	if res.Error != nil {
-		sog.logger.Sugar().Errorw("Failed to list 1_stakerStrategyPayouts", "error", res.Error)
-		return nil, res.Error
-	}
-	return stakerStrategyRewards, nil
 }

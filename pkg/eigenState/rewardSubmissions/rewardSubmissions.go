@@ -15,7 +15,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -38,7 +37,7 @@ type RewardSubmission struct {
 }
 
 func NewSlotID(transactionHash string, logIndex uint64, rewardHash string, strategyIndex uint64) types.SlotID {
-	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%d", rewardHash, strategyIndex))
+	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%016x", rewardHash, strategyIndex))
 }
 
 type RewardSubmissionsModel struct {
@@ -79,13 +78,13 @@ func (rs *RewardSubmissionsModel) GetModelName() string {
 }
 
 type genericRewardPaymentData struct {
-	Token                    string
-	Amount                   json.Number
-	StartTimestamp           uint64
-	Duration                 uint64
+	Token                    string      `json:"token"`
+	Amount                   json.Number `json:"amount"`
+	StartTimestamp           uint64      `json:"startTimestamp"`
+	Duration                 uint64      `json:"duration"`
 	StrategiesAndMultipliers []struct {
-		Strategy   string
-		Multiplier json.Number
+		Strategy   string      `json:"strategy"`
+		Multiplier json.Number `json:"multiplier"`
 	} `json:"strategiesAndMultipliers"`
 }
 
@@ -133,12 +132,12 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 
 		amountBig, success := numbers.NewBig257().SetString(actualOuputData.Amount.String(), 10)
 		if !success {
-			return nil, xerrors.Errorf("Failed to parse amount to Big257: %s", actualOuputData.Amount.String())
+			return nil, fmt.Errorf("Failed to parse amount to Big257: %s", actualOuputData.Amount.String())
 		}
 
 		multiplierBig, success := numbers.NewBig257().SetString(strategyAndMultiplier.Multiplier.String(), 10)
 		if !success {
-			return nil, xerrors.Errorf("Failed to parse multiplier to Big257: %s", actualOuputData.Amount.String())
+			return nil, fmt.Errorf("Failed to parse multiplier to Big257: %s", actualOuputData.Amount.String())
 		}
 
 		var rewardType string
@@ -149,7 +148,7 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 		} else if log.EventName == "RewardsSubmissionForAllEarnersCreated" {
 			rewardType = "all_earners"
 		} else {
-			return nil, xerrors.Errorf("Unknown event name: %s", log.EventName)
+			return nil, fmt.Errorf("Unknown event name: %s", log.EventName)
 		}
 
 		rewardSubmission := &RewardSubmission{
@@ -189,7 +188,7 @@ func (rs *RewardSubmissionsModel) GetStateTransitions() (types.StateTransitions[
 			_, ok := rs.stateAccumulator[log.BlockNumber][slotId]
 			if ok {
 				fmt.Printf("Submissions: %+v\n", rs.stateAccumulator[log.BlockNumber])
-				err := xerrors.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
+				err := fmt.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
 				rs.logger.Sugar().Errorw("Duplicate distribution root submitted", zap.Error(err))
 				return nil, err
 			}
@@ -265,7 +264,7 @@ func (rs *RewardSubmissionsModel) HandleStateChange(log *storage.TransactionLog)
 func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSubmission, error) {
 	accumulatedState, ok := rs.stateAccumulator[blockNumber]
 	if !ok {
-		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
+		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
 		rs.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, err
 	}

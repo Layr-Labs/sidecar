@@ -111,6 +111,8 @@ var runCmd = &cobra.Command{
 
 		rcq := rewardsCalculatorQueue.NewRewardsCalculatorQueue(rc, l)
 
+		go rcq.Process()
+
 		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, l)
 
 		// Create new sidecar instance

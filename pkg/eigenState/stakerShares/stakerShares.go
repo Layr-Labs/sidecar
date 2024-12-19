@@ -19,7 +19,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -46,7 +45,7 @@ type StakerShareDeltas struct {
 }
 
 func NewSlotID(transactionHash string, logIndex uint64, staker string, strategy string, strategyIndex uint64) types.SlotID {
-	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%s_%d", staker, strategy, strategyIndex))
+	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%s_%016x", staker, strategy, strategyIndex))
 }
 
 type StakerSharesModel struct {
@@ -123,12 +122,12 @@ func (ss *StakerSharesModel) handleStakerDepositEvent(log *storage.TransactionLo
 	}
 
 	if stakerAddress == "" {
-		return nil, xerrors.Errorf("No staker address found in event")
+		return nil, fmt.Errorf("No staker address found in event")
 	}
 
 	shares, success := numbers.NewBig257().SetString(outputData.Shares.String(), 10)
 	if !success {
-		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Shares)
+		return nil, fmt.Errorf("Failed to convert shares to big.Int: %s", outputData.Shares)
 	}
 
 	return &StakerShareDeltas{
@@ -174,7 +173,7 @@ func (ss *StakerSharesModel) handlePodSharesUpdatedEvent(log *storage.Transactio
 
 	sharesDelta, success := numbers.NewBig257().SetString(sharesDeltaStr, 10)
 	if !success {
-		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", sharesDelta)
+		return nil, fmt.Errorf("Failed to convert shares to big.Int: %s", sharesDelta)
 	}
 
 	return &StakerShareDeltas{
@@ -203,12 +202,12 @@ func (ss *StakerSharesModel) handleM1StakerWithdrawals(log *storage.TransactionL
 	}
 
 	if stakerAddress == "" {
-		return nil, xerrors.Errorf("No staker address found in event")
+		return nil, fmt.Errorf("No staker address found in event")
 	}
 
 	shares, success := numbers.NewBig257().SetString(outputData.Shares.String(), 10)
 	if !success {
-		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Shares)
+		return nil, fmt.Errorf("Failed to convert shares to big.Int: %s", outputData.Shares)
 	}
 
 	return &StakerShareDeltas{
@@ -339,7 +338,7 @@ func (ss *StakerSharesModel) handleM2QueuedWithdrawal(log *storage.TransactionLo
 	for i, strategy := range outputData.Withdrawal.Strategies {
 		shares, success := numbers.NewBig257().SetString(outputData.Withdrawal.Shares[i].String(), 10)
 		if !success {
-			return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Withdrawal.Shares[i])
+			return nil, fmt.Errorf("Failed to convert shares to big.Int: %s", outputData.Withdrawal.Shares[i])
 		}
 		r := &StakerShareDeltas{
 			Staker:               outputData.Withdrawal.Staker,

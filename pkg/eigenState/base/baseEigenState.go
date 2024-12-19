@@ -2,6 +2,7 @@ package base
 
 import (
 	"database/sql"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -56,10 +57,8 @@ func (b *BaseEigenState) ParseLogOutput(log *storage.TransactionLog) (map[string
 // 1. Ensures that the tree is always different for different blocks
 // 2. Allows us to have at least 1 value if there are no model changes for a block.
 func (b *BaseEigenState) InitializeMerkleTreeBaseStateWithBlock(blockNumber uint64) [][]byte {
-	blockNumberByte := []byte(fmt.Sprintf("%d", blockNumber))
 	return [][]byte{
-		types.MerkleLeafPrefix_EigenStateBlock,
-		blockNumberByte,
+		append(types.MerkleLeafPrefix_EigenStateBlock, binary.BigEndian.AppendUint64([]byte{}, blockNumber)...),
 	}
 }
 
@@ -146,7 +145,7 @@ func NewSlotID(txHash string, logIndex uint64) types.SlotID {
 }
 
 func NewSlotIDWithSuffix(txHash string, logIndex uint64, suffix string) types.SlotID {
-	baseSlotId := fmt.Sprintf("%s_%d", txHash, logIndex)
+	baseSlotId := fmt.Sprintf("%s_%016x", txHash, logIndex)
 	if suffix != "" {
 		baseSlotId = fmt.Sprintf("%s_%s", baseSlotId, suffix)
 	}

@@ -1,6 +1,9 @@
 package rewards
 
-import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+import (
+	"database/sql"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+)
 
 // Operator AVS Strategy Windows: Ranges for which an Operator, Strategy is restaked on an AVS
 // 1. Ranked_records: Order all records. Round up block_time to 0 UTC
@@ -152,8 +155,8 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(snapsh
 		return err
 	}
 
-	err = r.generateAndInsertFromQuery(tableName, query, map[string]interface{}{
-		"avsDirectoryAddress": contractAddresses.AvsDirectory,
+	err = r.generateAndInsertFromQuery(tableName, query, []interface{}{
+		sql.Named("avsDirectoryAddress", contractAddresses.AvsDirectory),
 	})
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator_avs_registration_snapshots", "error", err)

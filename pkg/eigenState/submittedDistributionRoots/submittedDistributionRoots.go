@@ -2,6 +2,7 @@ package submittedDistributionRoots
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"reflect"
 	"slices"
@@ -15,7 +16,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -88,7 +88,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 
 		// Sanity check to make sure we've got an initialized accumulator map for the block
 		if _, ok := sdr.stateAccumulator[log.BlockNumber]; !ok {
-			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
+			return nil, fmt.Errorf("No state accumulator found for block %d", log.BlockNumber)
 		}
 
 		var rootIndex uint64
@@ -103,12 +103,12 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 			withoutPrefix := strings.TrimPrefix(arguments[0].Value.(string), "0x")
 			rootIndex, err = strconv.ParseUint(withoutPrefix, 16, 32)
 			if err != nil {
-				return nil, xerrors.Errorf("Failed to decode rootIndex: %v", err)
+				return nil, fmt.Errorf("Failed to decode rootIndex: %v", err)
 			}
 		case reflect.Float64:
 			rootIndex = uint64(arguments[0].Value.(float64))
 		default:
-			return nil, xerrors.Errorf("Invalid type for rootIndex: %s", t.Kind())
+			return nil, fmt.Errorf("Invalid type for rootIndex: %s", t.Kind())
 		}
 
 		root := arguments[1].Value.(string)
@@ -120,13 +120,13 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 			withoutPrefix := strings.TrimPrefix(arguments[2].Value.(string), "0x")
 			decoded, err := strconv.ParseUint(withoutPrefix, 16, 32)
 			if err != nil {
-				return nil, xerrors.Errorf("Failed to decode rewardsCalculationEnd: %v", err)
+				return nil, fmt.Errorf("Failed to decode rewardsCalculationEnd: %v", err)
 			}
 			rewardsCalculationEnd = int64(decoded)
 		case reflect.Float64:
 			rewardsCalculationEnd = int64(arguments[2].Value.(float64))
 		default:
-			return nil, xerrors.Errorf("Invalid type for rewardsCalculationEnd: %s", calcualtionEndType.Kind())
+			return nil, fmt.Errorf("Invalid type for rewardsCalculationEnd: %s", calcualtionEndType.Kind())
 		}
 
 		activatedAt := outputData.ActivatedAt
@@ -134,7 +134,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 		slotId := base.NewSlotID(log.TransactionHash, log.LogIndex)
 		_, ok := sdr.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
-			err := xerrors.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
+			err := fmt.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
 			sdr.logger.Sugar().Errorw("Duplicate distribution root submitted", zap.Error(err))
 			return nil, err
 		}
@@ -220,7 +220,7 @@ func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]
 
 	accumulatedState, ok := sdr.stateAccumulator[blockNumber]
 	if !ok {
-		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
+		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
 		sdr.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, err
 	}

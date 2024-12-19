@@ -42,6 +42,9 @@ func (rcq *RewardsCalculatorQueue) processMessage(msg *RewardsCalculationMessage
 	default:
 		response.Error = fmt.Errorf("unknown calculation type %s", msg.Data.CalculationType)
 	}
-
+	if msg.ResponseChan == nil {
+		rcq.logger.Sugar().Errorw("No response channel for rewards calculation message", "data", msg.Data)
+		return
+	}
 	msg.ResponseChan <- response
 }

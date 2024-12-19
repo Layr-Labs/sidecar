@@ -11,10 +11,9 @@ func NewRewardsCalculatorQueue(rc *rewards.RewardsCalculator, logger *zap.Logger
 	queue := &RewardsCalculatorQueue{
 		logger:            logger,
 		rewardsCalculator: rc,
-		queue:             make(chan *RewardsCalculationMessage),
+		// allow the queue to buffer up to 100 messages
+		queue: make(chan *RewardsCalculationMessage, 100),
 	}
-	go queue.Process()
-
 	return queue
 }
 
@@ -38,12 +37,15 @@ func (rcq *RewardsCalculatorQueue) EnqueueAndWait(ctx context.Context, data Rewa
 
 	select {
 	case response := <-responseChan:
+		rcq.logger.Sugar().Infow("Received rewards calculation response")
 		return response.Data, response.Error
 	case <-ctx.Done():
+		rcq.logger.Sugar().Infow("Received context.Done()")
 		return nil, ctx.Err()
 	}
 }
 
 func (rcq *RewardsCalculatorQueue) Close() {
+	rcq.logger.Sugar().Infow("Closing rewards calculation queue")
 	close(rcq.done)
 }
