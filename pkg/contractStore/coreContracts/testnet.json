@@ -149,17 +149,17 @@
 		}, {
 			"contract_address": "0x78469728304326cbc65f8f95fa756b0b73164462",
 			"proxy_contract_address": "0xe03d546ada84b5624b50aa22ff8b87badef44ee2",
-			"block_number": 2969349
+			"block_number": 2969816
 		},
 		{
 			"contract_address": "0x30770d7e3e71112d7a6b7259542d1f680a70e315",
 			"proxy_contract_address": "0x35b7743633acdaeb18a4894469fcdbf23e13f304",
-			"block_number": 2969355
+			"block_number": 2969816
 		},
 		{
 			"contract_address": "0xa44151489861fe9e3055d95adc98fbd462b948e7",
 			"proxy_contract_address": "0xf435ef8bb9520d15b5128a519ae04d1e6e04a6e0",
-			"block_number": 2969352
+			"block_number": 2969816
 		}
 	]
 }
