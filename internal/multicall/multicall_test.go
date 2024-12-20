@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const ethNodeURL = "https://eth.drpc.org"
+const ethNodeURL = "https://eth.llamarpc.com/"
 
 func setupClient(t *testing.T) *ethclient.Client {
 	client, err := ethclient.Dial(ethNodeURL)

@@ -146,7 +146,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert1StakerStrategyPayouts(cut
 		return err
 	}
 
-	query, err := rewardsUtils.RenderQueryTemplate(_1_stakerStrategyPayoutsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_1_stakerStrategyPayoutsQuery, map[string]interface{}{
 		"destTableName":            destTableName,
 		"activeRewardsTable":       rewardsTables[rewardsUtils.Table_1_ActiveRewards],
 		"stakerRewardAmountsTable": rewardsTables[rewardsUtils.Table_2_StakerRewardAmounts],

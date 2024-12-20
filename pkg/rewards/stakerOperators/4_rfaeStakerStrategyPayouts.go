@@ -132,7 +132,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert4RfaeStakerStrategyPayout(
 		return err
 	}
 
-	query, err := rewardsUtils.RenderQueryTemplate(_4_rfaeStakerStrategyPayoutsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_4_rfaeStakerStrategyPayoutsQuery, map[string]interface{}{
 		"destTableName":      destTableName,
 		"activeRewardsTable": rewardsTables[rewardsUtils.Table_1_ActiveRewards],
 		"rfaeStakersTable":   rewardsTables[rewardsUtils.Table_5_RfaeStakers],

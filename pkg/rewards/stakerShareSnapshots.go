@@ -50,7 +50,7 @@ CROSS JOIN
 func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(snapshotDate string) error {
 	tableName := "staker_share_snapshots"
 
-	query, err := rewardsUtils.RenderQueryTemplate(stakerShareSnapshotsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(stakerShareSnapshotsQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {

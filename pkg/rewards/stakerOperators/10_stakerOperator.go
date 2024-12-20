@@ -50,30 +50,30 @@ type StakerOperator struct {
 	Snapshot   time.Time
 }
 
-func (sog *StakerOperatorsGenerator) GenerateAndInsert7StakerOperator(cutoffDate string) error {
-	sog.logger.Sugar().Infow("Generating and inserting 7_stakerOperator",
+func (sog *StakerOperatorsGenerator) GenerateAndInsert10StakerOperator(cutoffDate string) error {
+	sog.logger.Sugar().Infow("Generating and inserting 10_stakerOperator",
 		zap.String("cutoffDate", cutoffDate),
 	)
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
-	destTableName := rewardsUtils.Sot_7_StakerOperatorTable
+	destTableName := rewardsUtils.Sot_10_StakerOperatorTable
 
-	sog.logger.Sugar().Infow("Generating 7_stakerOperator",
+	sog.logger.Sugar().Infow("Generating 10_stakerOperator",
 		zap.String("destTableName", destTableName),
 		zap.String("cutoffDate", cutoffDate),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_7_stakerOperator, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_7_stakerOperator, map[string]interface{}{
 		"destTableName":         destTableName,
-		"stakerOperatorStaging": allTableNames[rewardsUtils.Sot_6_StakerOperatorStaging],
+		"stakerOperatorStaging": allTableNames[rewardsUtils.Sot_9_StakerOperatorStaging],
 	})
 	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to render 7_stakerOperator query", "error", err)
+		sog.logger.Sugar().Errorw("Failed to render 10_stakerOperator query", "error", err)
 		return err
 	}
 
 	res := sog.db.Exec(query)
 	if res.Error != nil {
-		sog.logger.Sugar().Errorw("Failed to generate 7_stakerOperator",
+		sog.logger.Sugar().Errorw("Failed to generate 10_stakerOperator",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(res.Error),
 		)

@@ -45,7 +45,7 @@ func (rc *RewardsCalculator) GenerateGold3OperatorRewardAmountsTable(snapshotDat
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_3_goldOperatorRewardAmountsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_3_goldOperatorRewardAmountsQuery, map[string]interface{}{
 		"destTableName":            destTableName,
 		"stakerRewardAmountsTable": allTableNames[rewardsUtils.Table_2_StakerRewardAmounts],
 	})

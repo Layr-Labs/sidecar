@@ -41,6 +41,9 @@ fi
 if [[ $NETWORK == "testnet-reduced" ]]; then
     bucketPath="${bucketPath}testnet-reduced/"
 fi
+if [[ $NETWORK == "preprod-rewardsv2" ]]; then
+    bucketPath="${bucketPath}preprod-rewardsv2/"
+fi
 
 aws s3 cp "${newVersion}.tar" $bucketPath
 

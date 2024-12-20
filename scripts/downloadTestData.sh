@@ -16,4 +16,5 @@ if [[ -z $version ]]; then
   exit 1
 fi
 echo "Downloading testdata version $dataUrl"
+
 curl -L $dataUrl | tar xvz -C ./
