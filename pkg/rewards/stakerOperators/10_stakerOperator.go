@@ -51,13 +51,13 @@ type StakerOperator struct {
 }
 
 func (sog *StakerOperatorsGenerator) GenerateAndInsert10StakerOperator(cutoffDate string) error {
-	sog.logger.Sugar().Infow("Generating and inserting 7_stakerOperator",
+	sog.logger.Sugar().Infow("Generating and inserting 10_stakerOperator",
 		zap.String("cutoffDate", cutoffDate),
 	)
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 	destTableName := rewardsUtils.Sot_10_StakerOperatorTable
 
-	sog.logger.Sugar().Infow("Generating 7_stakerOperator",
+	sog.logger.Sugar().Infow("Generating 10_stakerOperator",
 		zap.String("destTableName", destTableName),
 		zap.String("cutoffDate", cutoffDate),
 	)
@@ -67,13 +67,13 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert10StakerOperator(cutoffDat
 		"stakerOperatorStaging": allTableNames[rewardsUtils.Sot_9_StakerOperatorStaging],
 	})
 	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to render 7_stakerOperator query", "error", err)
+		sog.logger.Sugar().Errorw("Failed to render 10_stakerOperator query", "error", err)
 		return err
 	}
 
 	res := sog.db.Exec(query)
 	if res.Error != nil {
-		sog.logger.Sugar().Errorw("Failed to generate 7_stakerOperator",
+		sog.logger.Sugar().Errorw("Failed to generate 10_stakerOperator",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(res.Error),
 		)

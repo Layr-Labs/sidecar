@@ -64,20 +64,27 @@ var goldTableBaseNames = map[string]string{
 }
 
 var GoldTableNameSearchPattern = map[string]string{
-	Table_1_ActiveRewards:         "gold_%_active_rewards",
-	Table_2_StakerRewardAmounts:   "gold_%_staker_reward_amounts",
-	Table_3_OperatorRewardAmounts: "gold_%_operator_reward_amounts",
-	Table_4_RewardsForAll:         "gold_%_rewards_for_all",
-	Table_5_RfaeStakers:           "gold_%_rfae_stakers",
-	Table_6_RfaeOperators:         "gold_%_rfae_operators",
-	Table_7_GoldStaging:           "gold_%_staging",
+	Table_1_ActiveRewards:           "gold_%_active_rewards",
+	Table_2_StakerRewardAmounts:     "gold_%_staker_reward_amounts",
+	Table_3_OperatorRewardAmounts:   "gold_%_operator_reward_amounts",
+	Table_4_RewardsForAll:           "gold_%_rewards_for_all",
+	Table_5_RfaeStakers:             "gold_%_rfae_stakers",
+	Table_6_RfaeOperators:           "gold_%_rfae_operators",
+	Table_7_ActiveODRewards:         "gold_%_active_od_rewards",
+	Table_8_OperatorODRewardAmounts: "gold_%_operator_od_reward_amounts",
+	Table_9_StakerODRewardAmounts:   "gold_%_staker_od_reward_amounts",
+	Table_10_AvsODRewardAmounts:     "gold_%_avs_od_reward_amounts",
+	Table_11_GoldStaging:            "gold_%_staging",
 
 	Sot_1_StakerStrategyPayouts:       "sot_%_staker_strategy_payouts",
 	Sot_2_OperatorStrategyPayouts:     "sot_%_operator_strategy_payouts",
 	Sot_3_RewardsForAllStrategyPayout: "sot_%_rewards_for_all_strategy_payout",
 	Sot_4_RfaeStakers:                 "sot_%_rfae_stakers",
 	Sot_5_RfaeOperators:               "sot_%_rfae_operators",
-	Sot_6_StakerOperatorStaging:       "sot_%_staker_operator_staging",
+	Sot_6_OperatorODStrategyPayouts:   "sot_%_operator_od_strategy_payouts",
+	Sot_7_StakerODStrategyPayouts:     "sot_%_staker_od_strategy_payouts",
+	Sot_8_AvsODStrategyPayouts:        "sot_%_avs_od_strategy_payouts",
+	Sot_9_StakerOperatorStaging:       "sot_%_staker_operator_staging",
 }
 
 func GetGoldTableNames(snapshotDate string) map[string]string {
@@ -160,7 +167,7 @@ func findTableByLikeName(likeName string, grm *gorm.DB, schemaName string) (stri
 			limit 1
 		`
 	var tname string
-	res := grm.Debug().Raw(query,
+	res := grm.Raw(query,
 		sql.Named("schemaName", schemaName),
 		sql.Named("pattern", likeName)).
 		Scan(&tname)
