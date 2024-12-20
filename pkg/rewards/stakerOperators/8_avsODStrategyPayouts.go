@@ -33,6 +33,16 @@ type AvsODStrategyPayout struct {
 }
 
 func (sog *StakerOperatorsGenerator) GenerateAndInsert8AvsODStrategyPayouts(cutoffDate string) error {
+	rewardsV2Enabled, err := sog.globalConfig.IsRewardsV2EnabledForCutoffDate(cutoffDate)
+	if err != nil {
+		sog.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
+		return err
+	}
+	if !rewardsV2Enabled {
+		sog.logger.Sugar().Infow("Skipping 8_avsODStrategyPayouts generation as rewards v2 is not enabled")
+		return nil
+	}
+
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 	destTableName := allTableNames[rewardsUtils.Sot_8_AvsODStrategyPayouts]
 
