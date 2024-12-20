@@ -47,9 +47,22 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert7StakerODStrategyPayouts(c
 		"cutoffDate", cutoffDate,
 	)
 
+	if err := rewardsUtils.DropTableIfExists(sog.db, destTableName, sog.logger); err != nil {
+		sog.logger.Sugar().Errorw("Failed to drop table", "error", err)
+		return err
+	}
+
+	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
+		rewardsUtils.Table_9_StakerODRewardAmounts: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_9_StakerODRewardAmounts],
+	}, cutoffDate)
+	if err != nil {
+		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
+		return err
+	}
+
 	query, err := rewardsUtils.RenderQueryTemplate(_7_stakerODStrategyPayoutQuery, map[string]interface{}{
 		"destTableName":              destTableName,
-		"stakerODRewardAmountsTable": allTableNames[rewardsUtils.Table_9_StakerODRewardAmounts],
+		"stakerODRewardAmountsTable": rewardsTables[rewardsUtils.Table_9_StakerODRewardAmounts],
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 7_stakerODStrategyPayouts query", "error", err)
