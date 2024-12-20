@@ -29,6 +29,10 @@ func NewContractManager(
 	}
 }
 
+func (cm *ContractManager) GetContractWithImplementations(contractAddress string) ([]*contractStore.Contract, error) {
+	return cm.ContractStore.GetProxyContractWithImplementations(contractAddress)
+}
+
 func (cm *ContractManager) GetContractWithProxy(
 	contractAddress string,
 	blockNumber uint64,
