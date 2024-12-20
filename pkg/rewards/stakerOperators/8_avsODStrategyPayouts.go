@@ -40,9 +40,22 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert8AvsODStrategyPayouts(cuto
 		"cutoffDate", cutoffDate,
 	)
 
+	if err := rewardsUtils.DropTableIfExists(sog.db, destTableName, sog.logger); err != nil {
+		sog.logger.Sugar().Errorw("Failed to drop table", "error", err)
+		return err
+	}
+
+	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
+		rewardsUtils.Table_10_AvsODRewardAmounts: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_10_AvsODRewardAmounts],
+	}, cutoffDate)
+	if err != nil {
+		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
+		return err
+	}
+
 	query, err := rewardsUtils.RenderQueryTemplate(_8_avsODStrategyPayoutQuery, map[string]interface{}{
 		"destTableName":           destTableName,
-		"avsODRewardAmountsTable": allTableNames[rewardsUtils.Table_10_AvsODRewardAmounts],
+		"avsODRewardAmountsTable": rewardsTables[rewardsUtils.Table_10_AvsODRewardAmounts],
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 8_avsODStrategyPayouts query", "error", err)
