@@ -230,7 +230,7 @@ func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) 
 
 func (rc *RewardsCalculator) BackfillAllStakerOperators() error {
 	var generatedSnapshots []storage.GeneratedRewardsSnapshots
-	query := `select * from generated_rewards_snapshots order by snapshot_date asc`
+	query := `select * from generated_rewards_snapshots where status = 'complete' order by snapshot_date asc`
 	res := rc.grm.Raw(query).Scan(&generatedSnapshots)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to get generated snapshots", "error", res.Error)
@@ -272,7 +272,7 @@ func (rc *RewardsCalculator) BackfillAllStakerOperators() error {
 func (rc *RewardsCalculator) GenerateStakerOperatorsTableForPastSnapshot(cutoffDate string) error {
 	// find the first snapshot that is >= to the provided cutoff date
 	var generatedSnapshot storage.GeneratedRewardsSnapshots
-	query := `select * from generated_rewards_snapshots where snapshot_date >= ? order by snapshot_date asc limit 1`
+	query := `select * from generated_rewards_snapshots where snapshot_date >= ? and status = 'complete' order by snapshot_date asc limit 1`
 	res := rc.grm.Raw(query, cutoffDate).Scan(&generatedSnapshot)
 	if res.Error != nil && errors.Is(res.Error, gorm.ErrRecordNotFound) {
 		rc.logger.Sugar().Errorw("Failed to get generated snapshot", "error", res.Error)
