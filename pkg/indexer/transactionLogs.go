@@ -80,7 +80,7 @@ func (idx *Indexer) ParseTransactionLogs(
 		}
 
 		// if the contract is interesting but not found, throw an error to stop processing
-		if foundContracts == nil || len(foundContracts) == 0 {
+		if len(foundContracts) == 0 {
 			idx.Logger.Sugar().Errorw("No contract found for address", zap.String("hash", transaction.Hash.Value()))
 			return nil, NewIndexError(IndexError_FailedToFindContract, err).
 				WithMessage("No contract found for address").
@@ -184,7 +184,7 @@ func (idx *Indexer) DecodeLogWithAbi(
 		if err != nil {
 			return idx.DecodeLog(nil, lg)
 		}
-		if foundContracts == nil || len(foundContracts) == 0 {
+		if len(foundContracts) == 0 {
 			idx.Logger.Sugar().Errorw("No contract found for address", zap.String("address", logAddress.String()))
 			return idx.DecodeLog(nil, lg)
 		}
