@@ -160,17 +160,12 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert9StakerOperatorStaging(cut
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 	destTableName := allTableNames[rewardsUtils.Sot_9_StakerOperatorStaging]
 
-	sog.logger.Sugar().Infow("Generating and inserting 9_stakerOperatorsStaging",
-		zap.String("cutoffDate", cutoffDate),
-	)
-
 	if err := rewardsUtils.DropTableIfExists(sog.db, destTableName, sog.logger); err != nil {
 		sog.logger.Sugar().Errorw("Failed to drop table", "error", err)
 		return err
 	}
 
-	sog.logger.Sugar().Infow("Generating 9_stakerOperatorsStaging",
-		zap.String("destTableName", destTableName),
+	sog.logger.Sugar().Infow("Generating and inserting 9_stakerOperatorsStaging",
 		zap.String("cutoffDate", cutoffDate),
 	)
 
