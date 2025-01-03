@@ -15,7 +15,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/types/numbers"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -132,13 +131,13 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) handleOperatorDirectedReward
 
 		multiplierBig, success := numbers.NewBig257().SetString(strategyAndMultiplier.Multiplier.String(), 10)
 		if !success {
-			return nil, xerrors.Errorf("Failed to parse multiplier to Big257: %s", strategyAndMultiplier.Multiplier.String())
+			return nil, fmt.Errorf("Failed to parse multiplier to Big257: %s", strategyAndMultiplier.Multiplier.String())
 		}
 
 		for j, operatorReward := range outputRewardData.OperatorRewards {
 			amountBig, success := numbers.NewBig257().SetString(operatorReward.Amount.String(), 10)
 			if !success {
-				return nil, xerrors.Errorf("Failed to parse amount to Big257: %s", operatorReward.Amount.String())
+				return nil, fmt.Errorf("Failed to parse amount to Big257: %s", operatorReward.Amount.String())
 			}
 
 			rewardSubmission := &OperatorDirectedRewardSubmission{
@@ -180,7 +179,7 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) GetStateTransitions() (types
 
 			_, ok := odrs.stateAccumulator[log.BlockNumber][slotId]
 			if ok {
-				err := xerrors.Errorf("Duplicate operator directed reward submission submitted for slot %s at block %d", slotId, log.BlockNumber)
+				err := fmt.Errorf("Duplicate operator directed reward submission submitted for slot %s at block %d", slotId, log.BlockNumber)
 				odrs.logger.Sugar().Errorw("Duplicate operator directed reward submission submitted", zap.Error(err))
 				return nil, err
 			}
@@ -252,7 +251,7 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) HandleStateChange(log *stora
 func (odrs *OperatorDirectedRewardSubmissionsModel) prepareState(blockNumber uint64) ([]*OperatorDirectedRewardSubmission, error) {
 	accumulatedState, ok := odrs.stateAccumulator[blockNumber]
 	if !ok {
-		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
+		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
 		odrs.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, err
 	}
