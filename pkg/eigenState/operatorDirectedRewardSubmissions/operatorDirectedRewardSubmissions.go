@@ -38,7 +38,7 @@ type OperatorDirectedRewardSubmission struct {
 }
 
 func NewSlotID(transactionHash string, logIndex uint64, rewardHash string, strategyIndex uint64, operatorIndex uint64) types.SlotID {
-	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%d_%d", rewardHash, strategyIndex, operatorIndex))
+	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%016x_%016x", rewardHash, strategyIndex, operatorIndex))
 }
 
 type OperatorDirectedRewardSubmissionsModel struct {
