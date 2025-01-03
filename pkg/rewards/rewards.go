@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
@@ -185,10 +186,15 @@ func (rc *RewardsCalculator) GetRewardSnapshotStatus(snapshotDate string) (*stor
 	return r, nil
 }
 
-func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (*merkletree.MerkleTree, map[gethcommon.Address]*merkletree.MerkleTree, error) {
-	rewards, err := rc.fetchRewardsForSnapshot(snapshotDate)
+func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (
+	*merkletree.MerkleTree,
+	map[gethcommon.Address]*merkletree.MerkleTree,
+	*distribution.Distribution,
+	error,
+) {
+	rewards, err := rc.FetchRewardsForSnapshot(snapshotDate)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	distro := distribution.NewDistribution()
@@ -206,12 +212,12 @@ func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (*
 
 	if err := distro.LoadLines(earnerLines); err != nil {
 		rc.logger.Error("Failed to load lines", zap.Error(err))
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	accountTree, tokenTree, err := distro.Merklize()
 
-	return accountTree, tokenTree, err
+	return accountTree, tokenTree, distro, err
 }
 
 func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) (string, error) {
@@ -480,7 +486,7 @@ type Reward struct {
 	CumulativeAmount string
 }
 
-func (rc *RewardsCalculator) fetchRewardsForSnapshot(snapshotDate string) ([]*Reward, error) {
+func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string) ([]*Reward, error) {
 	var goldRows []*Reward
 	query, err := rewardsUtils.RenderQueryTemplate(`
 		select
@@ -667,4 +673,73 @@ func (rc *RewardsCalculator) generateAndInsertFromQuery(
 		variables,
 		rc.logger,
 	)
+}
+
+func (rc *RewardsCalculator) FindClaimableDistributionRoot(snapshotDate string) (*types.SubmittedDistributionRoot, error) {
+	if snapshotDate == "" {
+		snapshotDate = "latest"
+	}
+	query := `
+		select
+			*
+		from submitted_distribution_roots as sdr
+		left join disabled_distribution_roots as ddr on (sdr.root_index = ddr.root_index)
+		where
+			ddr.root_index is null
+		{{ if eq .snapshotDate "latest" }}
+			and activated_at >= now()
+		{{ else }}
+			and activated_at >= '{{.snapshotDate}}'::timestamp(6)
+		{{ end }}
+		order by root_index desc
+		limit 1
+	`
+	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]string{"snapshotDate": snapshotDate})
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
+		return nil, err
+	}
+
+	var submittedDistributionRoot *types.SubmittedDistributionRoot
+	res := rc.grm.Raw(renderedQuery).Scan(&submittedDistributionRoot)
+	if res.Error != nil {
+		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+			rc.logger.Sugar().Errorw("No active distribution root found for snapshot",
+				zap.String("snapshotDate", snapshotDate),
+				zap.Error(res.Error),
+			)
+			return nil, res.Error
+		}
+		rc.logger.Sugar().Errorw("Failed to find most recent claimable distribution root", "error", res.Error)
+		return nil, res.Error
+	}
+
+	return submittedDistributionRoot, nil
+}
+
+func (rc *RewardsCalculator) GetGeneratedRewardsForSnapshotDate(snapshotDate string) (*storage.GeneratedRewardsSnapshots, error) {
+	query, err := rewardsUtils.RenderQueryTemplate(`
+		select
+			*
+		from generated_rewards_snapshots as grs
+		where
+			status = 'complete'
+		{{if ne .snapshotDate "latest"}}
+			and grs.snapshot_date::timestamp(6) >= '{{.snapshotDate}}'::timestamp(6)			
+		{{end}}
+		limit 1
+	`, map[string]string{"snapshotDate": snapshotDate})
+
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
+		return nil, err
+	}
+
+	var generatedRewardsSnapshot *storage.GeneratedRewardsSnapshots
+	res := rc.grm.Raw(query).Scan(&generatedRewardsSnapshot)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to get generated rewards snapshots", "error", res.Error)
+		return nil, res.Error
+	}
+	return generatedRewardsSnapshot, nil
 }

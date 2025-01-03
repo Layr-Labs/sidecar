@@ -73,7 +73,7 @@ func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *sidecarV1.Ge
 		zap.String("rewardsCalcEndDate", rewardsCalcEndDate),
 	)
 
-	accountTree, _, err := rpc.rewardsCalculator.MerkelizeRewardsForSnapshot(rewardsCalcEndDate)
+	accountTree, _, _, err := rpc.rewardsCalculator.MerkelizeRewardsForSnapshot(rewardsCalcEndDate)
 	if err != nil {
 		rpc.Logger.Sugar().Errorw("failed to merkelize rewards for snapshot",
 			zap.Error(err),
@@ -168,10 +168,6 @@ func (rpc *RpcServer) GetAttributableRewardsForSnapshot(ctx context.Context, req
 
 func (rpc *RpcServer) GetAttributableRewardsForDistributionRoot(ctx context.Context, req *sidecarV1.GetAttributableRewardsForDistributionRootRequest) (*sidecarV1.GetAttributableRewardsForDistributionRootResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAttributableRewardsForDistributionRoot not implemented")
-}
-
-func (rpc *RpcServer) GenerateClaimProof(ctx context.Context, req *sidecarV1.GenerateClaimProofRequest) (*sidecarV1.GenerateClaimProofResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GenerateClaimProof not implemented")
 }
 
 func (rpc *RpcServer) GetAvailableRewards(ctx context.Context, req *sidecarV1.GetAvailableRewardsRequest) (*sidecarV1.GetAvailableRewardsResponse, error) {

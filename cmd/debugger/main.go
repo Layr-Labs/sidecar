@@ -13,6 +13,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
 	"github.com/Layr-Labs/sidecar/pkg/pipeline"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
+	"github.com/Layr-Labs/sidecar/pkg/proofs"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
@@ -100,21 +101,22 @@ func main() {
 	rcq := rewardsCalculatorQueue.NewRewardsCalculatorQueue(rc, l)
 
 	p := pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, eb, l)
+	rps := proofs.NewRewardsProofsStore(rc, l)
 
 	// Create new sidecar instance
 	// Create new sidecar instance
 	_ = sidecar.NewSidecar(&sidecar.SidecarConfig{
 		GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
-	}, cfg, mds, p, sm, rc, rcq, l, client)
+	}, cfg, mds, p, sm, rc, rcq, rps, l, client)
 
-	rpcServer := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
+	rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 		GrpcPort: cfg.RpcConfig.GrpcPort,
 		HttpPort: cfg.RpcConfig.HttpPort,
-	}, mds, sm, rc, rcq, eb, l)
+	}, mds, sm, rc, rcq, eb, rps, l)
 
 	// RPC channel to notify the RPC server to shutdown gracefully
 	rpcChannel := make(chan bool)
-	if err := rpcServer.Start(ctx, rpcChannel); err != nil {
+	if err := rpc.Start(ctx, rpcChannel); err != nil {
 		l.Sugar().Fatalw("Failed to start RPC server", zap.Error(err))
 	}
 
