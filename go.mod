@@ -25,7 +25,6 @@ require (
 	github.com/wealdtech/go-merkletree/v2 v2.6.0
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	go.uber.org/zap v1.27.0
-	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.35.1
 	gorm.io/driver/postgres v1.5.9
