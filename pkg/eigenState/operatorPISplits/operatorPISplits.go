@@ -254,7 +254,7 @@ func (ops *OperatorPISplitModel) sortValuesForMerkleTree(splits []*OperatorPISpl
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, split := range splits {
 		slotID := base.NewSlotID(split.TransactionHash, split.LogIndex)
-		value := fmt.Sprintf("%s_%d_%d_%d", split.Operator, split.ActivatedAt.Unix(), split.OldOperatorPISplitBips, split.NewOperatorPISplitBips)
+		value := fmt.Sprintf("%s_%016x_%016x_%016x", split.Operator, split.ActivatedAt.Unix(), split.OldOperatorPISplitBips, split.NewOperatorPISplitBips)
 		inputs = append(inputs, &base.MerkleTreeInput{
 			SlotID: slotID,
 			Value:  []byte(value),
