@@ -18,7 +18,7 @@ type Migration struct {
 func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	var blockNumber uint64
 	if cfg.Chain == config.Chain_Preprod {
-		blockNumber = 2919262
+		blockNumber = 2871556
 	} else if cfg.Chain == config.Chain_Holesky {
 		blockNumber = 2930139
 	} else {
