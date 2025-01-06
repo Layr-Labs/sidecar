@@ -14,7 +14,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -126,7 +125,7 @@ func (oas *OperatorAVSSplitModel) GetStateTransitions() (types.StateTransitions[
 
 		_, ok := oas.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
-			err := xerrors.Errorf("Duplicate operator AVS split submitted for slot %s at block %d", slotId, log.BlockNumber)
+			err := fmt.Errorf("Duplicate operator AVS split submitted for slot %s at block %d", slotId, log.BlockNumber)
 			oas.logger.Sugar().Errorw("Duplicate operator AVS split submitted", zap.Error(err))
 			return nil, err
 		}
@@ -197,7 +196,7 @@ func (oas *OperatorAVSSplitModel) HandleStateChange(log *storage.TransactionLog)
 func (oas *OperatorAVSSplitModel) prepareState(blockNumber uint64) ([]*OperatorAVSSplit, error) {
 	accumulatedState, ok := oas.stateAccumulator[blockNumber]
 	if !ok {
-		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
+		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
 		oas.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, err
 	}
@@ -257,7 +256,7 @@ func (oas *OperatorAVSSplitModel) sortValuesForMerkleTree(splits []*OperatorAVSS
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, split := range splits {
 		slotID := base.NewSlotID(split.TransactionHash, split.LogIndex)
-		value := fmt.Sprintf("%s_%s_%d_%d_%d", split.Operator, split.Avs, split.ActivatedAt.Unix(), split.OldOperatorAVSSplitBips, split.NewOperatorAVSSplitBips)
+		value := fmt.Sprintf("%s_%s_%016x_%016x_%016x", split.Operator, split.Avs, split.ActivatedAt.Unix(), split.OldOperatorAVSSplitBips, split.NewOperatorAVSSplitBips)
 		inputs = append(inputs, &base.MerkleTreeInput{
 			SlotID: slotID,
 			Value:  []byte(value),

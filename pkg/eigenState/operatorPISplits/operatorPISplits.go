@@ -14,7 +14,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -124,7 +123,7 @@ func (ops *OperatorPISplitModel) GetStateTransitions() (types.StateTransitions[*
 
 		_, ok := ops.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
-			err := xerrors.Errorf("Duplicate operator PI split submitted for slot %s at block %d", slotId, log.BlockNumber)
+			err := fmt.Errorf("Duplicate operator PI split submitted for slot %s at block %d", slotId, log.BlockNumber)
 			ops.logger.Sugar().Errorw("Duplicate operator PI split submitted", zap.Error(err))
 			return nil, err
 		}
@@ -195,7 +194,7 @@ func (ops *OperatorPISplitModel) HandleStateChange(log *storage.TransactionLog) 
 func (ops *OperatorPISplitModel) prepareState(blockNumber uint64) ([]*OperatorPISplit, error) {
 	accumulatedState, ok := ops.stateAccumulator[blockNumber]
 	if !ok {
-		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
+		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
 		ops.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, err
 	}
@@ -255,7 +254,7 @@ func (ops *OperatorPISplitModel) sortValuesForMerkleTree(splits []*OperatorPISpl
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, split := range splits {
 		slotID := base.NewSlotID(split.TransactionHash, split.LogIndex)
-		value := fmt.Sprintf("%s_%d_%d_%d", split.Operator, split.ActivatedAt.Unix(), split.OldOperatorPISplitBips, split.NewOperatorPISplitBips)
+		value := fmt.Sprintf("%s_%016x_%016x_%016x", split.Operator, split.ActivatedAt.Unix(), split.OldOperatorPISplitBips, split.NewOperatorPISplitBips)
 		inputs = append(inputs, &base.MerkleTreeInput{
 			SlotID: slotID,
 			Value:  []byte(value),
