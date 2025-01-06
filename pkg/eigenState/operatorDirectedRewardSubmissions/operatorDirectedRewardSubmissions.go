@@ -32,6 +32,7 @@ type OperatorDirectedRewardSubmission struct {
 	StartTimestamp  *time.Time
 	EndTimestamp    *time.Time
 	Duration        uint64
+	Description     string
 	BlockNumber     uint64
 	TransactionHash string
 	LogIndex        uint64
@@ -153,6 +154,7 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) handleOperatorDirectedReward
 				StartTimestamp:  &startTimestamp,
 				EndTimestamp:    &endTimestamp,
 				Duration:        outputRewardData.Duration,
+				Description:     outputRewardData.Description,
 				BlockNumber:     log.BlockNumber,
 				TransactionHash: log.TransactionHash,
 				LogIndex:        log.LogIndex,
