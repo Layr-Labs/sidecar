@@ -94,7 +94,7 @@ func Test_OperatorDirectedRewardSubmissions(t *testing.T) {
 				Arguments:        `[{"Name": "caller", "Type": "address", "Value": "0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101", "Indexed": true}, {"Name": "operatorDirectedRewardsSubmissionHash", "Type": "bytes32", "Value": "0x7402669fb2c8a0cfe8108acb8a0070257c77ec6906ecb07d97c38e8a5ddc66a9", "Indexed": true}, {"Name": "submissionNonce", "Type": "uint256", "Value": 0, "Indexed": false}, {"Name": "rewardsSubmission", "Type": "((address,uint96)[],address,(address,uint256)[],uint32,uint32,string)", "Value": null, "Indexed": false}]`,
 				EventName:        "OperatorDirectedAVSRewardsSubmissionCreated",
 				LogIndex:         big.NewInt(12).Uint64(),
-				OutputData:       `{"submissionNonce": 0, "operatorDirectedRewardsSubmission": {"token": "0x0ddd9dc88e638aef6a8e42d0c98aaa6a48a98d24", "operatorRewards": [{"operator": "0x9401E5E6564DB35C0f86573a9828DF69Fc778aF1", "amount": 30000000000000000000000}, {"operator": "0xF50Cba7a66b5E615587157e43286DaA7aF94009e", "amount": 40000000000000000000000}], "duration": 2419200, "startTimestamp": 1725494400, "strategiesAndMultipliers": [{"strategy": "0x5074dfd18e9498d9e006fb8d4f3fecdc9af90a2c", "multiplier": 1000000000000000000}, {"strategy": "0xD56e4eAb23cb81f43168F9F45211Eb027b9aC7cc", "multiplier": 2000000000000000000}]}}`,
+				OutputData:       `{"submissionNonce": 0, "operatorDirectedRewardsSubmission": {"token": "0x0ddd9dc88e638aef6a8e42d0c98aaa6a48a98d24", "operatorRewards": [{"operator": "0x9401E5E6564DB35C0f86573a9828DF69Fc778aF1", "amount": 30000000000000000000000}, {"operator": "0xF50Cba7a66b5E615587157e43286DaA7aF94009e", "amount": 40000000000000000000000}], "duration": 2419200, "startTimestamp": 1725494400, "strategiesAndMultipliers": [{"strategy": "0x5074dfd18e9498d9e006fb8d4f3fecdc9af90a2c", "multiplier": 1000000000000000000}, {"strategy": "0xD56e4eAb23cb81f43168F9F45211Eb027b9aC7cc", "multiplier": 2000000000000000000}], "description": "test reward submission"}}`,
 			}
 
 			err = model.SetupStateForBlock(blockNumber)
@@ -139,6 +139,8 @@ func Test_OperatorDirectedRewardSubmissions(t *testing.T) {
 
 				assert.Equal(t, strings.ToLower(operatorRewards[submission.OperatorIndex].Operator), strings.ToLower(submission.Operator))
 				assert.Equal(t, operatorRewards[submission.OperatorIndex].Amount, submission.Amount)
+
+				assert.Equal(t, "test reward submission", submission.Description)
 			}
 
 			err = model.CommitFinalState(blockNumber)
