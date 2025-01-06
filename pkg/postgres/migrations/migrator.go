@@ -3,6 +3,9 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
+	_202501061613_reindexTestnetForStaterootChange "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061613_reindexTestnetForStaterootChange"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	_202409061249_bootstrapDb "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061249_bootstrapDb"
 	_202409061250_eigenlayerStateTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061250_eigenlayerStateTables"
@@ -43,9 +46,10 @@ import (
 	_202412061553_addBlockNumberIndexes "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412061553_addBlockNumberIndexes"
 	_202412061626_operatorRestakedStrategiesConstraint "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412061626_operatorRestakedStrategiesConstraint"
 	_202412091100_fixOperatorPiSplitsFields "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412091100_fixOperatorPiSplitsFields"
+	_202501061029_addDescription "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061029_addDescription"
+
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"time"
 )
 
 type Migration interface {
@@ -125,6 +129,8 @@ func (m *Migrator) MigrateAll() error {
 		&_202411221331_operatorAVSSplitSnapshots.Migration{},
 		&_202411221331_operatorPISplitSnapshots.Migration{},
 		&_202412091100_fixOperatorPiSplitsFields.Migration{},
+		&_202501061029_addDescription.Migration{},
+		&_202501061613_reindexTestnetForStaterootChange.Migration{},
 	}
 
 	for _, migration := range migrations {
