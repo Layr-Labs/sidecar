@@ -115,18 +115,23 @@ token_breakdowns AS (
     CASE
       WHEN sott.snapshot < @arnoHardforkDate AND sott.reward_submission_date < @arnoHardforkDate THEN
         floor(sott.total_staker_operator_payout * 0.10)
-      ELSE
+      WHEN sott.snapshot < @trinityHardforkDate AND sott.reward_submission_date < @trinityHardforkDate THEN 
         floor(sott.total_staker_operator_payout * COALESCE(ops.split, 1000) / CAST(10000 AS DECIMAL))
+      ELSE
+        floor(sott.total_staker_operator_payout * COALESCE(ops.split, dos.split, 1000) / CAST(10000 AS DECIMAL))
     END as operator_tokens,
     CASE
       WHEN sott.snapshot < @arnoHardforkDate AND sott.reward_submission_date < @arnoHardforkDate THEN
         sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * 0.10)
-      ELSE
+      WHEN sott.snapshot < @trinityHardforkDate AND sott.reward_submission_date < @trinityHardforkDate THEN 
         sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * COALESCE(ops.split, 1000) / CAST(10000 AS DECIMAL))
+      ELSE
+        sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * COALESCE(ops.split, dos.split, 1000) / CAST(10000 AS DECIMAL))
     END as staker_tokens
   FROM staker_operator_total_tokens sott
   LEFT JOIN operator_pi_split_snapshots ops
   ON sott.operator = ops.operator AND sott.snapshot = ops.snapshot
+  LEFT JOIN default_operator_split_snapshots dos ON (sott.snapshot = dos.snapshot)
 )
 SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
@@ -140,6 +145,7 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 		zap.String("arnoHardforkDate", forks[config.Fork_Arno]),
+		zap.String("trinityHardforkDate", forks[config.Fork_Trinity]),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_5_goldRfaeStakersQuery, map[string]interface{}{
@@ -155,6 +161,7 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 		sql.Named("panamaForkDate", forks[config.Fork_Panama]),
 		sql.Named("network", rc.globalConfig.Chain.String()),
 		sql.Named("arnoHardforkDate", forks[config.Fork_Arno]),
+		sql.Named("trinityHardforkDate", forks[config.Fork_Trinity]),
 	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to generate gold_rfae_stakers", "error", res.Error)
