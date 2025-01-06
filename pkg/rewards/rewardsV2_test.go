@@ -163,7 +163,7 @@ func Test_RewardsV2(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_8_operator_od_reward_amounts\n")
-			err = rc.GenerateGold8OperatorODRewardAmountsTable(snapshotDate)
+			err = rc.GenerateGold8OperatorODRewardAmountsTable(snapshotDate, forks)
 			assert.Nil(t, err)
 			if rewardsV2Enabled {
 				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_8_OperatorODRewardAmounts])
@@ -173,7 +173,7 @@ func Test_RewardsV2(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_9_staker_od_reward_amounts\n")
-			err = rc.GenerateGold9StakerODRewardAmountsTable(snapshotDate)
+			err = rc.GenerateGold9StakerODRewardAmountsTable(snapshotDate, forks)
 			assert.Nil(t, err)
 			if rewardsV2Enabled {
 				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_9_StakerODRewardAmounts])

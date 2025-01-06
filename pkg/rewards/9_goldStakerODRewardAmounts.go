@@ -1,6 +1,9 @@
 package rewards
 
 import (
+	"database/sql"
+
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
@@ -32,12 +35,18 @@ WITH reward_snapshot_operators AS (
 staker_splits AS (
     SELECT 
         rso.*,
-        rso.tokens_per_registered_snapshot_decimal - FLOOR(rso.tokens_per_registered_snapshot_decimal * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL)) AS staker_split
+        CASE
+            WHEN rso.snapshot < @trinityHardforkDate AND rso.reward_submission_date < @trinityHardforkDate THEN    
+                rso.tokens_per_registered_snapshot_decimal - FLOOR(rso.tokens_per_registered_snapshot_decimal * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL))
+            ELSE
+                rso.tokens_per_registered_snapshot_decimal - FLOOR(rso.tokens_per_registered_snapshot_decimal * COALESCE(oas.split, dos.split, 1000) / CAST(10000 AS DECIMAL))
+        END AS staker_split
     FROM reward_snapshot_operators rso
     LEFT JOIN operator_avs_split_snapshots oas
         ON rso.operator = oas.operator 
        AND rso.avs = oas.avs 
        AND rso.snapshot = oas.snapshot
+    LEFT JOIN default_operator_split_snapshots dos ON (rso.snapshot = dos.snapshot)
 ),
 -- Get the stakers that were delegated to the operator for the snapshot
 staker_delegated_operators AS (
@@ -113,7 +122,7 @@ staker_reward_amounts AS (
 SELECT * FROM staker_reward_amounts
 `
 
-func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDate string, forks config.ForkMap) error {
 	rewardsV2Enabled, err := rc.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
@@ -130,6 +139,7 @@ func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDat
 	rc.logger.Sugar().Infow("Generating Staker OD reward amounts",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
+		zap.String("trinityHardforkDate", forks[config.Fork_Trinity]),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_9_goldStakerODRewardAmountsQuery, map[string]interface{}{
@@ -141,7 +151,7 @@ func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDat
 		return err
 	}
 
-	res := rc.grm.Exec(query)
+	res := rc.grm.Exec(query, sql.Named("trinityHardforkDate", forks[config.Fork_Trinity]))
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_staker_od_reward_amounts", "error", res.Error)
 		return res.Error
