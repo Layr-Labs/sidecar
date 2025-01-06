@@ -3,6 +3,7 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
+	_202501061613_reindexTestnetForStaterootChange "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061613_reindexTestnetForStaterootChange"
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -129,6 +130,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202411221331_operatorPISplitSnapshots.Migration{},
 		&_202412091100_fixOperatorPiSplitsFields.Migration{},
 		&_202501061029_addDescription.Migration{},
+		&_202501061613_reindexTestnetForStaterootChange.Migration{},
 	}
 
 	for _, migration := range migrations {
