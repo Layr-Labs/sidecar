@@ -8,6 +8,9 @@ import (
 
 	"sync/atomic"
 
+	"slices"
+	"strings"
+
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
@@ -18,8 +21,6 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"slices"
-	"strings"
 )
 
 type RewardsCalculator struct {
@@ -624,6 +625,12 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated operator pi snapshots")
+
+	if err = rc.GenerateAndInsertDefaultOperatorSplitSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate default operator split snapshots", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated default operator split snapshots")
 
 	return nil
 }
