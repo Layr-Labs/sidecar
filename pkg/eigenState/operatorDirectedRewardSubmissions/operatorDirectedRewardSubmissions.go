@@ -320,12 +320,12 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) sortValuesForMerkleTree(subm
 
 		multiplierBig, success := new(big.Int).SetString(submission.Multiplier, 10)
 		if !success {
-			return nil, fmt.Errorf("failed to parse multiplier to Big257: %s", submission.Multiplier)
+			return nil, fmt.Errorf("failed to parse multiplier to BigInt: %s", submission.Multiplier)
 		}
 
 		amountBig, success := new(big.Int).SetString(submission.Amount, 10)
 		if !success {
-			return nil, fmt.Errorf("failed to parse amount to Big257: %s", submission.Amount)
+			return nil, fmt.Errorf("failed to parse amount to BigInt: %s", submission.Amount)
 		}
 
 		// Multiplier is a uint96 in the contracts, which translates to 24 hex characters
