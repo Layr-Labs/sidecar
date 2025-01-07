@@ -3,6 +3,7 @@ package operatorDirectedRewardSubmissions
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"slices"
 	"sort"
 	"strings"
@@ -317,12 +318,12 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) sortValuesForMerkleTree(subm
 	for _, submission := range submissions {
 		slotID := NewSlotID(submission.TransactionHash, submission.LogIndex, submission.RewardHash, submission.StrategyIndex, submission.OperatorIndex)
 
-		multiplierBig, success := numbers.NewBig257().SetString(submission.Multiplier, 10)
+		multiplierBig, success := new(big.Int).SetString(submission.Multiplier, 10)
 		if !success {
 			return nil, fmt.Errorf("failed to parse multiplier to Big257: %s", submission.Multiplier)
 		}
 
-		amountBig, success := numbers.NewBig257().SetString(submission.Amount, 10)
+		amountBig, success := new(big.Int).SetString(submission.Amount, 10)
 		if !success {
 			return nil, fmt.Errorf("failed to parse amount to Big257: %s", submission.Amount)
 		}
