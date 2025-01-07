@@ -291,7 +291,10 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) GenerateStateRoot(blockNumbe
 		return nil, err
 	}
 
-	inputs := odrs.sortValuesForMerkleTree(inserts)
+	inputs, err := odrs.sortValuesForMerkleTree(inserts)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(inputs) == 0 {
 		return nil, nil
@@ -309,11 +312,24 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) GenerateStateRoot(blockNumbe
 	return fullTree.Root(), nil
 }
 
-func (odrs *OperatorDirectedRewardSubmissionsModel) sortValuesForMerkleTree(submissions []*OperatorDirectedRewardSubmission) []*base.MerkleTreeInput {
+func (odrs *OperatorDirectedRewardSubmissionsModel) sortValuesForMerkleTree(submissions []*OperatorDirectedRewardSubmission) ([]*base.MerkleTreeInput, error) {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, submission := range submissions {
 		slotID := NewSlotID(submission.TransactionHash, submission.LogIndex, submission.RewardHash, submission.StrategyIndex, submission.OperatorIndex)
-		value := fmt.Sprintf("%s_%s_%s_%s_%s", submission.RewardHash, submission.Strategy, submission.Multiplier, submission.Operator, submission.Amount)
+
+		multiplierBig, success := numbers.NewBig257().SetString(submission.Multiplier, 10)
+		if !success {
+			return nil, fmt.Errorf("failed to parse multiplier to Big257: %s", submission.Multiplier)
+		}
+
+		amountBig, success := numbers.NewBig257().SetString(submission.Amount, 10)
+		if !success {
+			return nil, fmt.Errorf("failed to parse amount to Big257: %s", submission.Amount)
+		}
+
+		// Multiplier is a uint96 in the contracts, which translates to 24 hex characters
+		// Amount is a uint256 in the contracts, which translates to 64 hex characters
+		value := fmt.Sprintf("%s_%s_%024x_%s_%064x", submission.RewardHash, submission.Strategy, multiplierBig, submission.Operator, amountBig)
 		inputs = append(inputs, &base.MerkleTreeInput{
 			SlotID: slotID,
 			Value:  []byte(value),
@@ -324,7 +340,7 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) sortValuesForMerkleTree(subm
 		return strings.Compare(string(i.SlotID), string(j.SlotID))
 	})
 
-	return inputs
+	return inputs, nil
 }
 
 func (odrs *OperatorDirectedRewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
