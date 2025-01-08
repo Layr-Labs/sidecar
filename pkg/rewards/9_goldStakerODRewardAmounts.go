@@ -46,8 +46,7 @@ staker_splits AS (
         ON rso.operator = oas.operator 
        AND rso.avs = oas.avs 
        AND rso.snapshot = oas.snapshot
-    LEFT JOIN default_operator_split_snapshots dos
-        ON rso.snapshot = dos.snapshot
+    LEFT JOIN default_operator_split_snapshots dos ON (rso.snapshot = dos.snapshot)
 ),
 -- Get the stakers that were delegated to the operator for the snapshot
 staker_delegated_operators AS (
@@ -152,9 +151,7 @@ func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDat
 		return err
 	}
 
-	res := rc.grm.Exec(query,
-		sql.Named("trinityHardforkDate", forks[config.Fork_Trinity]),
-	)
+	res := rc.grm.Exec(query, sql.Named("trinityHardforkDate", forks[config.Fork_Trinity]))
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_staker_od_reward_amounts", "error", res.Error)
 		return res.Error

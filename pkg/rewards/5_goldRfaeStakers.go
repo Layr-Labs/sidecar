@@ -131,8 +131,7 @@ token_breakdowns AS (
   FROM staker_operator_total_tokens sott
   LEFT JOIN operator_pi_split_snapshots ops
   ON sott.operator = ops.operator AND sott.snapshot = ops.snapshot
-  LEFT JOIN default_operator_split_snapshots dos
-  ON sott.snapshot = dos.snapshot
+  LEFT JOIN default_operator_split_snapshots dos ON (sott.snapshot = dos.snapshot)
 )
 SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator

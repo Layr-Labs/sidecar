@@ -140,8 +140,7 @@ token_breakdowns AS (
   FROM staker_operator_total_tokens sott
   LEFT JOIN operator_avs_split_snapshots oas
   ON sott.operator = oas.operator AND sott.avs = oas.avs AND sott.snapshot = oas.snapshot
-  LEFT JOIN default_operator_split_snapshots dos
-  ON sott.snapshot = dos.snapshot
+  LEFT JOIN default_operator_split_snapshots dos ON (sott.snapshot = dos.snapshot)
 )
 SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator

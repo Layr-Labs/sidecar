@@ -65,8 +65,7 @@ operator_splits AS (
         ON dop.operator = oas.operator 
        AND dop.avs = oas.avs 
        AND dop.snapshot = oas.snapshot
-    LEFT JOIN default_operator_split_snapshots dos
-        ON dop.snapshot = dos.snapshot
+    LEFT JOIN default_operator_split_snapshots dos ON (dop.snapshot = dos.snapshot)
 )
 
 -- Step 4: Output the final table with operator splits
@@ -101,9 +100,7 @@ func (rc *RewardsCalculator) GenerateGold8OperatorODRewardAmountsTable(snapshotD
 		return err
 	}
 
-	res := rc.grm.Exec(query,
-		sql.Named("trinityHardforkDate", forks[config.Fork_Trinity]),
-	)
+	res := rc.grm.Exec(query, sql.Named("trinityHardforkDate", forks[config.Fork_Trinity]))
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_operator_od_reward_amounts", "error", res.Error)
 		return res.Error
