@@ -120,8 +120,10 @@ token_breakdowns AS (
         (sott.total_staker_operator_payout * 0.10)::text::decimal(38,0)
       WHEN sott.snapshot < @arnoHardforkDate AND sott.reward_submission_date < @arnoHardforkDate THEN
         floor(sott.total_staker_operator_payout * 0.10)
-      ELSE
+      WHEN sott.snapshot < @trinityHardforkDate AND sott.reward_submission_date < @trinityHardforkDate THEN
         floor(sott.total_staker_operator_payout * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL))
+      ELSE
+        floor(sott.total_staker_operator_payout * COALESCE(oas.split, dos.split, 1000) / CAST(10000 AS DECIMAL))
     END as operator_tokens,
     CASE
       WHEN sott.snapshot < @amazonHardforkDate AND sott.reward_submission_date < @amazonHardforkDate THEN
@@ -130,12 +132,16 @@ token_breakdowns AS (
         sott.total_staker_operator_payout - ((sott.total_staker_operator_payout * 0.10)::text::decimal(38,0))
       WHEN sott.snapshot < @arnoHardforkDate AND sott.reward_submission_date < @arnoHardforkDate THEN
         sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * 0.10)
-      ELSE
+      WHEN sott.snapshot < @trinityHardforkDate AND sott.reward_submission_date < @trinityHardforkDate THEN
         sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL))
+      ELSE
+        sott.total_staker_operator_payout - floor(sott.total_staker_operator_payout * COALESCE(oas.split, dos.split, 1000) / CAST(10000 AS DECIMAL))
     END as staker_tokens
   FROM staker_operator_total_tokens sott
   LEFT JOIN operator_avs_split_snapshots oas
   ON sott.operator = oas.operator AND sott.avs = oas.avs AND sott.snapshot = oas.snapshot
+  LEFT JOIN default_operator_split_snapshots dos
+  ON sott.snapshot = dos.snapshot
 )
 SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
@@ -151,6 +157,7 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 		zap.String("amazonHardforkDate", forks[config.Fork_Amazon]),
 		zap.String("nileHardforkDate", forks[config.Fork_Nile]),
 		zap.String("arnoHardforkDate", forks[config.Fork_Arno]),
+		zap.String("trinityHardforkDate", forks[config.Fork_Trinity]),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_2_goldStakerRewardAmountsQuery, map[string]interface{}{
@@ -166,6 +173,7 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 		sql.Named("amazonHardforkDate", forks[config.Fork_Amazon]),
 		sql.Named("nileHardforkDate", forks[config.Fork_Nile]),
 		sql.Named("arnoHardforkDate", forks[config.Fork_Arno]),
+		sql.Named("trinityHardforkDate", forks[config.Fork_Trinity]),
 	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_staker_reward_amounts", "error", res.Error)
