@@ -54,7 +54,7 @@ distinct_operators AS (
 operator_splits AS (
     SELECT 
         dop.*,
-        CASE,
+        CASE
             WHEN dop.snapshot < @trinityHardforkDate AND dop.reward_submission_date < @trinityHardforkDate THEN
                 COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL)
             ELSE
