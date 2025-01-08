@@ -1,6 +1,9 @@
 package rewards
 
 import (
+	"database/sql"
+
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
@@ -51,20 +54,26 @@ distinct_operators AS (
 operator_splits AS (
     SELECT 
         dop.*,
-        COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL) as split_pct,
-        FLOOR(dop.tokens_per_registered_snapshot_decimal * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL)) AS operator_tokens
+        CASE
+            WHEN dop.snapshot < @trinityHardforkDate AND dop.reward_submission_date < @trinityHardforkDate THEN
+                FLOOR(dop.tokens_per_registered_snapshot_decimal * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL))
+            ELSE
+                FLOOR(dop.tokens_per_registered_snapshot_decimal * COALESCE(oas.split, dos.split, 1000) / CAST(10000 AS DECIMAL))
+        END AS operator_tokens
     FROM distinct_operators dop
     LEFT JOIN operator_avs_split_snapshots oas
         ON dop.operator = oas.operator 
        AND dop.avs = oas.avs 
        AND dop.snapshot = oas.snapshot
+    LEFT JOIN default_operator_split_snapshots dos
+        ON dop.snapshot = dos.snapshot
 )
 
 -- Step 4: Output the final table with operator splits
 SELECT * FROM operator_splits
 `
 
-func (rc *RewardsCalculator) GenerateGold8OperatorODRewardAmountsTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold8OperatorODRewardAmountsTable(snapshotDate string, forks config.ForkMap) error {
 	rewardsV2Enabled, err := rc.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
@@ -80,6 +89,7 @@ func (rc *RewardsCalculator) GenerateGold8OperatorODRewardAmountsTable(snapshotD
 	rc.logger.Sugar().Infow("Generating Operator OD reward amounts",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
+		zap.String("trinityHardforkDate", forks[config.Fork_Trinity]),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_8_goldOperatorODRewardAmountsQuery, map[string]interface{}{
@@ -91,7 +101,9 @@ func (rc *RewardsCalculator) GenerateGold8OperatorODRewardAmountsTable(snapshotD
 		return err
 	}
 
-	res := rc.grm.Exec(query)
+	res := rc.grm.Exec(query,
+		sql.Named("trinityHardforkDate", forks[config.Fork_Trinity]),
+	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_operator_od_reward_amounts", "error", res.Error)
 		return res.Error

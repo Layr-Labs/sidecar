@@ -675,12 +675,12 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
-	if err := rc.GenerateGold8OperatorODRewardAmountsTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold8OperatorODRewardAmountsTable(snapshotDate, forks); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator od reward amounts", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold9StakerODRewardAmountsTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold9StakerODRewardAmountsTable(snapshotDate, forks); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker od reward amounts", "error", err)
 		return err
 	}
