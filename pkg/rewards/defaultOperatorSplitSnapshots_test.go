@@ -126,3 +126,54 @@ func Test_DefaultOperatorSplitSnapshots(t *testing.T) {
 		teardownDefaultOperatorSplitWindows(dbFileName, cfg, grm, l)
 	})
 }
+
+func Test_NoDefaultOperatorSplitSnapshots(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	// projectRoot := getProjectRootPath()
+	dbFileName, cfg, grm, l, err := setupDefaultOperatorSplitWindows()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// testContext := getRewardsTestContext()
+
+	snapshotDate := "2024-12-09"
+
+	t.Run("Should hydrate dependency tables", func(t *testing.T) {
+		t.Log("Hydrating blocks")
+
+		_, err := hydrateRewardsV2Blocks(grm, l)
+		assert.Nil(t, err)
+
+		// No hydration of default operator splits
+		query := `select count(*) from default_operator_splits`
+		var count int
+		res := grm.Raw(query).Scan(&count)
+
+		assert.Nil(t, res.Error)
+
+		assert.Equal(t, 0, count)
+	})
+
+	t.Run("Should calculate correct default operator split windows", func(t *testing.T) {
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, _ := NewRewardsCalculator(cfg, grm, nil, sog, l)
+
+		t.Log("Generating snapshots")
+		err := rewards.GenerateAndInsertDefaultOperatorSplitSnapshots(snapshotDate)
+		assert.Nil(t, err)
+
+		windows, err := rewards.ListDefaultOperatorSplitSnapshots()
+		assert.Nil(t, err)
+
+		t.Logf("Found %d windows", len(windows))
+
+		assert.Equal(t, 0, len(windows))
+	})
+	t.Cleanup(func() {
+		teardownDefaultOperatorSplitWindows(dbFileName, cfg, grm, l)
+	})
+}
