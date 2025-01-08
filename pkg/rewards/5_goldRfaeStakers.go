@@ -118,7 +118,7 @@ token_breakdowns AS (
       WHEN sott.snapshot < @trinityHardforkDate AND sott.reward_submission_date < @trinityHardforkDate THEN 
         floor(sott.total_staker_operator_payout * COALESCE(ops.split, 1000) / CAST(10000 AS DECIMAL))
       ELSE
-        floor(sott.total_staker_operator_payout * COALESCE(oas.split, dos.split, 1000) / CAST(10000 AS DECIMAL))
+        floor(sott.total_staker_operator_payout * COALESCE(ops.split, dos.split, 1000) / CAST(10000 AS DECIMAL))
     END as operator_tokens,
     CASE
       WHEN sott.snapshot < @arnoHardforkDate AND sott.reward_submission_date < @arnoHardforkDate THEN
