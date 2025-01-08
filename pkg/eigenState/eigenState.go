@@ -3,6 +3,7 @@ package eigenState
 import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/avsOperators"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/defaultOperatorSplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/disabledDistributionRoots"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAVSSplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorDirectedRewardSubmissions"
@@ -61,6 +62,10 @@ func LoadEigenStateModels(
 	}
 	if _, err := operatorPISplits.NewOperatorPISplitModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Errorw("Failed to create OperatorPISplitModel", zap.Error(err))
+		return err
+	}
+	if _, err := defaultOperatorSplits.NewDefaultOperatorSplitModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create DefaultOperatorSplitModel", zap.Error(err))
 		return err
 	}
 	return nil
