@@ -28,10 +28,11 @@ const (
 	Chain_Holesky Chain = "holesky"
 	Chain_Preprod Chain = "preprod"
 
-	Fork_Nile   ForkName = "nile"
-	Fork_Amazon ForkName = "amazon"
-	Fork_Panama ForkName = "panama"
-	Fork_Arno   ForkName = "arno"
+	Fork_Nile    ForkName = "nile"
+	Fork_Amazon  ForkName = "amazon"
+	Fork_Panama  ForkName = "panama"
+	Fork_Arno    ForkName = "arno"
+	Fork_Trinity ForkName = "trinity"
 
 	ENV_PREFIX = "SIDECAR"
 )
