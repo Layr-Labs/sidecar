@@ -3,7 +3,6 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
-	_202501061613_reindexTestnetForStaterootChange "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061613_reindexTestnetForStaterootChange"
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -47,6 +46,9 @@ import (
 	_202412061626_operatorRestakedStrategiesConstraint "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412061626_operatorRestakedStrategiesConstraint"
 	_202412091100_fixOperatorPiSplitsFields "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412091100_fixOperatorPiSplitsFields"
 	_202501061029_addDescription "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061029_addDescription"
+	_202501061422_defaultOperatorSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061422_defaultOperatorSplits"
+	_202501061613_reindexTestnetForStaterootChange "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061613_reindexTestnetForStaterootChange"
+	_202501071401_defaultOperatorSplitSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501071401_defaultOperatorSplitSnapshots"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -131,6 +133,8 @@ func (m *Migrator) MigrateAll() error {
 		&_202412091100_fixOperatorPiSplitsFields.Migration{},
 		&_202501061029_addDescription.Migration{},
 		&_202501061613_reindexTestnetForStaterootChange.Migration{},
+		&_202501061422_defaultOperatorSplits.Migration{},
+		&_202501071401_defaultOperatorSplitSnapshots.Migration{},
 	}
 
 	for _, migration := range migrations {
