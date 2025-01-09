@@ -139,7 +139,7 @@ func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDat
 	rc.logger.Sugar().Infow("Generating Staker OD reward amounts",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
-		zap.String("trinityHardforkDate", forks[config.Fork_Trinity]),
+		zap.String("trinityHardforkDate", forks[config.RewardsFork_Trinity]),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_9_goldStakerODRewardAmountsQuery, map[string]interface{}{
@@ -151,7 +151,7 @@ func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDat
 		return err
 	}
 
-	res := rc.grm.Exec(query, sql.Named("trinityHardforkDate", forks[config.Fork_Trinity]))
+	res := rc.grm.Exec(query, sql.Named("trinityHardforkDate", forks[config.RewardsFork_Trinity]))
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_staker_od_reward_amounts", "error", res.Error)
 		return res.Error

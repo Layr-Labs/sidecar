@@ -47,7 +47,6 @@ import (
 	_202412091100_fixOperatorPiSplitsFields "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412091100_fixOperatorPiSplitsFields"
 	_202501061029_addDescription "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061029_addDescription"
 	_202501061422_defaultOperatorSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061422_defaultOperatorSplits"
-	_202501061613_reindexTestnetForStaterootChange "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061613_reindexTestnetForStaterootChange"
 	_202501071401_defaultOperatorSplitSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501071401_defaultOperatorSplitSnapshots"
 
 	"go.uber.org/zap"
@@ -132,7 +131,6 @@ func (m *Migrator) MigrateAll() error {
 		&_202411221331_operatorPISplitSnapshots.Migration{},
 		&_202412091100_fixOperatorPiSplitsFields.Migration{},
 		&_202501061029_addDescription.Migration{},
-		&_202501061613_reindexTestnetForStaterootChange.Migration{},
 		&_202501061422_defaultOperatorSplits.Migration{},
 		&_202501071401_defaultOperatorSplitSnapshots.Migration{},
 	}
