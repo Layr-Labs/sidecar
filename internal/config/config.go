@@ -370,9 +370,8 @@ func (c *Config) CanIgnoreIncorrectRewardsRoot(blockNumber uint64) bool {
 			return true
 		}
 
-		// ignore rewards-v2 deployment/testing range
-		// 12/13/2024 was first rewards-v2 calculation on preprod (cutoff date of 12/12/2024)
-		if blockNumber >= 2877938 && blockNumber <= 2909856 {
+		// ignore rewards-v2 and slashing deployment/testing range
+		if blockNumber >= 2877938 && blockNumber <= 2965149 {
 			return true
 		}
 	case Chain_Holesky:
