@@ -186,6 +186,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	distributionRoots, err := p.stateManager.GetSubmittedDistributionRoots(blockNumber)
 	if err == nil && distributionRoots != nil {
 		for _, rs := range distributionRoots {
+
 			rewardStartTime := time.Now()
 
 			// first check to see if the root was disabled. If it was, it's possible we introduced changes that

@@ -112,7 +112,7 @@ func (r *RewardsCalculator) Generate1ActiveRewards(snapshotDate string) error {
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_1_goldActiveRewardsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_1_goldActiveRewardsQuery, map[string]interface{}{
 		"destTableName": destTableName,
 		"rewardsStart":  rewardsStart,
 		"cutoffDate":    snapshotDate,

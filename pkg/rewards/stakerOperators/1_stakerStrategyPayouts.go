@@ -146,7 +146,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert1StakerStrategyPayouts(cut
 		return err
 	}
 
-	query, err := rewardsUtils.RenderQueryTemplate(_1_stakerStrategyPayoutsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_1_stakerStrategyPayoutsQuery, map[string]interface{}{
 		"destTableName":            destTableName,
 		"activeRewardsTable":       rewardsTables[rewardsUtils.Table_1_ActiveRewards],
 		"stakerRewardAmountsTable": rewardsTables[rewardsUtils.Table_2_StakerRewardAmounts],
@@ -157,8 +157,8 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert1StakerStrategyPayouts(cut
 	}
 
 	res := sog.db.Exec(query,
-		sql.Named("amazonHardforkDate", forks[config.Fork_Amazon]),
-		sql.Named("nileHardforkDate", forks[config.Fork_Nile]),
+		sql.Named("amazonHardforkDate", forks[config.RewardsFork_Amazon]),
+		sql.Named("nileHardforkDate", forks[config.RewardsFork_Nile]),
 	)
 
 	if res.Error != nil {

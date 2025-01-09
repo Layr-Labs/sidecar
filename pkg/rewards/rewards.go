@@ -4,21 +4,23 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
+
+	"sync/atomic"
+
+	"slices"
+	"strings"
+
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-merkletree/v2"
-	"gorm.io/gorm/clause"
-	"slices"
-	"strings"
-	"sync/atomic"
-	"time"
-
-	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type RewardsCalculator struct {
@@ -215,7 +217,7 @@ func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (*
 }
 
 func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) (string, error) {
-	goldStagingTableName := rewardsUtils.GetGoldTableNames(cutoffDate)[rewardsUtils.Table_7_GoldStaging]
+	goldStagingTableName := rewardsUtils.GetGoldTableNames(cutoffDate)[rewardsUtils.Table_11_GoldStaging]
 
 	var maxSnapshotStr string
 	query := fmt.Sprintf(`select to_char(max(snapshot), 'YYYY-MM-DD') as snapshot from %s`, goldStagingTableName)
@@ -229,7 +231,7 @@ func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) 
 
 func (rc *RewardsCalculator) BackfillAllStakerOperators() error {
 	var generatedSnapshots []storage.GeneratedRewardsSnapshots
-	query := `select * from generated_rewards_snapshots order by snapshot_date asc`
+	query := `select * from generated_rewards_snapshots where status = 'complete' order by snapshot_date asc`
 	res := rc.grm.Raw(query).Scan(&generatedSnapshots)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to get generated snapshots", "error", res.Error)
@@ -271,7 +273,7 @@ func (rc *RewardsCalculator) BackfillAllStakerOperators() error {
 func (rc *RewardsCalculator) GenerateStakerOperatorsTableForPastSnapshot(cutoffDate string) error {
 	// find the first snapshot that is >= to the provided cutoff date
 	var generatedSnapshot storage.GeneratedRewardsSnapshots
-	query := `select * from generated_rewards_snapshots where snapshot_date >= ? order by snapshot_date asc limit 1`
+	query := `select * from generated_rewards_snapshots where snapshot_date >= ? and status = 'complete' order by snapshot_date asc limit 1`
 	res := rc.grm.Raw(query, cutoffDate).Scan(&generatedSnapshot)
 	if res.Error != nil && errors.Is(res.Error, gorm.ErrRecordNotFound) {
 		rc.logger.Sugar().Errorw("Failed to get generated snapshot", "error", res.Error)
@@ -492,12 +494,12 @@ func (rc *RewardsCalculator) fetchRewardsForSnapshot(snapshotDate string) ([]*Re
 		where snapshot <= date '{{.snapshotDate}}'
 		group by 1, 2
 		order by snapshot desc
-    `, map[string]string{"snapshotDate": snapshotDate})
+    `, map[string]interface{}{"snapshotDate": snapshotDate})
 
 	if err != nil {
 		return nil, err
 	}
-	res := rc.grm.Debug().Raw(query).Scan(&goldRows)
+	res := rc.grm.Raw(query).Scan(&goldRows)
 	if res.Error != nil {
 		return nil, res.Error
 	}
@@ -604,11 +606,37 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	}
 	rc.logger.Sugar().Debugw("Generated staker delegation snapshots")
 
+	// ------------------------------------------------------------------------
+	// Rewards V2 snapshots
+	// ------------------------------------------------------------------------
+	if err = rc.GenerateAndInsertOperatorDirectedRewards(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator directed rewards", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated operator directed rewards")
+	if err = rc.GenerateAndInsertOperatorAvsSplitSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator avs split snapshots", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated operator avs split snapshots")
+
+	if err = rc.GenerateAndInsertOperatorPISplitSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator pi snapshots", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated operator pi snapshots")
+
+	if err = rc.GenerateAndInsertDefaultOperatorSplitSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate default operator split snapshots", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated default operator split snapshots")
+
 	return nil
 }
 
 func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
-	forks, err := rc.globalConfig.GetForkDates()
+	forks, err := rc.globalConfig.GetRewardsSqlForkDates()
 	if err != nil {
 		return err
 	}
@@ -642,12 +670,32 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
-	if err := rc.GenerateGold7StagingTable(snapshotDate); err != nil {
+	if err := rc.Generate7ActiveODRewards(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate active od rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold8OperatorODRewardAmountsTable(snapshotDate, forks); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator od reward amounts", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold9StakerODRewardAmountsTable(snapshotDate, forks); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate staker od reward amounts", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold10AvsODRewardAmountsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate avs od reward amounts", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold11StagingTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate gold staging", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold8FinalTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold12FinalTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate final table", "error", err)
 		return err
 	}
