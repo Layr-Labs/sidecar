@@ -95,7 +95,7 @@ func Test_RewardsV2(t *testing.T) {
 			testStart = time.Now()
 
 			t.Log("Generated and inserted snapshots")
-			forks, err := cfg.GetForkDates()
+			forks, err := cfg.GetRewardsSqlForkDates()
 			assert.Nil(t, err)
 
 			fmt.Printf("Running gold_1_active_rewards\n")

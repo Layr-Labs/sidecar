@@ -39,10 +39,6 @@ type OperatorDirectedRewardSubmission struct {
 	LogIndex        uint64
 }
 
-func NewSlotID(transactionHash string, logIndex uint64, rewardHash string, strategyIndex uint64, operatorIndex uint64) types.SlotID {
-	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%016x_%016x", rewardHash, strategyIndex, operatorIndex))
-}
-
 type OperatorDirectedRewardSubmissionsModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[[]*OperatorDirectedRewardSubmission]
@@ -78,6 +74,25 @@ func NewOperatorDirectedRewardSubmissionsModel(
 
 func (odrs *OperatorDirectedRewardSubmissionsModel) GetModelName() string {
 	return "OperatorDirectedRewardSubmissionsModel"
+}
+
+func (odrs *OperatorDirectedRewardSubmissionsModel) NewSlotID(
+	blockNumber uint64,
+	transactionHash string,
+	logIndex uint64,
+	rewardHash string,
+	strategyIndex uint64,
+	operatorIndex uint64,
+) (types.SlotID, error) {
+	forks, err := odrs.globalConfig.GetModelForks()
+	if err != nil {
+		return "", err
+	}
+	if odrs.globalConfig.ChainIsOneOf(config.Chain_Holesky, config.Chain_Preprod) && blockNumber < forks[config.ModelFork_Austin] {
+		// This format was used on preprod and testnet for rewards-v2 before launching to mainnet
+		return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%d_%d", rewardHash, strategyIndex, operatorIndex)), nil
+	}
+	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%016x_%016x", rewardHash, strategyIndex, operatorIndex)), nil
 }
 
 type operatorDirectedRewardData struct {
@@ -178,7 +193,19 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) GetStateTransitions() (types
 		}
 
 		for _, rewardSubmission := range rewardSubmissions {
-			slotId := NewSlotID(rewardSubmission.TransactionHash, rewardSubmission.LogIndex, rewardSubmission.RewardHash, rewardSubmission.StrategyIndex, rewardSubmission.OperatorIndex)
+			slotId, err := odrs.NewSlotID(log.BlockNumber, rewardSubmission.TransactionHash, rewardSubmission.LogIndex, rewardSubmission.RewardHash, rewardSubmission.StrategyIndex, rewardSubmission.OperatorIndex)
+			if err != nil {
+				odrs.logger.Sugar().Errorw("Failed to create slot ID",
+					zap.Uint64("blockNumber", log.BlockNumber),
+					zap.String("transactionHash", log.TransactionHash),
+					zap.Uint64("logIndex", log.LogIndex),
+					zap.String("rewardHash", rewardSubmission.RewardHash),
+					zap.Uint64("strategyIndex", rewardSubmission.StrategyIndex),
+					zap.Uint64("operatorIndex", rewardSubmission.OperatorIndex),
+					zap.Error(err),
+				)
+				return nil, err
+			}
 
 			_, ok := odrs.stateAccumulator[log.BlockNumber][slotId]
 			if ok {
@@ -313,24 +340,70 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) GenerateStateRoot(blockNumbe
 	return fullTree.Root(), nil
 }
 
+func (odrs *OperatorDirectedRewardSubmissionsModel) formatMerkleLeafValue(
+	blockNumber uint64,
+	rewardHash string,
+	strategy string,
+	multiplier string,
+	operator string,
+	amount string,
+) (string, error) {
+	modelForks, err := odrs.globalConfig.GetModelForks()
+	if err != nil {
+		return "", err
+	}
+
+	if odrs.globalConfig.ChainIsOneOf(config.Chain_Holesky, config.Chain_Preprod) && blockNumber < modelForks[config.ModelFork_Austin] {
+		// This format was used on preprod and testnet for rewards-v2 before launching to mainnet
+		return fmt.Sprintf("%s_%s_%s_%s_%s", rewardHash, strategy, multiplier, operator, amount), nil
+	}
+	// Following was fixed as part of the rewards-v2 audit feedback before launching on mainnet.
+	//
+	// Multiplier is a uint96 in the contracts, which translates to 24 hex characters
+	// Amount is a uint256 in the contracts, which translates to 64 hex characters
+	multiplierBig, success := new(big.Int).SetString(multiplier, 10)
+	if !success {
+		return "", fmt.Errorf("failed to parse multiplier to BigInt: %s", multiplier)
+	}
+
+	amountBig, success := new(big.Int).SetString(amount, 10)
+	if !success {
+		return "", fmt.Errorf("failed to parse amount to BigInt: %s", amount)
+	}
+
+	return fmt.Sprintf("%s_%s_%024x_%s_%064x", rewardHash, strategy, multiplierBig, operator, amountBig), nil
+}
+
 func (odrs *OperatorDirectedRewardSubmissionsModel) sortValuesForMerkleTree(submissions []*OperatorDirectedRewardSubmission) ([]*base.MerkleTreeInput, error) {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, submission := range submissions {
-		slotID := NewSlotID(submission.TransactionHash, submission.LogIndex, submission.RewardHash, submission.StrategyIndex, submission.OperatorIndex)
-
-		multiplierBig, success := new(big.Int).SetString(submission.Multiplier, 10)
-		if !success {
-			return nil, fmt.Errorf("failed to parse multiplier to BigInt: %s", submission.Multiplier)
+		slotID, err := odrs.NewSlotID(submission.BlockNumber, submission.TransactionHash, submission.LogIndex, submission.RewardHash, submission.StrategyIndex, submission.OperatorIndex)
+		if err != nil {
+			odrs.logger.Sugar().Errorw("Failed to create slot ID",
+				zap.Uint64("blockNumber", submission.BlockNumber),
+				zap.String("transactionHash", submission.TransactionHash),
+				zap.Uint64("logIndex", submission.LogIndex),
+				zap.String("rewardHash", submission.RewardHash),
+				zap.Uint64("strategyIndex", submission.StrategyIndex),
+				zap.Uint64("operatorIndex", submission.OperatorIndex),
+				zap.Error(err),
+			)
+			return nil, err
 		}
 
-		amountBig, success := new(big.Int).SetString(submission.Amount, 10)
-		if !success {
-			return nil, fmt.Errorf("failed to parse amount to BigInt: %s", submission.Amount)
+		value, err := odrs.formatMerkleLeafValue(submission.BlockNumber, submission.RewardHash, submission.Strategy, submission.Multiplier, submission.Operator, submission.Amount)
+		if err != nil {
+			odrs.Logger.Sugar().Errorw("Failed to format merkle leaf value",
+				zap.Error(err),
+				zap.Uint64("blockNumber", submission.BlockNumber),
+				zap.String("rewardHash", submission.RewardHash),
+				zap.String("strategy", submission.Strategy),
+				zap.String("multiplier", submission.Multiplier),
+				zap.String("operator", submission.Operator),
+				zap.String("amount", submission.Amount),
+			)
+			return nil, err
 		}
-
-		// Multiplier is a uint96 in the contracts, which translates to 24 hex characters
-		// Amount is a uint256 in the contracts, which translates to 64 hex characters
-		value := fmt.Sprintf("%s_%s_%024x_%s_%064x", submission.RewardHash, submission.Strategy, multiplierBig, submission.Operator, amountBig)
 		inputs = append(inputs, &base.MerkleTreeInput{
 			SlotID: slotID,
 			Value:  []byte(value),
