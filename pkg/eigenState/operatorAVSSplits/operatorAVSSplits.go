@@ -234,7 +234,10 @@ func (oas *OperatorAVSSplitModel) GenerateStateRoot(blockNumber uint64) ([]byte,
 		return nil, err
 	}
 
-	inputs := oas.sortValuesForMerkleTree(inserts)
+	inputs, err := oas.sortValuesForMerkleTree(inserts)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(inputs) == 0 {
 		return nil, nil
@@ -252,11 +255,43 @@ func (oas *OperatorAVSSplitModel) GenerateStateRoot(blockNumber uint64) ([]byte,
 	return fullTree.Root(), nil
 }
 
-func (oas *OperatorAVSSplitModel) sortValuesForMerkleTree(splits []*OperatorAVSSplit) []*base.MerkleTreeInput {
+func (oas *OperatorAVSSplitModel) formatMerkleLeafValue(
+	blockNumber uint64,
+	operator string,
+	avs string,
+	activatedAt *time.Time,
+	oldOperatorAVSSplitBips uint64,
+	newOperatorAVSSplitBips uint64,
+) (string, error) {
+	modelForks, err := oas.globalConfig.GetModelForks()
+	if err != nil {
+		return "", err
+	}
+	if oas.globalConfig.ChainIsOneOf(config.Chain_Holesky, config.Chain_Preprod) && blockNumber < modelForks[config.ModelFork_Austin] {
+		// This format was used on preprod and testnet for rewards-v2 before launching to mainnet
+		return fmt.Sprintf("%s_%s_%d_%d_%d", operator, avs, activatedAt.Unix(), oldOperatorAVSSplitBips, newOperatorAVSSplitBips), nil
+	}
+
+	return fmt.Sprintf("%s_%s_%016x_%016x_%016x", operator, avs, activatedAt.Unix(), oldOperatorAVSSplitBips, newOperatorAVSSplitBips), nil
+}
+
+func (oas *OperatorAVSSplitModel) sortValuesForMerkleTree(splits []*OperatorAVSSplit) ([]*base.MerkleTreeInput, error) {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, split := range splits {
 		slotID := base.NewSlotID(split.TransactionHash, split.LogIndex)
-		value := fmt.Sprintf("%s_%s_%016x_%016x_%016x", split.Operator, split.Avs, split.ActivatedAt.Unix(), split.OldOperatorAVSSplitBips, split.NewOperatorAVSSplitBips)
+		value, err := oas.formatMerkleLeafValue(split.BlockNumber, split.Operator, split.Avs, split.ActivatedAt, split.OldOperatorAVSSplitBips, split.NewOperatorAVSSplitBips)
+		if err != nil {
+			oas.logger.Sugar().Errorw("Failed to format merkle leaf value",
+				zap.Error(err),
+				zap.Uint64("blockNumber", split.BlockNumber),
+				zap.String("operator", split.Operator),
+				zap.String("avs", split.Avs),
+				zap.Time("activatedAt", *split.ActivatedAt),
+				zap.Uint64("oldOperatorAVSSplitBips", split.OldOperatorAVSSplitBips),
+				zap.Uint64("newOperatorAVSSplitBips", split.NewOperatorAVSSplitBips),
+			)
+			return nil, err
+		}
 		inputs = append(inputs, &base.MerkleTreeInput{
 			SlotID: slotID,
 			Value:  []byte(value),
@@ -267,7 +302,7 @@ func (oas *OperatorAVSSplitModel) sortValuesForMerkleTree(splits []*OperatorAVSS
 		return strings.Compare(string(i.SlotID), string(j.SlotID))
 	})
 
-	return inputs
+	return inputs, nil
 }
 
 func (oas *OperatorAVSSplitModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
