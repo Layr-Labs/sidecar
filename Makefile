@@ -84,6 +84,15 @@ lint:
 test:
 	./scripts/goTest.sh -v -p 1 -parallel 1 ./...
 
+.PHONY: test-file
+test-file:
+	@if [ -z "$(FILE)" ]; then \
+		echo "Error: FILE variable is not set."; \
+		echo "Usage: make test-file FILE=path/to/your_test_file.go"; \
+		exit 1; \
+	fi
+	./scripts/goTest.sh -v -p 1 -parallel 1 $(FILE)
+
 .PHONY: staticcheck
 staticcheck:
 	staticcheck ./...
