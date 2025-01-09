@@ -144,8 +144,8 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 	rc.logger.Sugar().Infow("Generating rfae stakers table",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
-		zap.String("arnoHardforkDate", forks[config.Fork_Arno]),
-		zap.String("trinityHardforkDate", forks[config.Fork_Trinity]),
+		zap.String("arnoHardforkDate", forks[config.RewardsFork_Arno]),
+		zap.String("trinityHardforkDate", forks[config.RewardsFork_Trinity]),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_5_goldRfaeStakersQuery, map[string]interface{}{
@@ -158,10 +158,10 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 	}
 
 	res := rc.grm.Exec(query,
-		sql.Named("panamaForkDate", forks[config.Fork_Panama]),
+		sql.Named("panamaForkDate", forks[config.RewardsFork_Panama]),
 		sql.Named("network", rc.globalConfig.Chain.String()),
-		sql.Named("arnoHardforkDate", forks[config.Fork_Arno]),
-		sql.Named("trinityHardforkDate", forks[config.Fork_Trinity]),
+		sql.Named("arnoHardforkDate", forks[config.RewardsFork_Arno]),
+		sql.Named("trinityHardforkDate", forks[config.RewardsFork_Trinity]),
 	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to generate gold_rfae_stakers", "error", res.Error)

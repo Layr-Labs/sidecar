@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -28,13 +29,16 @@ const (
 	Chain_Holesky Chain = "holesky"
 	Chain_Preprod Chain = "preprod"
 
-	Fork_Nile    ForkName = "nile"
-	Fork_Amazon  ForkName = "amazon"
-	Fork_Panama  ForkName = "panama"
-	Fork_Arno    ForkName = "arno"
-	Fork_Trinity ForkName = "trinity"
-
 	ENV_PREFIX = "SIDECAR"
+)
+
+// Rewards forks named after rivers
+const (
+	RewardsFork_Nile    ForkName = "nile"
+	RewardsFork_Amazon  ForkName = "amazon"
+	RewardsFork_Panama  ForkName = "panama"
+	RewardsFork_Arno    ForkName = "arno"
+	RewardsFork_Trinity ForkName = "trinity"
 )
 
 func normalizeFlagName(name string) string {
@@ -189,6 +193,10 @@ type ContractAddresses struct {
 	AvsDirectory       string
 }
 
+func (c *Config) ChainIsOneOf(chains ...Chain) bool {
+	return slices.Contains(chains, c.Chain)
+}
+
 func (c *Config) GetContractsMapForChain() *ContractAddresses {
 	if c.Chain == Chain_Preprod {
 		return &ContractAddresses{
@@ -250,34 +258,62 @@ func (c *Config) GetGenesisBlockNumber() uint64 {
 
 type ForkMap map[ForkName]string
 
-func (c *Config) GetForkDates() (ForkMap, error) {
+func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 	switch c.Chain {
 	case Chain_Preprod:
 		return ForkMap{
-			Fork_Amazon:  "1970-01-01", // Amazon hard fork was never on preprod as we backfilled
-			Fork_Nile:    "2024-08-14", // Last calculation end timestamp was 8-13: https://holesky.etherscan.io/tx/0xb5a6855e88c79312b7c0e1c9f59ae9890b97f157ea27e69e4f0fadada4712b64#eventlog
-			Fork_Panama:  "2024-10-01",
-			Fork_Arno:    "2024-12-13",
-			Fork_Trinity: "2025-01-09",
+			RewardsFork_Amazon:  "1970-01-01", // Amazon hard fork was never on preprod as we backfilled
+			RewardsFork_Nile:    "2024-08-14", // Last calculation end timestamp was 8-13: https://holesky.etherscan.io/tx/0xb5a6855e88c79312b7c0e1c9f59ae9890b97f157ea27e69e4f0fadada4712b64#eventlog
+			RewardsFork_Panama:  "2024-10-01",
+			RewardsFork_Arno:    "2024-12-11",
+			RewardsFork_Trinity: "2025-01-09",
 		}, nil
 	case Chain_Holesky:
 		return ForkMap{
-			Fork_Amazon:  "1970-01-01", // Amazon hard fork was never on testnet as we backfilled
-			Fork_Nile:    "2024-08-13", // Last calculation end timestamp was 8-12: https://holesky.etherscan.io/tx/0x5fc81b5ed2a78b017ef313c181d8627737a97fef87eee85acedbe39fc8708c56#eventlog
-			Fork_Panama:  "2024-10-01",
-			Fork_Arno:    "2024-12-13",
-			Fork_Trinity: "2025-01-09",
+			RewardsFork_Amazon:  "1970-01-01", // Amazon hard fork was never on testnet as we backfilled
+			RewardsFork_Nile:    "2024-08-13", // Last calculation end timestamp was 8-12: https://holesky.etherscan.io/tx/0x5fc81b5ed2a78b017ef313c181d8627737a97fef87eee85acedbe39fc8708c56#eventlog
+			RewardsFork_Panama:  "2024-10-01",
+			RewardsFork_Arno:    "2024-12-13",
+			RewardsFork_Trinity: "2025-01-09",
 		}, nil
 	case Chain_Mainnet:
 		return ForkMap{
-			Fork_Amazon:  "2024-08-02", // Last calculation end timestamp was 8-01: https://etherscan.io/tx/0x2aff6f7b0132092c05c8f6f41a5e5eeeb208aa0d95ebcc9022d7823e343dd012#eventlog
-			Fork_Nile:    "2024-08-12", // Last calculation end timestamp was 8-11: https://etherscan.io/tx/0x922d29d93c02d189fc2332041f01a80e0007cd7a625a5663ef9d30082f7ef66f#eventlog
-			Fork_Panama:  "2024-10-01",
-			Fork_Arno:    "2025-01-21",
-			Fork_Trinity: "2025-01-21",
+			RewardsFork_Amazon:  "2024-08-02", // Last calculation end timestamp was 8-01: https://etherscan.io/tx/0x2aff6f7b0132092c05c8f6f41a5e5eeeb208aa0d95ebcc9022d7823e343dd012#eventlog
+			RewardsFork_Nile:    "2024-08-12", // Last calculation end timestamp was 8-11: https://etherscan.io/tx/0x922d29d93c02d189fc2332041f01a80e0007cd7a625a5663ef9d30082f7ef66f#eventlog
+			RewardsFork_Panama:  "2024-10-01",
+			RewardsFork_Arno:    "2025-01-21",
+			RewardsFork_Trinity: "2025-01-21",
 		}, nil
 	}
 	return nil, errors.New("unsupported chain")
+}
+
+type ModelForkMap map[ForkName]uint64
+
+// Model forks, named after US capitols
+const (
+	// ModelFork_Austin changes the formatting for merkel leaves in: ODRewardSubmissions, OperatorAVSSplits, and
+	// OperatorPISplits based on feedback from the rewards-v2 audit
+	ModelFork_Austin ForkName = "austin"
+)
+
+func (c *Config) GetModelForks() (ModelForkMap, error) {
+	switch c.Chain {
+	case Chain_Preprod:
+		return ModelForkMap{
+			ModelFork_Austin: 3113600,
+		}, nil
+	case Chain_Holesky:
+		return ModelForkMap{
+			ModelFork_Austin: 3113600,
+		}, nil
+	case Chain_Mainnet:
+		return ModelForkMap{
+			ModelFork_Austin: 0, // doesnt apply to mainnet
+		}, nil
+	}
+	return nil, errors.New("unsupported chain")
+
 }
 
 func (c *Config) GetEigenLayerGenesisBlockHeight() (uint64, error) {
@@ -303,7 +339,7 @@ func (c *Config) GetOperatorRestakedStrategiesStartBlock() uint64 {
 }
 
 func (c *Config) IsRewardsV2EnabledForCutoffDate(cutoffDate string) (bool, error) {
-	forks, err := c.GetForkDates()
+	forks, err := c.GetRewardsSqlForkDates()
 	if err != nil {
 		return false, err
 	}
@@ -311,9 +347,9 @@ func (c *Config) IsRewardsV2EnabledForCutoffDate(cutoffDate string) (bool, error
 	if err != nil {
 		return false, errors.Join(fmt.Errorf("failed to parse cutoff date %s", cutoffDate), err)
 	}
-	arnoForkDateTime, err := time.Parse(time.DateOnly, forks[Fork_Arno])
+	arnoForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Arno])
 	if err != nil {
-		return false, errors.Join(fmt.Errorf("failed to parse Arno fork date %s", forks[Fork_Arno]), err)
+		return false, errors.Join(fmt.Errorf("failed to parse Arno fork date %s", forks[RewardsFork_Arno]), err)
 	}
 
 	return cutoffDateTime.Compare(arnoForkDateTime) >= 0, nil
