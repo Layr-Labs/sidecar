@@ -772,7 +772,7 @@ func (ss *StakerSharesModel) GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff 
 
 	// log all the staker shares
 	for _, stakerShare := range stakerShares {
-		ss.logger.Sugar().Infow("Staker shares",
+		ss.logger.Sugar().Debugw("Staker shares",
 			zap.String("staker", stakerShare.Staker),
 			zap.String("strategy", slashDiff.Strategy),
 			zap.String("shares", stakerShare.Shares),
@@ -855,7 +855,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 		if shareDelta.LogIndex < slashDiff.LogIndex {
 			key := fmt.Sprintf("%s-%s", shareDelta.Staker, shareDelta.Strategy)
 
-			ss.logger.Sugar().Infow("regular share delta",
+			ss.logger.Sugar().Debugw("regular share delta",
 				zap.String("staker", shareDelta.Staker),
 				zap.String("strategy", shareDelta.Strategy),
 				zap.String("shares", shareDelta.Shares),
@@ -875,7 +875,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 			shareDeltaIndex++
 		} else {
 
-			ss.logger.Sugar().Infow("Slashing",
+			ss.logger.Sugar().Debugw("Slashing",
 				zap.String("slashedEntity", slashDiff.SlashedEntity),
 				zap.Bool("beaconChain", slashDiff.BeaconChain),
 				zap.String("strategy", slashDiff.Strategy),
@@ -935,9 +935,9 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 		}
 	}
 	if len(slashes) > 0 {
-		ss.logger.Sugar().Infow("Slashes found, printing records...")
+		ss.logger.Sugar().Debugw("Slashes found, printing records...")
 		for _, r := range records {
-			ss.logger.Sugar().Infow("Staker shares",
+			ss.logger.Sugar().Debugw("Staker shares",
 				zap.String("staker", r.Staker),
 				zap.String("strategy", r.Strategy),
 				zap.String("shares", r.Shares),
