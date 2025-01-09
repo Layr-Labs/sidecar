@@ -257,7 +257,7 @@ func (c *Config) GetForkDates() (ForkMap, error) {
 			Fork_Amazon:  "1970-01-01", // Amazon hard fork was never on preprod as we backfilled
 			Fork_Nile:    "2024-08-14", // Last calculation end timestamp was 8-13: https://holesky.etherscan.io/tx/0xb5a6855e88c79312b7c0e1c9f59ae9890b97f157ea27e69e4f0fadada4712b64#eventlog
 			Fork_Panama:  "2024-10-01",
-			Fork_Arno:    "2024-12-11",
+			Fork_Arno:    "2024-12-13",
 			Fork_Trinity: "2025-01-09",
 		}, nil
 	case Chain_Holesky:
@@ -336,7 +336,8 @@ func (c *Config) CanIgnoreIncorrectRewardsRoot(blockNumber uint64) bool {
 		}
 
 		// ignore rewards-v2 deployment/testing range
-		if blockNumber >= 2877938 && blockNumber <= 2929073 {
+		// 12/13/2024 was first rewards-v2 calculation on preprod (cutoff date of 12/12/2024)
+		if blockNumber >= 2877938 && blockNumber <= 2909856 {
 			return true
 		}
 	case Chain_Holesky:
