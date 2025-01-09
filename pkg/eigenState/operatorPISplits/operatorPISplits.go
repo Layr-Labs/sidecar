@@ -232,7 +232,10 @@ func (ops *OperatorPISplitModel) GenerateStateRoot(blockNumber uint64) ([]byte, 
 		return nil, err
 	}
 
-	inputs := ops.sortValuesForMerkleTree(inserts)
+	inputs, err := ops.sortValuesForMerkleTree(inserts)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(inputs) == 0 {
 		return nil, nil
@@ -250,11 +253,41 @@ func (ops *OperatorPISplitModel) GenerateStateRoot(blockNumber uint64) ([]byte, 
 	return fullTree.Root(), nil
 }
 
-func (ops *OperatorPISplitModel) sortValuesForMerkleTree(splits []*OperatorPISplit) []*base.MerkleTreeInput {
+func (ops *OperatorPISplitModel) formatMerkleLeafValue(
+	blockNumber uint64,
+	operator string,
+	activatedAt *time.Time,
+	oldOperatorPISplitBips uint64,
+	newOperatorPISplitBips uint64,
+) (string, error) {
+	modelForks, err := ops.globalConfig.GetModelForks()
+	if err != nil {
+		return "", err
+	}
+	if ops.globalConfig.ChainIsOneOf(config.Chain_Holesky, config.Chain_Preprod) && blockNumber < modelForks[config.ModelFork_Austin] {
+		// This format was used on preprod and testnet for rewards-v2 before launching to mainnet
+		return fmt.Sprintf("%s_%d_%d_%d", operator, activatedAt.Unix(), oldOperatorPISplitBips, newOperatorPISplitBips), nil
+	}
+
+	return fmt.Sprintf("%s_%016x_%016x_%016x", operator, activatedAt.Unix(), oldOperatorPISplitBips, newOperatorPISplitBips), nil
+}
+
+func (ops *OperatorPISplitModel) sortValuesForMerkleTree(splits []*OperatorPISplit) ([]*base.MerkleTreeInput, error) {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, split := range splits {
 		slotID := base.NewSlotID(split.TransactionHash, split.LogIndex)
-		value := fmt.Sprintf("%s_%016x_%016x_%016x", split.Operator, split.ActivatedAt.Unix(), split.OldOperatorPISplitBips, split.NewOperatorPISplitBips)
+		value, err := ops.formatMerkleLeafValue(split.BlockNumber, split.Operator, split.ActivatedAt, split.OldOperatorPISplitBips, split.NewOperatorPISplitBips)
+		if err != nil {
+			ops.logger.Sugar().Errorw("Failed to format merkle leaf value",
+				zap.Error(err),
+				zap.Uint64("blockNumber", split.BlockNumber),
+				zap.String("operator", split.Operator),
+				zap.Time("activatedAt", *split.ActivatedAt),
+				zap.Uint64("oldOperatorPISplitBips", split.OldOperatorPISplitBips),
+				zap.Uint64("newOperatorPISplitBips", split.NewOperatorPISplitBips),
+			)
+			return nil, err
+		}
 		inputs = append(inputs, &base.MerkleTreeInput{
 			SlotID: slotID,
 			Value:  []byte(value),
@@ -265,7 +298,7 @@ func (ops *OperatorPISplitModel) sortValuesForMerkleTree(splits []*OperatorPISpl
 		return strings.Compare(string(i.SlotID), string(j.SlotID))
 	})
 
-	return inputs
+	return inputs, nil
 }
 
 func (ops *OperatorPISplitModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

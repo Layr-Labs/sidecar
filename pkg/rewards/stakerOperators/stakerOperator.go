@@ -26,7 +26,7 @@ func NewStakerOperatorGenerator(
 }
 
 func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate string) error {
-	forks, err := sog.globalConfig.GetForkDates()
+	forks, err := sog.globalConfig.GetRewardsSqlForkDates()
 	if err != nil {
 		return err
 	}
