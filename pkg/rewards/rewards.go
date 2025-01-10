@@ -675,10 +675,7 @@ func (rc *RewardsCalculator) generateAndInsertFromQuery(
 	)
 }
 
-func (rc *RewardsCalculator) FindClaimableDistributionRoot(snapshotDate string) (*types.SubmittedDistributionRoot, error) {
-	if snapshotDate == "" {
-		snapshotDate = "latest"
-	}
+func (rc *RewardsCalculator) FindClaimableDistributionRoot(rootIndex int64) (*types.SubmittedDistributionRoot, error) {
 	query := `
 		select
 			*
@@ -686,15 +683,17 @@ func (rc *RewardsCalculator) FindClaimableDistributionRoot(snapshotDate string) 
 		left join disabled_distribution_roots as ddr on (sdr.root_index = ddr.root_index)
 		where
 			ddr.root_index is null
-		{{ if eq .snapshotDate "latest" }}
+		{{ if eq .rootIndex "-1" }}
 			and activated_at >= now()
 		{{ else }}
-			and activated_at >= '{{.snapshotDate}}'::timestamp(6)
+			and sdr.root_index = {{.rootIndex}}
 		{{ end }}
 		order by root_index desc
 		limit 1
 	`
-	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]string{"snapshotDate": snapshotDate})
+	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]string{
+		"rootIndex": fmt.Sprintf("%d", rootIndex),
+	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return nil, err
@@ -704,8 +703,8 @@ func (rc *RewardsCalculator) FindClaimableDistributionRoot(snapshotDate string) 
 	res := rc.grm.Raw(renderedQuery).Scan(&submittedDistributionRoot)
 	if res.Error != nil {
 		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
-			rc.logger.Sugar().Errorw("No active distribution root found for snapshot",
-				zap.String("snapshotDate", snapshotDate),
+			rc.logger.Sugar().Errorw("No active distribution root found by root_index",
+				zap.Int64("rootIndex", rootIndex),
 				zap.Error(res.Error),
 			)
 			return nil, res.Error
@@ -724,9 +723,8 @@ func (rc *RewardsCalculator) GetGeneratedRewardsForSnapshotDate(snapshotDate str
 		from generated_rewards_snapshots as grs
 		where
 			status = 'complete'
-		{{if ne .snapshotDate "latest"}}
 			and grs.snapshot_date::timestamp(6) >= '{{.snapshotDate}}'::timestamp(6)			
-		{{end}}
+		order by grs.snapshot_date asc
 		limit 1
 	`, map[string]string{"snapshotDate": snapshotDate})
 

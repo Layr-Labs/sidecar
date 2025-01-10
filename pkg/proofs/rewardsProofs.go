@@ -58,23 +58,21 @@ func (rps *RewardsProofsStore) getRewardsDataForSnapshot(snapshot string) (*Proo
 	return data, nil
 }
 
-func (rps *RewardsProofsStore) GenerateRewardsClaimProof(earnerAddress string, tokenAddresses []string, snapshotDate string) (
+func (rps *RewardsProofsStore) GenerateRewardsClaimProof(earnerAddress string, tokenAddresses []string, rootIndex int64) (
 	[]byte,
 	*rewardsCoordinator.IRewardsCoordinatorRewardsMerkleClaim,
 	error,
 ) {
-	if snapshotDate == "" {
-		snapshotDate = "latest"
-	}
-
-	distributionRoot, err := rps.rewardsCalculator.FindClaimableDistributionRoot(snapshotDate)
+	distributionRoot, err := rps.rewardsCalculator.FindClaimableDistributionRoot(rootIndex)
 	if err != nil {
-		rps.logger.Sugar().Errorf("Failed to find most claimable distribution root", zap.Error(err))
+		rps.logger.Sugar().Errorf("Failed to find claimable distribution root for root_index",
+			zap.Int64("rootIndex", rootIndex),
+			zap.Error(err),
+		)
 		return nil, nil, err
 	}
-	if snapshotDate == "latest" {
-		snapshotDate = distributionRoot.GetSnapshotDate()
-	}
+
+	snapshotDate := distributionRoot.GetSnapshotDate()
 
 	// Make sure rewards have been generated for this snapshot.
 	// Any snapshot that is >= the provided date is valid since we'll select only data up
@@ -102,11 +100,10 @@ func (rps *RewardsProofsStore) GenerateRewardsClaimProof(earnerAddress string, t
 		return gethcommon.HexToAddress(addr)
 	})
 	earner := gethcommon.HexToAddress(earnerAddress)
-	rootIndex := distributionRoot.RootIndex
 
 	claim, err := claimgen.GetProofForEarner(
 		proofData.Distribution,
-		uint32(rootIndex),
+		uint32(distributionRoot.RootIndex),
 		proofData.AccountTree,
 		proofData.TokenTree,
 		earner,

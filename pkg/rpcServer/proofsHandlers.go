@@ -36,9 +36,16 @@ func convertClaimProofToRPCResponse(solidityProof *claimgen.IRewardsCoordinatorR
 func (rpc *RpcServer) GenerateClaimProof(ctx context.Context, req *sidecarV1.GenerateClaimProofRequest) (*sidecarV1.GenerateClaimProofResponse, error) {
 	earner := req.GetEarnerAddress()
 	tokens := req.GetTokens()
-	snapshotDate := req.GetSnapshot()
+	rootIndex := req.GetRootIndex()
 
-	root, claim, err := rpc.rewardsProofs.GenerateRewardsClaimProof(earner, tokens, snapshotDate)
+	var rootIndexVal int64
+	if rootIndex == nil {
+		rootIndexVal = -1
+	} else {
+		rootIndexVal = rootIndex.GetValue()
+	}
+
+	root, claim, err := rpc.rewardsProofs.GenerateRewardsClaimProof(earner, tokens, rootIndexVal)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to generate claim proof %s", err.Error())
 	}
