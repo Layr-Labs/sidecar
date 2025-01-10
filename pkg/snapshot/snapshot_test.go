@@ -14,33 +14,6 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestSnapshotConfigFromConfig(t *testing.T) {
-	cfg := config.NewConfig()
-	cfg.DatabaseConfig = config.DatabaseConfig{
-		Host:       "localhost",
-		Port:       5432,
-		DbName:     "testdb",
-		User:       "testuser",
-		Password:   "testpassword",
-		SchemaName: "public",
-	}
-	cfg.SnapshotConfig = config.SnapshotConfig{
-		OutputFile: "/tmp/test_snapshot.sql",
-		InputFile:  "/tmp/test_snapshot.sql",
-	}
-
-	snapshotCfg := SnapshotConfigFromConfig(cfg)
-
-	assert.Equal(t, cfg.DatabaseConfig.Host, snapshotCfg.Host)
-	assert.Equal(t, cfg.DatabaseConfig.Port, snapshotCfg.Port)
-	assert.Equal(t, cfg.DatabaseConfig.User, snapshotCfg.User)
-	assert.Equal(t, cfg.DatabaseConfig.Password, snapshotCfg.Password)
-	assert.Equal(t, cfg.DatabaseConfig.DbName, snapshotCfg.DbName)
-	assert.Equal(t, cfg.DatabaseConfig.SchemaName, snapshotCfg.SchemaName)
-	assert.Equal(t, cfg.SnapshotConfig.OutputFile, snapshotCfg.OutputFile)
-	assert.Equal(t, cfg.SnapshotConfig.InputFile, snapshotCfg.InputFile)
-}
-
 func TestNewSnapshotService(t *testing.T) {
 	cfg := &SnapshotConfig{}
 	l, _ := zap.NewDevelopment()
@@ -177,22 +150,29 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 		t.Fatal(setupErr)
 	}
 
-	t.Run("Create snapshot from a datababase with migrations", func(t *testing.T) {
-		dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
+	t.Run("Create snapshot from a database with migrations", func(t *testing.T) {
+		dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabaseWithMigrations(cfg.DatabaseConfig, cfg, l)
 		if dbErr != nil {
 			t.Fatal(dbErr)
 		}
 
-		snapshotCfg := SnapshotConfigFromConfig(cfg)
-		snapshotCfg.DbName = dbName
-		snapshotCfg.OutputFile = dumpFile
+		snapshotCfg := &SnapshotConfig{
+			OutputFile: dumpFile,
+			Host:       cfg.DatabaseConfig.Host,
+			Port:       cfg.DatabaseConfig.Port,
+			User:       cfg.DatabaseConfig.User,
+			Password:   cfg.DatabaseConfig.Password,
+			DbName:     dbName,
+			SchemaName: cfg.DatabaseConfig.SchemaName,
+		}
 
 		svc := NewSnapshotService(snapshotCfg, l)
 		err := svc.CreateSnapshot()
 		assert.NoError(t, err, "Creating snapshot should not fail")
 
-		_, err = os.Stat(dumpFile)
+		fileInfo, err := os.Stat(dumpFile)
 		assert.NoError(t, err, "Snapshot file should be created")
+		assert.Greater(t, fileInfo.Size(), int64(4096), "Snapshot file size should be greater than 4KB")
 
 		t.Cleanup(func() {
 			postgres.TeardownTestDatabase(dbName, cfg, dbGrm, l)
@@ -200,14 +180,21 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 	})
 
 	t.Run("Restore snapshot to a new database", func(t *testing.T) {
-		dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabaseNoMigrations(cfg.DatabaseConfig, l)
+		dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 		if dbErr != nil {
 			t.Fatal(dbErr)
 		}
 
-		snapshotCfg := SnapshotConfigFromConfig(cfg)
-		snapshotCfg.DbName = dbName
-		snapshotCfg.InputFile = dumpFile
+		snapshotCfg := &SnapshotConfig{
+			OutputFile: "",
+			InputFile:  dumpFile,
+			Host:       cfg.DatabaseConfig.Host,
+			Port:       cfg.DatabaseConfig.Port,
+			User:       cfg.DatabaseConfig.User,
+			Password:   cfg.DatabaseConfig.Password,
+			DbName:     dbName,
+			SchemaName: cfg.DatabaseConfig.SchemaName,
+		}
 		svc := NewSnapshotService(snapshotCfg, l)
 		err := svc.RestoreSnapshot()
 		assert.NoError(t, err, "Restoring snapshot should not fail")
@@ -235,6 +222,7 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 			postgres.TeardownTestDatabase(dbName, cfg, dbGrm, l)
 		})
 	})
+
 	t.Cleanup(func() {
 		os.Remove(dumpFile)
 	})

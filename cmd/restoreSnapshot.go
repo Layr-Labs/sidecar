@@ -25,8 +25,15 @@ The snapshot file is expected to be a pg_dump custom format file.`,
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
 
-		snapshotCfg := snapshot.SnapshotConfigFromConfig(cfg)
-		svc := snapshot.NewSnapshotService(snapshotCfg, l)
+		svc := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
+			InputFile:  cfg.SnapshotConfig.InputFile,
+			Host:       cfg.DatabaseConfig.Host,
+			Port:       cfg.DatabaseConfig.Port,
+			User:       cfg.DatabaseConfig.User,
+			Password:   cfg.DatabaseConfig.Password,
+			DbName:     cfg.DatabaseConfig.DbName,
+			SchemaName: cfg.DatabaseConfig.SchemaName,
+		}, l)
 
 		if err := svc.RestoreSnapshot(); err != nil {
 			return fmt.Errorf("failed to restore snapshot: %w", err)

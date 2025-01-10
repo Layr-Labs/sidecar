@@ -24,8 +24,15 @@ var createSnapshotCmd = &cobra.Command{
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
 
-		snapshotCfg := snapshot.SnapshotConfigFromConfig(cfg)
-		svc := snapshot.NewSnapshotService(snapshotCfg, l)
+		svc := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
+			OutputFile: cfg.SnapshotConfig.OutputFile,
+			Host:       cfg.DatabaseConfig.Host,
+			Port:       cfg.DatabaseConfig.Port,
+			User:       cfg.DatabaseConfig.User,
+			Password:   cfg.DatabaseConfig.Password,
+			DbName:     cfg.DatabaseConfig.DbName,
+			SchemaName: cfg.DatabaseConfig.SchemaName,
+		}, l)
 
 		if err := svc.CreateSnapshot(); err != nil {
 			return fmt.Errorf("failed to create snapshot: %w", err)

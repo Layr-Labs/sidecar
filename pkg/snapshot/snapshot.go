@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Layr-Labs/sidecar/internal/config"
 	pgcommands "github.com/habx/pg-commands"
 	"go.uber.org/zap"
 )
@@ -48,7 +47,7 @@ func (s *SnapshotService) CreateSnapshot() error {
 
 	dumpExec := dump.Exec(pgcommands.ExecOptions{StreamPrint: false})
 	if dumpExec.Error != nil {
-		s.l.Sugar().Fatalw("Failed to create database snapshot", "error", dumpExec.Error.Err, "output", dumpExec.Output)
+		s.l.Sugar().Errorw("Failed to create database snapshot", "error", dumpExec.Error.Err, "output", dumpExec.Output)
 		return dumpExec.Error.Err
 	}
 
@@ -69,7 +68,7 @@ func (s *SnapshotService) RestoreSnapshot() error {
 
 	restoreExec := restore.Exec(s.cfg.InputFile, pgcommands.ExecOptions{StreamPrint: false})
 	if restoreExec.Error != nil {
-		s.l.Sugar().Fatalw("Failed to restore from snapshot",
+		s.l.Sugar().Errorw("Failed to restore from snapshot",
 			"error", restoreExec.Error.Err,
 			"output", restoreExec.Output,
 		)
@@ -140,7 +139,7 @@ func (s *SnapshotService) setupRestore() (*pgcommands.Restore, error) {
 		Password: s.cfg.Password,
 	})
 	if err != nil {
-		s.l.Sugar().Fatalw("Failed to initialize restore", "error", err)
+		s.l.Sugar().Errorw("Failed to initialize restore", "error", err)
 		return nil, err
 	}
 
@@ -152,18 +151,4 @@ func (s *SnapshotService) setupRestore() (*pgcommands.Restore, error) {
 	}
 
 	return restore, nil
-}
-
-// SnapshotConfigFromConfig converts a config.Config to a SnapshotConfig
-func SnapshotConfigFromConfig(cfg *config.Config) *SnapshotConfig {
-	return &SnapshotConfig{
-		Host:       cfg.DatabaseConfig.Host,
-		Port:       cfg.DatabaseConfig.Port,
-		User:       cfg.DatabaseConfig.User,
-		Password:   cfg.DatabaseConfig.Password,
-		DbName:     cfg.DatabaseConfig.DbName,
-		SchemaName: cfg.DatabaseConfig.SchemaName,
-		OutputFile: cfg.SnapshotConfig.OutputFile,
-		InputFile:  cfg.SnapshotConfig.InputFile,
-	}
 }
