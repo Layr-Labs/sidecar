@@ -1,6 +1,7 @@
 package proofs
 
 import (
+	"fmt"
 	rewardsCoordinator "github.com/Layr-Labs/eigenlayer-contracts/pkg/bindings/IRewardsCoordinator"
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/claimgen"
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
@@ -71,7 +72,9 @@ func (rps *RewardsProofsStore) GenerateRewardsClaimProof(earnerAddress string, t
 		)
 		return nil, nil, err
 	}
-
+	if distributionRoot == nil {
+		return nil, nil, fmt.Errorf("No claimable distribution root found for root index %d", rootIndex)
+	}
 	snapshotDate := distributionRoot.GetSnapshotDate()
 
 	// Make sure rewards have been generated for this snapshot.

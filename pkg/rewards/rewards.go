@@ -13,6 +13,7 @@ import (
 	"github.com/wealdtech/go-merkletree/v2"
 	"gorm.io/gorm/clause"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -684,15 +685,15 @@ func (rc *RewardsCalculator) FindClaimableDistributionRoot(rootIndex int64) (*ty
 		where
 			ddr.root_index is null
 		{{ if eq .rootIndex "-1" }}
-			and activated_at >= now()
+			and activated_at <= now()
 		{{ else }}
 			and sdr.root_index = {{.rootIndex}}
 		{{ end }}
-		order by root_index desc
+		order by sdr.root_index desc
 		limit 1
 	`
 	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]string{
-		"rootIndex": fmt.Sprintf("%d", rootIndex),
+		"rootIndex": strconv.Itoa(int(rootIndex)),
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
