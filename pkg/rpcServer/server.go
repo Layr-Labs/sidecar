@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
+	"github.com/Layr-Labs/sidecar/pkg/proofs"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
@@ -38,6 +39,7 @@ type RpcServer struct {
 	rewardsCalculator *rewards.RewardsCalculator
 	rewardsQueue      *rewardsCalculatorQueue.RewardsCalculatorQueue
 	eventBus          eventBusTypes.IEventBus
+	rewardsProofs     *proofs.RewardsProofsStore
 }
 
 func NewRpcServer(
@@ -47,6 +49,7 @@ func NewRpcServer(
 	rc *rewards.RewardsCalculator,
 	rcq *rewardsCalculatorQueue.RewardsCalculatorQueue,
 	eb eventBusTypes.IEventBus,
+	rp *proofs.RewardsProofsStore,
 	l *zap.Logger,
 ) *RpcServer {
 	server := &RpcServer{
@@ -56,6 +59,7 @@ func NewRpcServer(
 		rewardsCalculator: rc,
 		rewardsQueue:      rcq,
 		eventBus:          eb,
+		rewardsProofs:     rp,
 		Logger:            l,
 	}
 

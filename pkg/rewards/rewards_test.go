@@ -324,7 +324,7 @@ func Test_Rewards(t *testing.T) {
 			err = rc.sog.GenerateStakerOperatorsTable(snapshotDate)
 			assert.Nil(t, err)
 
-			accountTree, _, err := rc.MerkelizeRewardsForSnapshot(snapshotDate)
+			accountTree, _, _, err := rc.MerkelizeRewardsForSnapshot(snapshotDate)
 			assert.Nil(t, err)
 
 			root := utils.ConvertBytesToString(accountTree.Root())
