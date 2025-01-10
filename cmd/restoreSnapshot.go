@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/pkg/snapshot"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -25,8 +26,13 @@ The snapshot file is expected to be a pg_dump custom format file.`,
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
 
+		inputFile, err := utils.ExpandHomeDir(cfg.SnapshotConfig.InputFile)
+		if err != nil {
+			return err
+		}
+
 		svc := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
-			InputFile:  cfg.SnapshotConfig.InputFile,
+			InputFile:  inputFile,
 			Host:       cfg.DatabaseConfig.Host,
 			Port:       cfg.DatabaseConfig.Port,
 			User:       cfg.DatabaseConfig.User,

@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/pkg/snapshot"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -24,8 +25,13 @@ var createSnapshotCmd = &cobra.Command{
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
 
+		outputFile, err := utils.ExpandHomeDir(cfg.SnapshotConfig.OutputFile)
+		if err != nil {
+			return err
+		}
+
 		svc := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
-			OutputFile: cfg.SnapshotConfig.OutputFile,
+			OutputFile: outputFile,
 			Host:       cfg.DatabaseConfig.Host,
 			Port:       cfg.DatabaseConfig.Port,
 			User:       cfg.DatabaseConfig.User,
