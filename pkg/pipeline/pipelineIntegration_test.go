@@ -4,6 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
+	"testing"
+
+	"os"
+
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
@@ -18,9 +23,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
-	"log"
-	"os"
-	"testing"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -72,7 +74,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	ethConfig.BaseUrl = rpcUrl
 	client := ethereum.NewClient(ethConfig, l)
 
-	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
+	dbname, _, grm, err := postgres.GetTestPostgresDatabaseWithMigrations(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
 		log.Fatal(err)
 	}

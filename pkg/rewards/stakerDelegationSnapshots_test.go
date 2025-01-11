@@ -2,6 +2,10 @@ package rewards
 
 import (
 	"fmt"
+	"slices"
+	"testing"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -10,9 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"slices"
-	"testing"
-	"time"
 )
 
 func setupStakerDelegationSnapshot() (
@@ -39,7 +40,7 @@ func setupStakerDelegationSnapshot() (
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
+	dbname, _, grm, err := postgres.GetTestPostgresDatabaseWithMigrations(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
 		return dbname, nil, nil, nil, err
 	}
