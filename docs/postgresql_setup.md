@@ -35,7 +35,7 @@ ALTER DATABASE sidecar OWNER TO sidecar;
 \c sidecar
 ALTER SCHEMA public OWNER TO sidecar;
 
--- Grant all privileges on existing tables and sequences (there shouldnt be any if this is brand new) 
+-- Grant all privileges on existing tables and sequences (there shouldn't be any if this is brand new) 
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO sidecar;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO sidecar;
 
