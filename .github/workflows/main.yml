@@ -87,7 +87,7 @@ jobs:
           REGISTRY: "public.ecr.aws/z6g0f8n7"
           REPOSITORY: ${{ github.event.repository.name }}
         run: |
-          VERSION=$(cat VERSION | tr -d '[:space:]')
+          VERSION=$(cat VERSION | tr -d '[:space:]' | sed 's/+/_/g')
           if [[ $GITHUB_REF == refs/heads/master || $GITHUB_REF == refs/tags/* ]]; then
             docker buildx build --platform "linux/amd64,linux/arm64" -t $REGISTRY/$REPOSITORY:$VERSION -t $REGISTRY/$REPOSITORY:latest --push .
           else
