@@ -56,10 +56,16 @@ jobs:
         env:
           REF: ${{ github.ref }}
         run: |
+          versionFile=$(cat VERSION | tr -d '[:space:]')
           if [[ $REF == refs/tags/* ]]; then
-            echo -n "${REF#refs/tags/}" > .release_version
+            # check if versionFile equals the tag.
+            if [[ $versionFile != "${REF#refs/tags/}" ]]; then
+              echo "Version in VERSION file does not match the tag"
+              exit 1
+            fi
           else
-            v=$(git rev-parse --short HEAD) && echo -n $v > .release_version
+            # if this isnt a release, add the commit hash to the end of the version
+            v=$(git rev-parse --short HEAD) echo -n "${versionFile}+${v}" > VERSION
           fi
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -81,7 +87,7 @@ jobs:
           REGISTRY: "public.ecr.aws/z6g0f8n7"
           REPOSITORY: ${{ github.event.repository.name }}
         run: |
-          VERSION=$(cat .release_version)
+          VERSION=$(cat VERSION | tr -d '[:space:]')
           if [[ $GITHUB_REF == refs/heads/master || $GITHUB_REF == refs/tags/* ]]; then
             docker buildx build --platform "linux/amd64,linux/arm64" -t $REGISTRY/$REPOSITORY:$VERSION -t $REGISTRY/$REPOSITORY:latest --push .
           else
@@ -95,18 +101,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set release version
+      - name: Check and set release version
         env:
           REF: ${{ github.ref }}
         run: |
+          versionFile=$(cat VERSION | tr -d '[:space:]')
           if [[ $REF == refs/tags/* ]]; then
-            echo -n "${REF#refs/tags/}" > .release_version
+            # check if versionFile equals the tag.
+            if [[ $versionFile != "${REF#refs/tags/}" ]]; then
+              echo "Version in VERSION file does not match the tag"
+              exit 1
+            fi
           else
-            v=$(git rev-parse --short HEAD) && echo -n $v > .release_version
-          fi
       - name: Build binary
         run: |
-          VERSION=$(cat .release_version)
+          VERSION=$(cat VERSION | tr -d '[:space:]')
           echo "Building binary for version $VERSION"
           make release
           ./scripts/bundleReleases.sh $VERSION
@@ -127,7 +136,6 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          REF: ${{ github.ref }}
         run: |
           set -x
           ls -al ./release
