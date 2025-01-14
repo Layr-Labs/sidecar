@@ -40,6 +40,7 @@ type OperatorAVSSplitModel struct {
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*OperatorAVSSplit
+	committedState   map[uint64][]*OperatorAVSSplit
 }
 
 func NewOperatorAVSSplitModel(
@@ -56,6 +57,7 @@ func NewOperatorAVSSplitModel(
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*OperatorAVSSplit),
+		committedState:   make(map[uint64][]*OperatorAVSSplit),
 	}
 
 	esm.RegisterState(model, 8)
@@ -164,11 +166,13 @@ func (oas *OperatorAVSSplitModel) IsInterestingLog(log *storage.TransactionLog) 
 
 func (oas *OperatorAVSSplitModel) SetupStateForBlock(blockNumber uint64) error {
 	oas.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorAVSSplit)
+	oas.committedState[blockNumber] = make([]*OperatorAVSSplit, 0)
 	return nil
 }
 
 func (oas *OperatorAVSSplitModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(oas.stateAccumulator, blockNumber)
+	delete(oas.committedState, blockNumber)
 	return nil
 }
 
@@ -224,6 +228,7 @@ func (oas *OperatorAVSSplitModel) CommitFinalState(blockNumber uint64) error {
 			}
 		}
 	}
+	oas.committedState[blockNumber] = recordsToInsert
 	return nil
 }
 
@@ -253,6 +258,16 @@ func (oas *OperatorAVSSplitModel) GenerateStateRoot(blockNumber uint64) ([]byte,
 		return nil, err
 	}
 	return fullTree.Root(), nil
+}
+
+func (oas *OperatorAVSSplitModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := oas.committedState[blockNumber]
+	if !ok {
+		err := fmt.Errorf("No committed state found for block %d", blockNumber)
+		oas.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		return nil, err
+	}
+	return base.CastCommittedStateToInterface(records), nil
 }
 
 func (oas *OperatorAVSSplitModel) formatMerkleLeafValue(

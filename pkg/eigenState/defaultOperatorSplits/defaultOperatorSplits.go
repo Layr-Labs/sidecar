@@ -36,6 +36,7 @@ type DefaultOperatorSplitModel struct {
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*DefaultOperatorSplit
+	committedState   map[uint64][]*DefaultOperatorSplit
 }
 
 func NewDefaultOperatorSplitModel(
@@ -52,13 +53,14 @@ func NewDefaultOperatorSplitModel(
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*DefaultOperatorSplit),
+		committedState:   make(map[uint64][]*DefaultOperatorSplit),
 	}
 
 	esm.RegisterState(model, 10)
 	return model, nil
 }
 
-func (oas *DefaultOperatorSplitModel) GetModelName() string {
+func (dos *DefaultOperatorSplitModel) GetModelName() string {
 	return "DefaultOperatorSplitModel"
 }
 
@@ -80,7 +82,7 @@ func parseDefaultOperatorSplitOutputData(outputDataStr string) (*defaultOperator
 	return outputData, err
 }
 
-func (oas *DefaultOperatorSplitModel) handleDefaultOperatorSplitBipsSetEvent(log *storage.TransactionLog) (*DefaultOperatorSplit, error) {
+func (dos *DefaultOperatorSplitModel) handleDefaultOperatorSplitBipsSetEvent(log *storage.TransactionLog) (*DefaultOperatorSplit, error) {
 	outputData, err := parseDefaultOperatorSplitOutputData(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -97,25 +99,25 @@ func (oas *DefaultOperatorSplitModel) handleDefaultOperatorSplitBipsSetEvent(log
 	return split, nil
 }
 
-func (oas *DefaultOperatorSplitModel) GetStateTransitions() (types.StateTransitions[*DefaultOperatorSplit], []uint64) {
+func (dos *DefaultOperatorSplitModel) GetStateTransitions() (types.StateTransitions[*DefaultOperatorSplit], []uint64) {
 	stateChanges := make(types.StateTransitions[*DefaultOperatorSplit])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*DefaultOperatorSplit, error) {
-		defaultOperatorSplit, err := oas.handleDefaultOperatorSplitBipsSetEvent(log)
+		defaultOperatorSplit, err := dos.handleDefaultOperatorSplitBipsSetEvent(log)
 		if err != nil {
 			return nil, err
 		}
 
 		slotId := base.NewSlotID(defaultOperatorSplit.TransactionHash, defaultOperatorSplit.LogIndex)
 
-		_, ok := oas.stateAccumulator[log.BlockNumber][slotId]
+		_, ok := dos.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := fmt.Errorf("Duplicate default operator split submitted for slot %s at block %d", slotId, log.BlockNumber)
-			oas.logger.Sugar().Errorw("Duplicate default operator split submitted", zap.Error(err))
+			dos.logger.Sugar().Errorw("Duplicate default operator split submitted", zap.Error(err))
 			return nil, err
 		}
 
-		oas.stateAccumulator[log.BlockNumber][slotId] = defaultOperatorSplit
+		dos.stateAccumulator[log.BlockNumber][slotId] = defaultOperatorSplit
 
 		return defaultOperatorSplit, nil
 	}
@@ -133,8 +135,8 @@ func (oas *DefaultOperatorSplitModel) GetStateTransitions() (types.StateTransiti
 	return stateChanges, blockNumbers
 }
 
-func (oas *DefaultOperatorSplitModel) getContractAddressesForEnvironment() map[string][]string {
-	contracts := oas.globalConfig.GetContractsMapForChain()
+func (dos *DefaultOperatorSplitModel) getContractAddressesForEnvironment() map[string][]string {
+	contracts := dos.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.RewardsCoordinator: {
 			"DefaultOperatorSplitBipsSet",
@@ -142,27 +144,29 @@ func (oas *DefaultOperatorSplitModel) getContractAddressesForEnvironment() map[s
 	}
 }
 
-func (oas *DefaultOperatorSplitModel) IsInterestingLog(log *storage.TransactionLog) bool {
-	addresses := oas.getContractAddressesForEnvironment()
-	return oas.BaseEigenState.IsInterestingLog(addresses, log)
+func (dos *DefaultOperatorSplitModel) IsInterestingLog(log *storage.TransactionLog) bool {
+	addresses := dos.getContractAddressesForEnvironment()
+	return dos.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (oas *DefaultOperatorSplitModel) SetupStateForBlock(blockNumber uint64) error {
-	oas.stateAccumulator[blockNumber] = make(map[types.SlotID]*DefaultOperatorSplit)
+func (dos *DefaultOperatorSplitModel) SetupStateForBlock(blockNumber uint64) error {
+	dos.stateAccumulator[blockNumber] = make(map[types.SlotID]*DefaultOperatorSplit)
+	dos.committedState[blockNumber] = make([]*DefaultOperatorSplit, 0)
 	return nil
 }
 
-func (oas *DefaultOperatorSplitModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
-	delete(oas.stateAccumulator, blockNumber)
+func (dos *DefaultOperatorSplitModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
+	delete(dos.stateAccumulator, blockNumber)
+	delete(dos.committedState, blockNumber)
 	return nil
 }
 
-func (oas *DefaultOperatorSplitModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := oas.GetStateTransitions()
+func (dos *DefaultOperatorSplitModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
+	stateChanges, sortedBlockNumbers := dos.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
 		if log.BlockNumber >= blockNumber {
-			oas.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", log.BlockNumber))
+			dos.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", log.BlockNumber))
 
 			change, err := stateChanges[blockNumber](log)
 			if err != nil {
@@ -178,11 +182,11 @@ func (oas *DefaultOperatorSplitModel) HandleStateChange(log *storage.Transaction
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (oas *DefaultOperatorSplitModel) prepareState(blockNumber uint64) ([]*DefaultOperatorSplit, error) {
-	accumulatedState, ok := oas.stateAccumulator[blockNumber]
+func (dos *DefaultOperatorSplitModel) prepareState(blockNumber uint64) ([]*DefaultOperatorSplit, error) {
+	accumulatedState, ok := dos.stateAccumulator[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
-		oas.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		dos.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, err
 	}
 
@@ -194,40 +198,41 @@ func (oas *DefaultOperatorSplitModel) prepareState(blockNumber uint64) ([]*Defau
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (oas *DefaultOperatorSplitModel) CommitFinalState(blockNumber uint64) error {
-	recordsToInsert, err := oas.prepareState(blockNumber)
+func (dos *DefaultOperatorSplitModel) CommitFinalState(blockNumber uint64) error {
+	recordsToInsert, err := dos.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
 	if len(recordsToInsert) > 0 {
 		for _, record := range recordsToInsert {
-			res := oas.DB.Model(&DefaultOperatorSplit{}).Clauses(clause.Returning{}).Create(&record)
+			res := dos.DB.Model(&DefaultOperatorSplit{}).Clauses(clause.Returning{}).Create(&record)
 			if res.Error != nil {
-				oas.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
+				dos.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
 				return res.Error
 			}
 		}
 	}
+	dos.committedState[blockNumber] = recordsToInsert
 	return nil
 }
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
-func (oas *DefaultOperatorSplitModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
-	inserts, err := oas.prepareState(blockNumber)
+func (dos *DefaultOperatorSplitModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
+	inserts, err := dos.prepareState(blockNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	inputs := oas.sortValuesForMerkleTree(inserts)
+	inputs := dos.sortValuesForMerkleTree(inserts)
 
 	if len(inputs) == 0 {
 		return nil, nil
 	}
 
-	fullTree, err := oas.MerkleizeEigenState(blockNumber, inputs)
+	fullTree, err := dos.MerkleizeEigenState(blockNumber, inputs)
 	if err != nil {
-		oas.logger.Sugar().Errorw("Failed to create merkle tree",
+		dos.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", inputs),
@@ -237,7 +242,17 @@ func (oas *DefaultOperatorSplitModel) GenerateStateRoot(blockNumber uint64) ([]b
 	return fullTree.Root(), nil
 }
 
-func (oas *DefaultOperatorSplitModel) sortValuesForMerkleTree(splits []*DefaultOperatorSplit) []*base.MerkleTreeInput {
+func (dos *DefaultOperatorSplitModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := dos.committedState[blockNumber]
+	if !ok {
+		err := fmt.Errorf("No committed state found for block %d", blockNumber)
+		dos.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		return nil, err
+	}
+	return base.CastCommittedStateToInterface(records), nil
+}
+
+func (dos *DefaultOperatorSplitModel) sortValuesForMerkleTree(splits []*DefaultOperatorSplit) []*base.MerkleTreeInput {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, split := range splits {
 		slotID := base.NewSlotID(split.TransactionHash, split.LogIndex)
@@ -255,6 +270,6 @@ func (oas *DefaultOperatorSplitModel) sortValuesForMerkleTree(splits []*DefaultO
 	return inputs
 }
 
-func (oas *DefaultOperatorSplitModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return oas.BaseEigenState.DeleteState("default_operator_splits", startBlockNumber, endBlockNumber, oas.DB)
+func (dos *DefaultOperatorSplitModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
+	return dos.BaseEigenState.DeleteState("default_operator_splits", startBlockNumber, endBlockNumber, dos.DB)
 }

@@ -39,6 +39,7 @@ type OperatorPISplitModel struct {
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*OperatorPISplit
+	committedState   map[uint64][]*OperatorPISplit
 }
 
 func NewOperatorPISplitModel(
@@ -55,6 +56,7 @@ func NewOperatorPISplitModel(
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*OperatorPISplit),
+		committedState:   make(map[uint64][]*OperatorPISplit),
 	}
 
 	esm.RegisterState(model, 9)
@@ -162,11 +164,13 @@ func (ops *OperatorPISplitModel) IsInterestingLog(log *storage.TransactionLog) b
 
 func (ops *OperatorPISplitModel) SetupStateForBlock(blockNumber uint64) error {
 	ops.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorPISplit)
+	ops.committedState[blockNumber] = make([]*OperatorPISplit, 0)
 	return nil
 }
 
 func (ops *OperatorPISplitModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(ops.stateAccumulator, blockNumber)
+	delete(ops.committedState, blockNumber)
 	return nil
 }
 
@@ -222,6 +226,7 @@ func (ops *OperatorPISplitModel) CommitFinalState(blockNumber uint64) error {
 			}
 		}
 	}
+	ops.committedState[blockNumber] = recordsToInsert
 	return nil
 }
 
@@ -251,6 +256,16 @@ func (ops *OperatorPISplitModel) GenerateStateRoot(blockNumber uint64) ([]byte, 
 		return nil, err
 	}
 	return fullTree.Root(), nil
+}
+
+func (ops *OperatorPISplitModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := ops.committedState[blockNumber]
+	if !ok {
+		err := fmt.Errorf("No committed state found for block %d", blockNumber)
+		ops.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		return nil, err
+	}
+	return base.CastCommittedStateToInterface(records), nil
 }
 
 func (ops *OperatorPISplitModel) formatMerkleLeafValue(
