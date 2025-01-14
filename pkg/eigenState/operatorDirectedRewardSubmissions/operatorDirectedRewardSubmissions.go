@@ -50,6 +50,7 @@ type OperatorDirectedRewardSubmissionsModel struct {
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*OperatorDirectedRewardSubmission
+	committedState   map[uint64][]*OperatorDirectedRewardSubmission
 }
 
 func NewOperatorDirectedRewardSubmissionsModel(
@@ -66,6 +67,7 @@ func NewOperatorDirectedRewardSubmissionsModel(
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*OperatorDirectedRewardSubmission),
+		committedState:   make(map[uint64][]*OperatorDirectedRewardSubmission),
 	}
 
 	esm.RegisterState(model, 7)
@@ -249,11 +251,13 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) IsInterestingLog(log *storag
 
 func (odrs *OperatorDirectedRewardSubmissionsModel) SetupStateForBlock(blockNumber uint64) error {
 	odrs.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorDirectedRewardSubmission)
+	odrs.committedState[blockNumber] = make([]*OperatorDirectedRewardSubmission, 0)
 	return nil
 }
 
 func (odrs *OperatorDirectedRewardSubmissionsModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(odrs.stateAccumulator, blockNumber)
+	delete(odrs.committedState, blockNumber)
 	return nil
 }
 
@@ -309,6 +313,7 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) CommitFinalState(blockNumber
 			}
 		}
 	}
+	odrs.committedState[blockNumber] = recordsToInsert
 	return nil
 }
 
@@ -338,6 +343,16 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) GenerateStateRoot(blockNumbe
 		return nil, err
 	}
 	return fullTree.Root(), nil
+}
+
+func (odrs *OperatorDirectedRewardSubmissionsModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := odrs.committedState[blockNumber]
+	if !ok {
+		err := fmt.Errorf("No committed state found for block %d", blockNumber)
+		odrs.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		return nil, err
+	}
+	return base.CastCommittedStateToInterface(records), nil
 }
 
 func (odrs *OperatorDirectedRewardSubmissionsModel) formatMerkleLeafValue(
