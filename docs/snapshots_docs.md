@@ -3,6 +3,61 @@ Snapshots are useful for backing up the current state of the database and quickl
 
 Below shows how to create your own snapshots, restore from the snapshot and how to use custom schemas
 
+## Eigenlayer hosted snapshots:
+Get latest sidecar snapshots here, supplied by eigenlayer [https://sidecar.bcog55.org/index.html](https://sidecar.bcog55.org/index.html)
+We heavily recommend syncing from genesis for mainnet and creating your own snapshots. We are hosting snapshots for the eigenlayer ecosystem to quickstart and have a good developer experience.
+
+
+### `restore-snapshot`
+```bash
+go run main.go restore-snapshot --help
+Restore the database from a previously created snapshot file.
+
+Note: This command restores --database.schema_name only if it's present in InputFile snapshot.
+Follow the snapshot docs if you need to convert the snapshot to a different schema name than was used during snapshot creation.
+
+Usage:
+  sidecar restore-snapshot [flags]
+
+Flags:
+  -h, --help                help for restore-snapshot
+      --input_file string   Path to the snapshot file (required)
+
+Global Flags:
+  -c, --chain string                              The chain to use (mainnet, holesky, preprod (default "mainnet")
+      --database.db_name string                   PostgreSQL database name (default "sidecar")
+      --database.host string                      PostgreSQL host (default "localhost")
+      --database.password string                  PostgreSQL password
+      --database.port int                         PostgreSQL port (default 5432)
+      --database.schema_name string               PostgreSQL schema name (default "public")
+      --database.user string                      PostgreSQL username (default "sidecar")
+      --datadog.statsd.enabled                    e.g. "true" or "false"
+      --datadog.statsd.url string                 e.g. "localhost:8125"
+      --debug                                     "true" or "false"
+      --ethereum.chunked_batch_call_size int      The number of calls to make in parallel when using the chunked batch call method (default 10)
+      --ethereum.contract_call_batch_size int     The number of contract calls to batch together when fetching data from the Ethereum node (default 25)
+      --ethereum.native_batch_call_size int       The number of calls to batch together when using the native eth_call method (default 500)
+      --ethereum.rpc-url string                   e.g. "http://<hostname>:8545"
+      --ethereum.use_native_batch_call            Use the native eth_call method for batch calls (default true)
+      --prometheus.enabled                        e.g. "true" or "false"
+      --prometheus.port int                       The port to run the prometheus server on (default 2112)
+      --rewards.generate_staker_operators_table   Generate staker operators table while indexing
+      --rewards.validate_rewards_root             Validate rewards roots while indexing (default true)
+      --rpc.grpc-port int                         gRPC port (default 7100)
+      --rpc.http-port int                         http rpc port (default 7101)
+```
+
+#### Example use:
+```
+./bin/sidecar restore-snapshot \
+  --input_file=<file> \
+  --database.host=localhost \
+  --database.user=sidecar \
+  --database.password=... \
+  --database.port=5432 \
+  --database.db_name=sidecar \
+  --database.schema_name=public 
+```
 
 ### `create-snapshot`
 ```bash
@@ -52,54 +107,14 @@ go run main.go create-snapshot \
   --database.create_snapshot_output=example.dump
 ```
 
-### `restore-snapshot`
-```bash
-go run main.go restore-snapshot --help
-Restore the database from a previously created snapshot file.
-
-Note: This command restores --database.schema_name only if it's present in InputFile snapshot.
-Follow the snapshot docs if you need to convert the snapshot to a different schema name than was used during snapshot creation.
-
-Usage:
-  sidecar restore-snapshot [flags]
-
-Flags:
-  -h, --help                help for restore-snapshot
-      --input_file string   Path to the snapshot file (required)
-
-Global Flags:
-  -c, --chain string                              The chain to use (mainnet, holesky, preprod (default "mainnet")
-      --database.db_name string                   PostgreSQL database name (default "sidecar")
-      --database.host string                      PostgreSQL host (default "localhost")
-      --database.password string                  PostgreSQL password
-      --database.port int                         PostgreSQL port (default 5432)
-      --database.schema_name string               PostgreSQL schema name (default "public")
-      --database.user string                      PostgreSQL username (default "sidecar")
-      --datadog.statsd.enabled                    e.g. "true" or "false"
-      --datadog.statsd.url string                 e.g. "localhost:8125"
-      --debug                                     "true" or "false"
-      --ethereum.chunked_batch_call_size int      The number of calls to make in parallel when using the chunked batch call method (default 10)
-      --ethereum.contract_call_batch_size int     The number of contract calls to batch together when fetching data from the Ethereum node (default 25)
-      --ethereum.native_batch_call_size int       The number of calls to batch together when using the native eth_call method (default 500)
-      --ethereum.rpc-url string                   e.g. "http://<hostname>:8545"
-      --ethereum.use_native_batch_call            Use the native eth_call method for batch calls (default true)
-      --prometheus.enabled                        e.g. "true" or "false"
-      --prometheus.port int                       The port to run the prometheus server on (default 2112)
-      --rewards.generate_staker_operators_table   Generate staker operators table while indexing
-      --rewards.validate_rewards_root             Validate rewards roots while indexing (default true)
-      --rpc.grpc-port int                         gRPC port (default 7100)
-      --rpc.http-port int                         http rpc port (default 7101)
-```
-
-
 ## Converting the Schema of a Dump
 
-If you're using a custom schema and want to use a public snapshot, you likely want to convert the dump.
+If you're using a custom schema and want to use a public snapshot we provide or are converting between your own schemas, you likely want to convert the dump.
 
-This section provides a step-by-step runbook for converting a snapshot dump to use a different schema name.
+This section provides a helpful step-by-step runbook for converting a snapshot dump to use a different schema name. 
+If your database and schema can be taken offline, you may just want to just rename the schema in psql. 
 
-Commonly the input schema is 
-
+### Use our script (experimental)
 ```
 # Can use the script
 ./scripts/convertSnapshotSchema.sh 
@@ -108,7 +123,7 @@ Commonly the input schema is
 ./scripts/convertSnapshotSchema.sh <inputSchema> <outputSchema> input_file.dump output_file.dump <db_username> <db_password>
 ```
 
-
+### You can manually instead use:
 ```bash
 # Open your terminal and create a temporary database to work with:
 psql -c "CREATE DATABASE temp_sidecar_dump_schema_conversion_db;"

@@ -249,20 +249,16 @@ POSTGRES_DATA_PATH=<path to store postgres data> docker-compose up
 
 # Snapshots
 Snapshots are a quicker way to sync to tip and get started. 
-
 See [Snapshots Docs](docs/snapshots_docs.md) for instructions on creating and restoring snapshots
 
-### Snapshot Sources
+## [Get a snapshot at Eigenlayer's Hosted Snapshots Website](https://sidecar.bcog55.org/index.html)
 
-* Mainnet Ethereum (not yet available)
-* Testnet Holesky ([2025-01-22](https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump))
-
-### Example boot from testnet snapshot (default schema)
+## Example boot  (default public schema)
 ```bash
-curl -LO https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump
+curl -LO <download_link>
 
 ./bin/sidecar restore-snapshot \
-  --input_file=sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump \
+  --input_file=<downloaded_file> \
   --database.host=localhost \
   --database.user=sidecar \
   --database.password=... \
