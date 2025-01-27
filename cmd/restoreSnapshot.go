@@ -16,7 +16,8 @@ var restoreSnapshotCmd = &cobra.Command{
 	Short: "Restore database from a snapshot file",
 	Long: `Restore the database from a previously created snapshot file.
 
-Note: This command restores --database.schema_name only if it's present in InputFile snapshot.
+Note: It is recommended to use a fresh, clean database for restoration. Objects in the snapshot will overwrite existing objects in the database. 
+This command restores --database.schema_name only if it's present in InputFile snapshot.
 Follow the snapshot docs if you need to convert the snapshot to a different schema name than was used during snapshot creation.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		initRestoreSnapshotCmd(cmd)
