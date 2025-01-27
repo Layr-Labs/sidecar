@@ -10,7 +10,7 @@ We heavily recommend syncing from genesis for mainnet and creating your own snap
 
 ### `restore-snapshot`
 ```bash
-go run main.go restore-snapshot --help
+./bin/sidecar restore-snapshot --help
 Restore the database from a previously created snapshot file.
 
 Note: This command restores --database.schema_name only if it's present in InputFile snapshot.
@@ -61,7 +61,7 @@ Global Flags:
 
 ### `create-snapshot`
 ```bash
-go run main.go create-snapshot --help
+./bin/sidecar create-snapshot --help
 Create a snapshot of the database.
 
 Usage:
@@ -97,7 +97,7 @@ Global Flags:
 
 #### Example use:
 ```
-go run main.go create-snapshot \     
+./bin/sidecar create-snapshot \     
   --database.host=localhost \
   --database.user=sidecar \
   --database.password=sidecar \
@@ -109,10 +109,10 @@ go run main.go create-snapshot \
 
 ## Converting the Schema of a Dump
 
-If you're using a custom schema and want to use a public snapshot we provide or are converting between your own schemas, you likely want to convert the dump.
+You will need to convert the dump to the target schema before restoring. 
+Alternatively, if you're confident it's safe, you can restore from the dump's (usually public) schema and rename in your database to desired schema name.  
 
 This section provides a helpful step-by-step runbook for converting a snapshot dump to use a different schema name. 
-If your database and schema can be taken offline, you may just want to just rename the schema in psql. 
 
 ### Use our script (experimental)
 ```
