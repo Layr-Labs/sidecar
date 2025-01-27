@@ -125,8 +125,16 @@ Run the sidecar
 Usage:
   sidecar run [flags]
 
+  Note: This command restores --database.schema_name only if it's present in input snapshot file.
+  Follow the snapshot docs if you need to convert the snapshot to a different schema name than was used during snapshot creation. sidecar.eigenlayer.xyz snapshots are only served in the public schema.
+
 Flags:
   -h, --help   help for run
+      [WIP] --snapshot.metadata_url string   URL for the snapshot metadata (default is sidecar.eigenlayer.xyz/snapshots_data.json, and will get the latest snapshot with a public schema matching your given chain and version, it will exit if not available)
+      --snapshot.input_file string   Path to the snapshot file (can override the metadata_url latest snapshot with an input_file or input_url)
+      --snapshot.input_url string   URL to the snapshot file (can override the metadata_url latest snapshot with an input_file or input_url)
+      --snapshot.hash_file string  Path to save the snapshot file to (can override the metadata_url to get a snapshot hash with a hash_file)
+      --snapshot.hash_url string  Path to save the snapshot file to (can override the metadata_url to get a snapshot hash with a hash_url)
 
 Global Flags:
   -c, --chain string                              The chain to use (mainnet, holesky, preprod (default "mainnet")

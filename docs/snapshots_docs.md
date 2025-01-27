@@ -65,7 +65,11 @@ Usage:
 
 Flags:
   -h, --help                help for restore-snapshot
-      --input_file string   Path to the snapshot file (required)
+      [WIP] --metadata_url string   URL for the snapshot metadata (default is sidecar.eigenlayer.xyz/snapshots_data.json, and will get the latest snapshot with a public schema matching your given chain and version if it's available)
+      --input_file string   Path to the snapshot file (can override the metadata_url latest snapshot with an input_file or input_url)
+      --input_url string   URL to the snapshot file (can override the metadata_url latest snapshot with an input_file or input_url)
+      --hash_file string  Path to save the snapshot file to (can override the metadata_url to get a snapshot hash with a hash_file)
+      --hash_url string  Path to save the snapshot file to (can override the metadata_url to get a snapshot hash with a hash_url)
 
 Global Flags:
   -c, --chain string                              The chain to use (mainnet, holesky, preprod (default "mainnet")

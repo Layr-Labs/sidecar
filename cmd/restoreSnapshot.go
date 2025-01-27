@@ -28,17 +28,21 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 		}
 
 		svc, err := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
-			InputFile:  cfg.SnapshotConfig.InputFile,
-			Host:       cfg.DatabaseConfig.Host,
-			Port:       cfg.DatabaseConfig.Port,
-			User:       cfg.DatabaseConfig.User,
-			Password:   cfg.DatabaseConfig.Password,
-			DbName:     cfg.DatabaseConfig.DbName,
-			SchemaName: cfg.DatabaseConfig.SchemaName,
+			InputFile:     cfg.SnapshotConfig.InputFile,
+			InputURL:      cfg.SnapshotConfig.InputURL,
+			InputHashFile: cfg.SnapshotConfig.InputHashFile,
+			InputHashURL:  cfg.SnapshotConfig.InputHashURL,
+			Host:          cfg.DatabaseConfig.Host,
+			Port:          cfg.DatabaseConfig.Port,
+			User:          cfg.DatabaseConfig.User,
+			Password:      cfg.DatabaseConfig.Password,
+			DbName:        cfg.DatabaseConfig.DbName,
+			SchemaName:    cfg.DatabaseConfig.SchemaName,
 		}, l)
 		if err != nil {
 			return err
 		}
+		defer svc.Cleanup()
 
 		if err := svc.RestoreSnapshot(); err != nil {
 			return fmt.Errorf("failed to restore snapshot: %w", err)

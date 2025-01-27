@@ -60,7 +60,12 @@ func init() {
 	rootCmd.PersistentFlags().Int("prometheus.port", 2112, `The port to run the prometheus server on`)
 
 	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "Path to save the snapshot file to (required)")
-	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInputFile, "", "Path to the snapshot file (required)")
+	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputHashFile, "", "Path to save the output hash file to")
+
+	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInputFile, "", "Path to the snapshot file (can override the metadata_url latest snapshot with an input_file or input_url)")
+	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInputURL, "", "URL to the snapshot file (can override the metadata_url latest snapshot with an input_file or input_url)")
+	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInputHashFile, "", "Path to the hash file")
+	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInputHashURL, "", "URL to the hash file (overrides the hash_file)")
 
 	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		key := config.KebabToSnakeCase(f.Name)
