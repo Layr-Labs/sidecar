@@ -101,7 +101,7 @@ Global Flags:
 ./bin/sidecar create-snapshot \     
   --database.host=localhost \
   --database.user=sidecar \
-  --database.password=sidecar \
+  --database.password=... \
   --database.port=5432 \
   --database.db_name=sidecar \
   --database.schema_name=public \
