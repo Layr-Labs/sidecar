@@ -251,21 +251,7 @@ POSTGRES_DATA_PATH=<path to store postgres data> docker-compose up
 Snapshots are a quicker way to sync to tip and get started. 
 See [Snapshots Docs](docs/snapshots_docs.md) for instructions on creating and restoring snapshots
 
-## [Get a snapshot at Eigenlayer's Hosted Snapshots Website](https://sidecar.bcog55.org/index.html)
-
-## Example boot  (default public schema)
-```bash
-curl -LO <download_link>
-
-./bin/sidecar restore-snapshot \
-  --input_file=<downloaded_file> \
-  --database.host=localhost \
-  --database.user=sidecar \
-  --database.password=... \
-  --database.port=5432 \
-  --database.db_name=sidecar \
-  --database.schema_name=public 
-```
+### [Get a snapshot at Eigenlayer's Hosted Snapshots Website](https://sidecar.bcog55.org/index.html)
 
 ## RPC Routes
 
