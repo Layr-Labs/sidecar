@@ -251,7 +251,7 @@ POSTGRES_DATA_PATH=<path to store postgres data> docker-compose up
 Snapshots are a quicker way to sync to tip and get started. 
 See [Snapshots Docs](docs/snapshots_docs.md) for instructions on creating and restoring snapshots
 
-### [Get a snapshot at Eigenlayer's Hosted Snapshots Website](https://sidecar.eigenlayer.xyz/snapshots/index.html)
+### [Get a snapshot at EigenLayer's Hosted Snapshots Website](https://sidecar.eigenlayer.xyz/snapshots/index.html)
 
 ## RPC Routes
 
