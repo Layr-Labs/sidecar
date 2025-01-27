@@ -1,6 +1,11 @@
 package snapshot
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -79,17 +84,24 @@ func TestSetupSnapshotDump(t *testing.T) {
 func TestValidateRestoreConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	snapshotFile := filepath.Join(tempDir, "TestValidateRestoreConfig.sql")
-	_, err := os.Create(snapshotFile)
-	assert.NoError(t, err, "Creating snapshot file should not fail")
+	snapshotHashFile := filepath.Join(tempDir, "TestValidateRestoreConfig.hash")
+	content := []byte("test content")
+	err := os.WriteFile(snapshotFile, content, 0644)
+	assert.NoError(t, err, "Writing to snapshot file should not fail")
+
+	hash := sha256.Sum256(content)
+	err = os.WriteFile(snapshotHashFile, []byte(hex.EncodeToString(hash[:])), 0644)
+	assert.NoError(t, err, "Writing to hash file should not fail")
 
 	cfg := &SnapshotConfig{
-		Host:       "localhost",
-		Port:       5432,
-		DbName:     "testdb",
-		User:       "testuser",
-		Password:   "testpassword",
-		SchemaName: "public",
-		InputFile:  snapshotFile,
+		Host:          "localhost",
+		Port:          5432,
+		DbName:        "testdb",
+		User:          "testuser",
+		Password:      "testpassword",
+		SchemaName:    "public",
+		InputFile:     snapshotFile,
+		InputHashFile: snapshotHashFile,
 	}
 	l, _ := zap.NewDevelopment()
 	svc, err := NewSnapshotService(cfg, l)
@@ -97,6 +109,7 @@ func TestValidateRestoreConfig(t *testing.T) {
 	err = svc.validateRestoreConfig()
 	assert.NoError(t, err, "Restore config should be valid")
 	os.Remove(snapshotFile)
+	os.Remove(snapshotHashFile)
 }
 
 func TestValidateRestoreConfigMissingInputFile(t *testing.T) {
@@ -134,6 +147,109 @@ func TestSetupRestore(t *testing.T) {
 	assert.NotNil(t, restore, "Restore should not be nil")
 }
 
+func TestSaveOutputFileHash(t *testing.T) {
+	tempDir := t.TempDir()
+	outputFile := filepath.Join(tempDir, "TestSaveOutputFileHash.sql")
+	outputHashFile := filepath.Join(tempDir, "TestSaveOutputFileHash.hash")
+	_, err := os.Create(outputFile)
+	assert.NoError(t, err, "Creating output file should not fail")
+
+	cfg := &SnapshotConfig{
+		OutputFile:     outputFile,
+		OutputHashFile: outputHashFile,
+	}
+	l, _ := zap.NewDevelopment()
+	svc, err := NewSnapshotService(cfg, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
+	err = svc.saveOutputFileHash()
+	assert.NoError(t, err, "Saving output file hash should not fail")
+
+	hash, err := os.ReadFile(outputHashFile)
+	assert.NoError(t, err, "Reading output hash file should not fail")
+	assert.NotEmpty(t, hash, "Output hash file should not be empty")
+
+	// Validate the hash file length
+	expectedHashLength := sha256.Size * 2 // Each byte is represented by two hex characters
+	assert.Equal(t, expectedHashLength, len(hash), "Output hash file should have the correct length")
+}
+
+func TestCleanup(t *testing.T) {
+	tempDir := t.TempDir()
+	tempFile := filepath.Join(tempDir, "TestCleanup.tmp")
+	_, err := os.Create(tempFile)
+	assert.NoError(t, err, "Creating temp file should not fail")
+
+	cfg := &SnapshotConfig{}
+	l, _ := zap.NewDevelopment()
+	svc, err := NewSnapshotService(cfg, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
+
+	svc.tempFiles = append(svc.tempFiles, tempFile)
+	svc.Cleanup()
+
+	_, err = os.Stat(tempFile)
+	if !os.IsNotExist(err) {
+		// Attempt to remove the file if it wasn't removed by the cleanup
+		removeErr := os.Remove(tempFile)
+		assert.NoError(t, removeErr, "Removing temp file manually should not fail")
+	}
+	assert.True(t, os.IsNotExist(err), "Temp file should be removed")
+}
+
+func TestValidateInputFileHash(t *testing.T) {
+	tempDir := t.TempDir()
+	inputFile := filepath.Join(tempDir, "TestValidateInputFileHash.sql")
+	hashFile := filepath.Join(tempDir, "TestValidateInputFileHash.hash")
+	content := []byte("test content")
+	err := os.WriteFile(inputFile, content, 0644)
+	assert.NoError(t, err, "Writing to input file should not fail")
+
+	hash := sha256.Sum256(content)
+	err = os.WriteFile(hashFile, []byte(hex.EncodeToString(hash[:])), 0644)
+	assert.NoError(t, err, "Writing to hash file should not fail")
+
+	err = validateInputFileHash(inputFile, hashFile)
+	assert.NoError(t, err, "Input file hash should be valid")
+}
+
+func TestGetFileHash(t *testing.T) {
+	tempDir := t.TempDir()
+	inputFile := filepath.Join(tempDir, "TestGetFileHash.sql")
+	content := []byte("test content")
+	err := os.WriteFile(inputFile, content, 0644)
+	assert.NoError(t, err, "Writing to input file should not fail")
+
+	hash, err := getFileHash(inputFile)
+	assert.NoError(t, err, "Getting file hash should not fail")
+
+	expectedHash := sha256.Sum256(content)
+	assert.Equal(t, expectedHash[:], hash, "File hash should match expected hash")
+}
+
+func TestDownloadFile(t *testing.T) {
+	// Create a test server that serves a simple text file
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "This is a test file.")
+	}))
+	defer testServer.Close()
+
+	// Use the test server's URL to test the downloadFile function
+	filePath, err := downloadFile(testServer.URL, "testfile")
+	assert.NoError(t, err, "downloadFile should not return an error")
+
+	// Schedule the file for removal after the test completes
+	defer func() {
+		if err := os.Remove(filePath); err != nil {
+			t.Logf("Failed to remove downloaded file: %v", err)
+		}
+	}()
+
+	// Verify the file was downloaded correctly
+	content, err := os.ReadFile(filePath)
+	assert.NoError(t, err, "Reading downloaded file should not fail")
+	assert.Contains(t, string(content), "This is a test file.", "Downloaded file content should match expected content")
+}
+
 func setup() (*config.Config, *zap.Logger, error) {
 	cfg := config.NewConfig()
 	cfg.Chain = config.Chain_Mainnet
@@ -151,6 +267,7 @@ func setup() (*config.Config, *zap.Logger, error) {
 func TestCreateAndRestoreSnapshot(t *testing.T) {
 	tempDir := t.TempDir()
 	dumpFile := filepath.Join(tempDir, "TestCreateAndRestoreSnapshot.dump")
+	dumpFileHash := filepath.Join(tempDir, "TestCreateAndRestoreSnapshot.dump.sha256")
 
 	cfg, l, setupErr := setup()
 	if setupErr != nil {
@@ -164,13 +281,14 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 		}
 
 		snapshotCfg := &SnapshotConfig{
-			OutputFile: dumpFile,
-			Host:       cfg.DatabaseConfig.Host,
-			Port:       cfg.DatabaseConfig.Port,
-			User:       cfg.DatabaseConfig.User,
-			Password:   cfg.DatabaseConfig.Password,
-			DbName:     dbName,
-			SchemaName: cfg.DatabaseConfig.SchemaName,
+			OutputFile:     dumpFile,
+			OutputHashFile: dumpFileHash,
+			Host:           cfg.DatabaseConfig.Host,
+			Port:           cfg.DatabaseConfig.Port,
+			User:           cfg.DatabaseConfig.User,
+			Password:       cfg.DatabaseConfig.Password,
+			DbName:         dbName,
+			SchemaName:     cfg.DatabaseConfig.SchemaName,
 		}
 
 		svc, err := NewSnapshotService(snapshotCfg, l)
@@ -194,14 +312,14 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 		}
 
 		snapshotCfg := &SnapshotConfig{
-			OutputFile: "",
-			InputFile:  dumpFile,
-			Host:       cfg.DatabaseConfig.Host,
-			Port:       cfg.DatabaseConfig.Port,
-			User:       cfg.DatabaseConfig.User,
-			Password:   cfg.DatabaseConfig.Password,
-			DbName:     dbName,
-			SchemaName: cfg.DatabaseConfig.SchemaName,
+			InputFile:     dumpFile,
+			InputHashFile: dumpFileHash,
+			Host:          cfg.DatabaseConfig.Host,
+			Port:          cfg.DatabaseConfig.Port,
+			User:          cfg.DatabaseConfig.User,
+			Password:      cfg.DatabaseConfig.Password,
+			DbName:        dbName,
+			SchemaName:    cfg.DatabaseConfig.SchemaName,
 		}
 		svc, err := NewSnapshotService(snapshotCfg, l)
 		assert.NoError(t, err, "NewSnapshotService should not return an error")
@@ -234,5 +352,6 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 
 	t.Cleanup(func() {
 		os.Remove(dumpFile)
+		os.Remove(dumpFileHash)
 	})
 }
