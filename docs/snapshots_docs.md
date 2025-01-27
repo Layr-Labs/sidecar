@@ -4,7 +4,7 @@ Snapshots are useful for backing up the current state of the database and quickl
 Below shows how to create your own snapshots, restore from the snapshot and how to use custom schemas
 
 ## Eigenlayer hosted snapshots:
-Get latest sidecar snapshots here, supplied by eigenlayer [https://sidecar.bcog55.org/index.html](https://sidecar.bcog55.org/index.html)
+Get latest sidecar snapshots here, supplied by eigenlayer [https://sidecar.eigenlayer.xyz/snapshots/index.html](https://sidecar.eigenlayer.xyz/snapshots/index.html)
 We heavily recommend syncing from genesis for mainnet and creating your own snapshots. We are hosting snapshots for the eigenlayer ecosystem to quickstart and have a good developer experience.
 
 
