@@ -43,10 +43,6 @@ github.com/Layr-Labs/eigenlayer-contracts v0.4.1-holesky-pepe.0.20240813143901-0
 github.com/Layr-Labs/eigenlayer-contracts v0.4.1-holesky-pepe.0.20240813143901-00fc4b95e9c1/go.mod h1:Ie8YE3EQkTHqG6/tnUS0He7/UPMkXPo/3OFXwSy0iRo=
 github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13 h1:Blb4AE+jC/vddV71w4/MQAPooM+8EVqv9w2bL4OytgY=
 github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13/go.mod h1:PD/HoyzZjxDw1tAcZw3yD0yGddo+yhmwQAi+lk298r4=
-github.com/Layr-Labs/protocol-apis v1.6.0 h1:1TTi4+t8Kq4YKsji7xa3CPGYf4fHXZZbbpt3GYQWZ78=
-github.com/Layr-Labs/protocol-apis v1.6.0/go.mod h1:zCirDItAbrnEv1kV1RTccY7eVSg0+da4/dFCXHyLNZQ=
-github.com/Layr-Labs/protocol-apis v1.6.1-0.20250212194100-39ec43be3227 h1:erE0SEuSNrYMf5Hq7cgvDdJTunN3KnkDJgwPngQpWbc=
-github.com/Layr-Labs/protocol-apis v1.6.1-0.20250212194100-39ec43be3227/go.mod h1:zCirDItAbrnEv1kV1RTccY7eVSg0+da4/dFCXHyLNZQ=
 github.com/Layr-Labs/protocol-apis v1.7.0 h1:BYzfF0mLjil3VAq8EEnswJbOL9v0OqfL32TipUryZ2s=
 github.com/Layr-Labs/protocol-apis v1.7.0/go.mod h1:zCirDItAbrnEv1kV1RTccY7eVSg0+da4/dFCXHyLNZQ=
 github.com/Microsoft/go-winio v0.5.0/go.mod h1:JPGBdM1cNvN/6ISo+n8V5iA4v8pBzdOpzfwIujj1a84=

@@ -110,12 +110,13 @@ func (rpc *RpcServer) StreamIndexedBlocks(request *v1.StreamIndexedBlocksRequest
 		rpc.Logger.Error("Failed to generate request ID", zap.Error(err))
 		return err
 	}
+	onlyBlocksWithData := request.GetOnlyBlocksWithData()
 
 	err = rpc.subscribeToBlocks(g.Context(), requestId.String(), func(data interface{}) error {
 		rpc.Logger.Debug("Received block", zap.Any("data", data))
 		blockProcessedData := data.(*eventBusTypes.BlockProcessedData)
 
-		resp, err := rpc.buildBlockResponse(blockProcessedData, request.IncludeStateChanges)
+		resp, err := rpc.buildBlockResponse(blockProcessedData, request.GetIncludeStateChanges())
 		if err != nil {
 			return err
 		}
@@ -126,6 +127,10 @@ func (rpc *RpcServer) StreamIndexedBlocks(request *v1.StreamIndexedBlocksRequest
 		return err
 	}
 	return nil
+}
+
+func processedBlockHasData(block *eventBusTypes.BlockProcessedData) bool {
+	return len(block.Transactions) > 0 || len(block.Logs) > 0 || len(block.CommittedState) > 0
 }
 
 func convertTransactionLogToEventTypeTransaction(log *storage.TransactionLog) *v1EthereumTypes.TransactionLog {
