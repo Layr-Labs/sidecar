@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -96,14 +97,14 @@ func TestValidateRestoreConfig(t *testing.T) {
 	assert.NoError(t, err, "Writing to hash file should not fail")
 
 	cfg := &SnapshotConfig{
-		Host:          "localhost",
-		Port:          5432,
-		DbName:        "testdb",
-		User:          "testuser",
-		Password:      "testpassword",
-		SchemaName:    "public",
-		InputFile:     snapshotFile,
-		InputHashFile: snapshotHashFile,
+		Host:        "localhost",
+		Port:        5432,
+		DbName:      "testdb",
+		User:        "testuser",
+		Password:    "testpassword",
+		SchemaName:  "public",
+		Input:       snapshotFile,
+		VerifyInput: true,
 	}
 	l, _ := zap.NewDevelopment()
 	svc, err := NewSnapshotService(cfg, l)
@@ -116,13 +117,14 @@ func TestValidateRestoreConfig(t *testing.T) {
 
 func TestValidateRestoreConfigMissingInputFile(t *testing.T) {
 	cfg := &SnapshotConfig{
-		Host:       "localhost",
-		Port:       5432,
-		DbName:     "testdb",
-		User:       "testuser",
-		Password:   "testpassword",
-		SchemaName: "public",
-		InputFile:  "",
+		Host:        "localhost",
+		Port:        5432,
+		DbName:      "testdb",
+		User:        "testuser",
+		Password:    "testpassword",
+		SchemaName:  "public",
+		Input:       "",
+		VerifyInput: true,
 	}
 	l, _ := zap.NewDevelopment()
 	svc, err := NewSnapshotService(cfg, l)
@@ -133,13 +135,14 @@ func TestValidateRestoreConfigMissingInputFile(t *testing.T) {
 
 func TestSetupRestore(t *testing.T) {
 	cfg := &SnapshotConfig{
-		Host:       "localhost",
-		Port:       5432,
-		DbName:     "testdb",
-		User:       "testuser",
-		Password:   "testpassword",
-		SchemaName: "public",
-		InputFile:  "/tmp/test_snapshot.sql",
+		Host:        "localhost",
+		Port:        5432,
+		DbName:      "testdb",
+		User:        "testuser",
+		Password:    "testpassword",
+		SchemaName:  "public",
+		Input:       "/tmp/test_snapshot.sql",
+		VerifyInput: true,
 	}
 	l, _ := zap.NewDevelopment()
 	svc, err := NewSnapshotService(cfg, l)
@@ -227,8 +230,12 @@ func TestDownloadFile(t *testing.T) {
 	}))
 	defer testServer.Close()
 
+	// Generate unique file names using the current timestamp
+	uniqueID := fmt.Sprintf("%d", time.Now().UnixNano())
+	inputFileName := uniqueID + "_downloaded_snapshot.dump"
+
 	// Use the test server's URL to test the downloadFile function
-	filePath, err := downloadFile(testServer.URL, "testfile")
+	filePath, err := downloadFile(testServer.URL, inputFileName)
 	assert.NoError(t, err, "downloadFile should not return an error")
 
 	// Schedule the file for removal after the test completes
@@ -305,14 +312,14 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 		}
 
 		snapshotCfg := &SnapshotConfig{
-			InputFile:     dumpFile,
-			InputHashFile: dumpFileHash,
-			Host:          cfg.DatabaseConfig.Host,
-			Port:          cfg.DatabaseConfig.Port,
-			User:          cfg.DatabaseConfig.User,
-			Password:      cfg.DatabaseConfig.Password,
-			DbName:        dbName,
-			SchemaName:    cfg.DatabaseConfig.SchemaName,
+			Input:       dumpFile,
+			VerifyInput: true,
+			Host:        cfg.DatabaseConfig.Host,
+			Port:        cfg.DatabaseConfig.Port,
+			User:        cfg.DatabaseConfig.User,
+			Password:    cfg.DatabaseConfig.Password,
+			DbName:      dbName,
+			SchemaName:  cfg.DatabaseConfig.SchemaName,
 		}
 		svc, err := NewSnapshotService(snapshotCfg, l)
 		assert.NoError(t, err, "NewSnapshotService should not return an error")
@@ -347,4 +354,32 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 		os.Remove(dumpFile)
 		os.Remove(dumpFileHash)
 	})
+}
+
+func TestIsURL(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"http://example.com", true},
+		{"https://example.com", true},
+		{"ftp://example.com", true},
+		{"", false},
+		{"not-a-url", false},
+		{"http://example.com/path?query=string", true},
+		{"example.com", false},
+		{"http://localhost:8080", true},
+		{"C:\\Users\\User\\Documents\\file.txt", false}, // Windows file path
+		{"/home/user/documents/file.txt", false},        // Unix file path
+		{"./relative/path/to/file.txt", false},          // Relative file path
+		{"../parent/directory/file.txt", false},         // Parent directory file path
+		{"/var/folders/s1/8v9g67s150q9tqr5g6wnws7m0000gn/T/TestValidateRestoreConfig2732017660/001/TestValidateRestoreConfig.sql", false},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("isNetworkURL(%q)", test.input), func(t *testing.T) {
+			result := isNetworkURL(test.input)
+			assert.Equal(t, test.expected, result, "isNetworkURL(%q) should be %v", test.input, test.expected)
+		})
+	}
 }

@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	pgcommands "github.com/habx/pg-commands"
 	"go.uber.org/zap"
@@ -16,17 +18,15 @@ import (
 
 // SnapshotConfig encapsulates all configuration needed for snapshot operations.
 type SnapshotConfig struct {
-	OutputFile    string
-	InputFile     string
-	InputURL      string
-	InputHashFile string
-	InputHashURL  string
-	Host          string
-	Port          int
-	User          string
-	Password      string
-	DbName        string
-	SchemaName    string
+	OutputFile  string
+	Input       string
+	VerifyInput bool
+	Host        string
+	Port        int
+	User        string
+	Password    string
+	DbName      string
+	SchemaName  string
 }
 
 // SnapshotService encapsulates the configuration and logger for snapshot operations.
@@ -41,23 +41,29 @@ func NewSnapshotService(cfg *SnapshotConfig, l *zap.Logger) (*SnapshotService, e
 	var err error
 	tempFiles := []string{}
 
-	if cfg.InputFile == "" && cfg.InputURL != "" {
-		cfg.InputFile, err = downloadFile(cfg.InputURL, "downloaded_snapshot")
+	if isNetworkURL(cfg.Input) {
+		inputUrl := cfg.Input
+
+		uniqueID := fmt.Sprintf("%d", time.Now().UnixNano())
+		inputFileName := uniqueID + "_downloaded_snapshot.dump"
+
+		cfg.Input, err = downloadFile(inputUrl, inputFileName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to download snapshot: %w", err)
 		}
-		tempFiles = append(tempFiles, cfg.InputFile)
-	}
+		tempFiles = append(tempFiles, cfg.Input)
 
-	if cfg.InputHashFile == "" && cfg.InputHashURL != "" {
-		cfg.InputHashFile, err = downloadFile(cfg.InputHashURL, "downloaded_snapshot_hash")
-		if err != nil {
-			return nil, fmt.Errorf("failed to download hash file: %w", err)
+		if cfg.VerifyInput {
+			hashFileName := inputFileName + ".sha256sum"
+			hashFile, err := downloadFile(inputUrl+".sha256sum", hashFileName)
+			if err != nil {
+				return nil, fmt.Errorf("failed to download snapshot hash: %w", err)
+			}
+			tempFiles = append(tempFiles, hashFile)
 		}
-		tempFiles = append(tempFiles, cfg.InputHashFile)
 	}
 
-	cfg.InputFile, err = resolveFilePath(cfg.InputFile)
+	cfg.Input, err = resolveFilePath(cfg.Input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve input file path: %w", err)
 	}
@@ -65,16 +71,11 @@ func NewSnapshotService(cfg *SnapshotConfig, l *zap.Logger) (*SnapshotService, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve output file path: %w", err)
 	}
-	cfg.InputHashFile, err = resolveFilePath(cfg.InputHashFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve input hash file path: %w", err)
-	}
 
 	l.Debug(
 		"Resolved file paths",
-		zap.String("inputFile", cfg.InputFile),
-		zap.String("outputFile", cfg.OutputFile),
-		zap.String("inputHashFile", cfg.InputHashFile),
+		zap.String("Input", cfg.Input),
+		zap.String("OutputFile", cfg.OutputFile),
 	)
 
 	return &SnapshotService{
@@ -82,6 +83,20 @@ func NewSnapshotService(cfg *SnapshotConfig, l *zap.Logger) (*SnapshotService, e
 		l:         l,
 		tempFiles: tempFiles,
 	}, nil
+}
+
+// isNetworkURL checks if the given string is a network URL (http, https, ftp).
+// Note: This function does not allow 'file' URLs as it's ambiguous with local file.
+func isNetworkURL(str string) bool {
+	if str == "" {
+		return false
+	}
+	u, err := url.ParseRequestURI(str)
+	if err != nil {
+		return false
+	}
+	// Allow HTTP, HTTPS, and FTP URL schemes
+	return u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "ftp"
 }
 
 // resolveFilePath expands the ~ in file paths to the user's home directory and converts relative paths to absolute paths.
@@ -143,7 +158,7 @@ func (s *SnapshotService) RestoreSnapshot() error {
 		return err
 	}
 
-	restoreExec := restore.Exec(s.cfg.InputFile, pgcommands.ExecOptions{StreamPrint: false})
+	restoreExec := restore.Exec(s.cfg.Input, pgcommands.ExecOptions{StreamPrint: false})
 	if restoreExec.Error != nil {
 		s.l.Sugar().Errorw("Failed to restore from snapshot",
 			"error", restoreExec.Error.Err,
@@ -191,20 +206,20 @@ func (s *SnapshotService) setupSnapshotDump() (*pgcommands.Dump, error) {
 }
 
 func (s *SnapshotService) validateRestoreConfig() error {
-	if s.cfg.InputFile == "" && s.cfg.InputURL == "" {
-		return fmt.Errorf("restore snapshot file path i.e. `input-file` or `input-url` must be specified")
+	if s.cfg.Input == "" {
+		return fmt.Errorf("restore snapshot file path i.e. `input` must be specified")
 	}
 
-	info, err := os.Stat(s.cfg.InputFile)
+	info, err := os.Stat(s.cfg.Input)
 	if err != nil || info.IsDir() {
-		return fmt.Errorf("snapshot file does not exist: %s", s.cfg.InputFile)
+		return fmt.Errorf("snapshot file does not exist: %s", s.cfg.Input)
 	}
 
-	if s.cfg.InputHashFile != "" {
-		if err := validateInputFileHash(s.cfg.InputFile, s.cfg.InputHashFile); err != nil {
+	if s.cfg.VerifyInput {
+		if err := validateInputFileHash(s.cfg.Input, s.cfg.Input+".sha256sum"); err != nil {
 			return fmt.Errorf("input file hash validation failed: %w", err)
 		}
-		s.l.Sugar().Infow("Input file hash validated successfully", "inputFile", s.cfg.InputFile, "inputHashFile", s.cfg.InputHashFile)
+		s.l.Sugar().Infow("Input file hash validated successfully", "input", s.cfg.Input, "inputHashFile", s.cfg.Input+".sha256sum")
 	}
 
 	return nil
@@ -297,7 +312,7 @@ func getFileHash(filePath string) ([]byte, error) {
 	return hasher.Sum(nil), nil
 }
 
-func downloadFile(url, prefix string) (string, error) {
+func downloadFile(url, fileName string) (string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return "", fmt.Errorf("failed to download file: %w", err)
@@ -308,15 +323,15 @@ func downloadFile(url, prefix string) (string, error) {
 		return "", fmt.Errorf("failed to download file: received status code %d", resp.StatusCode)
 	}
 
-	tmpFile, err := os.CreateTemp("", fmt.Sprintf("%s-*", prefix))
+	tmpFile, err := os.Create(fileName)
 	if err != nil {
-		return "", fmt.Errorf("failed to create temp file: %w", err)
+		return "", fmt.Errorf("failed to create file: %w", err)
 	}
 
 	_, err = io.Copy(tmpFile, resp.Body)
 	if err != nil {
 		tmpFile.Close()
-		return "", fmt.Errorf("failed to write to temp file: %w", err)
+		return "", fmt.Errorf("failed to write to file: %w", err)
 	}
 
 	tmpFile.Close()

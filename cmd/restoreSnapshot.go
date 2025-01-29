@@ -16,7 +16,8 @@ var restoreSnapshotCmd = &cobra.Command{
 	Short: "Restore database from a snapshot file",
 	Long: `Restore the database from a previously created snapshot file.
 
-Note: This command restores --database.schema_name only if it's present in InputFile snapshot.
+Note: This command restores --database.schema_name only if it's present in Input snapshot.
+The input can be a local file path or a URL, url of type http, https, or ftp is supported.
 Follow the snapshot docs if you need to convert the snapshot to a different schema name than was used during snapshot creation.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		initRestoreSnapshotCmd(cmd)
@@ -28,16 +29,14 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 		}
 
 		svc, err := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
-			InputFile:     cfg.SnapshotConfig.InputFile,
-			InputURL:      cfg.SnapshotConfig.InputURL,
-			InputHashFile: cfg.SnapshotConfig.InputHashFile,
-			InputHashURL:  cfg.SnapshotConfig.InputHashURL,
-			Host:          cfg.DatabaseConfig.Host,
-			Port:          cfg.DatabaseConfig.Port,
-			User:          cfg.DatabaseConfig.User,
-			Password:      cfg.DatabaseConfig.Password,
-			DbName:        cfg.DatabaseConfig.DbName,
-			SchemaName:    cfg.DatabaseConfig.SchemaName,
+			Input:       cfg.SnapshotConfig.Input,
+			VerifyInput: cfg.SnapshotConfig.VerifyInput,
+			Host:        cfg.DatabaseConfig.Host,
+			Port:        cfg.DatabaseConfig.Port,
+			User:        cfg.DatabaseConfig.User,
+			Password:    cfg.DatabaseConfig.Password,
+			DbName:      cfg.DatabaseConfig.DbName,
+			SchemaName:  cfg.DatabaseConfig.SchemaName,
 		}, l)
 		if err != nil {
 			return err

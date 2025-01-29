@@ -63,11 +63,9 @@ type DatabaseConfig struct {
 }
 
 type SnapshotConfig struct {
-	OutputFile    string
-	InputFile     string
-	InputURL      string
-	InputHashFile string
-	InputHashURL  string
+	OutputFile  string
+	Input       string
+	VerifyInput bool
 }
 
 type RpcConfig struct {
@@ -129,11 +127,9 @@ var (
 	DatabaseDbName     = "database.db_name"
 	DatabaseSchemaName = "database.schema_name"
 
-	SnapshotOutputFile    = "output_file"
-	SnapshotInputFile     = "input_file"
-	SnapshotInputURL      = "input_url"
-	SnapshotInputHashFile = "input_hash_file"
-	SnapshotInputHashURL  = "input_hash_url"
+	SnapshotOutputFile  = "snapshot.output_file"
+	SnapshotInput       = "snapshot.input"
+	SnapshotVerifyInput = "snapshot.verify_input"
 
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
@@ -176,11 +172,9 @@ func NewConfig() *Config {
 		},
 
 		SnapshotConfig: SnapshotConfig{
-			OutputFile:    viper.GetString(normalizeFlagName(SnapshotOutputFile)),
-			InputFile:     viper.GetString(normalizeFlagName(SnapshotInputFile)),
-			InputURL:      viper.GetString(normalizeFlagName(SnapshotInputURL)),
-			InputHashFile: viper.GetString(normalizeFlagName(SnapshotInputHashFile)),
-			InputHashURL:  viper.GetString(normalizeFlagName(SnapshotInputHashURL)),
+			OutputFile:  viper.GetString(normalizeFlagName(SnapshotOutputFile)),
+			Input:       viper.GetString(normalizeFlagName(SnapshotInput)),
+			VerifyInput: viper.GetBool(normalizeFlagName(SnapshotVerifyInput)),
 		},
 
 		RpcConfig: RpcConfig{
