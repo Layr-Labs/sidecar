@@ -48,7 +48,8 @@ import { Steps } from '@astrojs/starlight/components';
     curl -LO https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump
 
     /usr/local/bin/sidecar restore-snapshot \
-      --input_file=sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump \
+      --snapshot.input=sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump \
+      --snapshot.verify_input=false \
       --database.host=<postgres host> \
       --database.user=<postgres user> \
       --database.password=<postgres password> \
