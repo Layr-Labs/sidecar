@@ -100,7 +100,10 @@ func (s *SnapshotService) CreateSnapshot() error {
 
 	dumpExec := dump.Exec(pgcommands.ExecOptions{StreamPrint: false})
 	if dumpExec.Error != nil {
-		s.l.Sugar().Errorw("Failed to create database snapshot", "error", dumpExec.Error.Err, "output", dumpExec.Output)
+		s.l.Sugar().Errorw("Failed to create database snapshot",
+			zap.Error(dumpExec.Error.Err),
+			zap.String("output", dumpExec.Output),
+		)
 		return dumpExec.Error.Err
 	}
 
@@ -134,8 +137,8 @@ func (s *SnapshotService) RestoreSnapshot() error {
 	restoreExec := restore.Exec(s.cfg.Input, pgcommands.ExecOptions{StreamPrint: false})
 	if restoreExec.Error != nil {
 		s.l.Sugar().Errorw("Failed to restore from snapshot",
-			"error", restoreExec.Error.Err,
-			"output", restoreExec.Output,
+			zap.Error(restoreExec.Error.Err),
+			zap.String("output", restoreExec.Output),
 		)
 		return restoreExec.Error.Err
 	}
@@ -204,7 +207,7 @@ func (s *SnapshotService) setupSnapshotDump() (*pgcommands.Dump, error) {
 		Password: s.cfg.Password,
 	})
 	if err != nil {
-		s.l.Sugar().Errorw("Failed to initialize pg-commands Dump", "error", err)
+		s.l.Sugar().Errorw("Failed to initialize pg-commands Dump", zap.Error(err))
 		return nil, err
 	}
 
@@ -231,7 +234,10 @@ func (s *SnapshotService) validateRestoreConfig() error {
 		if err := validateInputFileHash(s.cfg.Input, s.cfg.Input+".sha256sum"); err != nil {
 			return fmt.Errorf("input file hash validation failed: %w", err)
 		}
-		s.l.Sugar().Infow("Input file hash validated successfully", "input", s.cfg.Input, "inputHashFile", s.cfg.Input+".sha256sum")
+		s.l.Sugar().Infow("Input file hash validated successfully",
+			zap.String("input", s.cfg.Input),
+			zap.String("inputHashFile", s.cfg.Input+".sha256sum"),
+		)
 	}
 
 	return nil
@@ -246,7 +252,7 @@ func (s *SnapshotService) setupRestore() (*pgcommands.Restore, error) {
 		Password: s.cfg.Password,
 	})
 	if err != nil {
-		s.l.Sugar().Errorw("Failed to initialize restore", "error", err)
+		s.l.Sugar().Errorw("Failed to initialize restore", zap.Error(err))
 		return nil, err
 	}
 
@@ -280,9 +286,12 @@ func saveOutputFileHash(filePath, hashFilePath string) error {
 func cleanup(files []string, l *zap.Logger) {
 	for _, file := range files {
 		if err := os.Remove(file); err != nil {
-			l.Sugar().Warnw("Failed to remove temporary file", "file", file, "error", err)
+			l.Sugar().Warnw("Failed to remove temporary file",
+				zap.String("file", file),
+				zap.Error(err),
+			)
 		} else {
-			l.Sugar().Infow("Removed temporary file", "file", file)
+			l.Sugar().Infow("Removed temporary file", zap.String("file", file))
 		}
 	}
 }
