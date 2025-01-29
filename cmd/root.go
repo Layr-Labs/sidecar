@@ -63,8 +63,7 @@ func init() {
 	rootCmd.AddCommand(rpcCmd)
 
 	// bind any subcommand flags
-	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "Path to save the snapshot file to (required)")
-	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputHashFile, "", "Path to save the output hash file to")
+	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "Path to save the snapshot file to (required), also creates a hash file")
 
 	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInputFile, "", "Path to the snapshot file (can override the metadata_url latest snapshot with an input_file or input_url)")
 	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInputURL, "", "URL to the snapshot file (can override the metadata_url latest snapshot with an input_file or input_url)")

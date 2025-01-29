@@ -2,12 +2,12 @@ package snapshot
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -84,13 +84,15 @@ func TestSetupSnapshotDump(t *testing.T) {
 func TestValidateRestoreConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	snapshotFile := filepath.Join(tempDir, "TestValidateRestoreConfig.sql")
-	snapshotHashFile := filepath.Join(tempDir, "TestValidateRestoreConfig.hash")
+	snapshotHashFile := filepath.Join(tempDir, "TestValidateRestoreConfig.sql.sha256sum")
 	content := []byte("test content")
 	err := os.WriteFile(snapshotFile, content, 0644)
 	assert.NoError(t, err, "Writing to snapshot file should not fail")
 
-	hash := sha256.Sum256(content)
-	err = os.WriteFile(snapshotHashFile, []byte(hex.EncodeToString(hash[:])), 0644)
+	// Correct the hash to match the expected value and include the file name
+	expectedHash := "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"
+	hashFileContent := fmt.Sprintf("%s %s\n", expectedHash, filepath.Base(snapshotFile))
+	err = os.WriteFile(snapshotHashFile, []byte(hashFileContent), 0644)
 	assert.NoError(t, err, "Writing to hash file should not fail")
 
 	cfg := &SnapshotConfig{
@@ -150,27 +152,23 @@ func TestSetupRestore(t *testing.T) {
 func TestSaveOutputFileHash(t *testing.T) {
 	tempDir := t.TempDir()
 	outputFile := filepath.Join(tempDir, "TestSaveOutputFileHash.sql")
-	outputHashFile := filepath.Join(tempDir, "TestSaveOutputFileHash.hash")
+	outputHashFile := outputFile + ".sha256sum"
 	_, err := os.Create(outputFile)
 	assert.NoError(t, err, "Creating output file should not fail")
 
-	cfg := &SnapshotConfig{
-		OutputFile:     outputFile,
-		OutputHashFile: outputHashFile,
-	}
-	l, _ := zap.NewDevelopment()
-	svc, err := NewSnapshotService(cfg, l)
-	assert.NoError(t, err, "NewSnapshotService should not return an error")
-	err = svc.saveOutputFileHash()
+	// Use the pure function directly
+	err = saveOutputFileHash(outputFile, outputHashFile)
 	assert.NoError(t, err, "Saving output file hash should not fail")
 
 	hash, err := os.ReadFile(outputHashFile)
 	assert.NoError(t, err, "Reading output hash file should not fail")
 	assert.NotEmpty(t, hash, "Output hash file should not be empty")
 
-	// Validate the hash file length
-	expectedHashLength := sha256.Size * 2 // Each byte is represented by two hex characters
-	assert.Equal(t, expectedHashLength, len(hash), "Output hash file should have the correct length")
+	// Validate the hash file content
+	hashParts := strings.Fields(string(hash))
+	assert.Equal(t, 2, len(hashParts), "Output hash file should contain two parts: hash and filename")
+	assert.Equal(t, filepath.Base(outputFile), hashParts[1], "Output hash file should contain the correct filename")
+	assert.Equal(t, sha256.Size*2, len(hashParts[0]), "Output hash file should have the correct hash length")
 }
 
 func TestCleanup(t *testing.T) {
@@ -179,13 +177,9 @@ func TestCleanup(t *testing.T) {
 	_, err := os.Create(tempFile)
 	assert.NoError(t, err, "Creating temp file should not fail")
 
-	cfg := &SnapshotConfig{}
-	l, _ := zap.NewDevelopment()
-	svc, err := NewSnapshotService(cfg, l)
-	assert.NoError(t, err, "NewSnapshotService should not return an error")
-
-	svc.tempFiles = append(svc.tempFiles, tempFile)
-	svc.Cleanup()
+	// Use the standalone Cleanup function
+	logger, _ := zap.NewDevelopment()
+	cleanup([]string{tempFile}, logger)
 
 	_, err = os.Stat(tempFile)
 	if !os.IsNotExist(err) {
@@ -199,14 +193,14 @@ func TestCleanup(t *testing.T) {
 func TestValidateInputFileHash(t *testing.T) {
 	tempDir := t.TempDir()
 	inputFile := filepath.Join(tempDir, "TestValidateInputFileHash.sql")
-	hashFile := filepath.Join(tempDir, "TestValidateInputFileHash.hash")
+	hashFile := filepath.Join(tempDir, "TestValidateInputFileHash.sql.sha256sum")
 	content := []byte("test content")
 	err := os.WriteFile(inputFile, content, 0644)
 	assert.NoError(t, err, "Writing to input file should not fail")
 
-	hash := sha256.Sum256(content)
-	err = os.WriteFile(hashFile, []byte(hex.EncodeToString(hash[:])), 0644)
-	assert.NoError(t, err, "Writing to hash file should not fail")
+	// Use the saveOutputFileHash function to create the hash file
+	err = saveOutputFileHash(inputFile, hashFile)
+	assert.NoError(t, err, "Saving input file hash should not fail")
 
 	err = validateInputFileHash(inputFile, hashFile)
 	assert.NoError(t, err, "Input file hash should be valid")
@@ -267,7 +261,7 @@ func setup() (*config.Config, *zap.Logger, error) {
 func TestCreateAndRestoreSnapshot(t *testing.T) {
 	tempDir := t.TempDir()
 	dumpFile := filepath.Join(tempDir, "TestCreateAndRestoreSnapshot.dump")
-	dumpFileHash := filepath.Join(tempDir, "TestCreateAndRestoreSnapshot.dump.sha256")
+	dumpFileHash := filepath.Join(tempDir, "TestCreateAndRestoreSnapshot.dump.sha256sum")
 
 	cfg, l, setupErr := setup()
 	if setupErr != nil {
@@ -281,14 +275,13 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 		}
 
 		snapshotCfg := &SnapshotConfig{
-			OutputFile:     dumpFile,
-			OutputHashFile: dumpFileHash,
-			Host:           cfg.DatabaseConfig.Host,
-			Port:           cfg.DatabaseConfig.Port,
-			User:           cfg.DatabaseConfig.User,
-			Password:       cfg.DatabaseConfig.Password,
-			DbName:         dbName,
-			SchemaName:     cfg.DatabaseConfig.SchemaName,
+			OutputFile: dumpFile,
+			Host:       cfg.DatabaseConfig.Host,
+			Port:       cfg.DatabaseConfig.Port,
+			User:       cfg.DatabaseConfig.User,
+			Password:   cfg.DatabaseConfig.Password,
+			DbName:     dbName,
+			SchemaName: cfg.DatabaseConfig.SchemaName,
 		}
 
 		svc, err := NewSnapshotService(snapshotCfg, l)

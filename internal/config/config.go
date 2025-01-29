@@ -63,12 +63,11 @@ type DatabaseConfig struct {
 }
 
 type SnapshotConfig struct {
-	OutputFile     string
-	OutputHashFile string
-	InputFile      string
-	InputURL       string
-	InputHashFile  string
-	InputHashURL   string
+	OutputFile    string
+	InputFile     string
+	InputURL      string
+	InputHashFile string
+	InputHashURL  string
 }
 
 type RpcConfig struct {
@@ -130,12 +129,11 @@ var (
 	DatabaseDbName     = "database.db_name"
 	DatabaseSchemaName = "database.schema_name"
 
-	SnapshotOutputFile     = "output_file"
-	SnapshotOutputHashFile = "output_hash_file"
-	SnapshotInputFile      = "input_file"
-	SnapshotInputURL       = "input_url"
-	SnapshotInputHashFile  = "input_hash_file"
-	SnapshotInputHashURL   = "input_hash_url"
+	SnapshotOutputFile    = "output_file"
+	SnapshotInputFile     = "input_file"
+	SnapshotInputURL      = "input_url"
+	SnapshotInputHashFile = "input_hash_file"
+	SnapshotInputHashURL  = "input_hash_url"
 
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
@@ -178,12 +176,11 @@ func NewConfig() *Config {
 		},
 
 		SnapshotConfig: SnapshotConfig{
-			OutputFile:     viper.GetString(normalizeFlagName(SnapshotOutputFile)),
-			OutputHashFile: viper.GetString(normalizeFlagName(SnapshotOutputHashFile)),
-			InputFile:      viper.GetString(normalizeFlagName(SnapshotInputFile)),
-			InputURL:       viper.GetString(normalizeFlagName(SnapshotInputURL)),
-			InputHashFile:  viper.GetString(normalizeFlagName(SnapshotInputHashFile)),
-			InputHashURL:   viper.GetString(normalizeFlagName(SnapshotInputHashURL)),
+			OutputFile:    viper.GetString(normalizeFlagName(SnapshotOutputFile)),
+			InputFile:     viper.GetString(normalizeFlagName(SnapshotInputFile)),
+			InputURL:      viper.GetString(normalizeFlagName(SnapshotInputURL)),
+			InputHashFile: viper.GetString(normalizeFlagName(SnapshotInputHashFile)),
+			InputHashURL:  viper.GetString(normalizeFlagName(SnapshotInputHashURL)),
 		},
 
 		RpcConfig: RpcConfig{

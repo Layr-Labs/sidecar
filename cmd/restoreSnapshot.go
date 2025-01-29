@@ -42,7 +42,6 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 		if err != nil {
 			return err
 		}
-		defer svc.Cleanup()
 
 		if err := svc.RestoreSnapshot(); err != nil {
 			return fmt.Errorf("failed to restore snapshot: %w", err)

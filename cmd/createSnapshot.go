@@ -25,14 +25,13 @@ var createSnapshotCmd = &cobra.Command{
 		}
 
 		svc, err := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
-			OutputFile:     cfg.SnapshotConfig.OutputFile,
-			OutputHashFile: cfg.SnapshotConfig.OutputHashFile,
-			Host:           cfg.DatabaseConfig.Host,
-			Port:           cfg.DatabaseConfig.Port,
-			User:           cfg.DatabaseConfig.User,
-			Password:       cfg.DatabaseConfig.Password,
-			DbName:         cfg.DatabaseConfig.DbName,
-			SchemaName:     cfg.DatabaseConfig.SchemaName,
+			OutputFile: cfg.SnapshotConfig.OutputFile,
+			Host:       cfg.DatabaseConfig.Host,
+			Port:       cfg.DatabaseConfig.Port,
+			User:       cfg.DatabaseConfig.User,
+			Password:   cfg.DatabaseConfig.Password,
+			DbName:     cfg.DatabaseConfig.DbName,
+			SchemaName: cfg.DatabaseConfig.SchemaName,
 		}, l)
 		if err != nil {
 			return err

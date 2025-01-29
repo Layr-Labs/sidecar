@@ -16,18 +16,17 @@ import (
 
 // SnapshotConfig encapsulates all configuration needed for snapshot operations.
 type SnapshotConfig struct {
-	OutputFile     string
-	OutputHashFile string
-	InputFile      string
-	InputURL       string
-	InputHashFile  string
-	InputHashURL   string
-	Host           string
-	Port           int
-	User           string
-	Password       string
-	DbName         string
-	SchemaName     string
+	OutputFile    string
+	InputFile     string
+	InputURL      string
+	InputHashFile string
+	InputHashURL  string
+	Host          string
+	Port          int
+	User          string
+	Password      string
+	DbName        string
+	SchemaName    string
 }
 
 // SnapshotService encapsulates the configuration and logger for snapshot operations.
@@ -70,12 +69,13 @@ func NewSnapshotService(cfg *SnapshotConfig, l *zap.Logger) (*SnapshotService, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve input hash file path: %w", err)
 	}
-	cfg.OutputHashFile, err = resolveFilePath(cfg.OutputHashFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve output hash file path: %w", err)
-	}
 
-	l.Sugar().Infow("Resolved file paths", "inputFile", cfg.InputFile, "outputFile", cfg.OutputFile, "inputHashFile", cfg.InputHashFile, "outputHashFile", cfg.OutputHashFile)
+	l.Debug(
+		"Resolved file paths",
+		zap.String("inputFile", cfg.InputFile),
+		zap.String("outputFile", cfg.OutputFile),
+		zap.String("inputHashFile", cfg.InputHashFile),
+	)
 
 	return &SnapshotService{
 		cfg:       cfg,
@@ -122,10 +122,9 @@ func (s *SnapshotService) CreateSnapshot() error {
 
 	s.l.Sugar().Infow("Successfully created snapshot")
 
-	if s.cfg.OutputHashFile != "" {
-		if err := s.saveOutputFileHash(); err != nil {
-			return fmt.Errorf("failed to save output file hash: %w", err)
-		}
+	outputHashFile := s.cfg.OutputFile + ".sha256sum"
+	if err := saveOutputFileHash(s.cfg.OutputFile, outputHashFile); err != nil {
+		return fmt.Errorf("failed to save output file hash: %w", err)
 	}
 
 	return nil
@@ -133,6 +132,8 @@ func (s *SnapshotService) CreateSnapshot() error {
 
 // RestoreSnapshot restores a snapshot of the database based on the provided configuration.
 func (s *SnapshotService) RestoreSnapshot() error {
+	defer cleanup(s.tempFiles, s.l)
+
 	if err := s.validateRestoreConfig(); err != nil {
 		return err
 	}
@@ -232,46 +233,50 @@ func (s *SnapshotService) setupRestore() (*pgcommands.Restore, error) {
 	return restore, nil
 }
 
-func (s *SnapshotService) saveOutputFileHash() error {
-	hash, err := getFileHash(s.cfg.OutputFile)
+// saveOutputFileHash computes the hash of the given file and writes it to the specified hash file.
+func saveOutputFileHash(filePath, hashFilePath string) error {
+	hash, err := getFileHash(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to compute hash of output file: %w", err)
+		return fmt.Errorf("failed to compute hash of file: %w", err)
 	}
 
-	hashString := hex.EncodeToString(hash)
-	if err := os.WriteFile(s.cfg.OutputHashFile, []byte(hashString), 0644); err != nil {
+	fileContent := fmt.Sprintf("%s %s\n", hex.EncodeToString(hash), filepath.Base(filePath))
+	if err := os.WriteFile(hashFilePath, []byte(fileContent), 0644); err != nil {
 		return fmt.Errorf("failed to write hash to file: %w", err)
 	}
 
-	s.l.Sugar().Infow("Output file hash saved successfully", "outputFile", s.cfg.OutputFile, "outputHashFile", s.cfg.OutputHashFile)
+	fmt.Printf("Hash file created at: %s\n", hashFilePath)
 	return nil
 }
 
-// Cleanup removes any temporary files created during the snapshot process.
-func (s *SnapshotService) Cleanup() {
-	for _, file := range s.tempFiles {
+// cleanup removes the specified files and logs the results using the provided logger.
+func cleanup(files []string, l *zap.Logger) {
+	for _, file := range files {
 		if err := os.Remove(file); err != nil {
-			s.l.Sugar().Warnw("Failed to remove temporary file", "file", file, "error", err)
+			l.Sugar().Warnw("Failed to remove temporary file", "file", file, "error", err)
 		} else {
-			s.l.Sugar().Infow("Removed temporary file", "file", file)
+			l.Sugar().Infow("Removed temporary file", "file", file)
 		}
 	}
 }
 
 // validateInputFileHash validates the InputFile against the hash in InputHashFile.
 func validateInputFileHash(inputFile, hashFile string) error {
-	expectedHash, err := os.ReadFile(hashFile)
+	hashFileContent, err := os.ReadFile(hashFile)
 	if err != nil {
 		return fmt.Errorf("failed to read hash file: %w", err)
 	}
 
-	computedHash, err := getFileHash(inputFile)
+	// hash content is expected to be in the format "<hash> <filename>"
+	hashFileHash := strings.Fields(string(hashFileContent))[0]
+
+	inputFileHash, err := getFileHash(inputFile)
 	if err != nil {
 		return fmt.Errorf("failed to compute hash of input file: %w", err)
 	}
 
-	if hex.EncodeToString(computedHash) != strings.TrimSpace(string(expectedHash)) {
-		return fmt.Errorf("hash mismatch: expected %s, got %s", strings.TrimSpace(string(expectedHash)), hex.EncodeToString(computedHash))
+	if hex.EncodeToString(inputFileHash) != hashFileHash {
+		return fmt.Errorf("hash mismatch: expected %s, got %s", hashFileHash, hex.EncodeToString(inputFileHash))
 	}
 
 	return nil
@@ -303,7 +308,7 @@ func downloadFile(url, prefix string) (string, error) {
 		return "", fmt.Errorf("failed to download file: received status code %d", resp.StatusCode)
 	}
 
-	tmpFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.tmp", prefix))
+	tmpFile, err := os.CreateTemp("", fmt.Sprintf("%s-*", prefix))
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
