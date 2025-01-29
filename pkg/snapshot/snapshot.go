@@ -234,7 +234,7 @@ func (s *SnapshotService) validateRestoreConfig() error {
 		if err := validateInputFileHash(s.cfg.Input, s.cfg.Input+".sha256sum"); err != nil {
 			return fmt.Errorf("input file hash validation failed: %w", err)
 		}
-		s.l.Sugar().Infow("Input file hash validated successfully",
+		s.l.Sugar().Debugw("Input file hash validated successfully",
 			zap.String("input", s.cfg.Input),
 			zap.String("inputHashFile", s.cfg.Input+".sha256sum"),
 		)
@@ -278,7 +278,6 @@ func saveOutputFileHash(filePath, hashFilePath string) error {
 		return fmt.Errorf("failed to write hash to file: %w", err)
 	}
 
-	fmt.Printf("Hash file created at: %s\n", hashFilePath)
 	return nil
 }
 
@@ -291,7 +290,7 @@ func cleanup(files []string, l *zap.Logger) {
 				zap.Error(err),
 			)
 		} else {
-			l.Sugar().Infow("Removed temporary file", zap.String("file", file))
+			l.Sugar().Debugw("Removed temporary file", zap.String("file", file))
 		}
 	}
 }
