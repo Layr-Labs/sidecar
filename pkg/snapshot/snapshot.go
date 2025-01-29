@@ -38,50 +38,10 @@ type SnapshotService struct {
 
 // NewSnapshotService initializes a new SnapshotService with the given configuration and logger.
 func NewSnapshotService(cfg *SnapshotConfig, l *zap.Logger) (*SnapshotService, error) {
-	var err error
-	tempFiles := []string{}
-
-	if isNetworkURL(cfg.Input) {
-		inputUrl := cfg.Input
-
-		uniqueID := fmt.Sprintf("%d", time.Now().UnixNano())
-		inputFileName := uniqueID + "_downloaded_snapshot.dump"
-
-		cfg.Input, err = downloadFile(inputUrl, inputFileName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to download snapshot: %w", err)
-		}
-		tempFiles = append(tempFiles, cfg.Input)
-
-		if cfg.VerifyInput {
-			hashFileName := inputFileName + ".sha256sum"
-			hashFile, err := downloadFile(inputUrl+".sha256sum", hashFileName)
-			if err != nil {
-				return nil, fmt.Errorf("failed to download snapshot hash: %w", err)
-			}
-			tempFiles = append(tempFiles, hashFile)
-		}
-	}
-
-	cfg.Input, err = resolveFilePath(cfg.Input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve input file path: %w", err)
-	}
-	cfg.OutputFile, err = resolveFilePath(cfg.OutputFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve output file path: %w", err)
-	}
-
-	l.Debug(
-		"Resolved file paths",
-		zap.String("Input", cfg.Input),
-		zap.String("OutputFile", cfg.OutputFile),
-	)
-
 	return &SnapshotService{
 		cfg:       cfg,
 		l:         l,
-		tempFiles: tempFiles,
+		tempFiles: []string{},
 	}, nil
 }
 
@@ -120,6 +80,15 @@ func resolveFilePath(path string) (string, error) {
 
 // CreateSnapshot creates a snapshot of the database based on the provided configuration.
 func (s *SnapshotService) CreateSnapshot() error {
+	var err error
+
+	s.cfg.OutputFile, err = resolveFilePath(s.cfg.OutputFile)
+	if err != nil {
+		return fmt.Errorf("failed to resolve output file path: %w", err)
+	}
+
+	s.l.Debug("Resolved file paths", zap.String("Output", s.cfg.OutputFile))
+
 	if err := s.validateCreateSnapshotConfig(); err != nil {
 		return err
 	}
@@ -149,6 +118,10 @@ func (s *SnapshotService) CreateSnapshot() error {
 func (s *SnapshotService) RestoreSnapshot() error {
 	defer cleanup(s.tempFiles, s.l)
 
+	if err := s.resolveRestoreInput(); err != nil {
+		return err
+	}
+
 	if err := s.validateRestoreConfig(); err != nil {
 		return err
 	}
@@ -168,6 +141,45 @@ func (s *SnapshotService) RestoreSnapshot() error {
 	}
 
 	s.l.Sugar().Infow("Successfully restored from snapshot")
+	return nil
+}
+
+// resolveSnapshotServiceInput resolves the SnapshotService struct into a suitable format for restoring a snapshot
+func (s *SnapshotService) resolveRestoreInput() error {
+	var err error
+
+	if isNetworkURL(s.cfg.Input) {
+		inputUrl := s.cfg.Input
+
+		uniqueID := fmt.Sprintf("%d", time.Now().UnixNano())
+		inputFileName := uniqueID + "_downloaded_snapshot.dump"
+
+		s.cfg.Input, err = downloadFile(inputUrl, inputFileName)
+		if err != nil {
+			return fmt.Errorf("failed to download snapshot: %w", err)
+		}
+		s.tempFiles = append(s.tempFiles, s.cfg.Input)
+
+		if s.cfg.VerifyInput {
+			hashFileName := inputFileName + ".sha256sum"
+			hashFile, err := downloadFile(inputUrl+".sha256sum", hashFileName)
+			if err != nil {
+				return fmt.Errorf("failed to download snapshot hash: %w", err)
+			}
+			s.tempFiles = append(s.tempFiles, hashFile)
+		}
+	}
+
+	s.cfg.Input, err = resolveFilePath(s.cfg.Input)
+	if err != nil {
+		return fmt.Errorf("failed to resolve input file path: %w", err)
+	}
+
+	s.l.Debug(
+		"Resolved file paths",
+		zap.String("Input", s.cfg.Input),
+	)
+
 	return nil
 }
 
