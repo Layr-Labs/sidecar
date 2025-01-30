@@ -13,6 +13,7 @@ import (
 	"time"
 
 	pgcommands "github.com/habx/pg-commands"
+	"github.com/schollz/progressbar/v3"
 	"go.uber.org/zap"
 )
 
@@ -343,12 +344,23 @@ func downloadFile(url, fileName string) (string, error) {
 		return "", fmt.Errorf("failed to download file: received status code %d", resp.StatusCode)
 	}
 
+	// For CLI UX Get the content length for the progress bar
+	contentLength := resp.ContentLength
+
+	// Create a progress bar with the file name
+	bar := progressbar.NewOptions64(
+		contentLength,
+		progressbar.OptionSetDescription(fmt.Sprintf("downloading %s", fileName)),
+		progressbar.OptionSetTheme(progressbar.Theme{Saucer: "=", SaucerPadding: " ", BarStart: "[", BarEnd: "]"}),
+	)
+
 	tmpFile, err := os.Create(fileName)
 	if err != nil {
 		return "", fmt.Errorf("failed to create file: %w", err)
 	}
 
-	_, err = io.Copy(tmpFile, resp.Body)
+	// Use io.TeeReader to update the progress bar while copying
+	_, err = io.Copy(io.MultiWriter(tmpFile, bar), resp.Body)
 	if err != nil {
 		tmpFile.Close()
 		return "", fmt.Errorf("failed to write to file: %w", err)
