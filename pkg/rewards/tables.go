@@ -112,3 +112,44 @@ type OperatorDirectedRewards struct {
 	TransactionHash string
 	LogIndex        uint64
 }
+
+type OperatorSetSplitSnapshots struct {
+	Operator      string
+	Avs           string
+	OperatorSetId uint64
+	Split         uint64
+	Snapshot      time.Time
+}
+
+type OperatorSetOperatorRegistrationSnapshots struct {
+	Operator      string
+	Avs           string
+	OperatorSetId uint64
+	Snapshot      time.Time
+}
+
+type OperatorSetStrategyRegistrationSnapshots struct {
+	Strategy      string
+	Avs           string
+	OperatorSetId uint64
+	Snapshot      time.Time
+}
+
+type OperatorDirectedOperatorSetRewards struct {
+	Avs            string
+	OperatorSetId  uint64
+	RewardHash     string
+	Token          string
+	Operator       string
+	OperatorIndex  uint64
+	Amount         string
+	Strategy       string
+	StrategyIndex  uint64
+	Multiplier     string
+	StartTimestamp time.Time
+	EndTimestamp   time.Time
+	Duration       uint64
+	BlockNumber    uint64
+	BlockTime      time.Time
+	BlockDate      string
+}
