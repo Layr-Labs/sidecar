@@ -13,18 +13,22 @@ import (
 )
 
 var (
-	Table_1_ActiveRewards           = "gold_1_active_rewards"
-	Table_2_StakerRewardAmounts     = "gold_2_staker_reward_amounts"
-	Table_3_OperatorRewardAmounts   = "gold_3_operator_reward_amounts"
-	Table_4_RewardsForAll           = "gold_4_rewards_for_all"
-	Table_5_RfaeStakers             = "gold_5_rfae_stakers"
-	Table_6_RfaeOperators           = "gold_6_rfae_operators"
-	Table_7_ActiveODRewards         = "gold_7_active_od_rewards"
-	Table_8_OperatorODRewardAmounts = "gold_8_operator_od_reward_amounts"
-	Table_9_StakerODRewardAmounts   = "gold_9_staker_od_reward_amounts"
-	Table_10_AvsODRewardAmounts     = "gold_10_avs_od_reward_amounts"
-	Table_11_GoldStaging            = "gold_11_staging"
-	Table_12_GoldTable              = "gold_table"
+	Table_1_ActiveRewards                       = "gold_1_active_rewards"
+	Table_2_StakerRewardAmounts                 = "gold_2_staker_reward_amounts"
+	Table_3_OperatorRewardAmounts               = "gold_3_operator_reward_amounts"
+	Table_4_RewardsForAll                       = "gold_4_rewards_for_all"
+	Table_5_RfaeStakers                         = "gold_5_rfae_stakers"
+	Table_6_RfaeOperators                       = "gold_6_rfae_operators"
+	Table_7_ActiveODRewards                     = "gold_7_active_od_rewards"
+	Table_8_OperatorODRewardAmounts             = "gold_8_operator_od_reward_amounts"
+	Table_9_StakerODRewardAmounts               = "gold_9_staker_od_reward_amounts"
+	Table_10_AvsODRewardAmounts                 = "gold_10_avs_od_reward_amounts"
+	Table_11_ActiveODOperatorSetRewards         = "gold_11_active_od_operator_set_rewards"
+	Table_12_OperatorODOperatorSetRewardAmounts = "gold_12_operator_od_operator_set_reward_amounts"
+	Table_13_StakerODOperatorSetRewardAmounts   = "gold_13_staker_od_operator_set_reward_amounts"
+	Table_14_AvsODOperatorSetRewardAmounts      = "gold_14_avs_od_operator_set_reward_amounts"
+	Table_15_GoldStaging                        = "gold_15_staging"
+	Table_16_GoldTable                          = "gold_table"
 
 	Sot_1_StakerStrategyPayouts       = "sot_1_staker_strategy_payouts"
 	Sot_2_OperatorStrategyPayouts     = "sot_2_operator_strategy_payouts"
@@ -39,18 +43,22 @@ var (
 )
 
 var goldTableBaseNames = map[string]string{
-	Table_1_ActiveRewards:           Table_1_ActiveRewards,
-	Table_2_StakerRewardAmounts:     Table_2_StakerRewardAmounts,
-	Table_3_OperatorRewardAmounts:   Table_3_OperatorRewardAmounts,
-	Table_4_RewardsForAll:           Table_4_RewardsForAll,
-	Table_5_RfaeStakers:             Table_5_RfaeStakers,
-	Table_6_RfaeOperators:           Table_6_RfaeOperators,
-	Table_7_ActiveODRewards:         Table_7_ActiveODRewards,
-	Table_8_OperatorODRewardAmounts: Table_8_OperatorODRewardAmounts,
-	Table_9_StakerODRewardAmounts:   Table_9_StakerODRewardAmounts,
-	Table_10_AvsODRewardAmounts:     Table_10_AvsODRewardAmounts,
-	Table_11_GoldStaging:            Table_11_GoldStaging,
-	Table_12_GoldTable:              Table_12_GoldTable,
+	Table_1_ActiveRewards:                       Table_1_ActiveRewards,
+	Table_2_StakerRewardAmounts:                 Table_2_StakerRewardAmounts,
+	Table_3_OperatorRewardAmounts:               Table_3_OperatorRewardAmounts,
+	Table_4_RewardsForAll:                       Table_4_RewardsForAll,
+	Table_5_RfaeStakers:                         Table_5_RfaeStakers,
+	Table_6_RfaeOperators:                       Table_6_RfaeOperators,
+	Table_7_ActiveODRewards:                     Table_7_ActiveODRewards,
+	Table_8_OperatorODRewardAmounts:             Table_8_OperatorODRewardAmounts,
+	Table_9_StakerODRewardAmounts:               Table_9_StakerODRewardAmounts,
+	Table_10_AvsODRewardAmounts:                 Table_10_AvsODRewardAmounts,
+	Table_11_ActiveODOperatorSetRewards:         Table_11_ActiveODOperatorSetRewards,
+	Table_12_OperatorODOperatorSetRewardAmounts: Table_12_OperatorODOperatorSetRewardAmounts,
+	Table_13_StakerODOperatorSetRewardAmounts:   Table_13_StakerODOperatorSetRewardAmounts,
+	Table_14_AvsODOperatorSetRewardAmounts:      Table_14_AvsODOperatorSetRewardAmounts,
+	Table_15_GoldStaging:                        Table_15_GoldStaging,
+	Table_16_GoldTable:                          Table_16_GoldTable,
 
 	Sot_1_StakerStrategyPayouts:       Sot_1_StakerStrategyPayouts,
 	Sot_2_OperatorStrategyPayouts:     Sot_2_OperatorStrategyPayouts,
@@ -64,17 +72,21 @@ var goldTableBaseNames = map[string]string{
 }
 
 var GoldTableNameSearchPattern = map[string]string{
-	Table_1_ActiveRewards:           "gold_%_active_rewards",
-	Table_2_StakerRewardAmounts:     "gold_%_staker_reward_amounts",
-	Table_3_OperatorRewardAmounts:   "gold_%_operator_reward_amounts",
-	Table_4_RewardsForAll:           "gold_%_rewards_for_all",
-	Table_5_RfaeStakers:             "gold_%_rfae_stakers",
-	Table_6_RfaeOperators:           "gold_%_rfae_operators",
-	Table_7_ActiveODRewards:         "gold_%_active_od_rewards",
-	Table_8_OperatorODRewardAmounts: "gold_%_operator_od_reward_amounts",
-	Table_9_StakerODRewardAmounts:   "gold_%_staker_od_reward_amounts",
-	Table_10_AvsODRewardAmounts:     "gold_%_avs_od_reward_amounts",
-	Table_11_GoldStaging:            "gold_%_staging",
+	Table_1_ActiveRewards:                       "gold_%_active_rewards",
+	Table_2_StakerRewardAmounts:                 "gold_%_staker_reward_amounts",
+	Table_3_OperatorRewardAmounts:               "gold_%_operator_reward_amounts",
+	Table_4_RewardsForAll:                       "gold_%_rewards_for_all",
+	Table_5_RfaeStakers:                         "gold_%_rfae_stakers",
+	Table_6_RfaeOperators:                       "gold_%_rfae_operators",
+	Table_7_ActiveODRewards:                     "gold_%_active_od_rewards",
+	Table_8_OperatorODRewardAmounts:             "gold_%_operator_od_reward_amounts",
+	Table_9_StakerODRewardAmounts:               "gold_%_staker_od_reward_amounts",
+	Table_10_AvsODRewardAmounts:                 "gold_%_avs_od_reward_amounts",
+	Table_11_ActiveODOperatorSetRewards:         "gold_%_active_od_operator_set_rewards",
+	Table_12_OperatorODOperatorSetRewardAmounts: "gold_%_operator_od_operator_set_reward_amounts",
+	Table_13_StakerODOperatorSetRewardAmounts:   "gold_%_staker_od_operator_set_reward_amounts",
+	Table_14_AvsODOperatorSetRewardAmounts:      "gold_%_avs_od_operator_set_reward_amounts",
+	Table_15_GoldStaging:                        "gold_%_staging",
 
 	Sot_1_StakerStrategyPayouts:       "sot_%_staker_strategy_payouts",
 	Sot_2_OperatorStrategyPayouts:     "sot_%_operator_strategy_payouts",
