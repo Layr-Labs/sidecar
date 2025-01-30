@@ -106,8 +106,8 @@ func (osor *OperatorSetOperatorRegistrationModel) handleOperatorSetOperatorRegis
 
 	operatorRegistration := &OperatorSetOperatorRegistration{
 		Operator:        strings.ToLower(arguments[0].Value.(string)),
-		Avs:             outputData.OperatorSet.Avs,
-		OperatorSetId:   outputData.OperatorSet.Id,
+		Avs:             strings.ToLower(outputData.OperatorSet.Avs),
+		OperatorSetId:   uint64(outputData.OperatorSet.Id),
 		IsActive:        isActive,
 		BlockNumber:     log.BlockNumber,
 		TransactionHash: log.TransactionHash,
