@@ -45,10 +45,8 @@ import { Steps } from '@astrojs/starlight/components';
     If you are launching a Sidecar for Holesky, you will need to use a snapshot to intialize your database. Detailed directions can be found on the ["restore from snapshot"](running/snapshots) page.
 
     ```bash
-    curl -LO https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump
-
     /usr/local/bin/sidecar restore-snapshot \
-      --snapshot.input=sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump \
+      --snapshot.input=https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump \
       --snapshot.verify_input=false \
       --database.host=<postgres host> \
       --database.user=<postgres user> \
