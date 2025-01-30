@@ -12,10 +12,8 @@ Snapshots are a quicker way to sync to tip and get started.
 
 ## Example boot from testnet snapshot
 ```bash
-curl -LO https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump
-
 ./bin/sidecar restore-snapshot \
-  --snapshot.input=sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump \
+  --snapshot.input=https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump \
   --snapshot.verify_input=false \
   --database.host=localhost \
   --database.user=sidecar \
