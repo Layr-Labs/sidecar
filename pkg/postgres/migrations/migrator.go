@@ -54,6 +54,10 @@ import (
 	_202501061422_defaultOperatorSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061422_defaultOperatorSplits"
 	_202501071401_defaultOperatorSplitSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501071401_defaultOperatorSplitSnapshots"
 	_202501151039_rewardsClaimed "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501151039_rewardsClaimed"
+	_202501241322_operatorDirectedOperatorSetRewardSubmissions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241322_operatorDirectedOperatorSetRewardSubmissions"
+	_202501241533_operatorSetSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241533_operatorSetSplits"
+	_202501271727_operatorSetOperatorRegistrations "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501271727_operatorSetOperatorRegistrations"
+	_202501281806_operatorSetStrategyRegistrations "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501281806_operatorSetStrategyRegistrations"
 	_202502180836_snapshotUniqueConstraints "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502180836_snapshotUniqueConstraints"
 	_202503051449_addContractTypeColumn "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503051449_addContractTypeColumn"
 	"go.uber.org/zap"
@@ -179,6 +183,10 @@ func (m *Migrator) MigrateAll() error {
 		&_202503042014_stakerOperatorIndex.Migration{},
 		&_202502180836_snapshotUniqueConstraints.Migration{},
 		&_202503051449_addContractTypeColumn.Migration{},
+		&_202501241322_operatorDirectedOperatorSetRewardSubmissions.Migration{},
+		&_202501241533_operatorSetSplits.Migration{},
+		&_202501271727_operatorSetOperatorRegistrations.Migration{},
+		&_202501281806_operatorSetStrategyRegistrations.Migration{},
 	}
 
 	for _, migration := range migrations {
