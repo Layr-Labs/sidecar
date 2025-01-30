@@ -14,7 +14,7 @@ Snapshots are a quicker way to sync to tip and get started.
 ```bash
 ./bin/sidecar restore-snapshot \
   --snapshot.input=https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump \
-  --snapshot.verify_input=false \
+  --snapshot.verify-input=false \
   --database.host=localhost \
   --database.user=sidecar \
   --database.password=... \
@@ -38,7 +38,7 @@ Usage:
 Flags:
   -h, --help                    help for restore-snapshot
       --snapshot.input string   Path to the snapshot file either a URL or a local file (required)
-      --snapshot.verify_input   Boolean to verify the input file against its .sha256sum file, if input is a url then it downloads the file, (default is true) (default true)
+      --snapshot.verify-input   Boolean to verify the input file against its .sha256sum file, if input is a url then it downloads the file, (default is true) (default true)
 
 Global Flags:
   -c, --chain string                              The chain to use (mainnet, holesky, preprod (default "mainnet")
@@ -74,7 +74,7 @@ Usage:
 
 Flags:
   -h, --help                          help for create-snapshot
-      --snapshot.output_file string   Path to save the snapshot file to (required), also creates a hash file
+      --snapshot.output-file string   Path to save the snapshot file to (required), also creates a hash file
 
 Global Flags:
   -c, --chain string                              The chain to use (mainnet, holesky, preprod (default "mainnet")
@@ -109,7 +109,7 @@ Global Flags:
   --database.port=5432 \
   --database.db_name=sidecar \
   --database.schema_name=public \
-  --snapshot.output_file=example.dump
+  --snapshot.output-file=example.dump
 ```
 
 
@@ -143,7 +143,7 @@ psql -c "CREATE DATABASE temp_sidecar_dump_schema_conversion_db;"
     --database.db_name=temp_sidecar_dump_schema_conversion_db \
     --database.schema_name=<input schema name> \
     --snapshot.input=snapshot.dump
-    --snapshot.verify_input=false
+    --snapshot.verify-input=false
 
 # Connect to the temporary database and execute the SQL command to rename the schema:
 psql -d temp_sidecar_dump_schema_conversion_db -c "ALTER SCHEMA <input schema name> RENAME TO <output schema name>;"
@@ -156,7 +156,7 @@ psql -d temp_sidecar_dump_schema_conversion_db -c "ALTER SCHEMA <input schema na
     --database.port=5432 \
     --database.db_name=temp_sidecar_dump_schema_conversion_db \
     --database.schema_name=<output schema name> \
-    --snapshot.output_file=new_snapshot.dump
+    --snapshot.output-file=new_snapshot.dump
 
 # Drop the temporary database to free up resources:
 psql -c "DROP DATABASE IF EXISTS temp_sidecar_dump_schema_conversion_db;"

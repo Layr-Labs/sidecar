@@ -8,11 +8,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	pgcommands "github.com/habx/pg-commands"
+	"github.com/pkg/errors"
 	"github.com/schollz/progressbar/v3"
 	"go.uber.org/zap"
 )
@@ -57,7 +58,7 @@ func isNetworkURL(str string) bool {
 		return false
 	}
 	// Allow HTTP, HTTPS, and FTP URL schemes
-	return u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "ftp"
+	return u.Scheme == "http" || u.Scheme == "https"
 }
 
 // resolveFilePath expands the ~ in file paths to the user's home directory and converts relative paths to absolute paths.
@@ -85,10 +86,10 @@ func (s *SnapshotService) CreateSnapshot() error {
 
 	s.cfg.OutputFile, err = resolveFilePath(s.cfg.OutputFile)
 	if err != nil {
-		return fmt.Errorf("failed to resolve output file path: %w", err)
+		return errors.Wrap(err, fmt.Sprintf("failed to resolve output file path '%s'", s.cfg.OutputFile))
 	}
 
-	s.l.Debug("Resolved file paths", zap.String("Output", s.cfg.OutputFile))
+	s.l.Sugar().Debugw("Resolved file paths", zap.String("Output", s.cfg.OutputFile))
 
 	if err := s.validateCreateSnapshotConfig(); err != nil {
 		return err
@@ -110,9 +111,9 @@ func (s *SnapshotService) CreateSnapshot() error {
 
 	s.l.Sugar().Infow("Successfully created snapshot")
 
-	outputHashFile := s.cfg.OutputFile + ".sha256sum"
+	outputHashFile := getHashName(s.cfg.OutputFile)
 	if err := saveOutputFileHash(s.cfg.OutputFile, outputHashFile); err != nil {
-		return fmt.Errorf("failed to save output file hash: %w", err)
+		return errors.Wrap(err, fmt.Sprintf("failed to save output file hash '%s'", outputHashFile))
 	}
 
 	return nil
@@ -155,20 +156,25 @@ func (s *SnapshotService) resolveRestoreInput() error {
 	if isNetworkURL(s.cfg.Input) {
 		inputUrl := s.cfg.Input
 
-		uniqueID := fmt.Sprintf("%d", time.Now().UnixNano())
-		inputFileName := uniqueID + "_downloaded_snapshot.dump"
-
-		s.cfg.Input, err = downloadFile(inputUrl, inputFileName)
+		// Use getFileNameFromURL to extract the file name
+		fileName, err := getFileNameFromURL(inputUrl)
 		if err != nil {
-			return fmt.Errorf("failed to download snapshot: %w", err)
+			return fmt.Errorf("failed to extract file name from URL: %w", err)
+		}
+
+		// Use a temporary directory for the download
+		inputFilePath := filepath.Join("tmp", fileName)
+		s.cfg.Input, err = downloadFile(inputUrl, inputFilePath)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("failed to download snapshot from '%s'", inputUrl))
 		}
 		s.tempFiles = append(s.tempFiles, s.cfg.Input)
 
 		if s.cfg.VerifyInput {
-			hashFileName := inputFileName + ".sha256sum"
-			hashFile, err := downloadFile(inputUrl+".sha256sum", hashFileName)
+			hashFileName := getHashName(inputFilePath)
+			hashFile, err := downloadFile(getHashName(inputUrl), hashFileName)
 			if err != nil {
-				return fmt.Errorf("failed to download snapshot hash: %w", err)
+				return errors.Wrap(err, fmt.Sprintf("failed to download snapshot hash from '%s'", hashFile))
 			}
 			s.tempFiles = append(s.tempFiles, hashFile)
 		}
@@ -176,13 +182,10 @@ func (s *SnapshotService) resolveRestoreInput() error {
 
 	s.cfg.Input, err = resolveFilePath(s.cfg.Input)
 	if err != nil {
-		return fmt.Errorf("failed to resolve input file path: %w", err)
+		return errors.Wrap(err, fmt.Sprintf("failed to resolve input file path '%s'", s.cfg.Input))
 	}
 
-	s.l.Debug(
-		"Resolved file paths",
-		zap.String("Input", s.cfg.Input),
-	)
+	s.l.Sugar().Debugw("Resolved file paths", zap.String("Input", s.cfg.Input))
 
 	return nil
 }
@@ -232,12 +235,12 @@ func (s *SnapshotService) validateRestoreConfig() error {
 	}
 
 	if s.cfg.VerifyInput {
-		if err := validateInputFileHash(s.cfg.Input, s.cfg.Input+".sha256sum"); err != nil {
-			return fmt.Errorf("input file hash validation failed: %w", err)
+		if err := validateInputFileHash(s.cfg.Input, getHashName(s.cfg.Input)); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("input file hash validation failed for '%s'", s.cfg.Input))
 		}
 		s.l.Sugar().Debugw("Input file hash validated successfully",
 			zap.String("input", s.cfg.Input),
-			zap.String("inputHashFile", s.cfg.Input+".sha256sum"),
+			zap.String("inputHashFile", getHashName(s.cfg.Input)),
 		)
 	}
 
@@ -271,7 +274,7 @@ func (s *SnapshotService) setupRestore() (*pgcommands.Restore, error) {
 func saveOutputFileHash(filePath, hashFilePath string) error {
 	hash, err := getFileHash(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to compute hash of file: %w", err)
+		return errors.Wrap(err, fmt.Sprintf("failed to compute hash of file '%s'", filePath))
 	}
 
 	fileContent := fmt.Sprintf("%s %s\n", hex.EncodeToString(hash), filepath.Base(filePath))
@@ -308,7 +311,7 @@ func validateInputFileHash(inputFile, hashFile string) error {
 
 	inputFileHash, err := getFileHash(inputFile)
 	if err != nil {
-		return fmt.Errorf("failed to compute hash of input file: %w", err)
+		return errors.Wrap(err, fmt.Sprintf("failed to compute hash of input file '%s'", inputFile))
 	}
 
 	if hex.EncodeToString(inputFileHash) != hashFileHash {
@@ -333,39 +336,60 @@ func getFileHash(filePath string) ([]byte, error) {
 	return hasher.Sum(nil), nil
 }
 
-func downloadFile(url, fileName string) (string, error) {
+func downloadFile(url, filePath string) (string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", fmt.Errorf("failed to download file: %w", err)
+		return "", errors.Wrap(err, "failed to initiate download")
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode == http.StatusNotFound {
+		return "", errors.Wrap(fmt.Errorf("file not found at URL: %s", url), "404 Not Found")
+	} else if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to download file: received status code %d", resp.StatusCode)
+	}
+
+	// Ensure the directory for the file path exists
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return "", errors.Wrap(err, "failed to create directories for file path")
 	}
 
 	// For CLI UX Get the content length for the progress bar
 	contentLength := resp.ContentLength
 
-	// Create a progress bar with the file name
+	// Create a progress bar with the file path
 	bar := progressbar.NewOptions64(
 		contentLength,
-		progressbar.OptionSetDescription(fmt.Sprintf("downloading %s", fileName)),
+		progressbar.OptionSetDescription(fmt.Sprintf("downloading %s", filePath)),
 		progressbar.OptionSetTheme(progressbar.Theme{Saucer: "=", SaucerPadding: " ", BarStart: "[", BarEnd: "]"}),
 	)
 
-	tmpFile, err := os.Create(fileName)
+	tmpFile, err := os.Create(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to create file: %w", err)
+		return "", errors.Wrap(err, "failed to create file")
 	}
 
 	// Use io.TeeReader to update the progress bar while copying
 	_, err = io.Copy(io.MultiWriter(tmpFile, bar), resp.Body)
 	if err != nil {
 		tmpFile.Close()
-		return "", fmt.Errorf("failed to write to file: %w", err)
+		return "", errors.Wrap(err, "failed to write to file")
 	}
 
 	tmpFile.Close()
-	return tmpFile.Name(), nil
+	return filePath, nil
+}
+
+// getHashName returns the hash name for a given file path or URL.
+func getHashName(input string) string {
+	return input + ".sha256sum"
+}
+
+func getFileNameFromURL(rawURL string) (string, error) {
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse URL: %w", err)
+	}
+	return path.Base(parsedURL.Path), nil
 }

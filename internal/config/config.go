@@ -127,9 +127,9 @@ var (
 	DatabaseDbName     = "database.db_name"
 	DatabaseSchemaName = "database.schema_name"
 
-	SnapshotOutputFile  = "snapshot.output_file"
+	SnapshotOutputFile  = "snapshot.output-file"
 	SnapshotInput       = "snapshot.input"
-	SnapshotVerifyInput = "snapshot.verify_input"
+	SnapshotVerifyInput = "snapshot.verify-input"
 
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"

@@ -174,6 +174,34 @@ func TestSaveOutputFileHash(t *testing.T) {
 	assert.Equal(t, sha256.Size*2, len(hashParts[0]), "Output hash file should have the correct hash length")
 }
 
+func TestSaveOutputFileHashCompatibilityWithSha256sum(t *testing.T) {
+	tempDir := t.TempDir()
+	outputFile := filepath.Join(tempDir, "TestSaveOutputFileHashCompatibility.sql")
+	outputHashFile := getHashName(outputFile)
+
+	// Create a dummy output file
+	content := []byte("test content for sha256sum compatibility")
+	err := os.WriteFile(outputFile, content, 0644)
+	assert.NoError(t, err, "Creating output file should not fail")
+
+	// Generate the hash file
+	err = saveOutputFileHash(outputFile, outputHashFile)
+	assert.NoError(t, err, "Saving output file hash should not fail")
+
+	// Read the generated hash file
+	hashContent, err := os.ReadFile(outputHashFile)
+	assert.NoError(t, err, "Reading output hash file should not fail")
+
+	// Validate the format of the hash file
+	hashParts := strings.Fields(string(hashContent))
+	assert.Equal(t, 2, len(hashParts), "Output hash file should contain two parts: hash and filename")
+	assert.Equal(t, filepath.Base(outputFile), hashParts[1], "Output hash file should contain the correct filename")
+	assert.Equal(t, sha256.Size*2, len(hashParts[0]), "Output hash file should have the correct hash length")
+
+	// Optionally, you can print the hash content to manually verify with sha256sum
+	t.Logf("Generated hash file content: %s", string(hashContent))
+}
+
 func TestCleanup(t *testing.T) {
 	tempDir := t.TempDir()
 	tempFile := filepath.Join(tempDir, "TestCleanup.tmp")
@@ -363,7 +391,6 @@ func TestIsURL(t *testing.T) {
 	}{
 		{"http://example.com", true},
 		{"https://example.com", true},
-		{"ftp://example.com", true},
 		{"", false},
 		{"not-a-url", false},
 		{"http://example.com/path?query=string", true},
