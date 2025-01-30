@@ -51,6 +51,10 @@ import (
 	_202501061422_defaultOperatorSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061422_defaultOperatorSplits"
 	_202501071401_defaultOperatorSplitSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501071401_defaultOperatorSplitSnapshots"
 	_202501151039_rewardsClaimed "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501151039_rewardsClaimed"
+	_202501241322_operatorDirectedOperatorSetRewardSubmissions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241322_operatorDirectedOperatorSetRewardSubmissions"
+	_202501241533_operatorSetSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241533_operatorSetSplits"
+	_202501271727_operatorSetOperatorRegistrations "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501271727_operatorSetOperatorRegistrations"
+	_202501281806_operatorSetStrategyRegistrations "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501281806_operatorSetStrategyRegistrations"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -138,6 +142,10 @@ func (m *Migrator) MigrateAll() error {
 		&_202501071401_defaultOperatorSplitSnapshots.Migration{},
 		&_202501241111_addIndexesForRpcFunctions.Migration{},
 		&_202502100846_goldTableRewardHashIndex.Migration{},
+		&_202501241322_operatorDirectedOperatorSetRewardSubmissions.Migration{},
+		&_202501241533_operatorSetSplits.Migration{},
+		&_202501271727_operatorSetOperatorRegistrations.Migration{},
+		&_202501281806_operatorSetStrategyRegistrations.Migration{},
 	}
 
 	for _, migration := range migrations {
