@@ -166,15 +166,15 @@ func (s *SnapshotService) resolveRestoreInput() error {
 		inputFilePath := filepath.Join("tmp", fileName)
 		s.cfg.Input, err = downloadFile(inputUrl, inputFilePath)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed to download snapshot from '%s'", inputUrl))
+			return errors.Wrap(err, fmt.Sprintf("Error downloading snapshot from '%s'", inputUrl))
 		}
 		s.tempFiles = append(s.tempFiles, s.cfg.Input)
 
 		if s.cfg.VerifyInput {
-			hashFileName := getHashName(inputFilePath)
-			hashFile, err := downloadFile(getHashName(inputUrl), hashFileName)
+			hashUrl := getHashName(inputUrl)
+			hashFile, err := downloadFile(getHashName(inputUrl), hashUrl)
 			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("failed to download snapshot hash from '%s'", hashFile))
+				return errors.Wrap(err, fmt.Sprintf("Error downloading snapshot from '%s'", inputUrl))
 			}
 			s.tempFiles = append(s.tempFiles, hashFile)
 		}
@@ -343,16 +343,14 @@ func downloadFile(url, filePath string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return "", errors.Wrap(fmt.Errorf("file not found at URL: %s", url), "404 Not Found")
-	} else if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to download file: received status code %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("downloading error, received status code %d", resp.StatusCode)
 	}
 
 	// Ensure the directory for the file path exists
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		return "", errors.Wrap(err, "failed to create directories for file path")
+		return "", errors.Wrap(err, "failed to create directories to save the download file to")
 	}
 
 	// For CLI UX Get the content length for the progress bar
@@ -367,14 +365,14 @@ func downloadFile(url, filePath string) (string, error) {
 
 	tmpFile, err := os.Create(filePath)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to create file")
+		return "", errors.Wrap(err, "failed to create local file")
 	}
 
 	// Use io.TeeReader to update the progress bar while copying
 	_, err = io.Copy(io.MultiWriter(tmpFile, bar), resp.Body)
 	if err != nil {
 		tmpFile.Close()
-		return "", errors.Wrap(err, "failed to write to file")
+		return "", errors.Wrap(err, "failed to write to local file")
 	}
 
 	tmpFile.Close()
