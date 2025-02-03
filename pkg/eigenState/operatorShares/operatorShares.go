@@ -311,3 +311,7 @@ func (osm *OperatorSharesModel) ListForBlockRange(startBlockNumber uint64, endBl
 	}
 	return base.CastCommittedStateToInterface(deltas), nil
 }
+
+func (osm *OperatorSharesModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
+}

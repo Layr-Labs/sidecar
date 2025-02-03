@@ -437,3 +437,21 @@ func (od *OperatorDirectedOperatorSetRewardSubmissionsModel) sortValuesForMerkle
 func (od *OperatorDirectedOperatorSetRewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return od.BaseEigenState.DeleteState("operator_directed_operator_set_reward_submissions", startBlockNumber, endBlockNumber, od.DB)
 }
+
+func (od *OperatorDirectedOperatorSetRewardSubmissionsModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	records := make([]*OperatorDirectedOperatorSetRewardSubmission, 0)
+	res := od.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&records)
+	if res.Error != nil {
+		od.logger.Sugar().Errorw("Failed to list records for block range",
+			zap.Error(res.Error),
+			zap.Uint64("startBlockNumber", startBlockNumber),
+			zap.Uint64("endBlockNumber", endBlockNumber),
+		)
+		return nil, res.Error
+	}
+	return base.CastCommittedStateToInterface(records), nil
+}
+
+func (od *OperatorDirectedOperatorSetRewardSubmissionsModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
+}
