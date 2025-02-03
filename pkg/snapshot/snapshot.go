@@ -156,26 +156,52 @@ func (s *SnapshotService) resolveAndDownloadRestoreInput() error {
 	if isNetworkURL(s.cfg.Input) {
 		inputUrl := s.cfg.Input
 
+		// Check if the input URL exists
+		snapshotExists, err := urlExists(inputUrl)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("error checking existence of snapshot URL '%s'", inputUrl))
+		}
+		if !snapshotExists {
+			return fmt.Errorf("snapshot file not found at '%s'. Ensure the file exists", inputUrl)
+		}
+
+		// Check if the hash URL exists
+		if s.cfg.VerifyInput {
+			hashUrl := getHashName(inputUrl)
+
+			hashFileExists, err := urlExists(hashUrl)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("error checking existence of snapshot hash URL '%s'", hashUrl))
+			}
+			if !hashFileExists {
+				return fmt.Errorf("snapshot hash file not found at '%s'. Ensure the file exists or set --verify-input=false to skip verification", hashUrl)
+			}
+		}
+
+		// Download the snapshot file and assign to s.cfg.Input
 		fileName, err := getFileNameFromURL(inputUrl)
 		if err != nil {
 			return fmt.Errorf("failed to extract file name from URL: %w", err)
 		}
 
 		inputFilePath := filepath.Join(os.TempDir(), fileName)
+
 		s.cfg.Input, err = downloadFile(inputUrl, inputFilePath)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("Error downloading snapshot from '%s'", inputUrl))
+			return errors.Wrap(err, fmt.Sprintf("error downloading snapshot from '%s'", inputUrl))
 		}
 		s.tempFiles = append(s.tempFiles, s.cfg.Input)
 
+		// Download the snapshot file hash
 		if s.cfg.VerifyInput {
-			hashUrl := getHashName(inputUrl)
 			hashFilePath := getHashName(inputFilePath)
+			hashUrl := getHashName(inputUrl)
 			hashFile, err := downloadFile(hashUrl, hashFilePath)
 			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("Error downloading snapshot from '%s'", hashUrl))
+				return errors.Wrap(err, fmt.Sprintf("error downloading snapshot hash from '%s'", hashUrl))
 			}
 			s.tempFiles = append(s.tempFiles, hashFile)
+
 		}
 	}
 
@@ -388,4 +414,24 @@ func getFileNameFromURL(rawURL string) (string, error) {
 		return "", fmt.Errorf("failed to parse URL: %w", err)
 	}
 	return path.Base(parsedURL.Path), nil
+}
+
+// urlExists checks if the given URL is accessible by sending a HEAD request.
+func urlExists(url string) (bool, error) {
+	resp, err := http.Head(url)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to send HEAD request")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+		return true, nil
+	}
+
+	// Return false for 404 without an error
+	if resp.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+
+	return false, fmt.Errorf("URL not accessible, received status code %d", resp.StatusCode)
 }
