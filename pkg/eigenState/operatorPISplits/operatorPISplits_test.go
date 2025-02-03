@@ -75,7 +75,7 @@ func Test_OperatorPISplit(t *testing.T) {
 	}
 
 	t.Run("Test each event type", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		model, err := NewOperatorPISplitModel(esm, grm, l, cfg)
 
