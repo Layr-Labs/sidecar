@@ -119,7 +119,7 @@ func Test_OperatorSetStrategyRegistrationSnapshots(t *testing.T) {
 
 		t.Logf("Found %d snapshots", len(snapshots))
 
-		assert.Equal(t, 218, len(snapshots))
+		assert.Equal(t, 219, len(snapshots))
 	})
 
 	t.Cleanup(func() {
