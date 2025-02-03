@@ -7,6 +7,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetStrategyRegistrations"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/stretchr/testify/assert"
@@ -58,15 +59,20 @@ func teardownOperatorSetStrategyRegistrationSnapshot(dbname string, cfg *config.
 }
 
 func hydrateOperatorSetStrategyRegistrationsTable(grm *gorm.DB, l *zap.Logger) error {
-	query := `
-		INSERT INTO operator_set_strategy_registrations (strategy, avs, operator_set_id, is_active, block_number, transaction_hash, log_index)
-		VALUES ('0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101', '0x9401E5E6564DB35C0f86573a9828DF69Fc778aF1', 1, true, 1477020, '0xccc83cdfa365bacff5e4099b9931bccaec1c0b0cf37cd324c92c27b5cb5387d1', 545)
-	`
+	registration := operatorSetStrategyRegistrations.OperatorSetStrategyRegistration{
+		Strategy:        "0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101",
+		Avs:             "0x9401E5E6564DB35C0f86573a9828DF69Fc778aF1",
+		OperatorSetId:   1,
+		IsActive:        true,
+		BlockNumber:     1477020,
+		TransactionHash: "0xccc83cdfa365bacff5e4099b9931bccaec1c0b0cf37cd324c92c27b5cb5387d1",
+		LogIndex:        545,
+	}
 
-	res := grm.Exec(query)
-	if res.Error != nil {
-		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
-		return res.Error
+	result := grm.Create(&registration)
+	if result.Error != nil {
+		l.Sugar().Errorw("Failed to create operator set strategy registration", "error", result.Error)
+		return result.Error
 	}
 	return nil
 }

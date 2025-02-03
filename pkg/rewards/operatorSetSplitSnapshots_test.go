@@ -3,10 +3,12 @@ package rewards
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetSplits"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/stretchr/testify/assert"
@@ -58,15 +60,23 @@ func teardownOperatorSetSplitWindows(dbname string, cfg *config.Config, db *gorm
 }
 
 func hydrateOperatorSetSplits(grm *gorm.DB, l *zap.Logger) error {
-	query := `
-		INSERT INTO operator_set_splits (operator, avs, operator_set_id, activated_at, old_operator_set_split_bips, new_operator_set_split_bips, block_number, transaction_hash, log_index)
-		VALUES ('0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101', '0x9401E5E6564DB35C0f86573a9828DF69Fc778aF1', 1, '2024-12-05 12:00:00.000000', 1000, 500, 1477020, '0xccc83cdfa365bacff5e4099b9931bccaec1c0b0cf37cd324c92c27b5cb5387d1', 545)
-	`
+	activatedAt := time.Date(2024, 12, 5, 12, 0, 0, 0, time.UTC)
+	split := operatorSetSplits.OperatorSetSplit{
+		Operator:                "0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101",
+		Avs:                     "0x9401E5E6564DB35C0f86573a9828DF69Fc778aF1",
+		OperatorSetId:           1,
+		ActivatedAt:             &activatedAt,
+		OldOperatorSetSplitBips: 1000,
+		NewOperatorSetSplitBips: 500,
+		BlockNumber:             1477020,
+		TransactionHash:         "0xccc83cdfa365bacff5e4099b9931bccaec1c0b0cf37cd324c92c27b5cb5387d1",
+		LogIndex:                545,
+	}
 
-	res := grm.Exec(query)
-	if res.Error != nil {
-		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
-		return res.Error
+	result := grm.Create(&split)
+	if result.Error != nil {
+		l.Sugar().Errorw("Failed to create operator set split", "error", result.Error)
+		return result.Error
 	}
 	return nil
 }
