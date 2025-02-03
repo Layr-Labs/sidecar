@@ -17,7 +17,8 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			avs varchar not null,
 			operator_set_id bigint not null,
 			split integer not null,
-			snapshot date not null
+			snapshot date not null,
+			UNIQUE (operator, avs, operator_set_id, snapshot)
 		)`,
 	}
 	for _, query := range queries {
