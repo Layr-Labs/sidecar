@@ -209,7 +209,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				zap.Uint64("logIndex", log.LogIndex),
 			)
 
-			if err := p.stateManager.HandleLogStateChange(indexedLog); err != nil {
+			if err := p.stateManager.HandleLogStateChange(indexedLog, true); err != nil {
 				p.Logger.Sugar().Errorw("Failed to handle log state change",
 					zap.Uint64("blockNumber", blockNumber),
 					zap.String("transactionHash", pt.Transaction.Hash.Value()),
