@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 var restoreSnapshotCmd = &cobra.Command{
@@ -23,10 +24,7 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 		initRestoreSnapshotCmd(cmd)
 		cfg := config.NewConfig()
 
-		l, err := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
-		if err != nil {
-			return fmt.Errorf("failed to initialize logger: %w", err)
-		}
+		l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
 		svc, err := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
 			Input:       cfg.SnapshotConfig.Input,
@@ -43,7 +41,7 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 		}
 
 		if err := svc.RestoreSnapshot(); err != nil {
-			return fmt.Errorf("failed to restore snapshot: %w", err)
+			l.Fatal("failed to restore snapshot", zap.Error(err))
 		}
 
 		return nil
