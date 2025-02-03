@@ -2,10 +2,12 @@ package rewards
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorDirectedOperatorSetRewardSubmissions"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/stretchr/testify/assert"
@@ -45,51 +47,33 @@ func teardownOperatorDirectedOperatorSetRewards(dbname string, cfg *config.Confi
 }
 
 func hydrateOperatorDirectedOperatorSetRewardSubmissionsTable(grm *gorm.DB, l *zap.Logger) error {
-	query := `
-		INSERT INTO operator_directed_operator_set_reward_submissions (
-			avs, 
-			operator_set_id, 
-			reward_hash,
-			token,
-			operator,
-			operator_index,
-			amount,
-			strategy,
-			strategy_index,
-			multiplier,
-			start_timestamp,
-			end_timestamp,
-			duration,
-			description,
-			block_number,
-			transaction_hash,
-			log_index
-		)
-		VALUES (
-			'0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101',
-			1,
-			'0x7402669fb2c8a0cfe8108acb8a0070257c77ec6906ecb07d97c38e8a5ddc66a9',
-			'0x0ddd9dc88e638aef6a8e42d0c98aaa6a48a98d24',
-			'0x9401E5E6564DB35C0f86573a9828DF69Fc778aF1',
-			0,
-			'30000000000000000000000',
-			'0x5074dfd18e9498d9e006fb8d4f3fecdc9af90a2c',
-			0,
-			'1000000000000000000',
-			to_timestamp(1725494400),
-			to_timestamp(1725494400 + 2419200),
-			2419200,
-			'test reward submission',
-			1477020,
-			'some hash',
-			12
-		)
-	`
+	startTime := time.Unix(1725494400, 0)
+	endTime := time.Unix(1725494400+2419200, 0)
 
-	res := grm.Exec(query)
-	if res.Error != nil {
-		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
-		return res.Error
+	reward := operatorDirectedOperatorSetRewardSubmissions.OperatorDirectedOperatorSetRewardSubmission{
+		Avs:             "0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101",
+		OperatorSetId:   1,
+		RewardHash:      "0x7402669fb2c8a0cfe8108acb8a0070257c77ec6906ecb07d97c38e8a5ddc66a9",
+		Token:           "0x0ddd9dc88e638aef6a8e42d0c98aaa6a48a98d24",
+		Operator:        "0x9401E5E6564DB35C0f86573a9828DF69Fc778aF1",
+		OperatorIndex:   0,
+		Amount:          "30000000000000000000000",
+		Strategy:        "0x5074dfd18e9498d9e006fb8d4f3fecdc9af90a2c",
+		StrategyIndex:   0,
+		Multiplier:      "1000000000000000000",
+		StartTimestamp:  &startTime,
+		EndTimestamp:    &endTime,
+		Duration:        2419200,
+		Description:     "test reward submission",
+		BlockNumber:     1477020,
+		TransactionHash: "some hash",
+		LogIndex:        12,
+	}
+
+	result := grm.Create(&reward)
+	if result.Error != nil {
+		l.Sugar().Errorw("Failed to create operator directed operator set reward submission", "error", result.Error)
+		return result.Error
 	}
 	return nil
 }
