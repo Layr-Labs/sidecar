@@ -57,7 +57,6 @@ func isNetworkURL(str string) bool {
 	if err != nil {
 		return false
 	}
-	// Allow HTTP, HTTPS, and FTP URL schemes
 	return u.Scheme == "http" || u.Scheme == "https"
 }
 
