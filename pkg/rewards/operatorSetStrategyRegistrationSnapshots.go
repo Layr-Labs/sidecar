@@ -2,20 +2,14 @@ package rewards
 
 import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 
-// Operator Set Strategy Registration Windows: Ranges at which a strategy has registered for an operator set
+// Operator Set Strategy Registration Windows: Ranges at which a strategy has been registered for an operator set by an AVS.
 // 1. Marked_statuses: Denote which registration status comes after one another
 // 2. Removed_same_day_deregistrations: Remove a pairs of (registration, deregistration) that happen on the same day
 // 3. Registration_periods: Combine registration together, only select registrations with:
 // a. (Registered, Unregistered)
 // b. (Registered, Null). If null, the end time is the current timestamp
-// 4. Registration_snapshots: Round up each start_time to  0 UTC on NEXT DAY and round down each end_time to 0 UTC on CURRENT DAY
+// 4. Registration_snapshots: Round up each start_time and end_time to 0 UTC on NEXT DAY.
 // 5. Operator_set_strategy_registration_windows: Ranges that start and end on same day are invalid
-// Note: We cannot assume that the strategy is registered for operator set at end_time because it is
-// Payments calculations should only be done on snapshots from the PREVIOUS DAY. For example say we have the following:
-// <-----0-------1-------2------3------>
-// ^           ^
-// Entry        Exit
-// Since exits (deregistrations) are rounded down, we must only look at the day 2 snapshot on a pipeline run on day 3.
 const operatorSetStrategyRegistrationSnapshotsQuery = `
 WITH state_changes as (
 	select
@@ -75,15 +69,15 @@ marked_statuses AS (
 	FROM removed_same_day_deregistrations
 	WHERE is_active = TRUE
  ),
--- Round UP each start_time and round DOWN each end_time
+-- Round UP both start_time and end_time, with generate_series handling the exclusive end
 registration_windows_extra as (
 	SELECT
 		strategy,
 		avs,
 		operator_set_id,
 		date_trunc('day', start_time) + interval '1' day as start_time,
-		-- End time is end time non inclusive becuase the strategy is not registered on the operator set at the end time OR it is current timestamp rounded up
-		date_trunc('day', end_time) as end_time
+		-- End time is rounded up to include the full last day of registration
+		date_trunc('day', end_time) + interval '1' day as end_time
 	FROM registration_periods
 ),
 -- Ignore start_time and end_time that last less than a day
