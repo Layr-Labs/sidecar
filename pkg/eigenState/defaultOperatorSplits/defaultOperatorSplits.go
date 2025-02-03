@@ -283,3 +283,7 @@ func (dos *DefaultOperatorSplitModel) ListForBlockRange(startBlockNumber uint64,
 	}
 	return base.CastCommittedStateToInterface(splits), nil
 }
+
+func (dos *DefaultOperatorSplitModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
+}

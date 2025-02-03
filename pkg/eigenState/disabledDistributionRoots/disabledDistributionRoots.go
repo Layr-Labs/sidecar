@@ -272,3 +272,7 @@ func (ddr *DisabledDistributionRootsModel) ListForBlockRange(startBlockNumber ui
 	}
 	return base.CastCommittedStateToInterface(records), nil
 }
+
+func (ddr *DisabledDistributionRootsModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
+}

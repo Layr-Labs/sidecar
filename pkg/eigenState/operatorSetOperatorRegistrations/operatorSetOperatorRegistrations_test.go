@@ -28,6 +28,7 @@ func setup() (
 	error,
 ) {
 	cfg := config.NewConfig()
+	cfg.Chain = config.Chain_Mainnet
 	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
@@ -75,7 +76,7 @@ func Test_OperatorSetOperatorRegistration(t *testing.T) {
 	}
 
 	t.Run("Test each event type", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		model, err := NewOperatorSetOperatorRegistrationModel(esm, grm, l, cfg)
 
