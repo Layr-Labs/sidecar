@@ -75,7 +75,7 @@ func Test_RewardSubmissions(t *testing.T) {
 	}
 
 	t.Run("Test each event type", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		model, err := NewRewardSubmissionsModel(esm, grm, l, cfg)
 
@@ -457,7 +457,7 @@ func Test_RewardSubmissions(t *testing.T) {
 	})
 
 	t.Run("multi-block test", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		model, err := NewRewardSubmissionsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
@@ -645,7 +645,7 @@ func Test_RewardSubmissions(t *testing.T) {
 	})
 
 	t.Run("single block, multiple events", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		model, err := NewRewardSubmissionsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)

@@ -64,13 +64,13 @@ func Test_StakerSharesState(t *testing.T) {
 	}
 
 	t.Run("Should create a new OperatorSharesState", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, model)
 	})
 	t.Run("Should handle an M1 withdrawal and migration to M2 correctly", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
@@ -457,7 +457,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should capture Slashing withdrawals", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		blockNumber := uint64(200)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
@@ -499,7 +499,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should capture Slashing withdrawals for multiple strategies", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		blockNumber := uint64(200)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
@@ -540,7 +540,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should capture delegate, deposit, slash in same block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -605,7 +605,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should capture many deposits and slash in same block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -672,7 +672,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should capture many deposits and slash in a different block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -741,7 +741,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should slash deposits and delegations in previous block with greater logIndex", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -802,7 +802,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should not slash delegated staker in a different strategy for a deposit in same block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -862,7 +862,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should not slash delegated staker in a different strategy deposited in previous block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		blockNumber := uint64(200)
 
 		err = createBlock(grm, blockNumber)
@@ -922,7 +922,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should not slash deposit after slashing in same block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -991,7 +991,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should process slashing for several strategies correctly", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -1085,7 +1085,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should handle a full slashing", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -1145,7 +1145,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should not slash when staker has 0 shares", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -1211,7 +1211,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should handle beacon chain slashing of deposit in same block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -1274,7 +1274,7 @@ func Test_StakerSharesState(t *testing.T) {
 		teardown(grm)
 	})
 	t.Run("Should handle beacon chain slashing of deposit in previous block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -1335,7 +1335,7 @@ func Test_StakerSharesState(t *testing.T) {
 		teardown(grm)
 	})
 	t.Run("Should handle beacon chain slashing and eigenlayer slashing in same block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -1403,7 +1403,7 @@ func Test_StakerSharesState(t *testing.T) {
 		teardown(grm)
 	})
 	t.Run("Should handle beacon chain slashing in a block after eigenlayer slashing", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -1478,7 +1478,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should handle full beacon slashing", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -1536,7 +1536,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should not beacon chain slash when staker has 0 shares", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -1590,7 +1590,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 
 	t.Run("Should handle failed unmarshalling gracefully", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)

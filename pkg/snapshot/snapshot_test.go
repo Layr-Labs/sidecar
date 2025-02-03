@@ -16,7 +16,7 @@ import (
 
 func TestNewSnapshotService(t *testing.T) {
 	cfg := &SnapshotConfig{}
-	l, _ := zap.NewDevelopment()
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: false})
 	svc, err := NewSnapshotService(cfg, l)
 	assert.NoError(t, err, "NewSnapshotService should not return an error")
 	assert.NotNil(t, svc, "SnapshotService should not be nil")
@@ -34,7 +34,7 @@ func TestValidateCreateSnapshotConfig(t *testing.T) {
 		SchemaName: "public",
 		OutputFile: "/tmp/test_snapshot.sql",
 	}
-	l, _ := zap.NewDevelopment()
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: false})
 	svc, err := NewSnapshotService(cfg, l)
 	assert.NoError(t, err, "NewSnapshotService should not return an error")
 	err = svc.validateCreateSnapshotConfig()
@@ -51,7 +51,7 @@ func TestValidateCreateSnapshotConfigMissingOutputFile(t *testing.T) {
 		SchemaName: "public",
 		OutputFile: "",
 	}
-	l, _ := zap.NewDevelopment()
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: false})
 	svc, err := NewSnapshotService(cfg, l)
 	assert.NoError(t, err, "NewSnapshotService should not return an error")
 	err = svc.validateCreateSnapshotConfig()
@@ -68,7 +68,7 @@ func TestSetupSnapshotDump(t *testing.T) {
 		SchemaName: "public",
 		OutputFile: "/tmp/test_snapshot.sql",
 	}
-	l, _ := zap.NewDevelopment()
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: false})
 	svc, err := NewSnapshotService(cfg, l)
 	assert.NoError(t, err, "NewSnapshotService should not return an error")
 	dump, err := svc.setupSnapshotDump()
@@ -91,7 +91,7 @@ func TestValidateRestoreConfig(t *testing.T) {
 		SchemaName: "public",
 		InputFile:  snapshotFile,
 	}
-	l, _ := zap.NewDevelopment()
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: false})
 	svc, err := NewSnapshotService(cfg, l)
 	assert.NoError(t, err, "NewSnapshotService should not return an error")
 	err = svc.validateRestoreConfig()
@@ -109,7 +109,7 @@ func TestValidateRestoreConfigMissingInputFile(t *testing.T) {
 		SchemaName: "public",
 		InputFile:  "",
 	}
-	l, _ := zap.NewDevelopment()
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: false})
 	svc, err := NewSnapshotService(cfg, l)
 	assert.NoError(t, err, "NewSnapshotService should not return an error")
 	err = svc.validateRestoreConfig()
@@ -126,7 +126,7 @@ func TestSetupRestore(t *testing.T) {
 		SchemaName: "public",
 		InputFile:  "/tmp/test_snapshot.sql",
 	}
-	l, _ := zap.NewDevelopment()
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: false})
 	svc, err := NewSnapshotService(cfg, l)
 	assert.NoError(t, err, "NewSnapshotService should not return an error")
 	restore, err := svc.setupRestore()
