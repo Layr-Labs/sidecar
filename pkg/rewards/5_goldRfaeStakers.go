@@ -16,14 +16,19 @@ WITH combined_operators AS (
     operator
   FROM (
     -- Always include AVS operators
-    SELECT snapshot, operator FROM operator_avs_registration_snapshots
+    (
+      SELECT snapshot, operator 
+      FROM operator_avs_registration_snapshots
+    )
     UNION
     -- Include operator set operators only after Mississippi hard fork
-    SELECT 
-      snapshot, 
-      operator 
-    FROM operator_set_operator_registration_snapshots
-    WHERE snapshot >= @mississippiForkDate
+    (
+      SELECT 
+        snapshot, 
+        operator 
+      FROM operator_set_operator_registration_snapshots
+      WHERE snapshot >= @mississippiForkDate
+    )
   ) all_operators
 ),
 -- Get the operators who will earn rewards for the reward submission at the given snapshot
