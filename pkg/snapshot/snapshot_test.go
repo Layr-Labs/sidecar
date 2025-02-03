@@ -202,19 +202,19 @@ func TestSaveOutputFileHashCompatibilityWithSha256sum(t *testing.T) {
 	t.Logf("Generated hash file content: %s", string(hashContent))
 }
 
-func TestCleanup(t *testing.T) {
+func TestCleanupTempFiles(t *testing.T) {
 	tempDir := t.TempDir()
-	tempFile := filepath.Join(tempDir, "TestCleanup.tmp")
+	tempFile := filepath.Join(tempDir, "TestCleanupTempFiles.tmp")
 	_, err := os.Create(tempFile)
 	assert.NoError(t, err, "Creating temp file should not fail")
 
-	// Use the standalone Cleanup function
+	// Use the standalone cleanupTempFiles function
 	logger, _ := zap.NewDevelopment()
-	cleanup([]string{tempFile}, logger)
+	cleanupTempFiles([]string{tempFile}, logger)
 
 	_, err = os.Stat(tempFile)
 	if !os.IsNotExist(err) {
-		// Attempt to remove the file if it wasn't removed by the cleanup
+		// Attempt to remove the file if it wasn't removed by the cleanupTempFiles
 		removeErr := os.Remove(tempFile)
 		assert.NoError(t, removeErr, "Removing temp file manually should not fail")
 	}

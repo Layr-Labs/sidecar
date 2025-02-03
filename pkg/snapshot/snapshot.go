@@ -81,12 +81,11 @@ func resolveFilePath(path string) (string, error) {
 
 // CreateSnapshot creates a snapshot of the database based on the provided configuration.
 func (s *SnapshotService) CreateSnapshot() error {
-	var err error
-
-	s.cfg.OutputFile, err = resolveFilePath(s.cfg.OutputFile)
+	resolvedFilePath, err := resolveFilePath(s.cfg.OutputFile)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to resolve output file path '%s'", s.cfg.OutputFile))
 	}
+	s.cfg.OutputFile = resolvedFilePath
 
 	s.l.Sugar().Debugw("Resolved file paths", zap.String("Output", s.cfg.OutputFile))
 
@@ -120,9 +119,12 @@ func (s *SnapshotService) CreateSnapshot() error {
 
 // RestoreSnapshot restores a snapshot of the database based on the provided configuration.
 func (s *SnapshotService) RestoreSnapshot() error {
-	defer cleanup(s.tempFiles, s.l)
+	defer func() {
+		cleanupTempFiles(s.tempFiles, s.l)
+		s.tempFiles = s.tempFiles[:0] // Clear the tempFiles slice after cleanup
+	}()
 
-	if err := s.resolveRestoreInput(); err != nil {
+	if err := s.resolveAndDownloadRestoreInput(); err != nil {
 		return err
 	}
 
@@ -148,21 +150,18 @@ func (s *SnapshotService) RestoreSnapshot() error {
 	return nil
 }
 
-// resolveSnapshotServiceInput resolves the SnapshotService struct into a suitable format for restoring a snapshot
-func (s *SnapshotService) resolveRestoreInput() error {
-	var err error
-
+// resolveAndDownloadRestoreInput prepares the SnapshotService struct into a suitable format for restoring a snapshot
+// and downloads the necessary files if necessary
+func (s *SnapshotService) resolveAndDownloadRestoreInput() error {
 	if isNetworkURL(s.cfg.Input) {
 		inputUrl := s.cfg.Input
 
-		// Use getFileNameFromURL to extract the file name
 		fileName, err := getFileNameFromURL(inputUrl)
 		if err != nil {
 			return fmt.Errorf("failed to extract file name from URL: %w", err)
 		}
 
-		// Use a temporary directory for the download
-		inputFilePath := filepath.Join("tmp", fileName)
+		inputFilePath := filepath.Join(os.TempDir(), fileName)
 		s.cfg.Input, err = downloadFile(inputUrl, inputFilePath)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Error downloading snapshot from '%s'", inputUrl))
@@ -171,18 +170,20 @@ func (s *SnapshotService) resolveRestoreInput() error {
 
 		if s.cfg.VerifyInput {
 			hashUrl := getHashName(inputUrl)
-			hashFile, err := downloadFile(getHashName(inputUrl), hashUrl)
+			hashFilePath := getHashName(inputFilePath)
+			hashFile, err := downloadFile(hashUrl, hashFilePath)
 			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("Error downloading snapshot from '%s'", inputUrl))
+				return errors.Wrap(err, fmt.Sprintf("Error downloading snapshot from '%s'", hashUrl))
 			}
 			s.tempFiles = append(s.tempFiles, hashFile)
 		}
 	}
 
-	s.cfg.Input, err = resolveFilePath(s.cfg.Input)
+	resolvedFilePath, err := resolveFilePath(s.cfg.Input)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to resolve input file path '%s'", s.cfg.Input))
 	}
+	s.cfg.Input = resolvedFilePath
 
 	s.l.Sugar().Debugw("Resolved file paths", zap.String("Input", s.cfg.Input))
 
@@ -228,6 +229,7 @@ func (s *SnapshotService) validateRestoreConfig() error {
 		return fmt.Errorf("restore snapshot file path i.e. `input` must be specified")
 	}
 
+	// s.cfg.input is resolved from a url in resolveAndDownloadRestoreInput()
 	info, err := os.Stat(s.cfg.Input)
 	if err != nil || info.IsDir() {
 		return fmt.Errorf("snapshot file does not exist: %s", s.cfg.Input)
@@ -284,8 +286,8 @@ func saveOutputFileHash(filePath, hashFilePath string) error {
 	return nil
 }
 
-// cleanup removes the specified files and logs the results using the provided logger.
-func cleanup(files []string, l *zap.Logger) {
+// cleanupTempFiles removes the specified files and logs the results using the provided logger.
+func cleanupTempFiles(files []string, l *zap.Logger) {
 	for _, file := range files {
 		if err := os.Remove(file); err != nil {
 			l.Sugar().Warnw("Failed to remove temporary file",
@@ -335,7 +337,7 @@ func getFileHash(filePath string) ([]byte, error) {
 	return hasher.Sum(nil), nil
 }
 
-func downloadFile(url, filePath string) (string, error) {
+func downloadFile(url, downloadDestFilePath string) (string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to initiate download")
@@ -347,35 +349,32 @@ func downloadFile(url, filePath string) (string, error) {
 	}
 
 	// Ensure the directory for the file path exists
-	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		return "", errors.Wrap(err, "failed to create directories to save the download file to")
+	dir := filepath.Dir(downloadDestFilePath)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+			return "", errors.Wrap(err, "failed to create directories to save the download file to")
+		}
 	}
-
-	// For CLI UX Get the content length for the progress bar
-	contentLength := resp.ContentLength
 
 	// Create a progress bar with the file path
 	bar := progressbar.NewOptions64(
-		contentLength,
-		progressbar.OptionSetDescription(fmt.Sprintf("downloading %s", filePath)),
+		resp.ContentLength,
+		progressbar.OptionSetDescription(fmt.Sprintf("downloading %s", downloadDestFilePath)),
 		progressbar.OptionSetTheme(progressbar.Theme{Saucer: "=", SaucerPadding: " ", BarStart: "[", BarEnd: "]"}),
 	)
 
-	tmpFile, err := os.Create(filePath)
+	tmpFile, err := os.Create(downloadDestFilePath)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create local file")
 	}
+	defer tmpFile.Close()
 
-	// Use io.TeeReader to update the progress bar while copying
 	_, err = io.Copy(io.MultiWriter(tmpFile, bar), resp.Body)
 	if err != nil {
-		tmpFile.Close()
 		return "", errors.Wrap(err, "failed to write to local file")
 	}
 
-	tmpFile.Close()
-	return filePath, nil
+	return downloadDestFilePath, nil
 }
 
 // getHashName returns the hash name for a given file path or URL.
