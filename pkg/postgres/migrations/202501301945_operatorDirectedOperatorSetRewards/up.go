@@ -28,7 +28,9 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			duration bigint not null,
 			block_number bigint not null,
 			block_time timestamp without time zone not null,
-			block_date date not null
+			block_date date not null,
+			UNIQUE (avs, operator_set_id, reward_hash, operator_index, strategy_index),
+			CONSTRAINT operator_directed_operator_set_rewards_block_number_fkey FOREIGN KEY (block_number) REFERENCES blocks(number) ON DELETE CASCADE
 		)`,
 	}
 
