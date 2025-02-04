@@ -1,12 +1,13 @@
 package stakerOperators
 
 import (
+	"time"
+
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
-	"time"
 )
 
-const _6_stakerOperatorsStaging = `
+const _12_stakerOperatorsStaging = `
 create table {{.destTableName}} as
 SELECT 
   staker as earner,
@@ -85,7 +86,9 @@ SELECT
   reward_hash,
   snapshot
 FROM {{.sot5RfaeOperatorStrategyPayout}}
+
 {{ if .rewardsV2Enabled }}
+
 UNION ALL
 
 SELECT
@@ -133,6 +136,59 @@ SELECT
 	reward_hash,
 	snapshot
 from {{.sot8AvsODStrategyPayouts}}
+
+{{ end }}
+
+{{ if .rewardsV2_1Enabled }}
+
+UNION ALL
+
+SELECT
+	operator as earner,
+	operator as operator,
+	'operator_od_operator_set_reward' as reward_type,
+	avs,
+	token,
+	'0x0000000000000000000000000000000000000000' as strategy,
+	'0' as multiplier,
+	'0' as shares,
+	operator_tokens as amount,
+	reward_hash,
+	snapshot
+from {{.sot9OperatorODOperatorSetStrategyPayouts}}
+
+UNION ALL
+
+SELECT
+	staker as earner,
+	operator,
+	'staker_od_operator_set_reward' as reward_type,
+	avs,
+	token,
+	strategy,
+	multiplier,
+	shares,
+	staker_tokens as amount,
+	reward_hash,
+	snapshot
+from {{.sot10StakerODOperatorSetStrategyPayouts}}
+
+UNION ALL
+
+SELECT
+	avs as earner,
+	operator,
+	'avs_od_operator_set_reward' as reward_type,
+	avs,
+	token,
+	'0x0000000000000000000000000000000000000000' as strategy,
+	'0' as multiplier,
+	'0' as shares,
+	avs_tokens as amount,
+	reward_hash,
+	snapshot
+from {{.sot11AvsODOperatorSetStrategyPayouts}}
+
 {{ end }}
 `
 
@@ -150,45 +206,55 @@ type StakerOperatorStaging struct {
 	Snapshot   time.Time
 }
 
-func (sog *StakerOperatorsGenerator) GenerateAndInsert9StakerOperatorStaging(cutoffDate string) error {
+func (sog *StakerOperatorsGenerator) GenerateAndInsert12StakerOperatorStaging(cutoffDate string) error {
 	rewardsV2Enabled, err := sog.globalConfig.IsRewardsV2EnabledForCutoffDate(cutoffDate)
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
 		return err
 	}
 
+	rewardsV2_1Enabled, err := sog.globalConfig.IsRewardsV2_1EnabledForCutoffDate(cutoffDate)
+	if err != nil {
+		sog.logger.Sugar().Errorw("Failed to check if rewards v2.1 is enabled", "error", err)
+		return err
+	}
+
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
-	destTableName := allTableNames[rewardsUtils.Sot_9_StakerOperatorStaging]
+	destTableName := allTableNames[rewardsUtils.Sot_12_StakerOperatorStaging]
 
 	if err := rewardsUtils.DropTableIfExists(sog.db, destTableName, sog.logger); err != nil {
 		sog.logger.Sugar().Errorw("Failed to drop table", "error", err)
 		return err
 	}
 
-	sog.logger.Sugar().Infow("Generating and inserting 9_stakerOperatorsStaging",
+	sog.logger.Sugar().Infow("Generating and inserting 12_stakerOperatorsStaging",
 		zap.String("cutoffDate", cutoffDate),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_6_stakerOperatorsStaging, map[string]interface{}{
-		"destTableName":                    destTableName,
-		"rewardsV2Enabled":                 rewardsV2Enabled,
-		"sot1StakerStrategyPayouts":        allTableNames[rewardsUtils.Sot_1_StakerStrategyPayouts],
-		"sot2OperatorStrategyPayouts":      allTableNames[rewardsUtils.Sot_2_OperatorStrategyPayouts],
-		"sot3RewardsForAllStrategyPayouts": allTableNames[rewardsUtils.Sot_3_RewardsForAllStrategyPayout],
-		"sot4RfaeStakerStrategyPayout":     allTableNames[rewardsUtils.Sot_4_RfaeStakers],
-		"sot5RfaeOperatorStrategyPayout":   allTableNames[rewardsUtils.Sot_5_RfaeOperators],
-		"sot6OperatorODStrategyPayouts":    allTableNames[rewardsUtils.Sot_6_OperatorODStrategyPayouts],
-		"sot7StakerODStrategyPayouts":      allTableNames[rewardsUtils.Sot_7_StakerODStrategyPayouts],
-		"sot8AvsODStrategyPayouts":         allTableNames[rewardsUtils.Sot_8_AvsODStrategyPayouts],
+	query, err := rewardsUtils.RenderQueryTemplate(_12_stakerOperatorsStaging, map[string]interface{}{
+		"destTableName":                            destTableName,
+		"rewardsV2Enabled":                         rewardsV2Enabled,
+		"sot1StakerStrategyPayouts":                allTableNames[rewardsUtils.Sot_1_StakerStrategyPayouts],
+		"sot2OperatorStrategyPayouts":              allTableNames[rewardsUtils.Sot_2_OperatorStrategyPayouts],
+		"sot3RewardsForAllStrategyPayouts":         allTableNames[rewardsUtils.Sot_3_RewardsForAllStrategyPayout],
+		"sot4RfaeStakerStrategyPayout":             allTableNames[rewardsUtils.Sot_4_RfaeStakers],
+		"sot5RfaeOperatorStrategyPayout":           allTableNames[rewardsUtils.Sot_5_RfaeOperators],
+		"sot6OperatorODStrategyPayouts":            allTableNames[rewardsUtils.Sot_6_OperatorODStrategyPayouts],
+		"sot7StakerODStrategyPayouts":              allTableNames[rewardsUtils.Sot_7_StakerODStrategyPayouts],
+		"sot8AvsODStrategyPayouts":                 allTableNames[rewardsUtils.Sot_8_AvsODStrategyPayouts],
+		"rewardsV2_1Enabled":                       rewardsV2_1Enabled,
+		"sot9OperatorODOperatorSetStrategyPayouts": allTableNames[rewardsUtils.Sot_9_OperatorODOperatorSetStrategyPayouts],
+		"sot10StakerODOperatorSetStrategyPayouts":  allTableNames[rewardsUtils.Sot_10_StakerODOperatorSetStrategyPayouts],
+		"sot11AvsODOperatorSetStrategyPayouts":     allTableNames[rewardsUtils.Sot_11_AvsODOperatorSetStrategyPayouts],
 	})
 	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to render 9_stakerOperatorsStaging query", "error", err)
+		sog.logger.Sugar().Errorw("Failed to render 12_stakerOperatorsStaging query", "error", err)
 		return err
 	}
 
 	res := sog.db.Exec(query)
 	if res.Error != nil {
-		sog.logger.Sugar().Errorw("Failed to generate 6_stakerOperatorsStaging",
+		sog.logger.Sugar().Errorw("Failed to generate 12_stakerOperatorsStaging",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(res.Error),
 		)
