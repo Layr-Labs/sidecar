@@ -103,16 +103,40 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 
-	if err := sog.GenerateAndInsert9StakerOperatorStaging(cutoffDate); err != nil {
-		sog.logger.Sugar().Errorw("Failed to generate and insert 6 staker strategy rewards",
+	if err := sog.GenerateAndInsert9OperatorODOperatorSetStrategyPayouts(cutoffDate); err != nil {
+		sog.logger.Sugar().Errorw("Failed to generate and insert 9 operator OD operator set strategy rewards",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
 		)
 		return err
 	}
 
-	if err := sog.GenerateAndInsert10StakerOperator(cutoffDate); err != nil {
-		sog.logger.Sugar().Errorw("Failed to generate and insert 7 staker strategy rewards",
+	if err := sog.GenerateAndInsert10StakerODOperatorSetStrategyPayouts(cutoffDate); err != nil {
+		sog.logger.Sugar().Errorw("Failed to generate and insert 10 staker OD operator set strategy rewards",
+			zap.String("cutoffDate", cutoffDate),
+			zap.Error(err),
+		)
+		return err
+	}
+
+	if err := sog.GenerateAndInsert11AvsODOperatorSetStrategyPayouts(cutoffDate); err != nil {
+		sog.logger.Sugar().Errorw("Failed to generate and insert 11 AVS OD operator set strategy rewards",
+			zap.String("cutoffDate", cutoffDate),
+			zap.Error(err),
+		)
+		return err
+	}
+
+	if err := sog.GenerateAndInsert12StakerOperatorStaging(cutoffDate); err != nil {
+		sog.logger.Sugar().Errorw("Failed to generate and insert 12 staker operator staging",
+			zap.String("cutoffDate", cutoffDate),
+			zap.Error(err),
+		)
+		return err
+	}
+
+	if err := sog.GenerateAndInsert13StakerOperator(cutoffDate); err != nil {
+		sog.logger.Sugar().Errorw("Failed to generate and insert 13 staker operator",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
 		)
