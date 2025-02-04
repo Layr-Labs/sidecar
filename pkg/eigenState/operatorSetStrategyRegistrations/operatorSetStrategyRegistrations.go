@@ -101,9 +101,9 @@ func (ossr *OperatorSetStrategyRegistrationModel) handleOperatorSetStrategyRegis
 	}
 
 	strategyRegistration := &OperatorSetStrategyRegistration{
-		Strategy:        outputData.Strategy,
-		Avs:             outputData.OperatorSet.Avs,
-		OperatorSetId:   outputData.OperatorSet.Id,
+		Strategy:        strings.ToLower(outputData.Strategy),
+		Avs:             strings.ToLower(outputData.OperatorSet.Avs),
+		OperatorSetId:   uint64(outputData.OperatorSet.Id),
 		IsActive:        isActive,
 		BlockNumber:     log.BlockNumber,
 		TransactionHash: log.TransactionHash,
