@@ -116,12 +116,14 @@ func (rpc *RpcServer) StreamIndexedBlocks(request *v1.StreamIndexedBlocksRequest
 		rpc.Logger.Debug("Received block", zap.Any("data", data))
 		blockProcessedData := data.(*eventBusTypes.BlockProcessedData)
 
-		resp, err := rpc.buildBlockResponse(blockProcessedData, request.GetIncludeStateChanges())
-		if err != nil {
-			return err
-		}
+		if onlyBlocksWithData && processedBlockHasData(blockProcessedData) {
+			resp, err := rpc.buildBlockResponse(blockProcessedData, request.GetIncludeStateChanges())
+			if err != nil {
+				return err
+			}
 
-		return g.SendMsg(resp)
+			return g.SendMsg(resp)
+		}
 	})
 	if err != nil {
 		return err
