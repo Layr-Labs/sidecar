@@ -11,13 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_RewardsV2(t *testing.T) {
+func Test_RewardsV2_1(t *testing.T) {
 	if !rewardsTestsEnabled() {
 		t.Skipf("Skipping %s", t.Name())
 		return
 	}
 
-	dbFileName, cfg, grm, l, sink, err := setupRewardsV2()
+	dbFileName, cfg, grm, l, err := setupRewardsV2()
 	fmt.Printf("Using db file: %+v\n", dbFileName)
 
 	if err != nil {
@@ -27,7 +27,7 @@ func Test_RewardsV2(t *testing.T) {
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 
 	t.Run("Should initialize the rewards calculator", func(t *testing.T) {
-		rc, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		rc, err := NewRewardsCalculator(cfg, grm, nil, sog, l)
 		assert.Nil(t, err)
 		if err != nil {
 			t.Fatal(err)
@@ -70,10 +70,23 @@ func Test_RewardsV2(t *testing.T) {
 		err = hydrateOperatorDirectedRewardSubmissionsTable(grm, l)
 		assert.Nil(t, err)
 
+		// RewardsV2_1 tables
+		err = hydrateOperatorSetOperatorRegistrationsTable(grm, l)
+		assert.Nil(t, err)
+
+		err = hydrateOperatorSetStrategyRegistrationsTable(grm, l)
+		assert.Nil(t, err)
+
+		err = hydrateOperatorSetSplits(grm, l)
+		assert.Nil(t, err)
+
+		err = hydrateOperatorDirectedOperatorSetRewardSubmissionsTable(grm, l)
+		assert.Nil(t, err)
+
 		t.Log("Hydrated tables")
 
 		snapshotDates := []string{
-			"2024-12-14",
+			"2025-02-04",
 		}
 
 		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
