@@ -57,7 +57,7 @@ Shares are transformed into Decimal(78,0), a data type that can hold up to uint2
 
 We set the cutoff date at the beginning of each run with the following logic:
 
-```python=
+```python
 def get_cutoff_date():
     # get current time in utc
     ts = datetime.now(timezone.utc)
@@ -79,7 +79,7 @@ Backfills are run in worst case scenarios if there are events that are missed in
 2. The tokens per day of an AVS is always >= sum(earener payouts) for a given snapshot and reward hash
 3. The number of rows of (`earner`, `reward_hash`, and `snapshot`) never decreases
 
-```python=
+```python
 def get_gold_calculation_dates(**kwargs):
     # Cutoff Date
     cutoff_date = get_cutoff_date()
@@ -121,7 +121,7 @@ In the below queries, `block_date` is the date of the block whereas `block_time`
 
 #### Deposits
 
-```sql=
+```sql
 SELECT
   lower(coalesce(t.output_data ->> 'depositor', t.output_data ->> 'staker')) as staker,
   lower(t.output_data ->> 'strategy') as strategy,
@@ -142,7 +142,7 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 
 _Note: Shares can be negative_
 
-```sql=
+```sql
 SELECT
   lower(t.arguments #>> '{0,Value}') AS staker,
   (t.output_data ->> 'sharesDelta')::numeric(78,0) as shares,
@@ -162,7 +162,7 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 
 Withdrawals in M1 were routed through the StrategyManager. Note that we remove the single withdrawal completed as shares in M1 as there was no deposit event for this code path.
 
-```sql=
+```sql
 SELECT
   lower(coalesce(t.output_data ->> 'depositor', t.output_data ->> 'staker')) as staker,
   lower(t.output_data ->> 'strategy') as strategy,
@@ -185,7 +185,7 @@ AND t.transaction_hash != '0x62eb0d0865b2636c74ed146e2d161e39e42b09bac7f86b8905f
 
 Unlike M1 withdrawal events, M2 withdrawal events return a tuple with a list of strategies and shares. Thus, we unwind the tuple into indivudal rows to create (staker, strategy$_0$, share$_0$), (staker, strategy$_1$, share$_1$). We discard all M2 withdrawals that were migrated from M1 so we do not double count a withdrawal.
 
-```sql=
+```sql
 WITH migrations AS (
   SELECT
     (
@@ -245,7 +245,7 @@ Operator state is made of stake delegated to them by stakers.
 
 #### Operator Shares Increased
 
-```sql=
+```sql
 SELECT
   lower(t.arguments #>> '{0,Value}') as operator,
   lower(t.output_data ->> 'strategy') as strategy,
@@ -264,7 +264,7 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 
 #### Operator Shares Decreased
 
-```sql=
+```sql
 SELECT
   lower(t.arguments #>> '{0,Value}') as operator,
   lower(t.output_data ->> 'strategy') as strategy,
@@ -285,7 +285,7 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 
 #### Staker Delegated
 
-```sql=
+```sql
 SELECT
   lower(t.arguments #>> '{0,Value}') AS staker,
   lower(t.arguments #>> '{1,Value}') AS operator,
@@ -303,7 +303,7 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 
 #### Staker Undelegated
 
-```sql=
+```sql
 SELECT
   lower(t.arguments #>> '{0,Value}') AS staker,
   lower(t.arguments #>> '{1,Value}') AS operator,
@@ -335,7 +335,7 @@ Split calculation follows these rules:
 
 Example operator-AVS split snapshot:
 
-```sql=
+```sql
 WITH operator_avs_splits_with_block_info as (
 SELECT
   oas.operator,
@@ -365,7 +365,7 @@ _Note: The amount in the RewardsCoordinator has a max value of $1e38-1$, which a
 
 For each rewards submission, we extract each (strategy,multiplier) in a separate row for easier accounting
 
-```sql=
+```sql
 SELECT
     lower(tl.arguments #>> '{0,Value}') AS avs,
     lower(tl.arguments #>> '{2,Value}') AS reward_hash,
@@ -398,7 +398,7 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 
 #### Rewards for All Submissions
 
-```sql=
+```sql
 
 SELECT
   lower(tl.arguments #>> '{0,Value}') AS avs, -- Keeping as AVS for compatibility with unioning on range_payments.
@@ -432,7 +432,7 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 
 #### Rewards for All Earners Submissions
 
-```sql=
+```sql
 SELECT
   lower(tl.arguments #>> '{0,Value}') AS avs, -- Keeping as AVS for compatibility with unioning on range_payments.
   lower(tl.arguments #>> '{2,Value}') AS reward_hash,
@@ -465,7 +465,7 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 
 #### Operator-Directed Rewards Submissions
 
-```sql=
+```sql
 WITH _operator_directed_rewards as (
 		SELECT
 			odrs.avs,
@@ -512,7 +512,7 @@ Every deregistration and registration from an Operator to an AVS is recorded in 
 
 #### Operator Registrations
 
-```sql=
+```sql
 SELECT
   lower(t.arguments #>> '{0,Value}') as operator,
   lower(t.arguments #>> '{1,Value}') as avs,
@@ -604,13 +604,13 @@ Combining these two gives us the shares for a staker for every strategy for ever
 
 The key part of this query is:
 
-```sql=
+```sql
 SUM(shares) OVER (PARTITION BY staker, strategy ORDER BY block_time, log_index) AS shares,
 ```
 
 Which gets the **_running_** sum for every (staker, strategy) pair at every update.
 
-```sql=
+```sql
 SELECT
     staker,
     strategy,
@@ -653,7 +653,7 @@ FROM (
 The shares for an operator, $o$, for a strategy, $y$, is given by:
 $Shares_{o,y} = ShareIncrease_{o,y} - ShareDecrease_{o,y}$
 
-```sql=
+```sql
 SELECT
   operator,
   strategy,
@@ -679,7 +679,7 @@ FROM (
 
 Here, we aggregate each delegation and undelegation into a single view. When a staker is undelegated, we mark its operator as `0x0000000000000000000000000000000000000000`.
 
-```sql=
+```sql
 SELECT
   staker,
   CASE when src = 'undelegations' THEN '0x0000000000000000000000000000000000000000' ELSE operator END AS operator,
@@ -699,7 +699,7 @@ FROM (
 
 Combines AVS Rewards Submissions and Rewards for All Submissions into one view, with an added `reward_type` parameter.
 
-```sql=
+```sql
 SELECT *, 'avs' as reward_type from {{ ref('avs_reward_submissions') }}
 
 UNION ALL
@@ -715,7 +715,7 @@ SELECT *, 'all_earners' as reward_type from {{ ref('reward_submission_for_all_ea
 
 Formats the [status tuple](https://github.com/Layr-Labs/eigenlayer-contracts/blob/90a0f6aee79b4a38e1b63b32f9627f21b1162fbb/src/contracts/interfaces/IAVSDirectory.sol#L8-L11) in the AVSDirectory as a `true` or `false`.
 
-```sql=
+```sql
 SELECT
     operator,
     avs,
@@ -740,7 +740,7 @@ The key design decision, which we explained in the [considerations above](https:
 
 1. Ranked_staker_records: Ranks each record for a given staker, strategy and day. The lower the rank, the later the record is in the window
 
-```sql=
+```sql
 WITH ranked_staker_records as (
     SELECT *,
            ROW_NUMBER() OVER (PARTITION BY staker, strategy, cast(block_time AS DATE) ORDER BY block_time DESC, log_index DESC) AS rn
@@ -750,7 +750,7 @@ WITH ranked_staker_records as (
 
 2. Snapshotted_records: Select the latest record for each day. Round up the record to create a `snapshot_time` the latest record for each day & round up to the snapshot day
 
-```sql=
+```sql
  snapshotted_records as (
      SELECT
          staker,
@@ -765,7 +765,7 @@ WITH ranked_staker_records as (
 
 3. Staker_share_windows: Get the range for each staker, strategy, shares
 
-```sql=
+```sql
 staker_share_windows as (
      SELECT
      staker, strategy, shares, snapshot_time as start_time,
@@ -788,7 +788,7 @@ _Note: The above logic can have (`staker`, `strategy`) combinations where the `e
 
 #### Operator Share Windows
 
-```sql=
+```sql
 WITH ranked_operator_records as (
     SELECT *,
            ROW_NUMBER() OVER (PARTITION BY operator, strategy, cast(block_time AS DATE) ORDER BY block_time DESC, log_index DESC) AS rn
@@ -823,7 +823,7 @@ This logic is the exact same as the Staker Share Windows.
 
 #### Staker Delegation Windows
 
-```sql=
+```sql
 with ranked_delegations as (
     SELECT *,
            ROW_NUMBER() OVER (PARTITION BY staker, cast(block_time AS DATE) ORDER BY block_time DESC, log_index DESC) AS rn
@@ -873,7 +873,7 @@ We do not care about a (deregistration, registration) window from rows 2 and 3. 
 
 1. Mark a link between each registration
 
-```sql=
+```sql
 WITH marked_statuses AS (
     SELECT
         operator,
@@ -896,7 +896,7 @@ WITH marked_statuses AS (
 
 2. Ignore a (registration, deregistration) pair that occurs on the same day. This is to ensure that the grouping is not counted once we round deregistration down and registration up.
 
-```sql=
+```sql
  removed_same_day_deregistrations AS (
      SELECT * from marked_statuses
      WHERE NOT (
@@ -915,7 +915,7 @@ WITH marked_statuses AS (
 
 3. Mark the`end_time` of the record as the next record. If it's not the case, mark the `end_time` as the `cutoff_date`
 
-```sql=
+```sql
  registration_periods AS (
      SELECT
          operator,
@@ -932,7 +932,7 @@ WITH marked_statuses AS (
 
 4. Round up each `start_time` and round down each end_time
 
-```sql=
+```sql
  registration_windows_extra as (
      SELECT
          operator,
@@ -946,7 +946,7 @@ WITH marked_statuses AS (
 
 5. Get rid of records with the same `start_time` and `end_time`:
 
-```sql=
+```sql
  operator_avs_registration_windows as (
      SELECT * from registration_windows_extra
      WHERE start_time != end_time
@@ -960,7 +960,7 @@ This query aggregates entries from the [operator restaked strategies](https://ha
 
 1. Order all records. Round up `block_time` to 0 UTC. Log_index is irrelevant since this data is generated from RPC calls.
 
-```sql=
+```sql
 with ranked_records AS (
     SELECT
         lower(operator) as operator,
@@ -981,7 +981,7 @@ with ranked_records AS (
 
 2. Get the latest records for each (`operator`, `avs`, `strategy`, `day`) combination
 
-```sql=
+```sql
  latest_records AS (
      SELECT
          operator,
@@ -996,7 +996,7 @@ with ranked_records AS (
 
 3. Find the next entry for each (`operator`, `avs`, `strategy`) grouping.
 
-```sql=
+```sql
  grouped_records AS (
      SELECT
          operator,
@@ -1013,7 +1013,7 @@ with ranked_records AS (
 
 4. Parse out any holes (ie. any `next_start_times` that are not exactly one day after the current record's `start_time`). This is because the operator would have deregistered from the AVS.
 
-```sql=
+```sql
  parsed_ranges AS (
      SELECT
          operator,
@@ -1031,7 +1031,7 @@ with ranked_records AS (
 
 5. Remove any records where `start_time` == `end_time`
 
-```sql=
+```sql
  active_windows as (
      SELECT *
      FROM parsed_ranges
@@ -1041,7 +1041,7 @@ with ranked_records AS (
 
 6. We now use the gaps and islands algorithm to find contiguous groups of (`operator`, `avs`, `strategy`) combinations. First, we mark the `prev_end_time` for each row. If there is a new window, then the gap is empty
 
-```sql=
+```sql
  gaps_and_islands AS (
      SELECT
          operator,
@@ -1056,7 +1056,7 @@ with ranked_records AS (
 
 7. Next we, detect islands. If the `prev_end_time` is the same as the `start_time` then the records are part of the same continguous grouping.
 
-```sql=
+```sql
  island_detection AS (
      SELECT operator, avs, strategy, start_time, end_time, prev_end_time,
             CASE
@@ -1070,7 +1070,7 @@ with ranked_records AS (
 
 8. Create groups based on each records `new_island`. Rows that have the same `island_id` sum are part of the same grouping
 
-```sql=
+```sql
  island_groups AS (
      SELECT
          operator,
@@ -1087,7 +1087,7 @@ with ranked_records AS (
 
 9. Coalesce groups together
 
-```sql=
+```sql
  operator_avs_strategy_windows AS (
      SELECT
          operator,
@@ -1108,7 +1108,7 @@ select * from operator_avs_strategy_windows
 
 #### Staker Share Snapshot
 
-```sql=
+```sql
 WITH cleaned_records as (
   SELECT * FROM {{ ref('staker_share_windows')}}
   WHERE start_time < end_time
@@ -1128,7 +1128,7 @@ We remove any records with erroneous `start_time` and `end_time` values. Then, w
 
 #### Operator Share Snapshot
 
-```sql=
+```sql
 WITH cleaned_records as (
     SELECT * FROM {{ ref('operator_share_windows')}}
         WHERE start_time < end_time
@@ -1146,7 +1146,7 @@ FROM
 
 #### Staker Delegation Snapshots
 
-```sql=
+```sql
 WITH cleaned_records as (
     SELECT * FROM {{ ref('staker_delegation_windows') }}
         WHERE start_time < end_time
@@ -1163,7 +1163,7 @@ FROM
 
 #### Operator AVS Strategy Snapshots
 
-```sql=
+```sql
 WITH cleaned_records AS (
     SELECT * FROM {{ ref('operator_avs_strategy_windows') }}
         WHERE start_time < end_time
@@ -1181,7 +1181,7 @@ FROM
 
 #### Operator AVS Registration Snapshots
 
-```sql=
+```sql
 WITH cleaned_records AS (
     SELECT * FROM {{ ref('operator_avs_registration_windows') }}
         WHERE start_time < end_time
@@ -1282,7 +1282,7 @@ For brevity, only the relevant rows of the table are displayed in each example.
 
 #### Active Rewards
 
-```sql=
+```sql
 WITH active_rewards_modified as (
     SELECT *,
            amount/(duration/86400) as tokens_per_day,
@@ -1303,8 +1303,8 @@ WITH active_rewards_modified as (
 
 #### Active Rewards Updated End Timestamps
 
-```sql=
- active_rewards_updated_end_timestamps as (
+```sql
+ active_rewards_updated_end_timestamps as (public
      SELECT
          avs,
          /**
@@ -1335,7 +1335,7 @@ WITH active_rewards_modified as (
 
 #### Active Rewards Updated Start Timestamps
 
-```sql=
+```sql
 -- For each reward hash, find the latest snapshot
  active_rewards_updated_start_timestamps as (
      SELECT
@@ -1376,7 +1376,7 @@ Let's assume that the most recent `snapshotReward` for the reward_hash is 4-24-2
 
 #### Active Reward Ranges
 
-```sql=
+```sql
  active_reward_ranges AS (
      SELECT * from active_rewards_updated_start_timestamps
      /** Take out (reward_start_exclusive, reward_end_inclusive) windows where
@@ -1390,7 +1390,7 @@ Parse out invalid ranges. This can occur if the current run is a backfill and th
 
 #### Unwinded Active Reward Ranges
 
-```sql=
+```sql
  exploded_active_range_rewards AS (
      SELECT * FROM active_reward_ranges
      CROSS JOIN generate_series(DATE(reward_start_exclusive), DATE(reward_end_inclusive), INTERVAL '1' DAY) AS day
@@ -1412,7 +1412,7 @@ Create a row for each snapshot in the reward range
 
 #### Final Active Reward
 
-```sql=
+```sql
  active_rewards_final AS (
      SELECT
          avs,
@@ -1455,7 +1455,7 @@ We first calculate the reward distribution to the entire staker operator set and
 
 #### Reward Snapshot Operators
 
-```sql=
+```sql
 WITH reward_snapshot_operators as (
   SELECT
     ap.reward_hash,
@@ -1491,7 +1491,7 @@ For days where the are no operators opted into the AVS, the `tokens_per_day` of 
 
 #### Operator Restaked Strategies
 
-```sql=
+```sql
 _operator_restaked_strategies AS (
   SELECT
     rso.*
@@ -1519,7 +1519,7 @@ Let's assume the strategies for each operator on the AVS are:
 
 #### Staker Delegated Operators
 
-```sql=
+```sql
 staker_delegated_operators AS (
   SELECT
     ors.*,
@@ -1546,7 +1546,7 @@ Get the stakers that were delegated to the operator for the snapshot.
 
 #### Staker Strategy Shares
 
-```sql=
+```sql
 staker_avs_strategy_shares AS (
   SELECT
     sdo.*,
@@ -1588,7 +1588,7 @@ Staker2 has no `rETH` shares, which is why this view has 1 less row.
 
 #### Staker Weights
 
-```sql=
+```sql
 staker_weights AS (
   SELECT *,
     SUM(multiplier * shares) OVER (PARTITION BY staker, reward_hash, snapshot) AS staker_weight
@@ -1609,7 +1609,7 @@ Calculates the `stakeWeight` of the staker. A discussion on this calculation is 
 
 #### Distinct Stakers
 
-```sql=
+```sql
 distinct_stakers AS (
   SELECT *
   FROM (
@@ -1640,7 +1640,7 @@ Remove rows with with same (`staker`, `reward_hash`, `snapshot`)
 
 #### Staker Weight Sum
 
-```sql=
+```sql
 staker_weight_sum AS (
   SELECT *,
     SUM(staker_weight) OVER (PARTITION BY reward_hash, snapshot) as total_weight
@@ -1660,7 +1660,7 @@ Get the sum of all staker weights for a given (`reward_hash`, `snapshot`)
 
 #### Staker Proportion
 
-```sql=
+```sql
 staker_proportion AS (
   SELECT *,
     FLOOR((staker_weight / total_weight) * 1000000000000000) / 1000000000000000 AS staker_proportion
@@ -1680,7 +1680,7 @@ Calculate the staker's proportion of tokens for the `snapshotReward` **We round 
 
 #### Total Tokens
 
-```sql=
+```sql
 staker_operator_total_tokens AS (
   SELECT *,
     CASE
@@ -1715,7 +1715,7 @@ Calculate the number of tokens that will be paid out to all stakers and operator
 
 #### Token Breakdowns
 
-```sql=
+```sql
 token_breakdowns AS (
   SELECT *,
     CASE
@@ -1758,7 +1758,7 @@ $Shares_{o} = \sum_{i=0}^{n=operatorStakers} Shares_i$
 
 #### Operator Token Sums
 
-```sql=
+```sql
 WITH operator_token_sums AS (
   SELECT
     reward_hash,
@@ -1787,7 +1787,7 @@ Gets the sum for each operator for a given `reward_hash` and `snapshot`. The tok
 
 #### Dedupe Operators
 
-```sql=
+```sql
 distinct_operators AS (
   SELECT *
   FROM (
@@ -1820,7 +1820,7 @@ This query calculates rewards made by via the `createRewardsForAllSubmission` fu
 
 #### Staker Snapshots
 
-```sql=
+```sql
 WITH reward_snapshot_stakers AS (
   SELECT
     ap.reward_hash,
@@ -1848,7 +1848,7 @@ Select all the rewards that set `reward_for_all` to true
 
 The calculation is the same as [step 2](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw?view#2-Staker-Reward-Amounts), except we do not need to check the operator a stakers is delegated to
 
-```sql=
+```sql
 -- Calculate the weight of a staker
 staker_weights AS (
   SELECT *,
@@ -1902,7 +1902,7 @@ We do this by:
 
 #### AVS Opted Operators
 
-```sql=
+```sql
 WITH avs_opted_operators AS (
   SELECT DISTINCT
     snapshot,
@@ -1915,7 +1915,7 @@ Gets the unique operators who have registered for an AVS for a given snapshot. T
 
 #### Reward Snapshot Operators
 
-```sql=
+```sql
 -- Get the operators who will earn rewards for the reward submission at the given snapshot
 reward_snapshot_operators as (
   SELECT
@@ -1940,7 +1940,7 @@ We add join the active rewards with operators who have registered to at least on
 
 #### Staker Delegated Operators
 
-```sql=
+```sql
 -- Get the stakers that were delegated to the operator for the snapshot
 staker_delegated_operators AS (
   SELECT
@@ -1960,7 +1960,7 @@ Get the stakers that were delegated to the registered operator for the snapshot.
 
 The rest of the calculation proceeds as `2_staker_reward_amounts`, without having hard forks.
 
-```sql=
+```sql
 -- Get the shares of each strategy the staker has delegated to the operator
 staker_strategy_shares AS (
   SELECT
@@ -2027,7 +2027,7 @@ ORDER BY reward_hash, snapshot, staker, operator
 
 Similar to step 3, we now have to parse out the reward for operators.
 
-```sql=
+```sql
 -- Sum up the operator tokens across stakers for each operator, reward hash, and snapshot
 WITH operator_token_sums AS (
   SELECT
@@ -2060,7 +2060,7 @@ SELECT * FROM distinct_operators
 
 ### 7. Gold Active OD Rewards
 
-```sql=
+```sql
 WITH
 -- Step 2: Modify active rewards and compute tokens per day
 active_rewards_modified AS (
@@ -2220,7 +2220,7 @@ SELECT * FROM active_rewards_final
 
 ### 8. Gold Operator Operator-Directed Reward Amounts
 
-```sql=
+```sql
 -- Step 1: Get the rows where operators have registered for the AVS
 WITH reward_snapshot_operators AS (
     SELECT
@@ -2290,7 +2290,7 @@ SELECT * FROM operator_splits
 
 ### 9. Gold Staker Operator-Directed Reward Amounts
 
-```sql=
+```sql
 -- Step 1: Get the rows where operators have registered for the AVS
 WITH reward_snapshot_operators AS (
     SELECT
@@ -2404,7 +2404,7 @@ SELECT * FROM staker_reward_amounts
 
 ### 10. Gold AVS Operator-Directed Reward Amounts
 
-```sql=
+```sql
 -- Step 1: Get the rows where operators have not registered for the AVS or if the AVS does not exist
 WITH reward_snapshot_operators AS (
     SELECT
@@ -2468,7 +2468,7 @@ This query combines the rewards from steps 2,3,4,5,6,7,8,9,10 to generate a tabl
 
 Aggregates the rewards from steps 2,3, and 4. We use `DISTINCT` as a sanity check to discard rows with the same `strategy` and `earner` for a given `reward_hash` and `snapshot`.
 
-```sql=
+```sql
 WITH staker_rewards AS (
   -- We can select DISTINCT here because the staker's tokens are the same for each strategy in the reward hash
   SELECT DISTINCT
@@ -2571,7 +2571,7 @@ combined_rewards AS (
 
 #### Dedupe Earners
 
-```sql=
+```sql
 -- Dedupe earners, primarily operators who are also their own staker.
 deduped_earners AS (
   SELECT
@@ -2597,7 +2597,7 @@ Sum up the balances for earners with multiple rows for a given `reward_hash` and
 
 The previous queries were all views. This step selects rows from the [step 7](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw#6-Gold-Table-Staging) and appends them to a table.
 
-```sql=
+```sql
 SELECT
     earner,
     snapshot,
@@ -2611,7 +2611,7 @@ This table is merged via the `merge` `incremental_strategy` on the unique keys o
 
 Lastly, the Rewards Root Updater will query this table to get cumulative amounts merkelize the following earner, token, cumulative_amount columns.
 
-```sql=
+```sql
 SELECT
     earner,
     snapshot,
