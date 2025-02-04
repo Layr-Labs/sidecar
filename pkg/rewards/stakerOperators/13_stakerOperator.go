@@ -1,12 +1,13 @@
 package stakerOperators
 
 import (
+	"time"
+
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
-	"time"
 )
 
-const _7_stakerOperator = `
+const _13_stakerOperator = `
 insert into {{.destTableName}} (
 	earner,
 	operator,
@@ -50,30 +51,30 @@ type StakerOperator struct {
 	Snapshot   time.Time
 }
 
-func (sog *StakerOperatorsGenerator) GenerateAndInsert10StakerOperator(cutoffDate string) error {
-	sog.logger.Sugar().Infow("Generating and inserting 10_stakerOperator",
+func (sog *StakerOperatorsGenerator) GenerateAndInsert13StakerOperator(cutoffDate string) error {
+	sog.logger.Sugar().Infow("Generating and inserting 13_stakerOperator",
 		zap.String("cutoffDate", cutoffDate),
 	)
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
-	destTableName := rewardsUtils.Sot_10_StakerOperatorTable
+	destTableName := rewardsUtils.Sot_13_StakerOperatorTable
 
-	sog.logger.Sugar().Infow("Generating 10_stakerOperator",
+	sog.logger.Sugar().Infow("Generating 13_stakerOperator",
 		zap.String("destTableName", destTableName),
 		zap.String("cutoffDate", cutoffDate),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_7_stakerOperator, map[string]interface{}{
+	query, err := rewardsUtils.RenderQueryTemplate(_13_stakerOperator, map[string]interface{}{
 		"destTableName":         destTableName,
-		"stakerOperatorStaging": allTableNames[rewardsUtils.Sot_9_StakerOperatorStaging],
+		"stakerOperatorStaging": allTableNames[rewardsUtils.Sot_12_StakerOperatorStaging],
 	})
 	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to render 10_stakerOperator query", "error", err)
+		sog.logger.Sugar().Errorw("Failed to render 13_stakerOperator query", "error", err)
 		return err
 	}
 
 	res := sog.db.Exec(query)
 	if res.Error != nil {
-		sog.logger.Sugar().Errorw("Failed to generate 10_stakerOperator",
+		sog.logger.Sugar().Errorw("Failed to generate 13_stakerOperator",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(res.Error),
 		)
@@ -82,11 +83,11 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert10StakerOperator(cutoffDat
 	return nil
 }
 
-func (sog *StakerOperatorsGenerator) List7StakerOperator() ([]*StakerOperator, error) {
+func (sog *StakerOperatorsGenerator) List13StakerOperator() ([]*StakerOperator, error) {
 	var rewards []*StakerOperator
 	res := sog.db.Model(&StakerOperator{}).Find(&rewards)
 	if res.Error != nil {
-		sog.logger.Sugar().Errorw("Failed to list 7_stakerOperator", "error", res.Error)
+		sog.logger.Sugar().Errorw("Failed to list 13_stakerOperator", "error", res.Error)
 		return nil, res.Error
 	}
 	return rewards, nil
