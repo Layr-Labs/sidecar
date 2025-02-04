@@ -30,16 +30,19 @@ var (
 	Table_15_GoldStaging                        = "gold_15_staging"
 	Table_16_GoldTable                          = "gold_table"
 
-	Sot_1_StakerStrategyPayouts       = "sot_1_staker_strategy_payouts"
-	Sot_2_OperatorStrategyPayouts     = "sot_2_operator_strategy_payouts"
-	Sot_3_RewardsForAllStrategyPayout = "sot_3_rewards_for_all_strategy_payout"
-	Sot_4_RfaeStakers                 = "sot_4_rfae_stakers"
-	Sot_5_RfaeOperators               = "sot_5_rfae_operators"
-	Sot_6_OperatorODStrategyPayouts   = "sot_6_operator_od_strategy_payouts"
-	Sot_7_StakerODStrategyPayouts     = "sot_7_staker_od_strategy_payouts"
-	Sot_8_AvsODStrategyPayouts        = "sot_8_avs_od_strategy_payouts"
-	Sot_9_StakerOperatorStaging       = "sot_9_staker_operator_staging"
-	Sot_10_StakerOperatorTable        = "staker_operator"
+	Sot_1_StakerStrategyPayouts                = "sot_1_staker_strategy_payouts"
+	Sot_2_OperatorStrategyPayouts              = "sot_2_operator_strategy_payouts"
+	Sot_3_RewardsForAllStrategyPayout          = "sot_3_rewards_for_all_strategy_payout"
+	Sot_4_RfaeStakers                          = "sot_4_rfae_stakers"
+	Sot_5_RfaeOperators                        = "sot_5_rfae_operators"
+	Sot_6_OperatorODStrategyPayouts            = "sot_6_operator_od_strategy_payouts"
+	Sot_7_StakerODStrategyPayouts              = "sot_7_staker_od_strategy_payouts"
+	Sot_8_AvsODStrategyPayouts                 = "sot_8_avs_od_strategy_payouts"
+	Sot_9_OperatorODOperatorSetStrategyPayouts = "sot_9_operator_od_operator_set_strategy_payouts"
+	Sot_10_StakerODOperatorSetStrategyPayouts  = "sot_10_staker_od_operator_set_strategy_payouts"
+	Sot_11_AvsODOperatorSetStrategyPayouts     = "sot_11_avs_od_operator_set_strategy_payouts"
+	Sot_12_StakerOperatorStaging               = "sot_12_staker_operator_staging"
+	Sot_13_StakerOperatorTable                 = "staker_operator"
 )
 
 var goldTableBaseNames = map[string]string{
@@ -60,15 +63,19 @@ var goldTableBaseNames = map[string]string{
 	Table_15_GoldStaging:                        Table_15_GoldStaging,
 	Table_16_GoldTable:                          Table_16_GoldTable,
 
-	Sot_1_StakerStrategyPayouts:       Sot_1_StakerStrategyPayouts,
-	Sot_2_OperatorStrategyPayouts:     Sot_2_OperatorStrategyPayouts,
-	Sot_3_RewardsForAllStrategyPayout: Sot_3_RewardsForAllStrategyPayout,
-	Sot_4_RfaeStakers:                 Sot_4_RfaeStakers,
-	Sot_5_RfaeOperators:               Sot_5_RfaeOperators,
-	Sot_6_OperatorODStrategyPayouts:   Sot_6_OperatorODStrategyPayouts,
-	Sot_7_StakerODStrategyPayouts:     Sot_7_StakerODStrategyPayouts,
-	Sot_8_AvsODStrategyPayouts:        Sot_8_AvsODStrategyPayouts,
-	Sot_9_StakerOperatorStaging:       Sot_9_StakerOperatorStaging,
+	Sot_1_StakerStrategyPayouts:                Sot_1_StakerStrategyPayouts,
+	Sot_2_OperatorStrategyPayouts:              Sot_2_OperatorStrategyPayouts,
+	Sot_3_RewardsForAllStrategyPayout:          Sot_3_RewardsForAllStrategyPayout,
+	Sot_4_RfaeStakers:                          Sot_4_RfaeStakers,
+	Sot_5_RfaeOperators:                        Sot_5_RfaeOperators,
+	Sot_6_OperatorODStrategyPayouts:            Sot_6_OperatorODStrategyPayouts,
+	Sot_7_StakerODStrategyPayouts:              Sot_7_StakerODStrategyPayouts,
+	Sot_8_AvsODStrategyPayouts:                 Sot_8_AvsODStrategyPayouts,
+	Sot_9_OperatorODOperatorSetStrategyPayouts: Sot_9_OperatorODOperatorSetStrategyPayouts,
+	Sot_10_StakerODOperatorSetStrategyPayouts:  Sot_10_StakerODOperatorSetStrategyPayouts,
+	Sot_11_AvsODOperatorSetStrategyPayouts:     Sot_11_AvsODOperatorSetStrategyPayouts,
+	Sot_12_StakerOperatorStaging:               Sot_12_StakerOperatorStaging,
+	Sot_13_StakerOperatorTable:                 Sot_13_StakerOperatorTable,
 }
 
 var GoldTableNameSearchPattern = map[string]string{
@@ -88,15 +95,18 @@ var GoldTableNameSearchPattern = map[string]string{
 	Table_14_AvsODOperatorSetRewardAmounts:      "gold_%_avs_od_operator_set_reward_amounts",
 	Table_15_GoldStaging:                        "gold_%_staging",
 
-	Sot_1_StakerStrategyPayouts:       "sot_%_staker_strategy_payouts",
-	Sot_2_OperatorStrategyPayouts:     "sot_%_operator_strategy_payouts",
-	Sot_3_RewardsForAllStrategyPayout: "sot_%_rewards_for_all_strategy_payout",
-	Sot_4_RfaeStakers:                 "sot_%_rfae_stakers",
-	Sot_5_RfaeOperators:               "sot_%_rfae_operators",
-	Sot_6_OperatorODStrategyPayouts:   "sot_%_operator_od_strategy_payouts",
-	Sot_7_StakerODStrategyPayouts:     "sot_%_staker_od_strategy_payouts",
-	Sot_8_AvsODStrategyPayouts:        "sot_%_avs_od_strategy_payouts",
-	Sot_9_StakerOperatorStaging:       "sot_%_staker_operator_staging",
+	Sot_1_StakerStrategyPayouts:                "sot_%_staker_strategy_payouts",
+	Sot_2_OperatorStrategyPayouts:              "sot_%_operator_strategy_payouts",
+	Sot_3_RewardsForAllStrategyPayout:          "sot_%_rewards_for_all_strategy_payout",
+	Sot_4_RfaeStakers:                          "sot_%_rfae_stakers",
+	Sot_5_RfaeOperators:                        "sot_%_rfae_operators",
+	Sot_6_OperatorODStrategyPayouts:            "sot_%_operator_od_strategy_payouts",
+	Sot_7_StakerODStrategyPayouts:              "sot_%_staker_od_strategy_payouts",
+	Sot_8_AvsODStrategyPayouts:                 "sot_%_avs_od_strategy_payouts",
+	Sot_9_OperatorODOperatorSetStrategyPayouts: "sot_%_operator_od_operator_set_strategy_payouts",
+	Sot_10_StakerODOperatorSetStrategyPayouts:  "sot_%_staker_od_operator_set_strategy_payouts",
+	Sot_11_AvsODOperatorSetStrategyPayouts:     "sot_%_avs_od_operator_set_strategy_payouts",
+	Sot_12_StakerOperatorStaging:               "sot_%_staker_operator_staging",
 }
 
 func GetGoldTableNames(snapshotDate string) map[string]string {
