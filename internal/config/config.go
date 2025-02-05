@@ -370,36 +370,82 @@ func (c *Config) GetGenesisBlockNumber() uint64 {
 	}
 }
 
-type ForkMap map[ForkName]string
+type Fork struct {
+	Date        string
+	BlockNumber uint64
+}
+
+type ForkMap map[ForkName]Fork
 
 func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 	switch c.Chain {
 	case Chain_Preprod:
 		return ForkMap{
-			RewardsFork_Amazon:      "1970-01-01", // Amazon hard fork was never on preprod as we backfilled
-			RewardsFork_Nile:        "2024-08-14", // Last calculation end timestamp was 8-13: https://holesky.etherscan.io/tx/0xb5a6855e88c79312b7c0e1c9f59ae9890b97f157ea27e69e4f0fadada4712b64#eventlog
-			RewardsFork_Panama:      "2024-10-01",
-			RewardsFork_Arno:        "2024-12-11",
-			RewardsFork_Trinity:     "2025-01-09",
-			RewardsFork_Mississippi: "2025-02-03",
+			RewardsFork_Amazon: Fork{
+				Date: "1970-01-01",
+			},
+			RewardsFork_Nile: Fork{
+				Date: "2024-08-14", // Last calculation end timestamp was 8-13: https://holesky.etherscan.io/tx/0xb5a6855e88c79312b7c0e1c9f59ae9890b97f157ea27e69e4f0fadada4712b64#eventlog},
+			},
+			RewardsFork_Panama: Fork{
+				Date: "2024-10-01",
+			},
+			RewardsFork_Arno: Fork{
+				Date: "2024-12-11",
+			},
+			RewardsFork_Trinity: Fork{
+				Date: "2025-01-09",
+			},
+			RewardsFork_Mississippi: Fork{
+				Date:        "2025-02-04",
+				BlockNumber: 3287006,
+			},
 		}, nil
 	case Chain_Holesky:
 		return ForkMap{
-			RewardsFork_Amazon:      "1970-01-01", // Amazon hard fork was never on testnet as we backfilled
-			RewardsFork_Nile:        "2024-08-13", // Last calculation end timestamp was 8-12: https://holesky.etherscan.io/tx/0x5fc81b5ed2a78b017ef313c181d8627737a97fef87eee85acedbe39fc8708c56#eventlog
-			RewardsFork_Panama:      "2024-10-01",
-			RewardsFork_Arno:        "2024-12-13",
-			RewardsFork_Trinity:     "2025-01-09",
-			RewardsFork_Mississippi: "2025-02-10",
+			RewardsFork_Amazon: Fork{
+				Date: "1970-01-01", // Amazon hard fork was never on testnet as we backfilled
+			},
+			RewardsFork_Nile: Fork{
+				Date: "2024-08-13", // Last calculation end timestamp was 8-12: https://holesky.etherscan.io/tx/0x5fc81b5ed2a78b017ef313c181d8627737a97fef87eee85acedbe39fc8708c56#eventlog
+			},
+			RewardsFork_Panama: Fork{
+				Date: "2024-10-01",
+			},
+			RewardsFork_Arno: Fork{
+				Date: "2024-12-13",
+			},
+			RewardsFork_Trinity: Fork{
+				Date: "2025-01-09",
+			},
+			RewardsFork_Mississippi: Fork{
+				Date:        "2025-02-10",
+				BlockNumber: 3323306,
+			},
 		}, nil
 	case Chain_Mainnet:
 		return ForkMap{
-			RewardsFork_Amazon:      "2024-08-02", // Last calculation end timestamp was 8-01: https://etherscan.io/tx/0x2aff6f7b0132092c05c8f6f41a5e5eeeb208aa0d95ebcc9022d7823e343dd012#eventlog
-			RewardsFork_Nile:        "2024-08-12", // Last calculation end timestamp was 8-11: https://etherscan.io/tx/0x922d29d93c02d189fc2332041f01a80e0007cd7a625a5663ef9d30082f7ef66f#eventlog
-			RewardsFork_Panama:      "2024-10-01",
-			RewardsFork_Arno:        "2025-01-21",
-			RewardsFork_Trinity:     "2025-01-21",
-			RewardsFork_Mississippi: "2025-03-27",
+			RewardsFork_Amazon: Fork{
+				Date: "2024-08-02", // Last calculation end timestamp was 8-01: https://etherscan.io/tx/0x2aff6f7b0132092c05c8f6f41a5e5eeeb208aa0d95ebcc9022d7823e343dd012#eventlog
+			},
+			RewardsFork_Nile: Fork{
+				Date: "2024-08-12", // Last calculation end timestamp was 8-11: https://etherscan.io/tx/0x922d29d93c02d189fc2332041f01a80e0007cd7a625a5663ef9d30082f7ef66f#eventlog
+			},
+			RewardsFork_Panama: Fork{
+				Date: "2024-10-01",
+			},
+			RewardsFork_Arno: Fork{
+				Date: "2025-01-21",
+			},
+			RewardsFork_Trinity: Fork{
+				Date: "2025-01-21",
+			},
+			RewardsFork_Mississippi: Fork{
+				Date: "2025-03-27",
+				// mississippi fork on mainnet doesnt have a fork date since we didnt need to backfill
+				// any data for it like we did for preprod and holesky
+				BlockNumber: 0,
+			},
 		}, nil
 	}
 	return nil, errors.New("unsupported chain")
@@ -464,9 +510,9 @@ func (c *Config) IsRewardsV2EnabledForCutoffDate(cutoffDate string) (bool, error
 	if err != nil {
 		return false, errors.Join(fmt.Errorf("failed to parse cutoff date %s", cutoffDate), err)
 	}
-	arnoForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Arno])
+	arnoForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Arno].Date)
 	if err != nil {
-		return false, errors.Join(fmt.Errorf("failed to parse Arno fork date %s", forks[RewardsFork_Arno]), err)
+		return false, errors.Join(fmt.Errorf("failed to parse Arno fork date %s", forks[RewardsFork_Arno].Date), err)
 	}
 
 	return cutoffDateTime.Compare(arnoForkDateTime) >= 0, nil
@@ -481,9 +527,9 @@ func (c *Config) IsRewardsV2_1EnabledForCutoffDate(cutoffDate string) (bool, err
 	if err != nil {
 		return false, errors.Join(fmt.Errorf("failed to parse cutoff date %s", cutoffDate), err)
 	}
-	mississippiForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Mississippi])
+	mississippiForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Mississippi].Date)
 	if err != nil {
-		return false, errors.Join(fmt.Errorf("failed to parse Mississippi fork date %s", forks[RewardsFork_Mississippi]), err)
+		return false, errors.Join(fmt.Errorf("failed to parse Mississippi fork date %s", forks[RewardsFork_Mississippi].Date), err)
 	}
 
 	return cutoffDateTime.Compare(mississippiForkDateTime) >= 0, nil
