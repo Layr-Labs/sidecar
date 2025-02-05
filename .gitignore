@@ -32,6 +32,7 @@ node_modules
 chart_releases
 /snapshots/**/*.sql
 /snapshots/**/*.csv
-*.sql
-*.dump
+/*.sql
+/*.dump
 .env
+!/pkg/eigenState/stateMigrator/**/*.sql
