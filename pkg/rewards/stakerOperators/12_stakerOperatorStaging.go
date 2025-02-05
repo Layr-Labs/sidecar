@@ -21,7 +21,7 @@ SELECT
   staker_strategy_tokens as amount,
   reward_hash,
   snapshot,
-  null as operator_set_id
+  null::bigint as operator_set_id
 FROM {{.sot1StakerStrategyPayouts}}
 
 UNION ALL
@@ -38,7 +38,7 @@ SELECT
   operator_strategy_tokens as amount,
   reward_hash,
   snapshot,
-  null as operator_set_id
+  null::bigint as operator_set_id
 FROM {{.sot2OperatorStrategyPayouts}}
 
 UNION all
@@ -55,7 +55,7 @@ SELECT
   staker_strategy_tokens as amount,
   reward_hash,
   snapshot,
-  null as operator_set_id
+  null::bigint as operator_set_id
 FROM {{.sot3RewardsForAllStrategyPayouts}}
 
 UNION ALL
@@ -72,7 +72,7 @@ SELECT
   staker_strategy_tokens as amount,
   reward_hash,
   snapshot,
-  null as operator_set_id
+  null::bigint as operator_set_id
 FROM {{.sot4RfaeStakerStrategyPayout}}
 
 UNION ALL
@@ -89,7 +89,7 @@ SELECT
   operator_strategy_tokens as amount,
   reward_hash,
   snapshot,
-  null as operator_set_id
+  null::bigint as operator_set_id
 FROM {{.sot5RfaeOperatorStrategyPayout}}
 
 {{ if .rewardsV2Enabled }}
@@ -108,7 +108,7 @@ SELECT
 	operator_tokens as amount,
 	reward_hash,
 	snapshot,
-	null as operator_set_id
+	null::bigint as operator_set_id
 from {{.sot6OperatorODStrategyPayouts}}
 
 UNION ALL
@@ -125,7 +125,7 @@ SELECT
 	staker_tokens as amount,
 	reward_hash,
 	snapshot,
-	null as operator_set_id
+	null::bigint as operator_set_id
 from {{.sot7StakerODStrategyPayouts}}
 
 UNION ALL
@@ -142,7 +142,7 @@ SELECT
 	avs_tokens as amount,
 	reward_hash,
 	snapshot,
-	null as operator_set_id
+	null::bigint as operator_set_id
 from {{.sot8AvsODStrategyPayouts}}
 
 {{ end }}
