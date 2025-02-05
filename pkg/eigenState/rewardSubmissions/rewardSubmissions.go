@@ -366,3 +366,7 @@ func (rs *RewardSubmissionsModel) ListForBlockRange(startBlockNumber uint64, end
 	}
 	return base.CastCommittedStateToInterface(submissions), nil
 }
+
+func (rs *RewardSubmissionsModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
+}
