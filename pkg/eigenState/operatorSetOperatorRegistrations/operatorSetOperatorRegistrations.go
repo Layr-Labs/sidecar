@@ -319,3 +319,23 @@ func (osor *OperatorSetOperatorRegistrationModel) sortValuesForMerkleTree(operat
 func (osor *OperatorSetOperatorRegistrationModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return osor.BaseEigenState.DeleteState("operator_set_operator_registrations", startBlockNumber, endBlockNumber, osor.DB)
 }
+
+func (osor *OperatorSetOperatorRegistrationModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	records := make([]*OperatorSetOperatorRegistration, 0)
+	res := osor.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&records)
+	if res.Error != nil {
+		osor.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
+		return nil, res.Error
+	}
+	return base.CastCommittedStateToInterface(records), nil
+}
+
+func (osor *OperatorSetOperatorRegistrationModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	forks, err := osor.globalConfig.GetRewardsSqlForkDates()
+	if err != nil {
+		osor.logger.Sugar().Errorw("Failed to get rewards sql fork dates", zap.Error(err))
+		return false, err
+	}
+
+	return blockHeight >= forks[config.RewardsFork_Mississippi].BlockNumber, nil
+}
