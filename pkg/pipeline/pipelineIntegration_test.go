@@ -97,7 +97,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 
-	sm := stateManager.NewEigenStateManager(l, grm)
+	sm := stateManager.NewEigenStateManager(nil, l, grm)
 	if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
 	}
