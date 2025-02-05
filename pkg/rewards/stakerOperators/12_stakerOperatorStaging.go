@@ -20,7 +20,8 @@ SELECT
   shares,
   staker_strategy_tokens as amount,
   reward_hash,
-  snapshot
+  snapshot,
+  null::bigint as operator_set_id
 FROM {{.sot1StakerStrategyPayouts}}
 
 UNION ALL
@@ -36,7 +37,8 @@ SELECT
   shares,
   operator_strategy_tokens as amount,
   reward_hash,
-  snapshot
+  snapshot,
+  null::bigint as operator_set_id
 FROM {{.sot2OperatorStrategyPayouts}}
 
 UNION all
@@ -52,7 +54,8 @@ SELECT
   shares,
   staker_strategy_tokens as amount,
   reward_hash,
-  snapshot
+  snapshot,
+  null::bigint as operator_set_id
 FROM {{.sot3RewardsForAllStrategyPayouts}}
 
 UNION ALL
@@ -68,7 +71,8 @@ SELECT
   shares,
   staker_strategy_tokens as amount,
   reward_hash,
-  snapshot
+  snapshot,
+  null::bigint as operator_set_id
 FROM {{.sot4RfaeStakerStrategyPayout}}
 
 UNION ALL
@@ -84,7 +88,8 @@ SELECT
   shares,
   operator_strategy_tokens as amount,
   reward_hash,
-  snapshot
+  snapshot,
+  null::bigint as operator_set_id
 FROM {{.sot5RfaeOperatorStrategyPayout}}
 
 {{ if .rewardsV2Enabled }}
@@ -102,7 +107,8 @@ SELECT
 	'0' as shares,
 	operator_tokens as amount,
 	reward_hash,
-	snapshot
+	snapshot,
+	null::bigint as operator_set_id
 from {{.sot6OperatorODStrategyPayouts}}
 
 UNION ALL
@@ -118,7 +124,8 @@ SELECT
 	shares,
 	staker_tokens as amount,
 	reward_hash,
-	snapshot
+	snapshot,
+	null::bigint as operator_set_id
 from {{.sot7StakerODStrategyPayouts}}
 
 UNION ALL
@@ -134,7 +141,8 @@ SELECT
 	'0' as shares,
 	avs_tokens as amount,
 	reward_hash,
-	snapshot
+	snapshot,
+	null::bigint as operator_set_id
 from {{.sot8AvsODStrategyPayouts}}
 
 {{ end }}
@@ -154,7 +162,8 @@ SELECT
 	'0' as shares,
 	operator_tokens as amount,
 	reward_hash,
-	snapshot
+	snapshot,
+	operator_set_id
 from {{.sot9OperatorODOperatorSetStrategyPayouts}}
 
 UNION ALL
@@ -170,7 +179,8 @@ SELECT
 	shares,
 	staker_tokens as amount,
 	reward_hash,
-	snapshot
+	snapshot,
+	operator_set_id
 from {{.sot10StakerODOperatorSetStrategyPayouts}}
 
 UNION ALL
@@ -186,7 +196,8 @@ SELECT
 	'0' as shares,
 	avs_tokens as amount,
 	reward_hash,
-	snapshot
+	snapshot,
+	operator_set_id
 from {{.sot11AvsODOperatorSetStrategyPayouts}}
 
 {{ end }}

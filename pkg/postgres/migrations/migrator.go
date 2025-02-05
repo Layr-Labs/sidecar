@@ -60,6 +60,7 @@ import (
 	_202501301502_operatorSetOperatorRegistrationSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501301502_operatorSetOperatorRegistrationSnapshots"
 	_202501301505_operatorSetStrategyRegistrationSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501301505_operatorSetStrategyRegistrationSnapshots"
 	_202501301945_operatorDirectedOperatorSetRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501301945_operatorDirectedOperatorSetRewards"
+	_202502051830_addOperatorSetIdToStakerOperator "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502051830_addOperatorSetIdToStakerOperator"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -156,6 +157,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202501301502_operatorSetOperatorRegistrationSnapshots.Migration{},
 		&_202501301505_operatorSetStrategyRegistrationSnapshots.Migration{},
 		&_202501301945_operatorDirectedOperatorSetRewards.Migration{},
+		&_202502051830_addOperatorSetIdToStakerOperator.Migration{},
 	}
 
 	for _, migration := range migrations {
