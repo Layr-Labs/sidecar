@@ -49,13 +49,13 @@ func Test_OperatorSharesState(t *testing.T) {
 	}
 
 	t.Run("Should create a new OperatorSharesState", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, model)
 	})
 	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		// --------------------------------------------------------------------
 		// OperatorSharesIncreased

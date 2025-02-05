@@ -329,3 +329,17 @@ func (oss *OperatorSetSplitModel) sortValuesForMerkleTree(splits []*OperatorSetS
 func (oss *OperatorSetSplitModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return oss.BaseEigenState.DeleteState("operator_set_splits", startBlockNumber, endBlockNumber, oss.DB)
 }
+
+func (oss *OperatorSetSplitModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	var splits []*OperatorSetSplit
+	res := oss.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
+	if res.Error != nil {
+		oss.logger.Sugar().Errorw("Failed to list operator set splits", zap.Error(res.Error))
+		return nil, res.Error
+	}
+	return base.CastCommittedStateToInterface(splits), nil
+}
+
+func (oss *OperatorSetSplitModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
+}

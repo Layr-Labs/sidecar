@@ -315,3 +315,25 @@ func (ossr *OperatorSetStrategyRegistrationModel) sortValuesForMerkleTree(strate
 func (ossr *OperatorSetStrategyRegistrationModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return ossr.BaseEigenState.DeleteState("operator_set_strategy_registrations", startBlockNumber, endBlockNumber, ossr.DB)
 }
+
+func (ossr *OperatorSetStrategyRegistrationModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	records := make([]*OperatorSetStrategyRegistration, 0)
+	err := ossr.DB.Model(&OperatorSetStrategyRegistration{}).
+		Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).
+		Find(&records).Error
+	if err != nil {
+		ossr.logger.Sugar().Errorw("Failed to list operator set strategy registrations", zap.Error(err))
+		return nil, err
+	}
+	return base.CastCommittedStateToInterface(records), nil
+}
+
+func (ossr *OperatorSetStrategyRegistrationModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	forks, err := ossr.globalConfig.GetRewardsSqlForkDates()
+	if err != nil {
+		ossr.logger.Sugar().Errorw("Failed to get rewards sql fork dates", zap.Error(err))
+		return false, err
+	}
+
+	return blockHeight >= forks[config.RewardsFork_Mississippi].BlockNumber, nil
+}
