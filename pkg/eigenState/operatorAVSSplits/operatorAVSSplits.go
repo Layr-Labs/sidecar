@@ -333,3 +333,7 @@ func (oar *OperatorAVSSplitModel) ListForBlockRange(startBlockNumber uint64, end
 	}
 	return base.CastCommittedStateToInterface(splits), nil
 }
+
+func (oas *OperatorAVSSplitModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
+}

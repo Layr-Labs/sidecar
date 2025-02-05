@@ -340,3 +340,7 @@ func (sdr *SubmittedDistributionRootsModel) ListForBlockRange(startBlockNumber u
 	}
 	return base.CastCommittedStateToInterface(deltas), nil
 }
+
+func (sdr *SubmittedDistributionRootsModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
+}
