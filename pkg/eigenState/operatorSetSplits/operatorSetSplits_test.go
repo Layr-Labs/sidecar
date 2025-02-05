@@ -61,7 +61,7 @@ func Test_OperatorSetSplit(t *testing.T) {
 	}
 
 	t.Run("Test each event type", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		model, err := NewOperatorSetSplitModel(esm, grm, l, cfg)
 
