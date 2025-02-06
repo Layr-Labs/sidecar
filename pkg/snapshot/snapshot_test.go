@@ -384,7 +384,7 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 	})
 }
 
-func TestIsURL(t *testing.T) {
+func TestIsHttpURL(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected bool
@@ -404,9 +404,9 @@ func TestIsURL(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("isNetworkURL(%q)", test.input), func(t *testing.T) {
-			result := isNetworkURL(test.input)
-			assert.Equal(t, test.expected, result, "isNetworkURL(%q) should be %v", test.input, test.expected)
+		t.Run(fmt.Sprintf("isHttpURL(%q)", test.input), func(t *testing.T) {
+			result := isHttpURL(test.input)
+			assert.Equal(t, test.expected, result, "isHttpURL(%q) should be %v", test.input, test.expected)
 		})
 	}
 }

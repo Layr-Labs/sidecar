@@ -47,9 +47,8 @@ func NewSnapshotService(cfg *SnapshotConfig, l *zap.Logger) (*SnapshotService, e
 	}, nil
 }
 
-// isNetworkURL checks if the given string is a network URL (http, https).
-// Note: This function does not allow 'file' URLs as it's ambiguous with local file.
-func isNetworkURL(str string) bool {
+// isHttpURL checks if the given string is a network URL (http, https)
+func isHttpURL(str string) bool {
 	if str == "" {
 		return false
 	}
@@ -153,7 +152,7 @@ func (s *SnapshotService) RestoreSnapshot() error {
 // resolveAndDownloadRestoreInput prepares the SnapshotService struct into a suitable format for restoring a snapshot
 // and downloads the necessary files if necessary
 func (s *SnapshotService) resolveAndDownloadRestoreInput() error {
-	if isNetworkURL(s.cfg.Input) {
+	if isHttpURL(s.cfg.Input) {
 		inputUrl := s.cfg.Input
 
 		// Check if the input URL exists
