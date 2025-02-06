@@ -41,7 +41,7 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 		}
 
 		if err := svc.RestoreSnapshot(); err != nil {
-			l.Fatal("failed to restore snapshot", zap.Error(err))
+			l.Sugar().Fatal("failed to restore snapshot", zap.Error(err))
 		}
 
 		return nil
