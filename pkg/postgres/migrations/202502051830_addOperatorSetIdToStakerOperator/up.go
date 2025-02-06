@@ -14,7 +14,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		`alter table staker_operator add column operator_set_id bigint`,
 		`alter table staker_operator drop constraint uniq_staker_operator`,
-		`alter table staker_operator add constraint uniq_staker_operator unique (earner, operator, snapshot, reward_hash, strategy, reward_type, operator_set_id)`,
+		`alter table staker_operator add constraint uniq_staker_operator unique (earner, operator, snapshot, reward_hash, strategy, reward_type, avs, operator_set_id)`,
 	}
 
 	for _, query := range queries {
