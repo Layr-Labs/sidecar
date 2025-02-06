@@ -18,7 +18,7 @@ var restoreSnapshotCmd = &cobra.Command{
 	Long: `Restore the database from a previously created snapshot file.
 
 Note: This command restores --database.schema_name only if it's present in Input snapshot.
-The input can be a local file path or a URL, url of type http, https, or ftp is supported.
+The input can be a local file path or a URL, url of type http, https is supported.
 Follow the snapshot docs if you need to convert the snapshot to a different schema name than was used during snapshot creation.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		initRestoreSnapshotCmd(cmd)

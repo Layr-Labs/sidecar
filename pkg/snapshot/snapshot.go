@@ -47,7 +47,7 @@ func NewSnapshotService(cfg *SnapshotConfig, l *zap.Logger) (*SnapshotService, e
 	}, nil
 }
 
-// isNetworkURL checks if the given string is a network URL (http, https, ftp).
+// isNetworkURL checks if the given string is a network URL (http, https).
 // Note: This function does not allow 'file' URLs as it's ambiguous with local file.
 func isNetworkURL(str string) bool {
 	if str == "" {
