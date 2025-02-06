@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 var createSnapshotCmd = &cobra.Command{
@@ -38,7 +39,7 @@ var createSnapshotCmd = &cobra.Command{
 		}
 
 		if err := svc.CreateSnapshot(); err != nil {
-			return fmt.Errorf("failed to create snapshot: %w", err)
+			l.Sugar().Fatal("failed to create snapshot", zap.Error(err))
 		}
 
 		return nil
