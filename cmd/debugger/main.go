@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
@@ -83,7 +84,12 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	sm := stateManager.NewEigenStateManager(l, grm)
+	smig, err := stateMigrator.NewStateMigrator(grm, cfg, l)
+	if err != nil {
+		l.Sugar().Fatalw("Failed to create state migrator", zap.Error(err))
+	}
+
+	sm := stateManager.NewEigenStateManager(smig, l, grm)
 	msm := metaStateManager.NewMetaStateManager(grm, l, cfg)
 
 	if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
