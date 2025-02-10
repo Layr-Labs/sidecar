@@ -48,11 +48,11 @@ func Test_StateManager(t *testing.T) {
 	insertedStateRoots := make([]*StateRoot, 0)
 
 	t.Run("Should create a new EigenStateManager", func(t *testing.T) {
-		esm := NewEigenStateManager(l, grm)
+		esm := NewEigenStateManager(nil, l, grm)
 		assert.NotNil(t, esm)
 	})
 	t.Run("Should write a state root to the db", func(t *testing.T) {
-		esm := NewEigenStateManager(l, grm)
+		esm := NewEigenStateManager(nil, l, grm)
 
 		blockNumber := uint64(200)
 		blockHash := "0x123"
@@ -75,7 +75,7 @@ func Test_StateManager(t *testing.T) {
 		insertedStateRoots = append(insertedStateRoots, root)
 	})
 	t.Run("Should read a state root from the db", func(t *testing.T) {
-		esm := NewEigenStateManager(l, grm)
+		esm := NewEigenStateManager(nil, l, grm)
 
 		blockNumber := insertedStateRoots[0].EthBlockNumber
 
