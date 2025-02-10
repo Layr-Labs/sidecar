@@ -52,7 +52,7 @@
 				"running/advanced-postgres",
 				"running/snapshots",
 				"running/docker-compose",
-				"running/kuberneted"
+				"running/kubernetes"
 			]
 		},
 		{
