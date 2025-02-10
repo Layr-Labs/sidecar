@@ -1064,3 +1064,7 @@ func (ss *StakerSharesModel) ListForBlockRange(startBlockNumber uint64, endBlock
 	}
 	return base.CastCommittedStateToInterface(deltas), nil
 }
+
+func (ss *StakerSharesModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
+}
