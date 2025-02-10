@@ -34,7 +34,7 @@ Each of the three sections below details key considerations to be mindful of whe
 - Snapshots are taken of core contract state every 24 hours: `SNAPSHOT_CADENCE` in `RewardsCoordinator`
 - Snapshots from on-chain state are _rounded up_ to the nearest day at 0:00 UTC. The one exception is operator{'<>'}avs deregistrations, which are rounded _down_ to the nearest day at 0:00 UTC
 - Since snapshots are rounded up, we only care about the _latest state update_ from a single day
-- The reward distribution to all earners must be <= the amount paid for a rewards submission
+- The reward distribution to all earners must be {'<='} the amount paid for a rewards submission
 
 ### Glossary
 
@@ -135,7 +135,7 @@ FROM transaction_logs as t
 LEFT JOIN blocks as b ON (t.block_sequence_id = b.id)
 WHERE t.address = '{{ var('strategy_manager_address') }}'
 AND t.event_name = 'Deposit'
-AND date_trunc('day', b.block_time) {'<'} TIMESTAMP '{{ var("cutoff_date") }}'
+AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 ```
 
 #### EigenPodShares
@@ -1478,7 +1478,7 @@ WITH reward_snapshot_operators as (
 
 From the `active_rewards`, get the operators that are registered for the AVS. We filter on `reward_for_all = false` since we are only looking at AVS rewards submissions.
 
-Let's assume that operator registration snapshots for the AVS are. 4-27-2024 is the active snapshot, but the bronze table will not have events from this date (since the query is for all events < `cutoffDate`). **No staker or operator will be paid out for 4-27-2024 on this run. This is where the two snapshot delay comes from.**
+Let's assume that operator registration snapshots for the AVS are. 4-27-2024 is the active snapshot, but the bronze table will not have events from this date (since the query is for all events {'<'} `cutoffDate`). **No staker or operator will be paid out for 4-27-2024 on this run. This is where the two snapshot delay comes from.**
 
 For days where the are no operators opted into the AVS, the `tokens_per_day` of 1e18 will not be redistributed to future `rewardSnapshots`.
 
