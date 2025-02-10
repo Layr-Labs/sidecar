@@ -157,8 +157,8 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert1StakerStrategyPayouts(cut
 	}
 
 	res := sog.db.Exec(query,
-		sql.Named("amazonHardforkDate", forks[config.RewardsFork_Amazon]),
-		sql.Named("nileHardforkDate", forks[config.RewardsFork_Nile]),
+		sql.Named("amazonHardforkDate", forks[config.RewardsFork_Amazon].Date),
+		sql.Named("nileHardforkDate", forks[config.RewardsFork_Nile].Date),
 	)
 
 	if res.Error != nil {
