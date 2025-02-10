@@ -41,6 +41,10 @@ func ConvertBytesToString(b []byte) string {
 	return "0x" + hex.EncodeToString(b)
 }
 
+func ConvertStringToBytes(s string) ([]byte, error) {
+	return hex.DecodeString(strings.TrimPrefix(s, "0x"))
+}
+
 // SnakeCase converts a string to snake_case by replacing hyphens and other
 // non-alphanumeric characters with underscores.
 //
