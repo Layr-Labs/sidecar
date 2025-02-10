@@ -153,10 +153,10 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 	rc.logger.Sugar().Infow("Generating staker reward amounts",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
-		zap.String("amazonHardforkDate", forks[config.RewardsFork_Amazon]),
-		zap.String("nileHardforkDate", forks[config.RewardsFork_Nile]),
-		zap.String("arnoHardforkDate", forks[config.RewardsFork_Arno]),
-		zap.String("trinityHardforkDate", forks[config.RewardsFork_Trinity]),
+		zap.String("amazonHardforkDate", forks[config.RewardsFork_Amazon].Date),
+		zap.String("nileHardforkDate", forks[config.RewardsFork_Nile].Date),
+		zap.String("arnoHardforkDate", forks[config.RewardsFork_Arno].Date),
+		zap.String("trinityHardforkDate", forks[config.RewardsFork_Trinity].Date),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_2_goldStakerRewardAmountsQuery, map[string]interface{}{
@@ -169,10 +169,10 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 	}
 
 	res := rc.grm.Exec(query,
-		sql.Named("amazonHardforkDate", forks[config.RewardsFork_Amazon]),
-		sql.Named("nileHardforkDate", forks[config.RewardsFork_Nile]),
-		sql.Named("arnoHardforkDate", forks[config.RewardsFork_Arno]),
-		sql.Named("trinityHardforkDate", forks[config.RewardsFork_Trinity]),
+		sql.Named("amazonHardforkDate", forks[config.RewardsFork_Amazon].Date),
+		sql.Named("nileHardforkDate", forks[config.RewardsFork_Nile].Date),
+		sql.Named("arnoHardforkDate", forks[config.RewardsFork_Arno].Date),
+		sql.Named("trinityHardforkDate", forks[config.RewardsFork_Trinity].Date),
 	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_staker_reward_amounts", "error", res.Error)
