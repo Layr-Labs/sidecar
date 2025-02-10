@@ -1,0 +1,69 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Starter Kit",
+  "colors": {
+    "primary": "#0D9373",
+    "light": "#07C983",
+    "dark": "#0D9373"
+  },
+  "favicon": "/images/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "About",
+            "pages": [
+              "about/overview"
+            ]
+          },
+          {
+            "group": "Running",
+            "pages": [
+              "running/getting-started",
+              "running/advanced-postgres",
+              "running/snapshots",
+              "running/docker-compose",
+              "running/kubernetes"
+            ]
+          },
+          {
+            "group": "Rewards",
+            "pages": [
+              "rewards/calculation"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/building"
+            ]
+          }
+        ]
+      },
+	{
+		"tab": "Sidecar API",
+		"openapi": "https://raw.githubusercontent.com/Layr-Labs/protocol-apis/074c9e14a4cba1b3fe7170abe06d8781d0a11d57/gen/openapi/openapi.yaml"
+	}
+    ]
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/layr-labs/sidecar"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Dashboard",
+      "href": "https://dashboard.mintlify.com"
+    }
+  }
+}
