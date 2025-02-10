@@ -77,7 +77,7 @@ func Test_StakerDelegationsIntegration(t *testing.T) {
 		if !tests.LargeTestsEnabled() {
 			t.Skipf("Skipping large test")
 		}
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		model, err := NewStakerDelegationsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
