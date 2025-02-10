@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -54,8 +55,11 @@ func Test_ProtocolDataService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to setup test: %v", err)
 	}
-
-	sm := stateManager.NewEigenStateManager(l, grm)
+	smig, err := stateMigrator.NewStateMigrator(grm, cfg, l)
+	if err != nil {
+		t.Fatalf("Failed to create state migrator: %v", err)
+	}
+	sm := stateManager.NewEigenStateManager(smig, l, grm)
 
 	pds := NewProtocolDataService(sm, grm, l, cfg)
 
