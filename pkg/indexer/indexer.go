@@ -156,6 +156,54 @@ func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fet
 	return parsedTransactions, nil
 }
 
+// or should this be in transactionLogs.go?
+// why do we need ctx context.Context and do we need it here?
+func (idx *Indexer) IndexContractUpgrade(fetchedBlock *fetcher.FetchedBlock, upgradedLog *storage.TransactionLog) {
+	blockNumber := fetchedBlock.Block.Number.Value()
+	// the new address that the contract points to
+	newProxiedAddress := ""
+
+	// Check the arguments for the new address. EIP-1967 contracts include this as an argument.
+	// Otherwise, we'll check the storage slot
+	// TODO: Arguments is a string
+	for _, arg := range upgradedLog.Arguments {
+		if arg.Name == "implementation" && arg.Value != "" && arg.Value != nil {
+			newProxiedAddress = arg.Value.(common.Address).String()
+		}
+	}
+
+	// check the storage slot at the provided block number of the transaction
+	if newProxiedAddress == "" {
+		storageValue, err := idx.Fetcher.GetContractStorageSlot(context.Background(), upgradedLog.Address, blockNumber)
+		if err != nil || storageValue == "" {
+			idx.Logger.Sugar().Errorw("Failed to get storage value",
+				zap.Error(err),
+				zap.Uint64("block", blockNumber),
+				zap.String("upgradedLogAddress", upgradedLog.Address)
+			)
+		} else if len(storageValue) != 66 {
+			idx.Logger.Sugar().Errorw("Invalid storage value",
+				zap.Uint64("block", blockNumber),
+				zap.String("storageValue", storageValue)
+			)
+		} else {
+			newProxiedAddress = storageValue[26:]
+		}
+	}
+
+	if newProxiedAddress == "" {
+		idx.Logger.Sugar().Debugw("No new proxied address found", zap.String("address", upgradedLog.Address))
+		return
+	}
+
+	_, err := idx.ContractManager.CreateProxyContract(upgradedLog.Address, newProxiedAddress, blockNumber, reindexContract)
+	if err != nil {
+		idx.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err))
+		return
+	}
+	idx.Logger.Sugar().Infow("Upgraded proxy contract", zap.String("contractAddress", upgradedLog.Address), zap.String("proxyContractAddress", newProxiedAddress))
+}
+
 func (idx *Indexer) IndexFetchedBlock(fetchedBlock *fetcher.FetchedBlock) (*storage.Block, bool, error) {
 	blockNumber := fetchedBlock.Block.Number.Value()
 	blockHash := fetchedBlock.Block.Hash.Value()
