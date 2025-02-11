@@ -132,6 +132,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	// With only interesting transactions/logs parsed, insert them into the database
 	indexedTransactions := make([]*storage.Transaction, 0)
 	indexedTransactionLogs := make([]*storage.TransactionLog, 0)
+	contractUpgradedLogs := make([]*storage.TransactionLog, 0)
 	blockFetchTime = time.Now()
 	for _, pt := range parsedTransactions {
 		transactionTime := time.Now()
@@ -177,6 +178,13 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				zap.String("transactionHash", indexedTransaction.TransactionHash),
 				zap.Uint64("logIndex", log.LogIndex),
 			)
+			// block-lake/internal/indexer/indexer.go
+			// find contract upgraded logs here?
+			if log.EventName == "Upgraded" {
+				contractUpgradedLogs = append(contractUpgradedLogs, log)
+				// or maybe don't make it into a list and upgrade here directly
+				// idx.IndexContractUpgrade(blockNumber, log, reindexContract)
+			}
 
 			if err := p.stateManager.HandleLogStateChange(indexedLog); err != nil {
 				p.Logger.Sugar().Errorw("Failed to handle log state change",
@@ -210,6 +218,18 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 		zap.Uint64("blockNumber", blockNumber),
 		zap.Int64("indexTime", time.Since(blockFetchTime).Milliseconds()),
 	)
+	
+	if len(contractUpgradedLogs) > 0 {
+		p.Logger.Sugar().Debugw("Found contract upgrade logs",
+			zap.Uint64("blockNumber", blockNumber),
+			zap.String("transactionHash", indexedTransaction.TransactionHash),
+			zap.Uint64("count", len(contractUpgradedLogs)),
+		)
+		if err := p.Indexer.IndexContractUpgrades(block.Block.Number.Value()); err != nil {
+			p.Logger.Sugar().Errorw("Failed to index contract upgrades", zap.Uint64("blockNumber", block.Block.Number.Value()), zap.Error(err))
+			return err
+		}
+	}
 
 	if block.Block.Number.Value()%3600 == 0 {
 		p.Logger.Sugar().Infow("Indexing OperatorRestakedStrategies", zap.Uint64("blockNumber", block.Block.Number.Value()))
