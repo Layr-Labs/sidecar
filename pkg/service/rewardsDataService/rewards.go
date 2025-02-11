@@ -586,7 +586,7 @@ func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Co
 	}
 
 	tablePattern := fmt.Sprintf("%s_%s",
-		rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_11_GoldStaging],
+		rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_15_GoldStaging],
 		utils.SnakeCase(root.GetSnapshotDate()),
 	)
 
