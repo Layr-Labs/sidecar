@@ -19,7 +19,8 @@ insert into {{.destTableName}} (
 	shares,
 	amount,
 	reward_hash,
-	snapshot
+	snapshot,
+	operator_set_id
 )
 select
 	earner,
@@ -32,7 +33,8 @@ select
 	shares,
 	amount,
 	reward_hash,
-	snapshot
+	snapshot,
+	operator_set_id
 from {{.stakerOperatorStaging}}
 on conflict on constraint uniq_staker_operator do nothing;
 `
