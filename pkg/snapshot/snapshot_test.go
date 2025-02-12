@@ -371,12 +371,15 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 
 		hashContent, err := os.ReadFile(dumpFileHash)
 		assert.NoError(t, err, "Reading hash file should not fail")
-
 		testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/test_snapshot.dump.sha256sum" {
-				w.Write(hashContent)
+				if _, err := w.Write(hashContent); err != nil {
+					t.Errorf("Failed to write hash content: %v", err)
+				}
 			} else if r.URL.Path == "/test_snapshot.dump" {
-				w.Write(snapshotContent)
+				if _, err := w.Write(snapshotContent); err != nil {
+					t.Errorf("Failed to write snapshot content: %v", err)
+				}
 			} else {
 				http.NotFound(w, r)
 			}
@@ -440,13 +443,17 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 			fmt.Printf("Received request for URL: %s\n", r.URL.String())
 
 			if strings.HasSuffix(r.URL.Path, ".sha256sum") {
-				fmt.Println("Serving hash content")
-				w.Write(hashContent)
+				_, err := w.Write(hashContent)
+				if err != nil {
+					fmt.Printf("Error writing hash content: %v\n", err)
+				}
 			} else if strings.HasSuffix(r.URL.Path, ".dump") {
-				fmt.Println("Serving snapshot content")
-				w.Write(snapshotContent)
+				_, err := w.Write(snapshotContent)
+				if err != nil {
+					fmt.Printf("Error writing snapshot content: %v\n", err)
+				}
 			} else {
-				mockManifest := fmt.Sprintf(`{
+				mockManifest := `{
 					"meta": {
 						"metadataVersion": "v1.0.0",
 						"lastRefreshed": "2025-01-30T14:29:04Z"
@@ -460,10 +467,11 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 							"timestamp": "2025-01-30T10:39:03Z"
 						}
 					]
-				}`)
-
-				fmt.Println("Serving mock manifest")
-				w.Write([]byte(mockManifest))
+				}`
+				_, err := w.Write([]byte(mockManifest))
+				if err != nil {
+					fmt.Printf("Error writing mock manifest: %v\n", err)
+				}
 			}
 		}))
 
