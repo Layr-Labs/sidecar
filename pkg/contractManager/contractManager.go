@@ -43,3 +43,64 @@ func (cm *ContractManager) GetContractWithProxy(
 
 	return contract, nil
 }
+
+func (cm *ContractManager) CreateProxyContract(
+	contractAddress string,
+	proxyContractAddress string,
+	blockNumber uint64,
+	reindexContract bool,
+) (*contractStore.ProxyContract, error) {
+	proxyContract, found, err := cm.ContractStore.FindOrCreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to create proxy contract",
+			zap.Error(err),
+			zap.String("contractAddress", contractAddress),
+			zap.String("proxyContractAddress", proxyContractAddress),
+		)
+	} else {
+		if found {
+			cm.Logger.Sugar().Debugw("Found existing proxy contract",
+				zap.String("contractAddress", contractAddress),
+				zap.String("proxyContractAddress", proxyContractAddress),
+			)
+		} else {
+			cm.Logger.Sugar().Debugw("Created proxy contract",
+				zap.String("contractAddress", contractAddress),
+				zap.String("proxyContractAddress", proxyContractAddress),
+			)
+		}
+	}
+	// Check to see if the contract we're proxying to is already in the database
+	proxiedContract, err := cm.ContractStore.GetContractForAddress(proxyContractAddress)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to get contract for address",
+			zap.Error(err),
+			zap.String("contractAddress", proxyContractAddress),
+		)
+	}
+	if proxiedContract != nil {
+		cm.Logger.Sugar().Debugw("Found proxied contract",
+			zap.String("contractAddress", proxyContractAddress),
+			zap.String("proxiedContractAddress", proxiedContract.ContractAddress),
+		)
+		if proxiedContract.ContractAbi == "" {
+			updatedContract := cm.FindAndSetContractAbi(proxyContractAddress)
+			if updatedContract != nil {
+				proxiedContract = updatedContract
+			}
+		}
+	} else {
+		_, err := cm.CreateContract(proxyContractAddress, "", reindexContract)
+		if err != nil {
+			cm.Logger.Sugar().Errorw("Failed to create contract",
+				zap.Error(err),
+				zap.String("contractAddress", proxyContractAddress),
+			)
+		} else {
+			cm.Logger.Sugar().Debugw("Created contract",
+				zap.String("contractAddress", proxyContractAddress),
+			)
+		}
+	}
+	return proxyContract, nil
+}
