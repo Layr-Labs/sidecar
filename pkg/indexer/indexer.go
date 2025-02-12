@@ -156,10 +156,7 @@ func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fet
 	return parsedTransactions, nil
 }
 
-// or should this be in transactionLogs.go?
-// why do we need ctx context.Context and do we need it here?
-func (idx *Indexer) IndexContractUpgrade(fetchedBlock *fetcher.FetchedBlock, upgradedLog *storage.TransactionLog) {
-	blockNumber := fetchedBlock.Block.Number.Value()
+func (idx *Indexer) IndexContractUpgrade(ctx context.Context, blockNumber uint64, upgradedLog *storage.TransactionLog) error {
 	// the new address that the contract points to
 	newProxiedAddress := ""
 
@@ -202,6 +199,7 @@ func (idx *Indexer) IndexContractUpgrade(fetchedBlock *fetcher.FetchedBlock, upg
 		return
 	}
 	idx.Logger.Sugar().Infow("Upgraded proxy contract", zap.String("contractAddress", upgradedLog.Address), zap.String("proxyContractAddress", newProxiedAddress))
+	return nil
 }
 
 func (idx *Indexer) IndexFetchedBlock(fetchedBlock *fetcher.FetchedBlock) (*storage.Block, bool, error) {
