@@ -6,15 +6,12 @@ description: How to use a snapshot to start or restore your Sidecar
 Snapshots are a quicker way to sync to tip and get started.
 
 ## Snapshot Sources
+You can get the snapshots here: [https://sidecar.eigenlayer.xyz/snapshots/index.html](https://sidecar.eigenlayer.xyz/snapshots/index.html)
 
-* Mainnet Ethereum (not yet available)
-* Testnet Holesky ([2025-01-22](https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump))
-
-## Example boot from testnet snapshot
+## Example boot from mainnet snapshot
 ```bash
 ./bin/sidecar restore-snapshot \
-  --snapshot.input=https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump \
-  --snapshot.verify-input=false \
+  --snapshot.chain = mainnet \
   --database.host=localhost \
   --database.user=sidecar \
   --database.password=... \
@@ -36,9 +33,10 @@ Usage:
   sidecar restore-snapshot [flags]
 
 Flags:
-  -h, --help                    help for restore-snapshot
-      --snapshot.input string   Path to the snapshot file either a URL or a local file (required)
-      --snapshot.verify-input   Boolean to verify the input file against its .sha256sum file, if input is a url then it downloads the file, (default is true) (default true)
+  -h, --help                           help for restore-snapshot
+      --snapshot.input string          Path to the snapshot file either a URL or a local file (optional), **If specified, this file is used instead of the manifest desired snapshot** 
+      --snapshot.manifest-url string   URL to a manifest json. Gets the latest snapshot matching the current runtime configurations of version, chain, and schema (default "https://sidecar.eigenlayer.xyz/snapshots/snapshots_manifest_v1.0.0.json")
+      --snapshot.verify-input          Boolean to verify the input file against its .sha256sum file, if input is a url then it downloads the file (default true)
 
 Global Flags:
   -c, --chain string                              The chain to use (mainnet, holesky, preprod (default "mainnet")

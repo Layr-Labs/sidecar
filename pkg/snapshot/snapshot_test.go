@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -341,23 +342,183 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 		err = svc.RestoreSnapshot()
 		assert.NoError(t, err, "Restoring snapshot should not fail")
 
-		// Validate the restore process
-
-		// 1) Count how many migration records already exist in db
+		// Step 1: Validate the restore process
 		var countBefore int64
 		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countBefore)
 
-		// 2) Setup your migrator for db (the restored snapshot) and attempt running all migrations
+		// Step 2: Setup your migrator for db (the restored snapshot) and attempt running all migrations
 		migrator := migrations.NewMigrator(nil, dbGrm, l, cfg)
 		err = migrator.MigrateAll()
 		assert.NoError(t, err, "Expected MigrateAll to succeed on db")
 
-		// 3) Count again after running migrations
+		// Step 3: Count again after running migrations
 		var countAfter int64
 		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countAfter)
 
-		// 4) If countBefore == countAfter, no new migration records were created
-		//    => meaning db was already fully up-to-date
+		// Step 4: If countBefore == countAfter, no new migration records were created
+		//         => meaning db was already fully up-to-date
+		assert.Equal(t, countBefore, countAfter, "No migrations should have been newly applied if db matches the original")
+
+		t.Cleanup(func() {
+			postgres.TeardownTestDatabase(dbName, cfg, dbGrm, l)
+		})
+	})
+
+	t.Run("Restore snapshot to a new database from URL", func(t *testing.T) {
+		// Create a test server to serve the snapshot and hash files
+		snapshotContent, err := os.ReadFile(dumpFile)
+		assert.NoError(t, err, "Reading snapshot file should not fail")
+
+		hashContent, err := os.ReadFile(dumpFileHash)
+		assert.NoError(t, err, "Reading hash file should not fail")
+
+		testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/test_snapshot.dump.sha256sum" {
+				w.Write(hashContent)
+			} else if r.URL.Path == "/test_snapshot.dump" {
+				w.Write(snapshotContent)
+			} else {
+				http.NotFound(w, r)
+			}
+		}))
+		defer testServer.Close()
+
+		// Append a filename to the test server URL
+		snapshotURL := testServer.URL + "/test_snapshot.dump"
+
+		dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabaseWithoutMigrations(cfg.DatabaseConfig, l)
+		if dbErr != nil {
+			t.Fatal(dbErr)
+		}
+
+		snapshotCfg := &SnapshotConfig{
+			Input:       snapshotURL,
+			VerifyInput: true,
+			Host:        cfg.DatabaseConfig.Host,
+			Port:        cfg.DatabaseConfig.Port,
+			User:        cfg.DatabaseConfig.User,
+			Password:    cfg.DatabaseConfig.Password,
+			DbName:      dbName,
+			SchemaName:  cfg.DatabaseConfig.SchemaName,
+		}
+		svc, err := NewSnapshotService(snapshotCfg, l)
+		assert.NoError(t, err, "NewSnapshotService should not return an error")
+		err = svc.RestoreSnapshot()
+		assert.NoError(t, err, "Restoring snapshot should not return an error")
+
+		// Step 1: Validate the restore process
+		var countBefore int64
+		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countBefore)
+
+		// Step 2: Setup your migrator for db (the restored snapshot) and attempt running all migrations
+		migrator := migrations.NewMigrator(nil, dbGrm, l, cfg)
+		err = migrator.MigrateAll()
+		assert.NoError(t, err, "Expected MigrateAll to succeed on db")
+
+		// Step 3: Count again after running migrations
+		var countAfter int64
+		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countAfter)
+
+		// Step 4: If countBefore == countAfter, no new migration records were created
+		//         => meaning db was already fully up-to-date
+		assert.Equal(t, countBefore, countAfter, "No migrations should have been newly applied if db matches the original")
+
+		t.Cleanup(func() {
+			postgres.TeardownTestDatabase(dbName, cfg, dbGrm, l)
+		})
+	})
+
+	t.Run("Restore snapshot to a new database from Manifest", func(t *testing.T) {
+		snapshotContent, err := os.ReadFile(dumpFile)
+		assert.NoError(t, err, "Reading snapshot file should not fail")
+
+		hashContent, err := os.ReadFile(dumpFileHash)
+		assert.NoError(t, err, "Reading hash file should not fail")
+
+		// Create an unstarted test server
+		testServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Printf("Received request for URL: %s\n", r.URL.String())
+
+			if strings.HasSuffix(r.URL.Path, ".sha256sum") {
+				fmt.Println("Serving hash content")
+				w.Write(hashContent)
+			} else if strings.HasSuffix(r.URL.Path, ".dump") {
+				fmt.Println("Serving snapshot content")
+				w.Write(snapshotContent)
+			} else {
+				mockManifest := fmt.Sprintf(`{
+					"meta": {
+						"metadataVersion": "v1.0.0",
+						"lastRefreshed": "2025-01-30T14:29:04Z"
+					},
+					"snapshots": [
+						{
+							"snapshotURL": "http://localhost:5050/snapshots/mainnet/sidecar_mainnet_v2.0.0_public_20250130103903.dump",
+							"chain": "mainnet",
+							"version": "v2.0.0",
+							"schema": "public",
+							"timestamp": "2025-01-30T10:39:03Z"
+						}
+					]
+				}`)
+
+				fmt.Println("Serving mock manifest")
+				w.Write([]byte(mockManifest))
+			}
+		}))
+
+		// Set a fixed URL for the test server, dynamic testServer URLs break the mockManifest snapshotURL
+		testServer.Listener.Close() // Close the auto-assigned listener
+		fixedAddr := "127.0.0.1:5050"
+		listener, err := net.Listen("tcp", fixedAddr)
+		assert.NoError(t, err, "Failed to start test server on fixed address")
+		testServer.Listener = listener
+		testServer.Start()
+
+		defer testServer.Close()
+
+		// Use the fixed URL
+		manifestURL := "http://" + fixedAddr + "/mock_manifest.json"
+
+		dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabaseWithoutMigrations(cfg.DatabaseConfig, l)
+		if dbErr != nil {
+			t.Fatal(dbErr)
+		}
+
+		snapshotCfg := &SnapshotConfig{
+			ManifestURL: manifestURL,
+			Version:     "v2.0.0",
+			Chain:       "mainnet",
+			SchemaName:  "public",
+			VerifyInput: true,
+			Host:        cfg.DatabaseConfig.Host,
+			Port:        cfg.DatabaseConfig.Port,
+			User:        cfg.DatabaseConfig.User,
+			Password:    cfg.DatabaseConfig.Password,
+			DbName:      dbName,
+		}
+		svc, err := NewSnapshotService(snapshotCfg, l)
+		assert.NoError(t, err, "NewSnapshotService should not return an error")
+
+		// Call the RestoreSnapshot function
+		err = svc.RestoreSnapshot()
+		assert.NoError(t, err, "Restoring snapshot should not return an error")
+
+		// Step 1: Validate the restore process
+		var countBefore int64
+		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countBefore)
+
+		// Step 2: Setup your migrator for db (the restored snapshot) and attempt running all migrations
+		migrator := migrations.NewMigrator(nil, dbGrm, l, cfg)
+		err = migrator.MigrateAll()
+		assert.NoError(t, err, "Expected MigrateAll to succeed on db")
+
+		// Step 3: Count again after running migrations
+		var countAfter int64
+		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countAfter)
+
+		// Step 4: If countBefore == countAfter, no new migration records were created
+		//         => meaning db was already fully up-to-date
 		assert.Equal(t, countBefore, countAfter, "No migrations should have been newly applied if db matches the original")
 
 		t.Cleanup(func() {
@@ -396,4 +557,132 @@ func TestIsHttpURL(t *testing.T) {
 			assert.Equal(t, test.expected, result, "isHttpURL(%q) should be %v", test.input, test.expected)
 		})
 	}
+}
+
+func TestGetDesiredURLFromManifest(t *testing.T) {
+	// Create a mock manifest JSON
+	mockManifest := `{
+		"meta": {
+			"metadataVersion": "v1.0.0",
+			"lastRefreshed": "2025-01-30T14:29:04Z"
+		},
+		"snapshots": [
+			{
+				"snapshotURL": "https://sidecar.eigenlayer.xyz/snapshots/mainnet/sidecar_mainnet_v2.0.0_public_20250130103903.dump",
+				"chain": "mainnet",
+				"version": "v2.0.0",
+				"schema": "public",
+				"timestamp": "2025-01-30T10:39:03Z"
+			},
+			{
+				"snapshotURL": "https://sidecar.eigenlayer.xyz/snapshots/holesky/sidecar_holesky_v3.0.0-rc.1_sidecar_testnet_holesky_20250130140613.dump",
+				"chain": "testnet",
+				"version": "v3.0.0-rc.1",
+				"schema": "sidecar_testnet_holesky",
+				"timestamp": "2025-01-30T14:06:13Z"
+			}
+		]
+	}`
+
+	// Create a test server to serve the mock manifest
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, mockManifest)
+	}))
+	defer testServer.Close()
+
+	// Append a filename to the test server URL
+	manifestURL := testServer.URL + "/mock_manifest.json"
+
+	// Setup the SnapshotService with the desired configuration
+	cfg := &SnapshotConfig{
+		Version:    "v2.0.0",
+		Chain:      "mainnet",
+		SchemaName: "public",
+	}
+	l, _ := zap.NewDevelopment()
+	svc, err := NewSnapshotService(cfg, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
+
+	// Call the function to test
+	desiredURL, err := svc.getDesiredURLFromManifest(manifestURL)
+	assert.NoError(t, err, "getDesiredURLFromManifest should not return an error")
+	assert.Equal(t, "https://sidecar.eigenlayer.xyz/snapshots/mainnet/sidecar_mainnet_v2.0.0_public_20250130103903.dump", desiredURL, "The desired URL should match the expected snapshot URL")
+}
+
+func TestDownloadSnapshotAndVerificationFilesWithVerifyInput(t *testing.T) {
+	// Create a test server to serve the snapshot and hash files
+	snapshotContent := "This is a test snapshot file."
+	hashContent := fmt.Sprintf("%x  test_snapshot.dump", sha256.Sum256([]byte(snapshotContent)))
+
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, ".sha256sum") {
+			fmt.Fprintln(w, hashContent)
+		} else {
+			fmt.Fprintln(w, snapshotContent)
+		}
+	}))
+	defer testServer.Close()
+	// Append a unique identifier to the test server URL
+	snapshotURL := testServer.URL + "/test_snapshot_" + fmt.Sprintf("%d", time.Now().UnixNano()) + ".dump"
+
+	cfg := &SnapshotConfig{
+		VerifyInput: true,
+	}
+	l, _ := zap.NewDevelopment()
+	svc, err := NewSnapshotService(cfg, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
+
+	// Call the function to test
+	resolvedFilePath, err := svc.downloadSnapshotAndVerificationFiles(snapshotURL)
+	assert.NoError(t, err, "downloadSnapshotAndVerificationFiles should not return an error")
+
+	// Verify the snapshot file content
+	content, err := os.ReadFile(resolvedFilePath)
+	assert.NoError(t, err, "Reading downloaded snapshot file should not fail")
+	assert.Contains(t, string(content), snapshotContent, "Snapshot file content should match expected content")
+
+	// Verify the hash file content
+	hashFilePath := getHashName(resolvedFilePath)
+	hashContentRead, err := os.ReadFile(hashFilePath)
+	assert.NoError(t, err, "Reading hash file should not fail")
+	assert.Equal(t, hashContent, strings.TrimSpace(string(hashContentRead)), "Hash file content should match expected content")
+}
+
+func TestDownloadSnapshotAndVerificationFilesWithoutVerifyInput(t *testing.T) {
+	// Create a test server to serve the snapshot and hash files
+	snapshotContent := "This is a test snapshot file."
+	hashContent := fmt.Sprintf("%x  test_snapshot.dump", sha256.Sum256([]byte(snapshotContent)))
+
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, ".sha256sum") {
+			fmt.Fprintln(w, hashContent)
+		} else {
+			fmt.Fprintln(w, snapshotContent)
+		}
+	}))
+	defer testServer.Close()
+
+	// Append a filename to the test server URL
+	snapshotURL := testServer.URL + "/test_snapshot_" + fmt.Sprintf("%d", time.Now().UnixNano()) + ".dump"
+
+	cfg := &SnapshotConfig{
+		VerifyInput: false,
+	}
+	l, _ := zap.NewDevelopment()
+	svc, err := NewSnapshotService(cfg, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
+
+	// Call the function to test
+	resolvedFilePath, err := svc.downloadSnapshotAndVerificationFiles(snapshotURL)
+	assert.NoError(t, err, "downloadSnapshotAndVerificationFiles should not return an error")
+
+	// Verify the snapshot file content
+	content, err := os.ReadFile(resolvedFilePath)
+	assert.NoError(t, err, "Reading downloaded snapshot file should not fail")
+	assert.Contains(t, string(content), snapshotContent, "Snapshot file content should match expected content")
+
+	// Ensure no hash file is created
+	hashFilePath := getHashName(resolvedFilePath)
+	_, err = os.Stat(hashFilePath)
+	assert.True(t, os.IsNotExist(err), "Hash file should not exist when VerifyInput is false")
 }

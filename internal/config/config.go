@@ -66,6 +66,7 @@ type SnapshotConfig struct {
 	OutputFile  string
 	Input       string
 	VerifyInput bool
+	ManifestURL string
 }
 
 type RpcConfig struct {
@@ -130,6 +131,7 @@ var (
 	SnapshotOutputFile  = "snapshot.output-file"
 	SnapshotInput       = "snapshot.input"
 	SnapshotVerifyInput = "snapshot.verify-input"
+	SnapshotManifestURL = "snapshot.manifest-url"
 
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
@@ -175,6 +177,7 @@ func NewConfig() *Config {
 			OutputFile:  viper.GetString(normalizeFlagName(SnapshotOutputFile)),
 			Input:       viper.GetString(normalizeFlagName(SnapshotInput)),
 			VerifyInput: viper.GetBool(normalizeFlagName(SnapshotVerifyInput)),
+			ManifestURL: viper.GetString(normalizeFlagName(SnapshotManifestURL)),
 		},
 
 		RpcConfig: RpcConfig{

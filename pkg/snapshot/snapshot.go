@@ -3,6 +3,7 @@ package snapshot
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,12 +24,15 @@ type SnapshotConfig struct {
 	OutputFile  string
 	Input       string
 	VerifyInput bool
+	ManifestURL string
 	Host        string
 	Port        int
 	User        string
 	Password    string
 	DbName      string
 	SchemaName  string
+	Version     string
+	Chain       string
 }
 
 // SnapshotService encapsulates the configuration and logger for snapshot operations.
@@ -122,73 +126,45 @@ func (s *SnapshotService) RestoreSnapshot() error {
 		s.tempFiles = s.tempFiles[:0] // Clear the tempFiles slice after cleanup
 	}()
 
-	var resolvedFilePath string
-	if isHttpURL(s.cfg.Input) {
+	var snapshotAbsoluteFilePath string
+	var err error
+	if s.cfg.Input == "" && s.cfg.ManifestURL == "" {
+		return errors.Wrap(fmt.Errorf("input file or manifest URL is required"), "missing required configuration")
+	} else if s.cfg.Input == "" && s.cfg.ManifestURL != "" {
+		// Get the desired snapshot URL from the manifest
+		desiredURL, err := s.getDesiredURLFromManifest(s.cfg.ManifestURL)
+		if err != nil {
+			return err
+		}
+		// Use the desired URL as the input for downloading
+		snapshotAbsoluteFilePath, err = s.downloadSnapshotAndVerificationFiles(desiredURL)
+		if err != nil {
+			return err
+		}
+	} else if isHttpURL(s.cfg.Input) {
 		inputUrl := s.cfg.Input
-		// Check if the input URL exists
-		snapshotExists, err := urlExists(inputUrl)
+		snapshotAbsoluteFilePath, err = s.downloadSnapshotAndVerificationFiles(inputUrl)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("error checking existence of snapshot URL '%s'", inputUrl))
-		}
-		if !snapshotExists {
-			return errors.Wrap(fmt.Errorf("snapshot file not found at '%s'. Ensure the file exists", inputUrl), "snapshot file not found")
-		}
-
-		fileName, err := getFileNameFromURL(inputUrl)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed to extract file name from URL '%s'", inputUrl))
-		}
-
-		inputFilePath := filepath.Join(os.TempDir(), fileName)
-
-		// Download the snapshot file hash
-		if s.cfg.VerifyInput {
-			hashFilePath := getHashName(inputFilePath)
-			hashUrl := getHashName(inputUrl)
-			hashFileExists, err := urlExists(hashUrl)
-			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("error checking existence of snapshot hash URL '%s'", hashUrl))
-			}
-			if !hashFileExists {
-				return errors.Wrap(fmt.Errorf("snapshot hash file not found at '%s'. Ensure the file exists or set --verify-input=false to skip verification", hashUrl), "snapshot hash file not found")
-			}
-
-			err = downloadFile(hashUrl, hashFilePath)
-			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("error downloading snapshot hash from '%s'", hashUrl))
-			}
-			s.tempFiles = append(s.tempFiles, hashFilePath)
-		}
-
-		// Download the snapshot file
-		err = downloadFile(inputUrl, inputFilePath)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("error downloading snapshot from '%s'", inputUrl))
-		}
-		s.tempFiles = append(s.tempFiles, inputFilePath)
-
-		resolvedFilePath, err = resolveFilePath(inputFilePath)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed to resolve input file path '%s'", inputFilePath))
+			return err
 		}
 	} else {
 		var err error
-		resolvedFilePath, err = resolveFilePath(s.cfg.Input)
+		snapshotAbsoluteFilePath, err = resolveFilePath(s.cfg.Input)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("failed to resolve input file path '%s'", s.cfg.Input))
 		}
 	}
 
-	s.l.Sugar().Debugw("Resolved file path", zap.String("resolvedFilePath", resolvedFilePath))
+	s.l.Sugar().Debugw("Snapshot absolute file path", zap.String("snapshotAbsoluteFilePath", snapshotAbsoluteFilePath))
 
 	// validate snapshot against the hash file
 	if s.cfg.VerifyInput {
-		if err := validateInputFileHash(resolvedFilePath, getHashName(resolvedFilePath)); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("input file hash validation failed for '%s'", resolvedFilePath))
+		if err := validateInputFileHash(snapshotAbsoluteFilePath, getHashName(snapshotAbsoluteFilePath)); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("input file hash validation failed for '%s'", snapshotAbsoluteFilePath))
 		}
 		s.l.Sugar().Debugw("Input file hash validated successfully",
-			zap.String("input", resolvedFilePath),
-			zap.String("inputHashFile", getHashName(resolvedFilePath)),
+			zap.String("input", snapshotAbsoluteFilePath),
+			zap.String("inputHashFile", getHashName(snapshotAbsoluteFilePath)),
 		)
 	}
 
@@ -197,7 +173,7 @@ func (s *SnapshotService) RestoreSnapshot() error {
 		return err
 	}
 
-	restoreExec := restore.Exec(resolvedFilePath, pgcommands.ExecOptions{StreamPrint: false})
+	restoreExec := restore.Exec(snapshotAbsoluteFilePath, pgcommands.ExecOptions{StreamPrint: false})
 	if restoreExec.Error != nil {
 		s.l.Sugar().Errorw("Failed to restore from snapshot",
 			zap.Error(restoreExec.Error.Err),
@@ -343,6 +319,10 @@ func downloadFile(url, downloadDestFilePath string) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("404 Not Found")
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("downloading error, received status code %d", resp.StatusCode)
 	}
@@ -389,22 +369,117 @@ func getFileNameFromURL(rawURL string) (string, error) {
 	return path.Base(parsedURL.Path), nil
 }
 
-// urlExists checks if the given URL is accessible by sending a HEAD request.
-func urlExists(url string) (bool, error) {
-	resp, err := http.Head(url)
+func (s *SnapshotService) downloadSnapshotAndVerificationFiles(inputUrl string) (string, error) {
+	fileName, err := getFileNameFromURL(inputUrl)
 	if err != nil {
-		return false, errors.Wrap(err, "failed to send HEAD request")
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-		return true, nil
+		return "", errors.Wrap(err, fmt.Sprintf("failed to extract file name from URL '%s'", inputUrl))
 	}
 
-	// Return false for 404 without an error
-	if resp.StatusCode == http.StatusNotFound {
-		return false, nil
+	inputFilePath := filepath.Join(os.TempDir(), fileName)
+
+	// Download the snapshot file hash
+	if s.cfg.VerifyInput {
+		hashFilePath := getHashName(inputFilePath)
+		hashUrl := getHashName(inputUrl)
+
+		err = downloadFile(hashUrl, hashFilePath)
+		if err != nil {
+			if err.Error() == "404 Not Found" {
+				return "", errors.Wrap(fmt.Errorf("snapshot hash file not found at '%s'. Ensure the file exists or set --verify-input=false to skip verification", hashUrl), "snapshot hash file not found")
+			}
+			return "", errors.Wrap(err, fmt.Sprintf("error downloading snapshot hash from '%s'", hashUrl))
+		}
+		s.tempFiles = append(s.tempFiles, hashFilePath)
 	}
 
-	return false, fmt.Errorf("URL not accessible, received status code %d", resp.StatusCode)
+	// Download the snapshot file
+	err = downloadFile(inputUrl, inputFilePath)
+	if err != nil {
+		if err.Error() == "404 Not Found" {
+			return "", errors.Wrap(fmt.Errorf("snapshot file not found at '%s'. Ensure the file exists", inputUrl), "snapshot file not found")
+		}
+		return "", errors.Wrap(err, fmt.Sprintf("error downloading snapshot from '%s'", inputUrl))
+	}
+	s.tempFiles = append(s.tempFiles, inputFilePath)
+
+	resolvedFilePath, err := resolveFilePath(inputFilePath)
+	if err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("failed to resolve input file path '%s'", inputFilePath))
+	}
+
+	return resolvedFilePath, nil
+}
+
+// Define a struct to match the manifest format, used in MetadataVersion v1.0.0
+type Manifest struct {
+	Meta      Meta       `json:"meta"`
+	Snapshots []Snapshot `json:"snapshots"`
+}
+
+type Meta struct {
+	MetadataVersion string `json:"metadataVersion"`
+	LastRefreshed   string `json:"lastRefreshed"`
+}
+
+type Snapshot struct {
+	SnapshotURL string `json:"snapshotURL"`
+	Chain       string `json:"chain"`
+	Version     string `json:"version"`
+	Schema      string `json:"schema"`
+	Timestamp   string `json:"timestamp"`
+}
+
+func (s *SnapshotService) getDesiredURLFromManifest(manifestURL string) (string, error) {
+	// Fetch the snapshot URL from the manifest
+	if !isHttpURL(manifestURL) {
+		return "", errors.Wrap(fmt.Errorf("manifest URL must be a network URL"), "invalid manifest URL")
+	}
+
+	// Download the manifest file
+	manifestFileName, err := getFileNameFromURL(manifestURL)
+	if err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("failed to extract file name from manifest URL '%s'", manifestURL))
+	}
+
+	manifestFilePath := filepath.Join(os.TempDir(), manifestFileName)
+
+	err = downloadFile(manifestURL, manifestFilePath)
+	if err != nil {
+		if err.Error() == "404 Not Found" {
+			return "", errors.Wrap(fmt.Errorf("manifest file not found at '%s'. Ensure the file exists", manifestURL), "manifest file not found")
+		}
+		return "", errors.Wrap(err, fmt.Sprintf("error downloading manifest from '%s'", manifestURL))
+	}
+
+	s.tempFiles = append(s.tempFiles, manifestFilePath)
+	s.l.Sugar().Infow("Downloaded manifest file", zap.String("manifestFilePath", manifestFilePath))
+
+	// Read and parse the manifest file
+	manifestData, err := os.ReadFile(manifestFilePath)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read manifest file")
+	}
+
+	var manifest Manifest
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		return "", errors.Wrap(err, "failed to parse manifest JSON")
+	}
+
+	// Filter snapshots by version, chain, and schema
+	var latestSnapshot *Snapshot
+	for _, snapshot := range manifest.Snapshots {
+		if snapshot.Version == s.cfg.Version && snapshot.Chain == s.cfg.Chain && snapshot.Schema == s.cfg.SchemaName {
+			if latestSnapshot == nil || snapshot.Timestamp > latestSnapshot.Timestamp {
+				latestSnapshot = &snapshot
+			}
+		}
+	}
+
+	if latestSnapshot == nil {
+		return "", errors.Wrap(fmt.Errorf("no matching snapshot found for version '%s', chain '%s', and schema '%s'", s.cfg.Version, s.cfg.Chain, s.cfg.SchemaName), "no matching snapshot found")
+	}
+
+	s.l.Sugar().Debugw("Selected snapshot", zap.String("snapshotURL", latestSnapshot.SnapshotURL))
+
+	return latestSnapshot.SnapshotURL, nil
 }
