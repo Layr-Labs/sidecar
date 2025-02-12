@@ -10,6 +10,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/parser"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
+	"github.com/ethereum/go-ethereum/common"
 	"gorm.io/gorm"
 	"slices"
 	"strings"
@@ -156,7 +157,7 @@ func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fet
 	return parsedTransactions, nil
 }
 
-func (idx *Indexer) IndexContractUpgrade(ctx context.Context, blockNumber uint64, upgradedLog *storage.TransactionLog) error {
+func (idx *Indexer) IndexContractUpgrade(ctx context.Context, blockNumber uint64, upgradedLog *parser.DecodedLog) error {
 	// the new address that the contract points to
 	newProxiedAddress := ""
 
@@ -175,17 +176,18 @@ func (idx *Indexer) IndexContractUpgrade(ctx context.Context, blockNumber uint64
 			idx.Logger.Sugar().Errorw("Failed to get storage value",
 				zap.Error(err),
 				zap.Uint64("block", blockNumber),
-				zap.String("upgradedLogAddress", upgradedLog.Address)
-			)
-			return err
-		if len(storageValue) != 66 {
-			idx.Logger.Sugar().Errorw("Invalid storage value",
-				zap.Uint64("block", blockNumber),
-				zap.String("storageValue", storageValue)
+				zap.String("upgradedLogAddress", upgradedLog.Address),
 			)
 			return err
 		}
-		
+		if len(storageValue) != 66 {
+			idx.Logger.Sugar().Errorw("Invalid storage value",
+				zap.Uint64("block", blockNumber),
+				zap.String("storageValue", storageValue),
+			)
+			return err
+		}
+
 		newProxiedAddress = storageValue[26:]
 	}
 
@@ -194,7 +196,7 @@ func (idx *Indexer) IndexContractUpgrade(ctx context.Context, blockNumber uint64
 		return nil
 	}
 
-	_, err := idx.ContractManager.CreateProxyContract(upgradedLog.Address, newProxiedAddress, blockNumber, reindexContract)
+	_, _, err := idx.ContractStore.FindOrCreateProxyContract(blockNumber, upgradedLog.Address, newProxiedAddress)
 	if err != nil {
 		idx.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err))
 		return err
