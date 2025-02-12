@@ -169,7 +169,7 @@ func (s *SnapshotService) RestoreSnapshot() error {
 
 		resolvedFilePath, err = resolveFilePath(inputFilePath)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed to resolve input file path '%s'", s.cfg.Input))
+			return errors.Wrap(err, fmt.Sprintf("failed to resolve input file path '%s'", inputFilePath))
 		}
 	} else {
 		var err error
