@@ -162,7 +162,6 @@ func (idx *Indexer) IndexContractUpgrade(ctx context.Context, blockNumber uint64
 
 	// Check the arguments for the new address. EIP-1967 contracts include this as an argument.
 	// Otherwise, we'll check the storage slot
-	// TODO: Arguments is a string
 	for _, arg := range upgradedLog.Arguments {
 		if arg.Name == "implementation" && arg.Value != "" && arg.Value != nil {
 			newProxiedAddress = arg.Value.(common.Address).String()
@@ -178,26 +177,29 @@ func (idx *Indexer) IndexContractUpgrade(ctx context.Context, blockNumber uint64
 				zap.Uint64("block", blockNumber),
 				zap.String("upgradedLogAddress", upgradedLog.Address)
 			)
-		} else if len(storageValue) != 66 {
+			return err
+		if len(storageValue) != 66 {
 			idx.Logger.Sugar().Errorw("Invalid storage value",
 				zap.Uint64("block", blockNumber),
 				zap.String("storageValue", storageValue)
 			)
-		} else {
-			newProxiedAddress = storageValue[26:]
+			return err
 		}
+		
+		newProxiedAddress = storageValue[26:]
 	}
 
 	if newProxiedAddress == "" {
 		idx.Logger.Sugar().Debugw("No new proxied address found", zap.String("address", upgradedLog.Address))
-		return
+		return nil
 	}
 
 	_, err := idx.ContractManager.CreateProxyContract(upgradedLog.Address, newProxiedAddress, blockNumber, reindexContract)
 	if err != nil {
 		idx.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err))
-		return
+		return err
 	}
+
 	idx.Logger.Sugar().Infow("Upgraded proxy contract", zap.String("contractAddress", upgradedLog.Address), zap.String("proxyContractAddress", newProxiedAddress))
 	return nil
 }
