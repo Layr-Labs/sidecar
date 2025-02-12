@@ -1,4 +1,4 @@
-FROM golang:1.23.6-bookworm AS builder
+FROM golang:1.24.0-bookworm AS builder
 
 ARG TARGETARCH
 
@@ -11,7 +11,7 @@ RUN make deps/go
 
 RUN make build
 
-FROM golang:1.23.6-bookworm
+FROM golang:1.24.0-bookworm
 
 RUN apt-get update && apt-get install -y ca-certificates postgresql-client
 
