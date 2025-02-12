@@ -84,9 +84,8 @@ func (s *SnapshotService) CreateSnapshot() error {
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to resolve output file path '%s'", s.cfg.OutputFile))
 	}
-	s.cfg.OutputFile = resolvedFilePath
 
-	s.l.Sugar().Debugw("Resolved file paths", zap.String("Output", s.cfg.OutputFile))
+	s.l.Sugar().Debugw("Resolved file paths", zap.String("Output", resolvedFilePath))
 
 	if err := s.validateCreateSnapshotConfig(); err != nil {
 		return err
@@ -108,8 +107,8 @@ func (s *SnapshotService) CreateSnapshot() error {
 
 	s.l.Sugar().Infow("Successfully created snapshot")
 
-	outputHashFile := getHashName(s.cfg.OutputFile)
-	if err := saveOutputFileHash(s.cfg.OutputFile, outputHashFile); err != nil {
+	outputHashFile := getHashName(resolvedFilePath)
+	if err := saveOutputFileHash(resolvedFilePath, outputHashFile); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to save output file hash '%s'", outputHashFile))
 	}
 
@@ -123,12 +122,74 @@ func (s *SnapshotService) RestoreSnapshot() error {
 		s.tempFiles = s.tempFiles[:0] // Clear the tempFiles slice after cleanup
 	}()
 
-	if err := s.resolveAndDownloadRestoreInput(); err != nil {
-		return err
+	var resolvedFilePath string
+	if isHttpURL(s.cfg.Input) {
+		inputUrl := s.cfg.Input
+		// Check if the input URL exists
+		snapshotExists, err := urlExists(inputUrl)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("error checking existence of snapshot URL '%s'", inputUrl))
+		}
+		if !snapshotExists {
+			return errors.Wrap(fmt.Errorf("snapshot file not found at '%s'. Ensure the file exists", inputUrl), "snapshot file not found")
+		}
+
+		fileName, err := getFileNameFromURL(inputUrl)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("failed to extract file name from URL '%s'", inputUrl))
+		}
+
+		inputFilePath := filepath.Join(os.TempDir(), fileName)
+
+		// Download the snapshot file hash
+		if s.cfg.VerifyInput {
+			hashFilePath := getHashName(inputFilePath)
+			hashUrl := getHashName(inputUrl)
+			hashFileExists, err := urlExists(hashUrl)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("error checking existence of snapshot hash URL '%s'", hashUrl))
+			}
+			if !hashFileExists {
+				return errors.Wrap(fmt.Errorf("snapshot hash file not found at '%s'. Ensure the file exists or set --verify-input=false to skip verification", hashUrl), "snapshot hash file not found")
+			}
+
+			err = downloadFile(hashUrl, hashFilePath)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("error downloading snapshot hash from '%s'", hashUrl))
+			}
+			s.tempFiles = append(s.tempFiles, hashFilePath)
+		}
+
+		// Download the snapshot file
+		err = downloadFile(inputUrl, inputFilePath)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("error downloading snapshot from '%s'", inputUrl))
+		}
+		s.tempFiles = append(s.tempFiles, inputFilePath)
+
+		resolvedFilePath, err = resolveFilePath(inputFilePath)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("failed to resolve input file path '%s'", s.cfg.Input))
+		}
+	} else {
+		var err error
+		resolvedFilePath, err = resolveFilePath(s.cfg.Input)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("failed to resolve input file path '%s'", s.cfg.Input))
+		}
 	}
 
-	if err := s.validateRestoreConfig(); err != nil {
-		return err
+	s.l.Sugar().Debugw("Resolved file path", zap.String("resolvedFilePath", resolvedFilePath))
+
+	// validate snapshot against the hash file
+	if s.cfg.VerifyInput {
+		if err := validateInputFileHash(resolvedFilePath, getHashName(resolvedFilePath)); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("input file hash validation failed for '%s'", resolvedFilePath))
+		}
+		s.l.Sugar().Debugw("Input file hash validated successfully",
+			zap.String("input", resolvedFilePath),
+			zap.String("inputHashFile", getHashName(resolvedFilePath)),
+		)
 	}
 
 	restore, err := s.setupRestore()
@@ -136,7 +197,7 @@ func (s *SnapshotService) RestoreSnapshot() error {
 		return err
 	}
 
-	restoreExec := restore.Exec(s.cfg.Input, pgcommands.ExecOptions{StreamPrint: false})
+	restoreExec := restore.Exec(resolvedFilePath, pgcommands.ExecOptions{StreamPrint: false})
 	if restoreExec.Error != nil {
 		s.l.Sugar().Errorw("Failed to restore from snapshot",
 			zap.Error(restoreExec.Error.Err),
@@ -146,72 +207,6 @@ func (s *SnapshotService) RestoreSnapshot() error {
 	}
 
 	s.l.Sugar().Infow("Successfully restored from snapshot")
-	return nil
-}
-
-// resolveAndDownloadRestoreInput prepares the SnapshotService struct into a suitable format for restoring a snapshot
-// and downloads the necessary files if necessary
-func (s *SnapshotService) resolveAndDownloadRestoreInput() error {
-	if isHttpURL(s.cfg.Input) {
-		inputUrl := s.cfg.Input
-
-		// Check if the input URL exists
-		snapshotExists, err := urlExists(inputUrl)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("error checking existence of snapshot URL '%s'", inputUrl))
-		}
-		if !snapshotExists {
-			return fmt.Errorf("snapshot file not found at '%s'. Ensure the file exists", inputUrl)
-		}
-
-		// Check if the hash URL exists
-		if s.cfg.VerifyInput {
-			hashUrl := getHashName(inputUrl)
-
-			hashFileExists, err := urlExists(hashUrl)
-			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("error checking existence of snapshot hash URL '%s'", hashUrl))
-			}
-			if !hashFileExists {
-				return fmt.Errorf("snapshot hash file not found at '%s'. Ensure the file exists or set --verify-input=false to skip verification", hashUrl)
-			}
-		}
-
-		// Download the snapshot file and assign to s.cfg.Input
-		fileName, err := getFileNameFromURL(inputUrl)
-		if err != nil {
-			return fmt.Errorf("failed to extract file name from URL: %w", err)
-		}
-
-		inputFilePath := filepath.Join(os.TempDir(), fileName)
-
-		s.cfg.Input, err = downloadFile(inputUrl, inputFilePath)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("error downloading snapshot from '%s'", inputUrl))
-		}
-		s.tempFiles = append(s.tempFiles, s.cfg.Input)
-
-		// Download the snapshot file hash
-		if s.cfg.VerifyInput {
-			hashFilePath := getHashName(inputFilePath)
-			hashUrl := getHashName(inputUrl)
-			hashFile, err := downloadFile(hashUrl, hashFilePath)
-			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("error downloading snapshot hash from '%s'", hashUrl))
-			}
-			s.tempFiles = append(s.tempFiles, hashFile)
-
-		}
-	}
-
-	resolvedFilePath, err := resolveFilePath(s.cfg.Input)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("failed to resolve input file path '%s'", s.cfg.Input))
-	}
-	s.cfg.Input = resolvedFilePath
-
-	s.l.Sugar().Debugw("Resolved file paths", zap.String("Input", s.cfg.Input))
-
 	return nil
 }
 
@@ -243,34 +238,13 @@ func (s *SnapshotService) setupSnapshotDump() (*pgcommands.Dump, error) {
 	if s.cfg.SchemaName != "" {
 		dump.Options = append(dump.Options, fmt.Sprintf("--schema=%s", s.cfg.SchemaName))
 	}
-
-	dump.SetFileName(s.cfg.OutputFile)
+	resolvedFilePath, err := resolveFilePath(s.cfg.OutputFile)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("failed to resolve output file path '%s'", s.cfg.OutputFile))
+	}
+	dump.SetFileName(resolvedFilePath)
 
 	return dump, nil
-}
-
-func (s *SnapshotService) validateRestoreConfig() error {
-	if s.cfg.Input == "" {
-		return fmt.Errorf("restore snapshot file path i.e. `input` must be specified")
-	}
-
-	// s.cfg.input is resolved from a url in resolveAndDownloadRestoreInput()
-	info, err := os.Stat(s.cfg.Input)
-	if err != nil || info.IsDir() {
-		return fmt.Errorf("snapshot file does not exist: %s", s.cfg.Input)
-	}
-
-	if s.cfg.VerifyInput {
-		if err := validateInputFileHash(s.cfg.Input, getHashName(s.cfg.Input)); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("input file hash validation failed for '%s'", s.cfg.Input))
-		}
-		s.l.Sugar().Debugw("Input file hash validated successfully",
-			zap.String("input", s.cfg.Input),
-			zap.String("inputHashFile", getHashName(s.cfg.Input)),
-		)
-	}
-
-	return nil
 }
 
 func (s *SnapshotService) setupRestore() (*pgcommands.Restore, error) {
@@ -362,22 +336,22 @@ func getFileHash(filePath string) ([]byte, error) {
 	return hasher.Sum(nil), nil
 }
 
-func downloadFile(url, downloadDestFilePath string) (string, error) {
+func downloadFile(url, downloadDestFilePath string) error {
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to initiate download")
+		return errors.Wrap(err, "failed to initiate download")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("downloading error, received status code %d", resp.StatusCode)
+		return fmt.Errorf("downloading error, received status code %d", resp.StatusCode)
 	}
 
 	// Ensure the directory for the file path exists
 	dir := filepath.Dir(downloadDestFilePath)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-			return "", errors.Wrap(err, "failed to create directories to save the download file to")
+			return errors.Wrap(err, "failed to create directories to save the download file to")
 		}
 	}
 
@@ -390,16 +364,16 @@ func downloadFile(url, downloadDestFilePath string) (string, error) {
 
 	tmpFile, err := os.Create(downloadDestFilePath)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to create local file")
+		return errors.Wrap(err, "failed to create local file")
 	}
 	defer tmpFile.Close()
 
 	_, err = io.Copy(io.MultiWriter(tmpFile, bar), resp.Body)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to write to local file")
+		return errors.Wrap(err, "failed to write to local file")
 	}
 
-	return downloadDestFilePath, nil
+	return nil
 }
 
 // getHashName returns the hash name for a given file path or URL.

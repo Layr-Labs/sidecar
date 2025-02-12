@@ -84,65 +84,6 @@ func TestSetupSnapshotDump(t *testing.T) {
 	assert.NotNil(t, dump, "Dump should not be nil")
 }
 
-func TestValidateRestoreConfig(t *testing.T) {
-	tempDir := t.TempDir()
-	snapshotFile := filepath.Join(tempDir, "TestValidateRestoreConfig.sql")
-	snapshotHashFile := filepath.Join(tempDir, "TestValidateRestoreConfig.sql.sha256sum")
-	content := []byte("test content")
-	err := os.WriteFile(snapshotFile, content, 0644)
-	assert.NoError(t, err, "Writing to snapshot file should not fail")
-
-	// Generate the hash using the CLI
-	cmd := exec.Command("shasum", "-a", "256", snapshotFile)
-	output, err := cmd.Output()
-	assert.NoError(t, err, "Generating hash with CLI should not fail")
-
-	// Extract the hash from the CLI output
-	hashParts := strings.Fields(string(output))
-	if len(hashParts) < 1 {
-		t.Fatal("Failed to parse hash from CLI output")
-	}
-	hashFileContent := fmt.Sprintf("%s %s\n", hashParts[0], filepath.Base(snapshotFile))
-	err = os.WriteFile(snapshotHashFile, []byte(hashFileContent), 0644)
-	assert.NoError(t, err, "Writing to hash file should not fail")
-
-	cfg := &SnapshotConfig{
-		Host:        "localhost",
-		Port:        5432,
-		DbName:      "testdb",
-		User:        "testuser",
-		Password:    "testpassword",
-		SchemaName:  "public",
-		Input:       snapshotFile,
-		VerifyInput: true,
-	}
-	l, _ := zap.NewDevelopment()
-	svc, err := NewSnapshotService(cfg, l)
-	assert.NoError(t, err, "NewSnapshotService should not return an error")
-	err = svc.validateRestoreConfig()
-	assert.NoError(t, err, "Restore config should be valid")
-	os.Remove(snapshotFile)
-	os.Remove(snapshotHashFile)
-}
-
-func TestValidateRestoreConfigMissingInputFile(t *testing.T) {
-	cfg := &SnapshotConfig{
-		Host:        "localhost",
-		Port:        5432,
-		DbName:      "testdb",
-		User:        "testuser",
-		Password:    "testpassword",
-		SchemaName:  "public",
-		Input:       "",
-		VerifyInput: true,
-	}
-	l, _ := zap.NewDevelopment()
-	svc, err := NewSnapshotService(cfg, l)
-	assert.NoError(t, err, "NewSnapshotService should not return an error")
-	err = svc.validateRestoreConfig()
-	assert.Error(t, err, "Restore config should be invalid if input file is missing")
-}
-
 func TestSetupRestore(t *testing.T) {
 	cfg := &SnapshotConfig{
 		Host:        "localhost",
@@ -295,19 +236,22 @@ func TestDownloadFile(t *testing.T) {
 	uniqueID := fmt.Sprintf("%d", time.Now().UnixNano())
 	inputFileName := uniqueID + "_downloaded_snapshot.dump"
 
+	tempDir := t.TempDir()
+	inputFilePath := filepath.Join(tempDir, inputFileName)
+
 	// Use the test server's URL to test the downloadFile function
-	filePath, err := downloadFile(testServer.URL, inputFileName)
+	err := downloadFile(testServer.URL, inputFilePath)
 	assert.NoError(t, err, "downloadFile should not return an error")
 
 	// Schedule the file for removal after the test completes
 	defer func() {
-		if err := os.Remove(filePath); err != nil {
+		if err := os.Remove(inputFilePath); err != nil {
 			t.Logf("Failed to remove downloaded file: %v", err)
 		}
 	}()
 
 	// Verify the file was downloaded correctly
-	content, err := os.ReadFile(filePath)
+	content, err := os.ReadFile(inputFilePath)
 	assert.NoError(t, err, "Reading downloaded file should not fail")
 	assert.Contains(t, string(content), "This is a test file.", "Downloaded file content should match expected content")
 }
