@@ -71,8 +71,6 @@ type BatchTransaction struct {
 	BytecodeHash    string
 }
 
-// do i need to add type here?
-
 type OperatorRestakedStrategies struct {
 	AvsDirectoryAddress string
 	BlockNumber         uint64
