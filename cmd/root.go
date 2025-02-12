@@ -65,8 +65,9 @@ func init() {
 	// bind any subcommand flags
 	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "Path to save the snapshot file to (required), also creates a hash file")
 
-	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInput, "", "Path to the snapshot file either a URL or a local file (required)")
-	restoreSnapshotCmd.PersistentFlags().Bool(config.SnapshotVerifyInput, true, "Boolean to verify the input file against its .sha256sum file, if input is a url then it downloads the file, (default is true)")
+	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInput, "", "Path to the snapshot file either a URL or a local file (optional), **If specified, this file is used instead of the manifest desired snapshot** ")
+	restoreSnapshotCmd.PersistentFlags().Bool(config.SnapshotVerifyInput, true, "Boolean to verify the input file against its .sha256sum file, if input is a url then it downloads the file")
+	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotManifestURL, "https://sidecar.eigenlayer.xyz/snapshots/snapshots_manifest_v1.0.0.json", "URL to a manifest json. Gets the latest snapshot matching the current runtime configurations of version, chain, and schema")
 
 	rpcCmd.PersistentFlags().String(config.SidecarPrimaryUrl, "", `RPC url of the "primary" Sidecar instance in an HA environment`)
 

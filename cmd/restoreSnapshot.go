@@ -5,6 +5,7 @@ import (
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
+	"github.com/Layr-Labs/sidecar/internal/version"
 	"github.com/Layr-Labs/sidecar/pkg/snapshot"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -29,12 +30,15 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 		svc, err := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
 			Input:       cfg.SnapshotConfig.Input,
 			VerifyInput: cfg.SnapshotConfig.VerifyInput,
+			ManifestURL: cfg.SnapshotConfig.ManifestURL,
 			Host:        cfg.DatabaseConfig.Host,
 			Port:        cfg.DatabaseConfig.Port,
 			User:        cfg.DatabaseConfig.User,
 			Password:    cfg.DatabaseConfig.Password,
 			DbName:      cfg.DatabaseConfig.DbName,
 			SchemaName:  cfg.DatabaseConfig.SchemaName,
+			Version:     version.GetVersion(),
+			Chain:       cfg.Chain.String(),
 		}, l)
 		if err != nil {
 			return err

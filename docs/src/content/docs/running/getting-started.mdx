@@ -46,8 +46,7 @@ import { Steps } from '@astrojs/starlight/components';
 
     ```bash
     /usr/local/bin/sidecar restore-snapshot \
-      --snapshot.input=https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump \
-      --snapshot.verify-input=false \
+      --chain="mainnet" \
       --database.host=<postgres host> \
       --database.user=<postgres user> \
       --database.password=<postgres password> \
