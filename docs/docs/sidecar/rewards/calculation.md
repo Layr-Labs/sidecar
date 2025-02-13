@@ -327,7 +327,8 @@ Three types of operator splits are tracked daily:
 
 1. Default Operator Split: Determines reward split between operator and their delegated stakers for all operators (10% default, 1000 bips)
 2. Operator-PI Split: Determines reward split between operator and their delegated stakers for Programmatic Incentives.
-3. Operator-Set Split: Determines reward split between operator and their delegated stakers for Operator-Directed Rewards.
+3. Operator-AVS Split: Determines reward split between operator and their delegated stakers for non-slashable stake.
+4. Operator-Set Split: Determines reward split between operator and their delegated stakers for slashable stake.
 
 Split calculation follows these rules:
 
@@ -355,11 +356,12 @@ WHERE activated_at < TIMESTAMP '{{.cutoffDate}}'
 
 ### Rewards Submissions
 
-There are two types of rewards submissions in the protocol:
+There are four types of rewards submissions in the protocol:
 
-1. AVS Rewards Submission: Permissionless function called by any AVS
-2. Reward for All: Permissioned reward to all stakers of the protocol
-3. Operator-Directed Rewards Submission: Permissionless function called by any AVS to direct rewards to a specific operators
+1. AVS Rewards Submission: Permissionless function called by any AVS for non-slashable stake.
+2. Reward for All Earners: Permissioned reward to all earners of the protocol for Programmatic Incentives.
+3. Operator-Directed Rewards Submission: Permissionless function called by any AVS to direct rewards to a specific operators for non-slashable stake.
+4. Operator-Directed Operator Set Rewards Submission: Permissionless function called by any AVS to direct rewards to a specific operators for slashable stake.
 
 _Note: The amount in the RewardsCoordinator has a max value of $1e38-1$, which allows us to truncate it to a DECIMAL(38,0)._
 
@@ -508,6 +510,31 @@ WITH _operator_directed_rewards as (
 	FROM _operator_directed_rewards
 ```
 
+#### Operator-Directed Operator Set Rewards Submissions
+
+```sql=
+SELECT
+	odosrs.avs,
+	odosrs.operator_set_id,
+	odosrs.reward_hash,
+	odosrs.token,
+	odosrs.operator,
+	odosrs.operator_index,
+	odosrs.amount,
+	odosrs.strategy,
+	odosrs.strategy_index,
+	odosrs.multiplier,
+	odosrs.start_timestamp::TIMESTAMP(6),
+	odosrs.end_timestamp::TIMESTAMP(6),
+	odosrs.duration,
+	odosrs.block_number,
+	b.block_time::TIMESTAMP(6),
+	TO_CHAR(b.block_time, 'YYYY-MM-DD') AS block_date
+FROM operator_directed_operator_set_reward_submissions AS odosrs
+JOIN blocks AS b ON (b.number = odosrs.block_number)
+WHERE b.block_time < TIMESTAMP '{{.cutoffDate}}'
+```
+
 ### Operator{'<>'}AVS State
 
 Every deregistration and registration from an Operator to an AVS is recorded in the AVSDirectory
@@ -549,6 +576,35 @@ Assuming that an operator is registered to an AVS at timestamp $t$, an example o
 | Operator2 | AVS-A | rETH     | t          |
 | Operator3 | AVS-B | cbETH    | t          |
 
+### Operator{'<>'}Operator Set State
+
+Every operator{'<>'}operator set registration and deregistration is recorded in the AllocationManager contract.
+
+#### Operator Set Operator Registrations
+
+```sql=
+select
+  osor.*,
+  b.block_time::timestamp(6) as block_time,
+  to_char(b.block_time, 'YYYY-MM-DD') AS block_date
+from operator_set_operator_registrations as osor
+join blocks as b on (b.number = osor.block_number)
+where b.block_time < TIMESTAMP '{{.cutoffDate}}'
+```
+
+#### Operator Set Strategy Registrations
+
+```sql=
+select
+  ossr.*,
+  b.block_time::timestamp(6) as block_time,
+  to_char(b.block_time, 'YYYY-MM-DD') AS block_date
+from operator_set_strategy_registrations as ossr
+join blocks as b on (b.number = ossr.block_number)
+where b.block_time < TIMESTAMP '{{.cutoffDate}}'
+```
+
+
 ## Data Transformation
 
 Once we extract all logs and relevant storage of EigenLayer core contracts and AVSs, we transform this to create daily snapshots of state in two parts
@@ -589,6 +645,26 @@ The end state is that the operator has registered & deregistered on day 1, resul
 ```
 
 The operator in this case will be deregistered on Day3, resulting in the operator not receving any reward on the [Day3,Day4] range for which it was securing the AVS. Rounding down deregistrations is why the `cutoff_date` must be the _previous day_ at 0:00 UTC.
+
+#### Operator{'<>'}Operator Set Registration/Deregistration
+
+In the case of an operator{'<>'}operator set registration and deregistration:
+
+```
+GENESIS_TIMESTAMP---------------------Day1---------------------Day2
+                     ^                       ^
+                  Register                Deregister
+```
+
+The end state is that the operator has registered & deregistered on day 1, resulting in no reward being made to the operator. We add this mechanism as a protection for operators gaining extra days of rewards if we were to round up deregistrations. The side effect is the following:
+
+```
+--------------Day1--------------Day2--------------Day3--------------Day4
+          ^                                                       ^
+        Register                                             Deregister
+```
+
+The operator in this case will be deregistered on Day3, resulting in the operator not receving any reward on the [Day3,Day4] range for which it was securing the operator set. Rounding down deregistrations is why the `cutoff_date` must be the _previous day_ at 0:00 UTC.
 
 ## Part 1: Aggregation
 
@@ -1104,6 +1180,211 @@ with ranked_records AS (
 select * from operator_avs_strategy_windows
 ```
 
+#### Operator {'<>'} Operator Set Registration Windows
+
+In this calculation registration windows cannot continue off each other. For example, if an operator had the following state:
+
+| Operator  | Operator Set   | Registered | Date      |
+|-----------|--------------- |------------|-----------|
+| Operator1 | Operator Set 1 | True       | 4-24-2024 |
+| Operator1 | Operator Set 1 | False      | 4-26-2024 |
+| Operator1 | Operator Set 1 | True       | 4-29-2024 |
+| Operator1 | Operator Set 1 | False      | 5-1-2024  |
+| Operator1 | Operator Set 1 | True       | 5-1-2024  |
+| Operator1 | Operator Set 1 | False      | 5-1-2024  |
+
+We do not care about a (deregistration, registration) window from rows 2 and 3. We also need to discard the (registration,deregistration window) from rows 5 and 6.
+
+Also operator deregistrations are rounded down and registrations are rounded up.
+
+1. Mark a link between each registration
+
+```sql=
+marked_statuses AS (
+    SELECT
+        operator,
+        avs,
+		    operator_set_id,
+        is_active,
+        block_time,
+        block_date,
+        -- Mark the next action as next_block_time
+        LEAD(block_time) OVER (PARTITION BY operator, avs, operator_set_id ORDER BY block_time ASC, log_index ASC) AS next_block_time,
+        -- The below lead/lag combinations are only used in the next CTE
+        -- Get the next row's registered status and block_date
+        LEAD(is_active) OVER (PARTITION BY operator, avs, operator_set_id ORDER BY block_time ASC, log_index ASC) AS next_is_active,
+        LEAD(block_date) OVER (PARTITION BY operator, avs, operator_set_id ORDER BY block_time ASC, log_index ASC) AS next_block_date,
+        -- Get the previous row's registered status and block_date
+        LAG(is_active) OVER (PARTITION BY operator, avs, operator_set_id ORDER BY block_time ASC, log_index ASC) AS prev_is_active,
+        LAG(block_date) OVER (PARTITION BY operator, avs, operator_set_id ORDER BY block_time ASC, log_index ASC) AS prev_block_date
+    FROM state_changes
+),
+```
+
+2. Ignore a (registration, deregistration) pair that occurs on the same day. This is to ensure that the grouping is not counted once we round deregistration down and registration up.
+
+```sql=
+ removed_same_day_deregistrations AS (
+	 SELECT * from marked_statuses
+	 WHERE NOT (
+		 -- Remove the registration part
+		 (is_active = TRUE AND
+		  COALESCE(next_is_active = FALSE, false) AND -- default to false if null
+		  COALESCE(block_date = next_block_date, false)) OR
+			 -- Remove the deregistration part
+		 (is_active = FALSE AND
+		  COALESCE(prev_is_active = TRUE, false) and
+		  COALESCE(block_date = prev_block_date, false)
+			 )
+		 )
+ ),
+```
+
+3. Mark the`end_time` of the record as the next record. If it's not the case, mark the `end_time` as the `cutoff_date`
+
+```sql=
+registration_periods AS (
+	SELECT
+		operator,
+		avs,
+		operator_set_id,
+		block_time AS start_time,
+		-- Mark the next_block_time as the end_time for the range
+		-- Use coalesce because if the next_block_time for a registration is not closed, then we use cutoff_date
+		COALESCE(next_block_time, '{{.cutoffDate}}')::timestamp AS end_time,
+		is_active
+	FROM removed_same_day_deregistrations
+	WHERE is_active = TRUE
+ ),
+```
+
+4. Round up each `start_time` and round down each end_time
+
+```sql=
+registration_windows_extra as (
+	SELECT
+		operator,
+		avs,
+		operator_set_id,
+		date_trunc('day', start_time) + interval '1' day as start_time,
+		-- End time is end time non inclusive becuase the strategy is not registered on the operator set at the end time OR it is current timestamp rounded up
+		date_trunc('day', end_time) as end_time
+	FROM registration_periods
+),
+```
+
+5. Get rid of records with the same `start_time` and `end_time`:
+
+```sql=
+operator_set_operator_registration_windows as (
+	 SELECT * from registration_windows_extra
+	 WHERE start_time != end_time
+),
+```
+
+#### Strategy {'<>'} Operator Set Registration Windows
+
+In this calculation registration windows cannot continue off each other. For example, if a strategy had the following state:
+
+| Strategy  | Operator Set   | Registered | Date      |
+|-----------|--------------- |------------|-----------|
+| Strategy1 | Operator Set 1 | True       | 4-24-2024 |
+| Strategy1 | Operator Set 1 | False      | 4-26-2024 |
+| Strategy1 | Operator Set 1 | True       | 4-29-2024 |
+| Strategy1 | Operator Set 1 | False      | 5-1-2024  |
+| Strategy1 | Operator Set 1 | True       | 5-1-2024  |
+| Strategy1 | Operator Set 1 | False      | 5-1-2024  |
+
+We do not care about a (deregistration, registration) window from rows 2 and 3. We also need to discard the (registration,deregistration window) from rows 5 and 6.
+
+Also both strategy registrations and deregistrations are rounded up.
+
+1. Mark a link between each registration
+
+```sql=
+marked_statuses AS (
+    SELECT
+        strategy,
+        avs,
+		    operator_set_id,
+        is_active,
+        block_time,
+        block_date,
+        -- Mark the next action as next_block_time
+        LEAD(block_time) OVER (PARTITION BY strategy, avs, operator_set_id ORDER BY block_time ASC, log_index ASC) AS next_block_time,
+        -- The below lead/lag combinations are only used in the next CTE
+        -- Get the next row's registered status and block_date
+        LEAD(is_active) OVER (PARTITION BY strategy, avs, operator_set_id ORDER BY block_time ASC, log_index ASC) AS next_is_active,
+        LEAD(block_date) OVER (PARTITION BY strategy, avs, operator_set_id ORDER BY block_time ASC, log_index ASC) AS next_block_date,
+        -- Get the previous row's registered status and block_date
+        LAG(is_active) OVER (PARTITION BY strategy, avs, operator_set_id ORDER BY block_time ASC, log_index ASC) AS prev_is_active,
+        LAG(block_date) OVER (PARTITION BY strategy, avs, operator_set_id ORDER BY block_time ASC, log_index ASC) AS prev_block_date
+    FROM state_changes
+),
+```
+
+2. Ignore a (registration, deregistration) pair that occurs on the same day. This is to ensure that the grouping is not counted once we round deregistration down and registration up.
+
+```sql=
+ removed_same_day_deregistrations AS (
+	 SELECT * from marked_statuses
+	 WHERE NOT (
+		 -- Remove the registration part
+		 (is_active = TRUE AND
+		  COALESCE(next_is_active = FALSE, false) AND -- default to false if null
+		  COALESCE(block_date = next_block_date, false)) OR
+			 -- Remove the deregistration part
+		 (is_active = FALSE AND
+		  COALESCE(prev_is_active = TRUE, false) and
+		  COALESCE(block_date = prev_block_date, false)
+			 )
+		 )
+ ),
+```
+
+3. Mark the`end_time` of the record as the next record. If it's not the case, mark the `end_time` as the `cutoff_date`
+
+```sql=
+registration_periods AS (
+	SELECT
+		strategy,
+		avs,
+		operator_set_id,
+		block_time AS start_time,
+		-- Mark the next_block_time as the end_time for the range
+		-- Use coalesce because if the next_block_time for a registration is not closed, then we use cutoff_date
+		COALESCE(next_block_time, '{{.cutoffDate}}')::timestamp AS end_time,
+		is_active
+	FROM removed_same_day_deregistrations
+	WHERE is_active = TRUE
+ ),
+```
+
+4. Round up each `start_time` and `end_time`
+
+```sql=
+registration_windows_extra as (
+	SELECT
+		strategy,
+		avs,
+		operator_set_id,
+		date_trunc('day', start_time) + interval '1' day as start_time,
+		-- End time is rounded up to include the full last day of registration
+		date_trunc('day', end_time) + interval '1' day as end_time
+	FROM registration_periods
+),
+```
+
+5. Get rid of records with the same `start_time` and `end_time`:
+
+```sql=
+operator_set_strategy_registration_windows as (
+	 SELECT * from registration_windows_extra
+	 WHERE start_time != end_time
+),
+```
+
+
 ### Snapshots
 
 **Once we've created windows for each table of core contract state, we unwind these windows into daily snapshots. In each of the below queries, we round down the `end_time` by one day because a new record can begin on the same day OR it will be included in a separate pipeline run after the `cutoff_date`.**
@@ -1196,6 +1477,38 @@ FROM cleaned_records
 CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 ```
 
+#### Operator Set Operator Registration Snapshots
+
+```sql=
+WITH cleaned_records AS (
+	SELECT * FROM operator_set_operator_registration_windows
+	WHERE start_time < end_time
+)
+SELECT
+	operator,
+	avs,
+	operator_set_id,
+	d AS snapshot
+FROM cleaned_records
+CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
+```
+
+#### Operator Set Strategy Registration Snapshots
+
+```sql=
+WITH cleaned_records AS (
+	SELECT * FROM operator_set_strategy_registration_windows
+	WHERE start_time < end_time
+)
+SELECT
+	strategy,
+	avs,
+	operator_set_id,
+	d AS snapshot
+FROM cleaned_records
+CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
+```
+
 ## Reward Calculation
 
 ### Key Considerations
@@ -1213,7 +1526,7 @@ The rewards pipeline would calculate a reward distribution from 7 snapshots of s
 
 #### State Entry/Exit
 
-Since snapshots are rounded _up_ to the nearest day, except for operator{'<>'}avs deregistrations, state updates that are within the same day will receive the exact same reward amount.
+Since snapshots are rounded _up_ to the nearest day, except for operator{'<>'}avs deregistrations and operator{'<>'}operator set deregistrations, state updates that are within the same day will receive the exact same reward amount.
 
 For example, assuming stakers A and B have equivalent amounts of stake and are opted into the same operator at the below times, their reward for the Day 2 `rewardSnaphot` will be equal:
 
@@ -2459,9 +2772,419 @@ operator_token_sums AS (
 SELECT * FROM operator_token_sums
 ```
 
-### 11. Gold Table Staging
+### 11. Gold Active Operator-Directed Operator Set Rewards
 
-This query combines the rewards from steps 2,3,4,5,6,7,8,9,10 to generate a table with the following columns:
+```sql=
+WITH 
+-- Step 1: Modify active rewards and compute tokens per day
+active_rewards_modified AS (
+    SELECT 
+        *,
+        CAST(@cutoffDate AS TIMESTAMP(6)) AS global_end_inclusive -- Inclusive means we DO USE this day as a snapshot
+    FROM operator_directed_operator_set_rewards
+    WHERE end_timestamp >= TIMESTAMP '{{.rewardsStart}}'
+      AND start_timestamp <= TIMESTAMP '{{.cutoffDate}}'
+      AND block_time <= TIMESTAMP '{{.cutoffDate}}' -- Always ensure we're not using future data. Should never happen since we're never backfilling, but here for safety and consistency.
+),
+
+-- Step 2: Cut each reward's start and end windows to handle the global range
+active_rewards_updated_end_timestamps AS (
+    SELECT
+        avs,
+        operator_set_id,
+        operator,
+        /**
+         * Cut the start and end windows to handle
+         * A. Retroactive rewards that came recently whose start date is less than start_timestamp
+         * B. Don't make any rewards past end_timestamp for this run
+         */
+        start_timestamp AS reward_start_exclusive,
+        LEAST(global_end_inclusive, end_timestamp) AS reward_end_inclusive,
+        amount,
+        token,
+        multiplier,
+        strategy,
+        reward_hash,
+        duration,
+        global_end_inclusive,
+        block_date AS reward_submission_date
+    FROM active_rewards_modified
+),
+
+-- Step 3: For each reward hash, find the latest snapshot
+active_rewards_updated_start_timestamps AS (
+    SELECT
+        ap.avs,
+        ap.operator_set_id,
+        ap.operator,
+        COALESCE(MAX(g.snapshot), ap.reward_start_exclusive) AS reward_start_exclusive,
+        ap.reward_end_inclusive,
+        ap.token,
+        -- We use floor to ensure we are always underestimating total tokens per day
+        FLOOR(ap.amount) AS amount_decimal,
+        ap.multiplier,
+        ap.strategy,
+        ap.reward_hash,
+        ap.duration,
+        ap.global_end_inclusive,
+        ap.reward_submission_date
+    FROM active_rewards_updated_end_timestamps ap
+    LEFT JOIN gold_table g 
+        ON g.reward_hash = ap.reward_hash
+    GROUP BY 
+        ap.avs, 
+        ap.operator_set_id,
+        ap.operator, 
+        ap.reward_end_inclusive, 
+        ap.token, 
+        ap.amount,
+        ap.multiplier, 
+        ap.strategy, 
+        ap.reward_hash, 
+        ap.duration,
+        ap.global_end_inclusive, 
+        ap.reward_start_exclusive, 
+        ap.reward_submission_date
+),
+
+-- Step 4: Filter out invalid reward ranges
+active_reward_ranges AS (
+    /** Take out (reward_start_exclusive, reward_end_inclusive) windows where
+	* 1. reward_start_exclusive >= reward_end_inclusive: The reward period is done or we will handle on a subsequent run
+	*/
+    SELECT * 
+    FROM active_rewards_updated_start_timestamps
+    WHERE reward_start_exclusive < reward_end_inclusive
+),
+
+-- Step 5: Explode out the ranges for a day per inclusive date
+exploded_active_range_rewards AS (
+    SELECT
+        *
+    FROM active_reward_ranges
+    CROSS JOIN generate_series(
+        DATE(reward_start_exclusive), 
+        DATE(reward_end_inclusive), 
+        INTERVAL '1' DAY
+    ) AS day
+),
+
+-- Step 6: Prepare cleaned active rewards
+active_rewards_cleaned AS (
+    SELECT
+        avs,
+        operator_set_id,
+        operator,
+        CAST(day AS DATE) AS snapshot,
+        token,
+        amount_decimal,
+        multiplier,
+        strategy,
+        duration,
+        reward_hash,
+        reward_submission_date
+    FROM exploded_active_range_rewards
+    -- Remove snapshots on the start day
+    WHERE day != reward_start_exclusive
+),
+
+-- Step 7: Dedupe the active rewards by (avs, operator_set_id, snapshot, operator, reward_hash)
+active_rewards_reduced_deduped AS (
+    SELECT DISTINCT avs, operator_set_id, snapshot, operator, reward_hash
+    FROM active_rewards_cleaned
+),
+
+-- Step 8: Divide by the number of snapshots that the operator was registered to an operator set for
+op_set_op_num_registered_snapshots AS (
+    SELECT
+        ar.reward_hash,
+        ar.operator,
+        COUNT(*) AS num_registered_snapshots
+    FROM active_rewards_reduced_deduped ar
+    JOIN operator_set_operator_registration_snapshots osor
+    ON
+        ar.avs = osor.avs
+        AND ar.operator_set_id = osor.operator_set_id
+        AND ar.snapshot = osor.snapshot 
+        AND ar.operator = osor.operator
+    GROUP BY ar.reward_hash, ar.operator        
+),
+
+-- Step 9: Divide amount to pay by the number of snapshots that the operator was registered
+active_rewards_with_registered_snapshots AS (
+    SELECT
+        arc.*,
+        COALESCE(nrs.num_registered_snapshots, 0) as num_registered_snapshots
+    FROM active_rewards_cleaned arc
+    LEFT JOIN op_set_op_num_registered_snapshots nrs
+    ON
+        arc.reward_hash = nrs.reward_hash
+        AND arc.operator = nrs.operator
+),
+
+-- Step 10: Divide amount to pay by the number of snapshots that the operator was registered
+active_rewards_final AS (
+    SELECT
+        ar.*,
+        CASE
+            -- If the operator was not registered for any snapshots, just get regular tokens per day to refund the AVS
+            WHEN ar.num_registered_snapshots = 0 THEN floor(ar.amount_decimal / (duration / 86400))
+            ELSE floor(ar.amount_decimal / ar.num_registered_snapshots)
+        END AS tokens_per_registered_snapshot_decimal
+    FROM active_rewards_with_registered_snapshots ar
+)
+
+SELECT * FROM active_rewards_final
+```
+
+### 12. Gold Operator Operator-Directed Operator Set Reward Amounts
+
+```sql=
+-- Step 1: Get the rows where operators have registered for the operator set
+WITH reward_snapshot_operators AS (
+    SELECT
+        ap.reward_hash,
+        ap.snapshot AS snapshot,
+        ap.token,
+        ap.tokens_per_registered_snapshot_decimal,
+        ap.avs AS avs,
+        ap.operator_set_id AS operator_set_id,
+        ap.operator AS operator,
+        ap.strategy,
+        ap.multiplier,
+        ap.reward_submission_date
+    FROM {{.activeODRewardsTable}} ap
+    JOIN operator_set_operator_registration_snapshots osor
+        ON ap.avs = osor.avs 
+       AND ap.operator_set_id = osor.operator_set_id
+       AND ap.snapshot = osor.snapshot 
+       AND ap.operator = osor.operator
+),
+
+-- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
+-- Since the above result is a flattened operator-directed reward submission across strategies.
+distinct_operators AS (
+    SELECT *
+    FROM (
+        SELECT 
+            *,
+            -- We can use an arbitrary order here since the avs_tokens is the same for each (operator, strategy, hash, snapshot)
+            -- We use strategy ASC for better debuggability
+            ROW_NUMBER() OVER (
+                PARTITION BY reward_hash, snapshot, operator 
+                ORDER BY strategy ASC
+            ) AS rn
+        FROM reward_snapshot_operators
+    ) t
+    -- Keep only the first row for each (operator, reward hash, snapshot)
+    WHERE rn = 1
+),
+
+-- Step 3: Calculate the tokens for each operator with dynamic split logic
+-- If no split is found, default to 1000 (10%)
+operator_splits AS (
+    SELECT 
+        dop.*,
+        COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS DECIMAL) AS split_pct,
+        FLOOR(dop.tokens_per_registered_snapshot_decimal * COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS DECIMAL)) AS operator_tokens
+    FROM distinct_operators dop
+    LEFT JOIN operator_set_split_snapshots oss
+        ON dop.operator = oss.operator 
+       AND dop.avs = oss.avs
+       AND dop.operator_set_id = oss.operator_set_id 
+       AND dop.snapshot = oss.snapshot
+    LEFT JOIN default_operator_split_snapshots dos ON (dop.snapshot = dos.snapshot)
+)
+
+-- Step 4: Output the final table with operator splits
+SELECT * FROM operator_splits
+```
+
+### 13. Gold Staker Operator-Directed Operator Set Reward Amounts
+
+```sql=
+-- Step 1: Get the rows where operators have registered for the operator set
+WITH reward_snapshot_operators AS (
+    SELECT
+        ap.reward_hash,
+        ap.snapshot AS snapshot,
+        ap.token,
+        ap.tokens_per_registered_snapshot_decimal,
+        ap.avs AS avs,
+        ap.operator_set_id AS operator_set_id,
+        ap.operator AS operator,
+        ap.strategy,
+        ap.multiplier,
+        ap.reward_submission_date
+    FROM {{.activeODRewardsTable}} ap
+    JOIN operator_set_operator_registration_snapshots osor
+        ON ap.avs = osor.avs 
+       AND ap.operator_set_id = osor.operator_set_id
+       AND ap.snapshot = osor.snapshot 
+       AND ap.operator = osor.operator
+),
+
+-- Get the rows where strategies have registered for the operator set
+operator_set_strategy_registrations AS (
+    SELECT
+        rso.*
+    FROM reward_snapshot_operators rso
+    JOIN operator_set_strategy_registration_snapshots ossr
+        ON rso.avs = ossr.avs 
+       AND rso.operator_set_id = ossr.operator_set_id
+       AND rso.snapshot = ossr.snapshot
+       AND rso.strategy = ossr.strategy
+),
+
+-- Calculate the total staker split for each operator reward with dynamic split logic
+-- If no split is found, default to 1000 (10%)
+staker_splits AS (
+    SELECT 
+        ossr.*,
+        ossr.tokens_per_registered_snapshot_decimal - FLOOR(ossr.tokens_per_registered_snapshot_decimal * COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS DECIMAL)) AS staker_split
+    FROM operator_set_strategy_registrations ossr
+    LEFT JOIN operator_set_split_snapshots oss
+        ON ossr.operator = oss.operator 
+       AND ossr.avs = oss.avs 
+       AND ossr.operator_set_id = oss.operator_set_id
+       AND ossr.snapshot = oss.snapshot
+    LEFT JOIN default_operator_split_snapshots dos ON (ossr.snapshot = dos.snapshot)
+),
+
+-- Get the stakers that were delegated to the operator for the snapshot
+staker_delegated_operators AS (
+    SELECT
+        ors.*,
+        sds.staker
+    FROM staker_splits ors
+    JOIN staker_delegation_snapshots sds
+        ON ors.operator = sds.operator 
+       AND ors.snapshot = sds.snapshot
+),
+
+-- Get the shares for stakers delegated to the operator
+staker_strategy_shares AS (
+    SELECT
+        sdo.*,
+        sss.shares
+    FROM staker_delegated_operators sdo
+    JOIN staker_share_snapshots sss
+        ON sdo.staker = sss.staker 
+       AND sdo.snapshot = sss.snapshot 
+       AND sdo.strategy = sss.strategy
+    -- Filter out negative shares and zero multiplier to avoid division by zero
+    WHERE sss.shares > 0 AND sdo.multiplier != 0
+),
+
+-- Calculate the weight of each staker
+staker_weights AS (
+    SELECT 
+        *,
+        SUM(multiplier * shares) OVER (PARTITION BY staker, reward_hash, snapshot) AS staker_weight
+    FROM staker_strategy_shares
+),
+-- Get distinct stakers since their weights are already calculated
+distinct_stakers AS (
+    SELECT *
+    FROM (
+        SELECT 
+            *,
+            -- We can use an arbitrary order here since the staker_weight is the same for each (staker, strategy, hash, snapshot)
+            -- We use strategy ASC for better debuggability
+            ROW_NUMBER() OVER (
+                PARTITION BY reward_hash, snapshot, staker 
+                ORDER BY strategy ASC
+            ) AS rn
+        FROM staker_weights
+    ) t
+    WHERE rn = 1
+    ORDER BY reward_hash, snapshot, staker
+),
+-- Calculate the sum of all staker weights for each reward and snapshot
+staker_weight_sum AS (
+    SELECT 
+        *,
+        SUM(staker_weight) OVER (PARTITION BY reward_hash, operator, snapshot) AS total_weight
+    FROM distinct_stakers
+),
+-- Calculate staker proportion of tokens for each reward and snapshot
+staker_proportion AS (
+    SELECT 
+        *,
+        FLOOR((staker_weight / total_weight) * 1000000000000000) / 1000000000000000 AS staker_proportion
+    FROM staker_weight_sum
+),
+-- Calculate the staker reward amounts
+staker_reward_amounts AS (
+    SELECT 
+        *,
+        FLOOR(staker_proportion * staker_split) AS staker_tokens
+    FROM staker_proportion
+)
+-- Output the final table
+SELECT * FROM staker_reward_amounts
+```
+
+### 13. Gold AVS Operator-Directed Operator Set Reward Amounts
+
+```sql=
+-- Step 1: Get the rows where operators have not registered for the AVS or if the AVS does not exist
+WITH reward_snapshot_operators AS (
+    SELECT
+        ap.reward_hash,
+        ap.snapshot AS snapshot,
+        ap.token,
+        ap.tokens_per_registered_snapshot_decimal,
+        ap.avs AS avs,
+        ap.operator_set_id AS operator_set_id,
+        ap.operator AS operator,
+        ap.strategy,
+        ap.multiplier,
+        ap.reward_submission_date
+    FROM {{.activeODRewardsTable}} ap
+    WHERE
+        ap.num_registered_snapshots = 0
+),
+
+-- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
+-- Since the above result is a flattened operator-directed reward submission across strategies
+distinct_operators AS (
+    SELECT *
+    FROM (
+        SELECT 
+            *,
+            -- We can use an arbitrary order here since the avs_tokens is the same for each (operator, strategy, hash, snapshot)
+            -- We use strategy ASC for better debuggability
+            ROW_NUMBER() OVER (
+                PARTITION BY reward_hash, snapshot, operator 
+                ORDER BY strategy ASC
+            ) AS rn
+        FROM reward_snapshot_operators
+    ) t
+    WHERE rn = 1
+),
+
+-- Step 3: Sum the operator tokens for each (reward hash, snapshot)
+-- Since we want to refund the sum of those operator amounts to the AVS in that reward submission for that snapshot
+operator_token_sums AS (
+    SELECT
+        reward_hash,
+        snapshot,
+        token,
+        avs,
+        operator_set_id,
+        operator,
+        SUM(tokens_per_registered_snapshot_decimal) OVER (PARTITION BY reward_hash, snapshot) AS avs_tokens
+    FROM distinct_operators
+)
+
+-- Step 4: Output the final table
+SELECT * FROM operator_token_sums
+```
+
+### 15. Gold Table Staging
+
+This query combines the rewards from steps 2,3,4,5,6,7,8,9,10,11,12,13,14 to generate a table with the following columns:
 
 | Earner | Snapshot | Reward Hash | Token | Amount |
 | ------ | -------- | ----------- | ----- | ------ |
@@ -2506,7 +3229,7 @@ rewards_for_all_earners_stakers AS (
     snapshot,
     reward_hash,
     token,
-    staker_tokens as amounts
+    staker_tokens as amount
   FROM {{.rfaeStakerTable}}
 ),
 rewards_for_all_earners_operators AS (
@@ -2550,6 +3273,38 @@ avs_od_rewards AS (
   FROM {{.avsODRewardAmountsTable}}
 ),
 {{ end }}
+{{ if .enableRewardsV2_1 }}
+operator_od_operator_set_rewards AS (
+  SELECT DISTINCT
+    -- We can select DISTINCT here because the operator's tokens are the same for each strategy in the reward hash
+    operator as earner,
+    snapshot,
+    reward_hash,
+    token,
+    operator_tokens as amount
+  FROM {{.operatorODOperatorSetRewardAmountsTable}}
+),
+staker_od_operator_set_rewards AS (
+  SELECT DISTINCT
+    -- We can select DISTINCT here because the staker's tokens are the same for each strategy in the reward hash
+    staker as earner,
+    snapshot,
+    reward_hash,
+    token,
+    staker_tokens as amount
+  FROM {{.stakerODOperatorSetRewardAmountsTable}}
+),
+avs_od_operator_set_rewards AS (
+  SELECT DISTINCT
+    -- We can select DISTINCT here because the avs's tokens are the same for each strategy in the reward hash
+    avs as earner,
+    snapshot,
+    reward_hash,
+    token,
+    avs_tokens as amount
+  FROM {{.avsODOperatorSetRewardAmountsTable}}
+),
+{{ end }}
 combined_rewards AS (
   SELECT * FROM operator_rewards
   UNION ALL
@@ -2567,6 +3322,14 @@ combined_rewards AS (
   SELECT * FROM staker_od_rewards
   UNION ALL
   SELECT * FROM avs_od_rewards
+{{ end }}
+{{ if .enableRewardsV2_1 }}
+  UNION ALL
+  SELECT * FROM operator_od_operator_set_rewards
+  UNION ALL
+  SELECT * FROM staker_od_operator_set_rewards
+  UNION ALL
+  SELECT * FROM avs_od_operator_set_rewards
 {{ end }}
 )
 ```
@@ -2595,7 +3358,7 @@ FROM deduped_earners
 
 Sum up the balances for earners with multiple rows for a given `reward_hash` and `snapshot`. This step handles the case for operators who are also delegated to themselves.
 
-### 12. Gold Table Merge
+### 16. Gold Table Merge
 
 The previous queries were all views. This step selects rows from the [step 7](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw#6-Gold-Table-Staging) and appends them to a table.
 
