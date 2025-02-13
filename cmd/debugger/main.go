@@ -120,10 +120,13 @@ func main() {
 		GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
 	}, cfg, mds, p, sm, msm, rc, rcq, rps, l, client)
 
-	rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
+	rpc, err := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 		GrpcPort: cfg.RpcConfig.GrpcPort,
 		HttpPort: cfg.RpcConfig.HttpPort,
 	}, mds, rc, rcq, eb, rps, pds, rds, scc, l, cfg)
+	if err != nil {
+		l.Sugar().Fatalw("Failed to create rpc server", zap.Error(err))
+	}
 
 	// RPC channel to notify the RPC server to shutdown gracefully
 	rpcChannel := make(chan bool)
