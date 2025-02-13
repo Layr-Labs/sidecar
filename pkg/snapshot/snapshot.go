@@ -59,8 +59,8 @@ func isHttpURL(str string) bool {
 	return u.Scheme == "http" || u.Scheme == "https"
 }
 
-// resolveFilePath expands the ~ in file paths to the user's home directory and converts relative paths to absolute paths.
-func resolveFilePath(path string) (string, error) {
+// getAbsoluteFilePath expands the ~ in file paths to the user's home directory and converts relative paths to absolute paths.
+func getAbsoluteFilePath(path string) (string, error) {
 	if path == "" {
 		return "", nil
 	}
@@ -80,12 +80,12 @@ func resolveFilePath(path string) (string, error) {
 
 // CreateSnapshot creates a snapshot of the database based on the provided configuration.
 func (s *SnapshotService) CreateSnapshot() error {
-	resolvedFilePath, err := resolveFilePath(s.cfg.OutputFile)
+	absoluteFilePath, err := getAbsoluteFilePath(s.cfg.OutputFile)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to resolve output file path '%s'", s.cfg.OutputFile))
 	}
 
-	s.l.Sugar().Debugw("Resolved file paths", zap.String("Output", resolvedFilePath))
+	s.l.Sugar().Debugw("Absolute file path", zap.String("Output", absoluteFilePath))
 
 	if err := s.validateCreateSnapshotConfig(); err != nil {
 		return err
@@ -107,8 +107,8 @@ func (s *SnapshotService) CreateSnapshot() error {
 
 	s.l.Sugar().Infow("Successfully created snapshot")
 
-	outputHashFile := getHashName(resolvedFilePath)
-	if err := saveOutputFileHash(resolvedFilePath, outputHashFile); err != nil {
+	outputHashFile := getHashName(absoluteFilePath)
+	if err := saveOutputFileHash(absoluteFilePath, outputHashFile); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to save output file hash '%s'", outputHashFile))
 	}
 
@@ -122,7 +122,7 @@ func (s *SnapshotService) RestoreSnapshot() error {
 		s.tempFiles = s.tempFiles[:0] // Clear the tempFiles slice after cleanup
 	}()
 
-	var resolvedFilePath string
+	var absoluteFilePath string
 	if isHttpURL(s.cfg.Input) {
 		inputUrl := s.cfg.Input
 
@@ -152,28 +152,28 @@ func (s *SnapshotService) RestoreSnapshot() error {
 		}
 		s.tempFiles = append(s.tempFiles, inputFilePath)
 
-		resolvedFilePath, err = resolveFilePath(inputFilePath)
+		absoluteFilePath, err = getAbsoluteFilePath(inputFilePath)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("failed to resolve input file path '%s'", inputFilePath))
 		}
 	} else {
 		var err error
-		resolvedFilePath, err = resolveFilePath(s.cfg.Input)
+		absoluteFilePath, err = getAbsoluteFilePath(s.cfg.Input)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("failed to resolve input file path '%s'", s.cfg.Input))
 		}
 	}
 
-	s.l.Sugar().Debugw("Resolved file path", zap.String("resolvedFilePath", resolvedFilePath))
+	s.l.Sugar().Debugw("absolute file path", zap.String("absoluteFilePath", absoluteFilePath))
 
 	// validate snapshot against the hash file
 	if s.cfg.VerifyInput {
-		if err := validateInputFileHash(resolvedFilePath); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("input file hash validation failed for '%s'", resolvedFilePath))
+		if err := validateInputFileHash(absoluteFilePath); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("input file hash validation failed for '%s'", absoluteFilePath))
 		}
 		s.l.Sugar().Debugw("Input file hash validated successfully",
-			zap.String("input", resolvedFilePath),
-			zap.String("inputHashFile", getHashName(resolvedFilePath)),
+			zap.String("input", absoluteFilePath),
+			zap.String("inputHashFile", getHashName(absoluteFilePath)),
 		)
 	}
 
@@ -182,7 +182,7 @@ func (s *SnapshotService) RestoreSnapshot() error {
 		return err
 	}
 
-	restoreExec := restore.Exec(resolvedFilePath, pgcommands.ExecOptions{StreamPrint: false})
+	restoreExec := restore.Exec(absoluteFilePath, pgcommands.ExecOptions{StreamPrint: false})
 	if restoreExec.Error != nil {
 		s.l.Sugar().Errorw("Failed to restore from snapshot",
 			zap.Error(restoreExec.Error.Err),
@@ -223,11 +223,11 @@ func (s *SnapshotService) setupSnapshotDump() (*pgcommands.Dump, error) {
 	if s.cfg.SchemaName != "" {
 		dump.Options = append(dump.Options, fmt.Sprintf("--schema=%s", s.cfg.SchemaName))
 	}
-	resolvedFilePath, err := resolveFilePath(s.cfg.OutputFile)
+	absoluteFilePath, err := getAbsoluteFilePath(s.cfg.OutputFile)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to resolve output file path '%s'", s.cfg.OutputFile))
 	}
-	dump.SetFileName(resolvedFilePath)
+	dump.SetFileName(absoluteFilePath)
 
 	return dump, nil
 }
