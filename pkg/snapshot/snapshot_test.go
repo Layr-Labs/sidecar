@@ -694,3 +694,124 @@ func TestDownloadSnapshotAndVerificationFilesWithoutVerifyInput(t *testing.T) {
 	_, err = os.Stat(hashFilePath)
 	assert.True(t, os.IsNotExist(err), "Hash file should not exist when VerifyInput is false")
 }
+
+func TestDropAllTables(t *testing.T) {
+	cfg, l, setupErr := setup()
+	if setupErr != nil {
+		t.Fatal(setupErr)
+	}
+
+	dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
+	if dbErr != nil {
+		t.Fatal(dbErr)
+	}
+
+	// Create some test tables
+	type TestTable struct {
+		ID   int    `gorm:"primaryKey"`
+		Name string `gorm:"type:varchar(255)"`
+	}
+
+	if err := dbGrm.AutoMigrate(&TestTable{}); err != nil {
+		t.Fatal("Failed to create test table", err)
+	}
+
+	// Ensure the test table exists
+	var tableCount int64
+	dbGrm.Raw("SELECT COUNT(*) FROM pg_tables WHERE tablename = 'test_tables'").Scan(&tableCount)
+	assert.Equal(t, int64(1), tableCount, "Test table should exist before dropping")
+
+	// Ensure the snapshot_restore_metadata table exists
+	if err := dbGrm.AutoMigrate(&SnapshotRestoreMetadata{}); err != nil {
+		t.Fatal("Failed to create snapshot_restore_metadata table", err)
+	}
+
+	dbGrm.Raw("SELECT COUNT(*) FROM pg_tables WHERE tablename = 'snapshot_restore_metadata'").Scan(&tableCount)
+	assert.Equal(t, int64(1), tableCount, "snapshot_restore_metadata table should exist before dropping")
+
+	// Initialize SnapshotService
+	svc, err := NewSnapshotService(&SnapshotConfig{}, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
+
+	// Call DropAllTables
+	err = svc.DropAllTables(dbGrm)
+	assert.NoError(t, err, "DropAllTables should not return an error")
+
+	// Verify that the test table is dropped
+	dbGrm.Raw("SELECT COUNT(*) FROM pg_tables WHERE tablename = 'test_tables'").Scan(&tableCount)
+	assert.Equal(t, int64(0), tableCount, "Test table should be dropped")
+
+	// Verify that the snapshot_restore_metadata table is also dropped
+	dbGrm.Raw("SELECT COUNT(*) FROM pg_tables WHERE tablename = 'snapshot_restore_metadata'").Scan(&tableCount)
+	assert.Equal(t, int64(0), tableCount, "snapshot_restore_metadata table should be dropped")
+
+	t.Cleanup(func() {
+		postgres.TeardownTestDatabase(dbName, cfg, dbGrm, l)
+	})
+}
+
+func TestGetSnapshotRestoreStatus(t *testing.T) {
+	cfg, l, setupErr := setup()
+	if setupErr != nil {
+		t.Fatal(setupErr)
+	}
+
+	dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
+	if dbErr != nil {
+		t.Fatal(dbErr)
+	}
+
+	// Initialize SnapshotService
+	svc, err := NewSnapshotService(&SnapshotConfig{}, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
+
+	// Ensure the snapshot_restore_metadata table exists
+	if err := dbGrm.AutoMigrate(&SnapshotRestoreMetadata{}); err != nil {
+		t.Fatal("Failed to create snapshot_restore_metadata table", err)
+	}
+
+	// Set a snapshot restore status
+	initialStatus := "snapshot_restore_started"
+	err = svc.SetSnapshotRestoreStatus(dbGrm, initialStatus)
+	assert.NoError(t, err, "SetSnapshotRestoreStatus should not return an error")
+
+	// Retrieve the snapshot restore status
+	status, err := svc.GetSnapshotRestoreStatus(dbGrm)
+	assert.NoError(t, err, "GetSnapshotRestoreStatus should not return an error")
+	assert.Equal(t, initialStatus, status, "Snapshot restore status should match the initial status")
+
+	t.Cleanup(func() {
+		postgres.TeardownTestDatabase(dbName, cfg, dbGrm, l)
+	})
+}
+
+func TestSetSnapshotRestoreStatus(t *testing.T) {
+	cfg, l, setupErr := setup()
+	if setupErr != nil {
+		t.Fatal(setupErr)
+	}
+
+	dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
+	if dbErr != nil {
+		t.Fatal(dbErr)
+	}
+
+	// Initialize SnapshotService
+	svc, err := NewSnapshotService(&SnapshotConfig{}, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
+
+	// Set a snapshot restore status
+	statusToSet := "snapshot_restore_in_progress"
+	err = svc.SetSnapshotRestoreStatus(dbGrm, statusToSet)
+	assert.NoError(t, err, "SetSnapshotRestoreStatus should not return an error")
+
+	// Verify that the status is correctly set in the database
+	var storedStatus string
+	err = dbGrm.Table("snapshot_restore_metadata").Select("snapshot_restore_status").Where("id = ?", "snapshot_restore_status").Scan(&storedStatus).Error
+	assert.NoError(t, err, "Querying snapshot restore status should not return an error")
+	assert.Equal(t, statusToSet, storedStatus, "Stored snapshot restore status should match the set status")
+
+	t.Cleanup(func() {
+		postgres.TeardownTestDatabase(dbName, cfg, dbGrm, l)
+	})
+}

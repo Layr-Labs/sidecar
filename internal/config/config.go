@@ -99,6 +99,10 @@ type SidecarPrimaryConfig struct {
 	IsPrimary bool
 }
 
+type RunConfig struct {
+	FromScratch bool
+}
+
 type Config struct {
 	Debug                bool
 	EthereumRpcConfig    EthereumRpcConfig
@@ -110,6 +114,7 @@ type Config struct {
 	DataDogConfig        DataDogConfig
 	PrometheusConfig     PrometheusConfig
 	SidecarPrimaryConfig SidecarPrimaryConfig
+	RunConfig            RunConfig
 }
 
 func StringWithDefault(value, defaultValue string) string {
@@ -149,6 +154,8 @@ var (
 	PrometheusPort    = "prometheus.port"
 
 	SidecarPrimaryUrl = "sidecar-primary.url"
+
+	FromScratch = "run.from-scratch"
 )
 
 func NewConfig() *Config {
@@ -204,6 +211,10 @@ func NewConfig() *Config {
 
 		SidecarPrimaryConfig: SidecarPrimaryConfig{
 			Url: viper.GetString(normalizeFlagName(SidecarPrimaryUrl)),
+		},
+
+		RunConfig: RunConfig{
+			FromScratch: viper.GetBool(normalizeFlagName(FromScratch)),
 		},
 	}
 }

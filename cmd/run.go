@@ -3,6 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/metrics/prometheus"
 	"github.com/Layr-Labs/sidecar/internal/version"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
@@ -26,9 +29,8 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
 	"github.com/Layr-Labs/sidecar/pkg/shutdown"
 	"github.com/Layr-Labs/sidecar/pkg/sidecar"
+	"github.com/Layr-Labs/sidecar/pkg/snapshot"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
-	"log"
-	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -83,6 +85,61 @@ var runCmd = &cobra.Command{
 		grm, err := postgres.NewGormFromPostgresConnection(pg.Db)
 		if err != nil {
 			l.Fatal("Failed to create gorm instance", zap.Error(err))
+		}
+
+		if cfg.RunConfig.FromScratch && cfg.Chain == config.Chain_Holesky {
+			l.Sugar().Fatal("Holesky chain does not support --from-scratch, you must restore from a snapshot first")
+		}
+
+		if !cfg.RunConfig.FromScratch {
+			svc, err := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
+				Input:       cfg.SnapshotConfig.Input,
+				VerifyInput: cfg.SnapshotConfig.VerifyInput,
+				ManifestURL: cfg.SnapshotConfig.ManifestURL,
+				Host:        cfg.DatabaseConfig.Host,
+				Port:        cfg.DatabaseConfig.Port,
+				User:        cfg.DatabaseConfig.User,
+				Password:    cfg.DatabaseConfig.Password,
+				DbName:      cfg.DatabaseConfig.DbName,
+				SchemaName:  cfg.DatabaseConfig.SchemaName,
+				Version:     version.GetVersion(),
+				Chain:       cfg.Chain.String(),
+			}, l)
+			if err != nil {
+				l.Sugar().Fatal("failed to create snapshot service", zap.Error(err))
+			}
+
+			snapshotRestoreStatus, err := svc.GetSnapshotRestoreStatus(grm)
+			if err != nil {
+				l.Sugar().Fatal("failed to get snapshot restore status", zap.Error(err))
+			}
+			var migrationTableRowCount int64
+			if grm.Table("migrations").Count(&migrationTableRowCount); migrationTableRowCount > 1 && snapshotRestoreStatus == "" {
+				l.Sugar().Infow("Snapshot restore skipped, database is already populated")
+
+			} else if snapshotRestoreStatus == "snapshot_restore_complete" {
+				l.Sugar().Infow("Snapshot restore skipped, database restore already complete")
+
+			} else {
+				err := svc.DropAllTables(grm)
+				if err != nil {
+					l.Sugar().Fatal("failed to drop all tables", zap.Error(err))
+				}
+				err = svc.SetSnapshotRestoreStatus(grm, "snapshot_restore_started")
+				if err != nil {
+					l.Sugar().Fatal("failed to set snapshot restore status", zap.Error(err))
+				}
+
+				err = svc.RestoreSnapshot()
+				if err != nil {
+					l.Sugar().Fatal("failed to restore snapshot", zap.Error(err))
+				}
+
+				err = svc.SetSnapshotRestoreStatus(grm, "snapshot_restore_complete")
+				if err != nil {
+					l.Sugar().Fatal("failed to set snapshot restore status", zap.Error(err))
+				}
+			}
 		}
 
 		migrator := migrations.NewMigrator(pg.Db, grm, l, cfg)

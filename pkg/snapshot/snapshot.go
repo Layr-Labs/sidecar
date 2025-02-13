@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/schollz/progressbar/v3"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 // SnapshotConfig encapsulates all configuration needed for snapshot operations.
@@ -214,6 +215,10 @@ func (s *SnapshotService) setupSnapshotDump() (*pgcommands.Dump, error) {
 	if s.cfg.SchemaName != "" {
 		dump.Options = append(dump.Options, fmt.Sprintf("--schema=%s", s.cfg.SchemaName))
 	}
+
+	// Add option to exclude the snapshot_restore_metadata table
+	dump.Options = append(dump.Options, "--exclude-table=snapshot_restore_metadata")
+
 	resolvedFilePath, err := resolveFilePath(s.cfg.OutputFile)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to resolve output file path '%s'", s.cfg.OutputFile))
@@ -482,4 +487,51 @@ func (s *SnapshotService) getDesiredURLFromManifest(manifestURL string) (string,
 	s.l.Sugar().Debugw("Selected snapshot", zap.String("snapshotURL", latestSnapshot.SnapshotURL))
 
 	return latestSnapshot.SnapshotURL, nil
+}
+
+type SnapshotRestoreMetadata struct {
+	ID                    string `gorm:"primaryKey"`
+	SnapshotRestoreStatus string `gorm:"type:varchar(255);not null"`
+}
+
+func (s *SnapshotService) GetSnapshotRestoreStatus(grm *gorm.DB) (string, error) {
+	if !grm.Migrator().HasTable("snapshot_restore_metadata") {
+		return "", nil
+	}
+
+	var snapshotRestoreStatus string
+	err := grm.Table("snapshot_restore_metadata").Select("snapshot_restore_status").Where("id = ?", "snapshot_restore_status").Scan(&snapshotRestoreStatus).Error
+	return snapshotRestoreStatus, err
+}
+
+func (s *SnapshotService) SetSnapshotRestoreStatus(grm *gorm.DB, status string) error {
+	if !grm.Migrator().HasTable("snapshot_restore_metadata") {
+		if err := grm.AutoMigrate(&SnapshotRestoreMetadata{}); err != nil {
+			return errors.Wrap(err, "failed to create snapshot_restore_metadata table")
+		}
+	}
+
+	snapshotMetadata := SnapshotRestoreMetadata{
+		ID:                    "snapshot_restore_status",
+		SnapshotRestoreStatus: status,
+	}
+
+	if err := grm.Table("snapshot_restore_metadata").Where("id = ?", "snapshot_restore_status").Save(&snapshotMetadata).Error; err != nil {
+		return errors.Wrap(err, "failed to set snapshot restore status")
+	}
+
+	return nil
+}
+
+func (s *SnapshotService) DropAllTables(grm *gorm.DB) error {
+	tables := []string{}
+	if err := grm.Raw("SELECT tablename FROM pg_tables WHERE schemaname = current_schema()").Scan(&tables).Error; err != nil {
+		return err
+	}
+	for _, table := range tables {
+		if err := grm.Migrator().DropTable(table); err != nil {
+			return err
+		}
+	}
+	return nil
 }
