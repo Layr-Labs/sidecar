@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/multicallContractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/parser"
@@ -38,6 +40,19 @@ func Test_Indexer(t *testing.T) {
 		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 	}
 
+	contract := &contractStore.Contract{
+		ContractAddress:         "0x123",
+		ContractAbi:             "[]",
+		Verified:                true,
+		BytecodeHash:            "0x123",
+		MatchingContractAddress: "",
+	}
+	proxyContract := &contractStore.ProxyContract{
+		BlockNumber:          1,
+		ContractAddress:      contract.ContractAddress,
+		ProxyContractAddress: "0x456",
+	}
+
 	sdc, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
 	if err != nil {
 		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
@@ -57,35 +72,63 @@ func Test_Indexer(t *testing.T) {
 	cm := contractManager.NewContractManager(contractStore, client, sdc, l)
 
 	t.Run("Test indexing contract upgrades", func(t *testing.T) {
-		contractAddress := "0x055733000064333caddbc92763c58bf0192ffebf"
-        blockNumber := uint64(2969816)
+		// Create a contract
+		_, found, err := contractStore.FindOrCreateContract(contract.ContractAddress, contract.ContractAbi, contract.Verified, contract.BytecodeHash, contract.MatchingContractAddress, false)
+		assert.Nil(t, err)
+		assert.False(t, found)
 
-        upgradedLog := &parser.DecodedLog{
-            LogIndex:  0,
-            Address:   contractAddress,
-            EventName: "Upgraded",
-            Arguments: []parser.Argument{
-                {
-                    Name:  "implementation",
-                    Type:  "address",
-                    Value: common.HexToAddress("0xa504276dfdee6210c26c55385d1f793bf52089a0"),
-                    Indexed: true,
-                },
-            },
-        }
+		// Create a proxy contract
+		_, found, err = contractStore.FindOrCreateProxyContract(uint64(proxyContract.BlockNumber), proxyContract.ContractAddress, proxyContract.ProxyContractAddress)
+		assert.Nil(t, err)
+		assert.False(t, found)
 
+		// Check if contract and proxy contract exist
+		var contractCount int
+		contractAddress := contract.ContractAddress
+		res := grm.Raw(`select count(*) from contracts where contract_address=@contractAddress`, sql.Named("contractAddress", contractAddress)).Scan(&contractCount)		
+		assert.Nil(t, res.Error)
+		assert.Equal(t, 1, contractCount)
+
+		proxyContractAddress := proxyContract.ContractAddress
+		res = grm.Raw(`select count(*) from contracts where contract_address=@proxyContractAddress`, sql.Named("proxyContractAddress", proxyContractAddress)).Scan(&contractCount)		
+		assert.Nil(t, res.Error)
+		assert.Equal(t, 1, contractCount)
+
+		var proxyContractCount int
+		res = grm.Raw(`select count(*) from proxy_contracts where contract_address=@contractAddress`, sql.Named("contractAddress", contractAddress)).Scan(&proxyContractCount)		
+		assert.Nil(t, res.Error)
+		assert.Equal(t, 1, proxyContractCount)
+
+		// An upgrade event
+		upgradedLog := &parser.DecodedLog{
+			LogIndex:  0,
+			Address:   contract.ContractAddress,
+			EventName: "Upgraded",
+			Arguments: []parser.Argument{
+				{
+					Name:    "implementation",
+					Type:    "address",
+					Value:   common.HexToAddress("0x789"),
+					Indexed: true,
+				},
+			},
+		}
+
+		// Perform the upgrade
 		idxr := NewIndexer(mds, contractStore, cm, client, fetchr, mccc, grm, l, cfg)
+		err = idxr.IndexContractUpgrade(context.Background(), 5, upgradedLog)
+		assert.Nil(t, err)
 
+		// Verify database state after upgrade
+		newProxyContractAddress := upgradedLog.Arguments[0].Value.(common.Address).Hex()
+		res = grm.Raw(`select count(*) from contracts where contract_address=@newProxyContractAddress`, sql.Named("newProxyContractAddress", newProxyContractAddress)).Scan(&contractCount)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, 1, contractCount)
 
-        // Get initial state
-
-        // Perform the upgrade
-        err = idxr.IndexContractUpgrade(context.Background(), blockNumber, upgradedLog)
-        assert.Nil(t, err)
-
-        // Verify database state after upgrade
-	})
-
+		res = grm.Raw(`select count(*) from proxy_contracts where contract_address=@contractAddress`, sql.Named("contractAddress", contractAddress)).Scan(&proxyContractCount)		
+		assert.Nil(t, res.Error)
+		assert.Equal(t, 2, proxyContractCount)
+	})	
 	t.Cleanup(func() {
 		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
