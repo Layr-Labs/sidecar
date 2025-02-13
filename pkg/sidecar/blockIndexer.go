@@ -289,6 +289,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		if batchEndBlock > int64(tip) {
 			batchEndBlock = int64(tip)
 		}
+
 		if err := s.Pipeline.RunForBlockBatch(ctx, uint64(currentBlock), uint64(batchEndBlock), true); err != nil {
 			s.Logger.Sugar().Errorw("Failed to run pipeline for block batch",
 				zap.Error(err),

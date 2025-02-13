@@ -17,12 +17,12 @@ import (
 )
 
 type StakerDelegationChange struct {
-	Staker          string
-	Operator        string
-	BlockNumber     uint64
-	Delegated       bool
-	LogIndex        uint64
-	TransactionHash string
+	Staker          string `filter:"true"`
+	Operator        string `filter:"true"`
+	BlockNumber     uint64 `filter:"true"`
+	Delegated       bool   `filter:"true"`
+	LogIndex        uint64 `filter:"true"`
+	TransactionHash string `filter:"true"`
 }
 
 type StakerDelegationsModel struct {

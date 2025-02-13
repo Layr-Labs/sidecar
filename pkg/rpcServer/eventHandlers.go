@@ -3,6 +3,7 @@ package rpcServer
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	v1EigenState "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/eigenState"
 	v1EthereumTypes "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/ethereumTypes"
 	v1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/events"
@@ -191,6 +192,7 @@ func (rpc *RpcServer) StreamIndexedBlocks(request *v1.StreamIndexedBlocksRequest
 					return err
 				}
 			}
+			fmt.Printf("blockProcessedData.Block.Number: %v\n", blockProcessedData.Block.Number)
 
 			resp, err := rpc.buildBlockResponse(blockProcessedData, request.GetIncludeStateChanges())
 			if err != nil {

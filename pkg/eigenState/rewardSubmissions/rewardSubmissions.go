@@ -20,20 +20,20 @@ import (
 )
 
 type RewardSubmission struct {
-	Avs             string
-	RewardHash      string
-	Token           string
-	Amount          string
-	Strategy        string
-	StrategyIndex   uint64
-	Multiplier      string
-	StartTimestamp  *time.Time
-	EndTimestamp    *time.Time
-	Duration        uint64
-	BlockNumber     uint64
-	RewardType      string // avs, all_stakers, all_earners
-	TransactionHash string
-	LogIndex        uint64
+	Avs             string     `filter:"true"`
+	RewardHash      string     `filter:"true"`
+	Token           string     `filter:"true"`
+	Amount          string     `filter:"true"`
+	Strategy        string     `filter:"true"`
+	StrategyIndex   uint64     `filter:"true"`
+	Multiplier      string     `filter:"true"`
+	StartTimestamp  *time.Time `filter:"true"`
+	EndTimestamp    *time.Time `filter:"true"`
+	Duration        uint64     `filter:"true"`
+	BlockNumber     uint64     `filter:"true"`
+	RewardType      string     `filter:"true"` // avs, all_stakers, all_earners
+	TransactionHash string     `filter:"true"`
+	LogIndex        uint64     `filter:"true"`
 }
 
 func NewSlotID(transactionHash string, logIndex uint64, rewardHash string, strategyIndex uint64) types.SlotID {

@@ -35,6 +35,7 @@ func streamIndexedBlocks(client v1.EventsClient) {
 		panic(err)
 	}
 
+	fmt.Printf("Client has connected to server\n")
 	for {
 		resp := &v1.StreamIndexedBlocksResponse{}
 		err := stream.RecvMsg(resp)
@@ -77,5 +78,5 @@ func main() {
 		panic(err)
 	}
 
-	streamStateChanges(client)
+	streamIndexedBlocks(client)
 }
