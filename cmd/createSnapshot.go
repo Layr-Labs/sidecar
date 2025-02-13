@@ -39,7 +39,7 @@ var createSnapshotCmd = &cobra.Command{
 		}
 
 		if err := svc.CreateSnapshot(); err != nil {
-			l.Sugar().Fatal("failed to create snapshot", zap.Error(err))
+			l.Sugar().Fatalw("failed to create snapshot", zap.Error(err))
 		}
 
 		return nil

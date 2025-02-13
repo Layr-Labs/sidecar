@@ -125,14 +125,6 @@ func (s *SnapshotService) RestoreSnapshot() error {
 	var resolvedFilePath string
 	if isHttpURL(s.cfg.Input) {
 		inputUrl := s.cfg.Input
-		// Check if the input URL exists
-		snapshotExists, err := urlExists(inputUrl)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("error checking existence of snapshot URL '%s'", inputUrl))
-		}
-		if !snapshotExists {
-			return errors.Wrap(fmt.Errorf("snapshot file not found at '%s'. Ensure the file exists", inputUrl), "snapshot file not found")
-		}
 
 		fileName, err := getFileNameFromURL(inputUrl)
 		if err != nil {
@@ -145,13 +137,6 @@ func (s *SnapshotService) RestoreSnapshot() error {
 		if s.cfg.VerifyInput {
 			hashFilePath := getHashName(inputFilePath)
 			hashUrl := getHashName(inputUrl)
-			hashFileExists, err := urlExists(hashUrl)
-			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("error checking existence of snapshot hash URL '%s'", hashUrl))
-			}
-			if !hashFileExists {
-				return errors.Wrap(fmt.Errorf("snapshot hash file not found at '%s'. Ensure the file exists or set --verify-input=false to skip verification", hashUrl), "snapshot hash file not found")
-			}
 
 			err = downloadFile(hashUrl, hashFilePath)
 			if err != nil {
@@ -183,7 +168,7 @@ func (s *SnapshotService) RestoreSnapshot() error {
 
 	// validate snapshot against the hash file
 	if s.cfg.VerifyInput {
-		if err := validateInputFileHash(resolvedFilePath, getHashName(resolvedFilePath)); err != nil {
+		if err := validateInputFileHash(resolvedFilePath); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("input file hash validation failed for '%s'", resolvedFilePath))
 		}
 		s.l.Sugar().Debugw("Input file hash validated successfully",
@@ -300,7 +285,8 @@ func cleanupTempFiles(files []string, l *zap.Logger) {
 }
 
 // validateInputFileHash validates the InputFile against the hash in InputHashFile.
-func validateInputFileHash(inputFile, hashFile string) error {
+func validateInputFileHash(inputFile string) error {
+	hashFile := getHashName(inputFile)
 	hashFileContent, err := os.ReadFile(hashFile)
 	if err != nil {
 		return fmt.Errorf("failed to read hash file: %w", err)
@@ -387,24 +373,4 @@ func getFileNameFromURL(rawURL string) (string, error) {
 		return "", fmt.Errorf("failed to parse URL: %w", err)
 	}
 	return path.Base(parsedURL.Path), nil
-}
-
-// urlExists checks if the given URL is accessible by sending a HEAD request.
-func urlExists(url string) (bool, error) {
-	resp, err := http.Head(url)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to send HEAD request")
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-		return true, nil
-	}
-
-	// Return false for 404 without an error
-	if resp.StatusCode == http.StatusNotFound {
-		return false, nil
-	}
-
-	return false, fmt.Errorf("URL not accessible, received status code %d", resp.StatusCode)
 }

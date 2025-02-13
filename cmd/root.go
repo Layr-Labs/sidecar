@@ -65,8 +65,8 @@ func init() {
 	// bind any subcommand flags
 	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "Path to save the snapshot file to (required), also creates a hash file")
 
-	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInput, "", "Path to the snapshot file either a URL or a local file (required)")
-	restoreSnapshotCmd.PersistentFlags().Bool(config.SnapshotVerifyInput, true, "Boolean to verify the input file against its .sha256sum file, if input is a url then it downloads the file, (default is true)")
+	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInput, "", "Path to a local snapshot file, or remote URL to download from (required)")
+	restoreSnapshotCmd.PersistentFlags().Bool(config.SnapshotVerifyInput, true, "Boolean to verify the input file against a sha256 checksum (<file name>.sha256sum). If a URL is provided, the checksum will be downloaded")
 
 	rpcCmd.PersistentFlags().String(config.SidecarPrimaryUrl, "", `RPC url of the "primary" Sidecar instance in an HA environment`)
 
