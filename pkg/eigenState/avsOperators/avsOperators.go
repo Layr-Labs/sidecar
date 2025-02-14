@@ -17,12 +17,12 @@ import (
 )
 
 type AvsOperatorStateChange struct {
-	Avs             string
-	Operator        string
-	Registered      bool
-	LogIndex        uint64
-	TransactionHash string
-	BlockNumber     uint64
+	Avs             string `filter:"true"`
+	Operator        string `filter:"true"`
+	Registered      bool   `filter:"true"`
+	LogIndex        uint64 `filter:"true"`
+	TransactionHash string `filter:"true"`
+	BlockNumber     uint64 `filter:"true"`
 }
 
 // EigenState model for AVS operators that implements IEigenStateModel.

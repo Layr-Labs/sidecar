@@ -5,16 +5,16 @@ import (
 )
 
 type SubmittedDistributionRoot struct {
-	Root                      string
-	BlockNumber               uint64
-	RootIndex                 uint64
-	RewardsCalculationEnd     time.Time
-	RewardsCalculationEndUnit string
-	ActivatedAt               time.Time
-	ActivatedAtUnit           string
-	CreatedAtBlockNumber      uint64
-	LogIndex                  uint64
-	TransactionHash           string
+	Root                      string    `filter:"true"`
+	BlockNumber               uint64    `filter:"true"`
+	RootIndex                 uint64    `filter:"true"`
+	RewardsCalculationEnd     time.Time `filter:"true"`
+	RewardsCalculationEndUnit string    `filter:"true"`
+	ActivatedAt               time.Time `filter:"true"`
+	ActivatedAtUnit           string    `filter:"true"`
+	CreatedAtBlockNumber      uint64    `filter:"true"`
+	LogIndex                  uint64    `filter:"true"`
+	TransactionHash           string    `filter:"true"`
 }
 
 func (sdr *SubmittedDistributionRoot) GetSnapshotDate() string {
@@ -22,8 +22,8 @@ func (sdr *SubmittedDistributionRoot) GetSnapshotDate() string {
 }
 
 type DisabledDistributionRoot struct {
-	RootIndex       uint64
-	BlockNumber     uint64
-	LogIndex        uint64
-	TransactionHash string
+	RootIndex       uint64 `filter:"true"`
+	BlockNumber     uint64 `filter:"true"`
+	LogIndex        uint64 `filter:"true"`
+	TransactionHash string `filter:"true"`
 }

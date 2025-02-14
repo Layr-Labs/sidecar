@@ -2,11 +2,14 @@ package rpcServer
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	v1EigenState "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/eigenState"
 	v1EthereumTypes "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/ethereumTypes"
 	v1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/events"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
+	"github.com/Layr-Labs/sidecar/pkg/eventFilter"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -15,7 +18,11 @@ import (
 	"io"
 )
 
-func (rpc *RpcServer) subscribeToBlocks(ctx context.Context, requestId string, handleBlock func(interface{}) error) error {
+func (rpc *RpcServer) subscribeToBlocks(
+	ctx context.Context,
+	requestId string,
+	handleBlock func(interface{}) error,
+) error {
 	consumer := &eventBusTypes.Consumer{
 		Id:      eventBusTypes.ConsumerId(requestId),
 		Context: ctx,
@@ -37,6 +44,22 @@ func (rpc *RpcServer) subscribeToBlocks(ctx context.Context, requestId string, h
 			}
 		}
 	}
+}
+
+func filterEigenStateChanges(changes map[string][]interface{}, filter *eventFilter.And, filterRegistry *eventFilter.FilterableRegistry) (map[string][]interface{}, error) {
+	for modelName, modelChanges := range changes {
+		for i, change := range modelChanges {
+			match, err := filter.Evaluate(change, filterRegistry)
+			if err != nil {
+				return nil, err
+			}
+			if !match {
+				// remove the item from the list
+				changes[modelName] = append(changes[modelName][:i], changes[modelName][i+1:]...)
+			}
+		}
+	}
+	return changes, nil
 }
 
 func (rpc *RpcServer) StreamEigenStateChanges(request *v1.StreamEigenStateChangesRequest, g grpc.ServerStreamingServer[v1.StreamEigenStateChangesResponse]) error {
@@ -68,8 +91,27 @@ func (rpc *RpcServer) StreamEigenStateChanges(request *v1.StreamEigenStateChange
 		return err
 	}
 
+	var filter *eventFilter.And
+	filterString := request.GetStateChangeFilter()
+	if filterString != "" {
+		err := json.Unmarshal([]byte(filterString), &filter)
+		if err != nil {
+			rpc.Logger.Sugar().Errorw("Failed to unmarshal filter",
+				zap.Error(err),
+			)
+			return err
+		}
+	}
+
 	err = rpc.subscribeToBlocks(g.Context(), requestId.String(), func(data interface{}) error {
 		blockProcessedData := data.(*eventBusTypes.BlockProcessedData)
+
+		if filter != nil {
+			blockProcessedData.CommittedState, err = filterEigenStateChanges(blockProcessedData.CommittedState, filter, rpc.filterRegistry)
+			if err != nil {
+				return err
+			}
+		}
 		changes, err := rpc.parseCommittedChanges(blockProcessedData.CommittedState)
 		if err != nil {
 			return err
@@ -110,22 +152,62 @@ func (rpc *RpcServer) StreamIndexedBlocks(request *v1.StreamIndexedBlocksRequest
 		rpc.Logger.Error("Failed to generate request ID", zap.Error(err))
 		return err
 	}
+	onlyBlocksWithData := request.GetOnlyBlocksWithData()
+
+	var stateChangesFilter *eventFilter.And
+	var blockFilter *eventFilter.And
+
+	filters := request.GetFilters()
+	if filters != nil {
+		stateChangeFilterStr := filters.GetStateChangeFilter()
+		if stateChangeFilterStr != "" {
+			err := json.Unmarshal([]byte(stateChangeFilterStr), &stateChangesFilter)
+			if err != nil {
+				rpc.Logger.Sugar().Errorw("Failed to unmarshal state changes filter",
+					zap.Error(err),
+				)
+				return err
+			}
+		}
+		blockFilterStr := filters.GetBlockFilter()
+		if blockFilterStr != "" {
+			err := json.Unmarshal([]byte(blockFilterStr), &blockFilter)
+			if err != nil {
+				rpc.Logger.Sugar().Errorw("Failed to unmarshal block filter",
+					zap.Error(err),
+				)
+				return err
+			}
+		}
+	}
 
 	err = rpc.subscribeToBlocks(g.Context(), requestId.String(), func(data interface{}) error {
 		rpc.Logger.Debug("Received block", zap.Any("data", data))
 		blockProcessedData := data.(*eventBusTypes.BlockProcessedData)
 
-		resp, err := rpc.buildBlockResponse(blockProcessedData, request.IncludeStateChanges)
-		if err != nil {
-			return err
-		}
+		if (onlyBlocksWithData && processedBlockHasData(blockProcessedData)) || !onlyBlocksWithData {
+			if stateChangesFilter != nil {
+				blockProcessedData.CommittedState, err = filterEigenStateChanges(blockProcessedData.CommittedState, stateChangesFilter, rpc.filterRegistry)
+				if err != nil {
+					return err
+				}
+			}
+			fmt.Printf("blockProcessedData.Block.Number: %v\n", blockProcessedData.Block.Number)
 
-		return g.SendMsg(resp)
+			resp, err := rpc.buildBlockResponse(blockProcessedData, request.GetIncludeStateChanges())
+			if err != nil {
+				return err
+			}
+
+			return g.SendMsg(resp)
+		}
+		return nil
 	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
+}
+
+func processedBlockHasData(block *eventBusTypes.BlockProcessedData) bool {
+	return len(block.Transactions) > 0 || len(block.Logs) > 0 || len(block.CommittedState) > 0
 }
 
 func convertTransactionLogToEventTypeTransaction(log *storage.TransactionLog) *v1EthereumTypes.TransactionLog {

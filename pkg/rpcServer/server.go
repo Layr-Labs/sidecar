@@ -13,6 +13,8 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
+	"github.com/Layr-Labs/sidecar/pkg/eventFilter"
+	"github.com/Layr-Labs/sidecar/pkg/eventFilter/eventTypeRegistry"
 	"github.com/Layr-Labs/sidecar/pkg/proofs"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
@@ -48,6 +50,7 @@ type RpcServer struct {
 	rewardsDataService  *rewardsDataService.RewardsDataService
 	globalConfig        *config.Config
 	sidecarClient       *sidecarClient.SidecarClient
+	filterRegistry      *eventFilter.FilterableRegistry
 }
 
 func NewRpcServer(
@@ -62,7 +65,7 @@ func NewRpcServer(
 	scc *sidecarClient.SidecarClient,
 	l *zap.Logger,
 	cfg *config.Config,
-) *RpcServer {
+) (*RpcServer, error) {
 	server := &RpcServer{
 		rpcConfig:           config,
 		blockStore:          bs,
@@ -77,7 +80,14 @@ func NewRpcServer(
 		sidecarClient:       scc,
 	}
 
-	return server
+	reg, err := eventTypeRegistry.BuildFilterableEventRegistry()
+	if err != nil {
+		l.Sugar().Errorw("Failed to build filterable event registry", zap.Error(err))
+		return nil, err
+	}
+	server.filterRegistry = reg
+
+	return server, nil
 }
 
 func (s *RpcServer) registerHandlers(ctx context.Context, grpcServer *grpc.Server, mux *runtime.ServeMux) error {

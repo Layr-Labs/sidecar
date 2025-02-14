@@ -21,15 +21,15 @@ import (
 )
 
 type OperatorShareDeltas struct {
-	Operator        string
-	Staker          string
-	Strategy        string
-	Shares          string
-	TransactionHash string
-	LogIndex        uint64
-	BlockNumber     uint64
-	BlockTime       time.Time
-	BlockDate       string
+	Operator        string    `filter:"true"`
+	Staker          string    `filter:"true"`
+	Strategy        string    `filter:"true"`
+	Shares          string    `filter:"true"`
+	TransactionHash string    `filter:"true"`
+	LogIndex        uint64    `filter:"true"`
+	BlockNumber     uint64    `filter:"true"`
+	BlockTime       time.Time `filter:"true"`
+	BlockDate       string    `filter:"true"`
 }
 
 func NewSlotID(operator string, strategy string, staker string, transactionHash string, logIndex uint64) types.SlotID {

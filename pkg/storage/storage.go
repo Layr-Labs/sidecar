@@ -26,9 +26,9 @@ type BlockStore interface {
 
 // Tables.
 type Block struct {
-	Number     uint64
-	Hash       string
-	ParentHash string
+	Number     uint64 `filter:"true"`
+	Hash       string `filter:"true"`
+	ParentHash string `filter:"true"`
 	BlockTime  time.Time
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
@@ -36,12 +36,12 @@ type Block struct {
 }
 
 type Transaction struct {
-	BlockNumber      uint64
-	TransactionHash  string
-	TransactionIndex uint64
-	FromAddress      string
-	ToAddress        string
-	ContractAddress  string
+	BlockNumber      uint64 `filter:"true"`
+	TransactionHash  string `filter:"true"`
+	TransactionIndex uint64 `filter:"true"`
+	FromAddress      string `filter:"true"`
+	ToAddress        string `filter:"true"`
+	ContractAddress  string `filter:"true"`
 	BytecodeHash     string
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
@@ -49,13 +49,13 @@ type Transaction struct {
 }
 
 type TransactionLog struct {
-	TransactionHash  string
-	TransactionIndex uint64
-	BlockNumber      uint64
-	Address          string
+	TransactionHash  string `filter:"true"`
+	TransactionIndex uint64 `filter:"true"`
+	BlockNumber      uint64 `filter:"true"`
+	Address          string `filter:"true"`
 	Arguments        string
-	EventName        string
-	LogIndex         uint64
+	EventName        string `filter:"true"`
+	LogIndex         uint64 `filter:"true"`
 	OutputData       string
 	CreatedAt        time.Time
 	UpdatedAt        time.Time

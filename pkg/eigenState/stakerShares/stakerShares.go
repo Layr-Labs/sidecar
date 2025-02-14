@@ -25,16 +25,16 @@ import (
 
 // Table staker_share_deltas
 type StakerShareDeltas struct {
-	Staker               string
-	Strategy             string
-	Shares               string
-	StrategyIndex        uint64
-	TransactionHash      string
-	LogIndex             uint64
-	BlockTime            time.Time
-	BlockDate            string
-	BlockNumber          uint64
-	WithdrawalRootString string `gorm:"-"`
+	Staker               string    `filter:"true"`
+	Strategy             string    `filter:"true"`
+	Shares               string    `filter:"true"`
+	StrategyIndex        uint64    `filter:"true"`
+	TransactionHash      string    `filter:"true"`
+	LogIndex             uint64    `filter:"true"`
+	BlockTime            time.Time `filter:"true"`
+	BlockDate            string    `filter:"true"`
+	BlockNumber          uint64    `filter:"true"`
+	WithdrawalRootString string    `gorm:"-" filter:"true"`
 }
 
 func NewSlotID(transactionHash string, logIndex uint64, staker string, strategy string, strategyIndex uint64) types.SlotID {
