@@ -196,6 +196,19 @@ func Test_PostgresContractStore(t *testing.T) {
 		assert.Equal(t, "", contractsTree.BaseLikeAddress)
 		assert.Equal(t, "", contractsTree.BaseLikeAbi)
 	})
+	t.Run("Get proxy contract from address", func(t *testing.T) {
+		proxyContract := &contractStore.ProxyContract{
+			BlockNumber:          1,
+			ContractAddress:      createdContracts[0].ContractAddress,
+			ProxyContractAddress: "0x456",
+		}
+
+		proxy, err := cs.GetProxyContractForAddress(proxyContract.ContractAddress, uint64(proxyContract.BlockNumber))
+		assert.Nil(t, err)
+		assert.Equal(t, proxyContract.BlockNumber, proxy.BlockNumber)
+		assert.Equal(t, proxyContract.ContractAddress, proxy.ContractAddress)
+		assert.Equal(t, proxyContract.ProxyContractAddress, proxy.ProxyContractAddress)
+	})
 	t.Run("Set contract checked for proxy", func(t *testing.T) {
 		address := createdContracts[0].ContractAddress
 

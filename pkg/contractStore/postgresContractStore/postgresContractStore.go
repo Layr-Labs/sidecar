@@ -45,6 +45,21 @@ func (s *PostgresContractStore) GetContractForAddress(address string) (*contract
 	return contract, nil
 }
 
+func (s *PostgresContractStore) GetProxyContractForAddress(address string, blockNumber uint64) (*contractStore.ProxyContract, error) {
+	var proxyContract *contractStore.ProxyContract
+
+	result := s.Db.First(&proxyContract, "contract_address = ? and block_number = ?", address, blockNumber)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			s.Logger.Sugar().Debugf("proxyContract not found in store '%s'", address)
+			return nil, nil
+		}
+		return nil, result.Error
+	}
+
+	return proxyContract, nil
+}
+
 func (s *PostgresContractStore) FindOrCreateContract(
 	address string,
 	abiJson string,

@@ -50,28 +50,26 @@ func (cm *ContractManager) CreateProxyContract(
 	proxyContractAddress string,
 	blockNumber uint64,
 ) (*contractStore.ProxyContract, error) {
-	proxyContract, found, err := cm.ContractStore.FindOrCreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
-	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to create proxy contract",
+	// Check if proxy contract already exists
+	proxyContract, err := cm.ContractStore.GetProxyContractForAddress(contractAddress, blockNumber); err != nil {
+		cm.Logger.Sugar().Errorw("Failed to find proxy contract in store",
 			zap.Error(err),
 			zap.String("contractAddress", contractAddress),
 			zap.String("proxyContractAddress", proxyContractAddress),
+			zap.String("blockNumber", blockNumber),
 		)
 		return nil, err
-	} else {
-		if found {
-			cm.Logger.Sugar().Debugw("Found existing proxy contract",
-				zap.String("contractAddress", contractAddress),
-				zap.String("proxyContractAddress", proxyContractAddress),
-			)
-		} else {
-			cm.Logger.Sugar().Debugw("Created proxy contract",
-				zap.String("contractAddress", contractAddress),
-				zap.String("proxyContractAddress", proxyContractAddress),
-			)
-		}
+	}
+	if proxyContract != nil {
+		cm.Logger.Sugar().Debugw("Found existing proxy contract",
+			zap.String("contractAddress", contractAddress),
+			zap.String("proxyContractAddress", proxyContractAddress),
+			zap.String("blockNumber", blockNumber),
+		)
+		return proxyContract, nil
 	}
 	
+	// Create a proxy contract
 	bytecode, err := cm.EthereumClient.GetCode(context.Background(), proxyContractAddress)
 	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to get proxy contract bytecode",
