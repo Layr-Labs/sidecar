@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	pgcommands "github.com/habx/pg-commands"
 	"github.com/pkg/errors"
@@ -126,23 +127,22 @@ func (s *SnapshotService) RestoreSnapshot() error {
 		s.tempFiles = s.tempFiles[:0] // Clear the tempFiles slice after cleanup
 	}()
 
-	var snapshotAbsoluteFilePath string
-	var err error
+	input := s.cfg.Input
 	if s.cfg.Input == "" && s.cfg.ManifestURL == "" {
-		return errors.Wrap(fmt.Errorf("input file or manifest URL is required"), "missing required configuration")
-	} else if s.cfg.Input == "" && s.cfg.ManifestURL != "" {
+		return fmt.Errorf("input file or manifest URL is required: missing required configuration")
+	} else if s.cfg.Input == "" {
 		// Get the desired snapshot URL from the manifest
-		desiredURL, err := s.getDesiredURLFromManifest(s.cfg.ManifestURL)
+		var err error
+		input, err = s.getDesiredURLFromManifest(s.cfg.ManifestURL)
 		if err != nil {
 			return err
 		}
-		// Use the desired URL as the input for downloading
-		snapshotAbsoluteFilePath, err = s.downloadSnapshotAndVerificationFiles(desiredURL)
-		if err != nil {
-			return err
-		}
-	} else if isHttpURL(s.cfg.Input) {
-		inputUrl := s.cfg.Input
+	}
+
+	var snapshotAbsoluteFilePath string
+	if isHttpURL(input) {
+		var err error
+		inputUrl := input
 		snapshotAbsoluteFilePath, err = s.downloadSnapshotAndVerificationFiles(inputUrl)
 		if err != nil {
 			return err
@@ -422,11 +422,11 @@ type Meta struct {
 }
 
 type Snapshot struct {
-	SnapshotURL string `json:"snapshotURL"`
-	Chain       string `json:"chain"`
-	Version     string `json:"version"`
-	Schema      string `json:"schema"`
-	Timestamp   string `json:"timestamp"`
+	SnapshotURL string    `json:"snapshotURL"`
+	Chain       string    `json:"chain"`
+	Version     string    `json:"version"`
+	Schema      string    `json:"schema"`
+	Timestamp   time.Time `json:"timestamp"`
 }
 
 func (s *SnapshotService) getDesiredURLFromManifest(manifestURL string) (string, error) {
@@ -435,29 +435,20 @@ func (s *SnapshotService) getDesiredURLFromManifest(manifestURL string) (string,
 		return "", errors.Wrap(fmt.Errorf("manifest URL must be a network URL"), "invalid manifest URL")
 	}
 
-	// Download the manifest file
-	manifestFileName, err := getFileNameFromURL(manifestURL)
+	// Fetch and parse the manifest data directly from the URL
+	resp, err := http.Get(manifestURL)
 	if err != nil {
-		return "", errors.Wrap(err, fmt.Sprintf("failed to extract file name from manifest URL '%s'", manifestURL))
+		return "", errors.Wrap(err, fmt.Sprintf("error fetching manifest from '%s'", manifestURL))
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return "", errors.Wrap(fmt.Errorf("manifest file not found at '%s'. Ensure the file exists", manifestURL), "manifest file not found")
 	}
 
-	manifestFilePath := filepath.Join(os.TempDir(), manifestFileName)
-
-	err = downloadFile(manifestURL, manifestFilePath)
+	manifestData, err := io.ReadAll(resp.Body)
 	if err != nil {
-		if err.Error() == "404 Not Found" {
-			return "", errors.Wrap(fmt.Errorf("manifest file not found at '%s'. Ensure the file exists", manifestURL), "manifest file not found")
-		}
-		return "", errors.Wrap(err, fmt.Sprintf("error downloading manifest from '%s'", manifestURL))
-	}
-
-	s.tempFiles = append(s.tempFiles, manifestFilePath)
-	s.l.Sugar().Infow("Downloaded manifest file", zap.String("manifestFilePath", manifestFilePath))
-
-	// Read and parse the manifest file
-	manifestData, err := os.ReadFile(manifestFilePath)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to read manifest file")
+		return "", errors.Wrap(err, "failed to read manifest data")
 	}
 
 	var manifest Manifest
@@ -469,7 +460,7 @@ func (s *SnapshotService) getDesiredURLFromManifest(manifestURL string) (string,
 	var latestSnapshot *Snapshot
 	for _, snapshot := range manifest.Snapshots {
 		if snapshot.Version == s.cfg.Version && snapshot.Chain == s.cfg.Chain && snapshot.Schema == s.cfg.SchemaName {
-			if latestSnapshot == nil || snapshot.Timestamp > latestSnapshot.Timestamp {
+			if latestSnapshot == nil || snapshot.Timestamp.After(latestSnapshot.Timestamp) {
 				latestSnapshot = &snapshot
 			}
 		}
