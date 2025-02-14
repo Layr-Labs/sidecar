@@ -342,9 +342,11 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 		err = svc.RestoreSnapshot()
 		assert.NoError(t, err, "Restoring snapshot should not fail")
 
+		// Validate the restore process by counting migration records before and after running migrations
 		// Step 1: Validate the restore process
-		var countBefore int64
-		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countBefore)
+		var countBeforeMigration int64
+		err = dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countBeforeMigration).Error
+		assert.NoError(t, err, "Query error: %v", err)
 
 		// Step 2: Setup your migrator for db (the restored snapshot) and attempt running all migrations
 		migrator := migrations.NewMigrator(nil, dbGrm, l, cfg)
@@ -352,12 +354,12 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 		assert.NoError(t, err, "Expected MigrateAll to succeed on db")
 
 		// Step 3: Count again after running migrations
-		var countAfter int64
-		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countAfter)
+		var countAfterMigration int64
+		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countAfterMigration)
 
-		// Step 4: If countBefore == countAfter, no new migration records were created
+		// Step 4: If countBeforeMigration == countAfterMigration, no new migration records were created
 		//         => meaning db was already fully up-to-date
-		assert.Equal(t, countBefore, countAfter, "No migrations should have been newly applied if db matches the original")
+		assert.Equal(t, countBeforeMigration, countAfterMigration, "No migrations should have been newly applied if db matches the original")
 
 		t.Cleanup(func() {
 			postgres.TeardownTestDatabase(dbName, cfg, dbGrm, l)
@@ -409,9 +411,11 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 		err = svc.RestoreSnapshot()
 		assert.NoError(t, err, "Restoring snapshot should not return an error")
 
+		// Validate the restore process by counting migration records before and after running migrations
 		// Step 1: Validate the restore process
-		var countBefore int64
-		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countBefore)
+		var countBeforeMigration int64
+		err = dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countBeforeMigration).Error
+		assert.NoError(t, err, "Query error: %v", err)
 
 		// Step 2: Setup your migrator for db (the restored snapshot) and attempt running all migrations
 		migrator := migrations.NewMigrator(nil, dbGrm, l, cfg)
@@ -419,12 +423,12 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 		assert.NoError(t, err, "Expected MigrateAll to succeed on db")
 
 		// Step 3: Count again after running migrations
-		var countAfter int64
-		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countAfter)
+		var countAfterMigration int64
+		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countAfterMigration)
 
-		// Step 4: If countBefore == countAfter, no new migration records were created
+		// Step 4: If countBeforeMigration == countAfterMigration, no new migration records were created
 		//         => meaning db was already fully up-to-date
-		assert.Equal(t, countBefore, countAfter, "No migrations should have been newly applied if db matches the original")
+		assert.Equal(t, countBeforeMigration, countAfterMigration, "No migrations should have been newly applied if db matches the original")
 
 		t.Cleanup(func() {
 			postgres.TeardownTestDatabase(dbName, cfg, dbGrm, l)
@@ -512,9 +516,11 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 		err = svc.RestoreSnapshot()
 		assert.NoError(t, err, "Restoring snapshot should not return an error")
 
+		// Validate the restore process by counting migration records before and after running migrations
 		// Step 1: Validate the restore process
-		var countBefore int64
-		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countBefore)
+		var countBeforeMigration int64
+		err = dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countBeforeMigration).Error
+		assert.NoError(t, err, "Query error: %v", err)
 
 		// Step 2: Setup your migrator for db (the restored snapshot) and attempt running all migrations
 		migrator := migrations.NewMigrator(nil, dbGrm, l, cfg)
@@ -522,12 +528,12 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 		assert.NoError(t, err, "Expected MigrateAll to succeed on db")
 
 		// Step 3: Count again after running migrations
-		var countAfter int64
-		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countAfter)
+		var countAfterMigration int64
+		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countAfterMigration)
 
-		// Step 4: If countBefore == countAfter, no new migration records were created
+		// Step 4: If countBeforeMigration == countAfterMigration, no new migration records were created
 		//         => meaning db was already fully up-to-date
-		assert.Equal(t, countBefore, countAfter, "No migrations should have been newly applied if db matches the original")
+		assert.Equal(t, countBeforeMigration, countAfterMigration, "No migrations should have been newly applied if db matches the original")
 
 		t.Cleanup(func() {
 			postgres.TeardownTestDatabase(dbName, cfg, dbGrm, l)
