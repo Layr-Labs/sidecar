@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 var restoreSnapshotCmd = &cobra.Command{
@@ -16,32 +17,31 @@ var restoreSnapshotCmd = &cobra.Command{
 	Short: "Restore database from a snapshot file",
 	Long: `Restore the database from a previously created snapshot file.
 
-Note: This command restores --database.schema_name only if it's present in InputFile snapshot.
+Note: This command restores --database.schema_name only if it's present in Input snapshot.
+The input can be a local file path or a URL, url of type http, https is supported.
 Follow the snapshot docs if you need to convert the snapshot to a different schema name than was used during snapshot creation.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		initRestoreSnapshotCmd(cmd)
 		cfg := config.NewConfig()
 
-		l, err := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
-		if err != nil {
-			return fmt.Errorf("failed to initialize logger: %w", err)
-		}
+		l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
 		svc, err := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
-			InputFile:  cfg.SnapshotConfig.InputFile,
-			Host:       cfg.DatabaseConfig.Host,
-			Port:       cfg.DatabaseConfig.Port,
-			User:       cfg.DatabaseConfig.User,
-			Password:   cfg.DatabaseConfig.Password,
-			DbName:     cfg.DatabaseConfig.DbName,
-			SchemaName: cfg.DatabaseConfig.SchemaName,
+			Input:       cfg.SnapshotConfig.Input,
+			VerifyInput: cfg.SnapshotConfig.VerifyInput,
+			Host:        cfg.DatabaseConfig.Host,
+			Port:        cfg.DatabaseConfig.Port,
+			User:        cfg.DatabaseConfig.User,
+			Password:    cfg.DatabaseConfig.Password,
+			DbName:      cfg.DatabaseConfig.DbName,
+			SchemaName:  cfg.DatabaseConfig.SchemaName,
 		}, l)
 		if err != nil {
 			return err
 		}
 
 		if err := svc.RestoreSnapshot(); err != nil {
-			return fmt.Errorf("failed to restore snapshot: %w", err)
+			l.Sugar().Fatalw("failed to restore snapshot", zap.Error(err))
 		}
 
 		return nil
