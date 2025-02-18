@@ -1,8 +1,12 @@
 package rewards
 
-import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+import (
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"go.uber.org/zap"
+)
 
 const operatorShareSnapshotsQuery = `
+insert into operator_share_snapshots (operator, strategy, shares, snapshot)
 WITH ranked_operator_records as (
     SELECT *,
            ROW_NUMBER() OVER (PARTITION BY operator, strategy, cast(block_time AS DATE) ORDER BY block_time DESC, log_index DESC) AS rn
@@ -45,11 +49,10 @@ FROM
     cleaned_records
         CROSS JOIN
     generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+on conflict on constraint uniq_operator_share_snapshots do nothing;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(snapshotDate string) error {
-	tableName := "operator_share_snapshots"
-
 	query, err := rewardsUtils.RenderQueryTemplate(operatorShareSnapshotsQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
@@ -58,10 +61,13 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(snapshotDate
 		return err
 	}
 
-	err = r.generateAndInsertFromQuery(tableName, query, nil)
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate operator_share_snapshots", "error", err)
-		return err
+	res := r.grm.Exec(query)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to generate operator_share_snapshots",
+			zap.String("snapshotDate", snapshotDate),
+			zap.Error(res.Error),
+		)
+		return res.Error
 	}
 	return nil
 }

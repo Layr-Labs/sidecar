@@ -1,8 +1,12 @@
 package rewards
 
-import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+import (
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"go.uber.org/zap"
+)
 
 const stakerDelegationSnapshotsQuery = `
+insert into staker_delegation_snapshots(staker, operator, snapshot)
 with staker_delegations_with_block_info as (
 	select
 		sdc.staker,
@@ -56,12 +60,15 @@ final_results as (
 			CROSS JOIN
 		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
 )
-select * from final_results
+select
+    staker,
+    operator,
+    snapshot
+from final_results
+on conflict on constraint uniq_staker_delegation_snapshots do nothing;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(snapshotDate string) error {
-	tableName := "staker_delegation_snapshots"
-
 	query, err := rewardsUtils.RenderQueryTemplate(stakerDelegationSnapshotsQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
@@ -70,10 +77,13 @@ func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(snapshotD
 		return nil
 	}
 
-	err = r.generateAndInsertFromQuery(tableName, query, nil)
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate staker_delegation_snapshots", "error", err)
-		return err
+	res := r.grm.Exec(query)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to generate staker_delegation_snapshots",
+			zap.String("snapshotDate", snapshotDate),
+			zap.Error(res.Error),
+		)
+		return res.Error
 	}
 	return nil
 }
