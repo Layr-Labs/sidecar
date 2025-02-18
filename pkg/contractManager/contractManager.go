@@ -2,11 +2,18 @@ package contractManager
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
+
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"go.uber.org/zap"
+	"github.com/mr-tron/base58"
 )
 
 type ContractManager struct {
@@ -14,6 +21,12 @@ type ContractManager struct {
 	EthereumClient *ethereum.Client
 	metricsSink    *metrics.MetricsSink
 	Logger         *zap.Logger
+}
+
+type Response struct {
+    Output struct {
+        ABI []map[string]interface{} `json:"abi"`  // Changed from string to array of maps
+    } `json:"output"`
 }
 
 func NewContractManager(
@@ -45,18 +58,106 @@ func (cm *ContractManager) GetContractWithProxy(
 	return contract, nil
 }
 
+func GetMetadataURIFromBytecode(bytecode string) (string, error) {
+    markerSequence := "a264697066735822"
+    index := strings.Index(strings.ToLower(bytecode), markerSequence)
+    
+    if index == -1 {
+        return "", fmt.Errorf("CBOR marker sequence not found")
+    }
+    
+    // Extract the IPFS hash (34 bytes = 68 hex characters)
+    startIndex := index + len(markerSequence)
+    if len(bytecode) < startIndex+68 {
+        return "", fmt.Errorf("bytecode too short to contain complete IPFS hash")
+    }
+    
+    ipfsHash := bytecode[startIndex:startIndex+68]
+    
+    // Decode the hex string to bytes
+    // Skip the 1220 prefix when decoding
+    bytes, err := hex.DecodeString(ipfsHash)
+    if err != nil {
+        return "", fmt.Errorf("failed to decode hex: %v", err)
+    }
+    
+    // Convert to base58
+    base58Hash := base58.Encode(bytes)
+    
+    // Add Qm prefix and ipfs:// protocol
+    return fmt.Sprintf("https://ipfs.io/ipfs/%s", base58Hash), nil
+}
+
+func (cm *ContractManager) FetchAbiFromIPFS(ctx context.Context, address string) error {
+	bytecode, err := cm.EthereumClient.GetCode(ctx, address)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to get the contract bytecode",
+			zap.Error(err),
+			zap.String("address", address),
+		)
+		// return nil, err
+		return err
+	}
+	// fmt.Printf("bytecode: %s", bytecode)
+
+	bytecodeHash := ethereum.HashBytecode(bytecode)
+	cm.Logger.Sugar().Debug("Fetched the contract bytecode",
+		zap.String("address", address),
+		zap.String("bytecodeHash", bytecodeHash),
+	)
+	fmt.Printf("bytecodeHash: %s", bytecodeHash)
+
+	uri, err := GetMetadataURIFromBytecode(bytecode)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to decode bytecode to IPFS",
+			zap.Error(err),
+			zap.String("address", address),
+		)
+		// return nil, err
+		return err
+	}
+	fmt.Printf("IPFS URI: %s \n", uri)
+
+	resp, err := http.Get(uri)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("gateway returned status: %d", resp.StatusCode)
+	}
+	
+	// Read response
+	content, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	var result Response
+	if err := json.Unmarshal(content, &result); err != nil {
+        fmt.Printf("Error parsing JSON: %v\n", err)
+        return err
+    }
+	
+	fmt.Printf("abi: %s \n", result.Output.ABI)
+	return nil
+}
+
 func (cm *ContractManager) CreateProxyContract(
+	ctx context.Context,
 	contractAddress string,
 	proxyContractAddress string,
 	blockNumber uint64,
 ) (*contractStore.ProxyContract, error) {
 	// Check if proxy contract already exists
-	proxyContract, err := cm.ContractStore.GetProxyContractForAddress(contractAddress, blockNumber); err != nil {
+	proxyContract, err := cm.ContractStore.GetProxyContractForAddress(contractAddress, blockNumber)
+	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to find proxy contract in store",
 			zap.Error(err),
 			zap.String("contractAddress", contractAddress),
 			zap.String("proxyContractAddress", proxyContractAddress),
-			zap.String("blockNumber", blockNumber),
 		)
 		return nil, err
 	}
@@ -64,27 +165,37 @@ func (cm *ContractManager) CreateProxyContract(
 		cm.Logger.Sugar().Debugw("Found existing proxy contract",
 			zap.String("contractAddress", contractAddress),
 			zap.String("proxyContractAddress", proxyContractAddress),
-			zap.String("blockNumber", blockNumber),
 		)
 		return proxyContract, nil
 	}
 	
 	// Create a proxy contract
-	bytecode, err := cm.EthereumClient.GetCode(context.Background(), proxyContractAddress)
-	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to get proxy contract bytecode",
-			zap.Error(err),
-			zap.String("proxyContractAddress", proxyContractAddress),
-		)
-		return nil, err
+	proxyContract := &contractStore.ProxyContract{
+		BlockNumber:          int64(blockNumber),
+		ContractAddress:      contractAddress,
+		ProxyContractAddress: proxyContractAddress,
 	}
 
-	bytecodeHash := ethereum.HashBytecode(bytecode)
-	cm.Logger.Sugar().Debug("Fetched proxy contract bytecode",
-		zap.String("proxyContractAddress", proxyContractAddress),
-		zap.String("bytecodeHash", bytecodeHash),
-	)
+	result = tx.Model(&contractStore.ProxyContract{}).Clauses(clause.Returning{}).Create(&proxyContract)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	// bytecode, err := cm.EthereumClient.GetCode(context.Background(), proxyContractAddress)
+	// if err != nil {
+	// 	cm.Logger.Sugar().Errorw("Failed to get proxy contract bytecode",
+	// 		zap.Error(err),
+	// 		zap.String("proxyContractAddress", proxyContractAddress),
+	// 	)
+	// 	return nil, err
+	// }
 
+	// bytecodeHash := ethereum.HashBytecode(bytecode)
+	// cm.Logger.Sugar().Debug("Fetched proxy contract bytecode",
+	// 	zap.String("proxyContractAddress", proxyContractAddress),
+	// 	zap.String("bytecodeHash", bytecodeHash),
+	// )
+
+	// get all info and create contract
 	_, _, err = cm.ContractStore.FindOrCreateContract(
 		proxyContractAddress,
 		"",
@@ -102,6 +213,6 @@ func (cm *ContractManager) CreateProxyContract(
 	} else {
 		cm.Logger.Sugar().Debugf("Created new contract for proxy contract", zap.String("proxyContractAddress", proxyContractAddress))
 	}
-
+	
 	return proxyContract, nil
 }
