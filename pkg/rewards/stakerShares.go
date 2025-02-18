@@ -1,8 +1,12 @@
 package rewards
 
-import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+import (
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"go.uber.org/zap"
+)
 
 const stakerSharesQuery = `
+	insert into staker_shares(staker, strategy, shares, transaction_hash, log_index, strategy_index, block_time, block_date, block_number)
 	select
 		staker,
 		strategy,
@@ -16,11 +20,10 @@ const stakerSharesQuery = `
 		block_number
 	from staker_share_deltas
 	where block_date < '{{.cutoffDate}}'
+	on conflict on constraint uniq_staker_shares do nothing;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertStakerShares(snapshotDate string) error {
-	tableName := "staker_shares"
-
 	query, err := rewardsUtils.RenderQueryTemplate(stakerSharesQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
@@ -29,10 +32,13 @@ func (r *RewardsCalculator) GenerateAndInsertStakerShares(snapshotDate string) e
 		return err
 	}
 
-	err = r.generateAndInsertFromQuery(tableName, query, nil)
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate staker_shares", "error", err)
-		return err
+	res := r.grm.Debug().Exec(query)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to insert staker_shares",
+			zap.String("snapshotDate", snapshotDate),
+			zap.Error(res.Error),
+		)
+		return res.Error
 	}
 	return nil
 }
