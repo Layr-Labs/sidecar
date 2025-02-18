@@ -3,6 +3,7 @@ package rewards
 import (
 	"database/sql"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"go.uber.org/zap"
 )
 
 // Operator AVS Strategy Windows: Ranges for which an Operator, Strategy is restaked on an AVS
@@ -23,6 +24,7 @@ import (
 // 8. Island_groups: Group islands by summing up ids
 // 9. Operator_avs_strategy_windows: Combine ranges with same id
 const operatorAvsStrategyWindowsQuery = `
+insert into operator_avs_strategy_snapshots (operator, avs, strategy, snapshot)
 with ranked_records AS (
 	SELECT
 		lower(operator) as operator,
@@ -140,27 +142,33 @@ final_results as (
 	FROM cleaned_records
 		CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
 )
-select * from final_results
+select
+	operator,
+	avs,
+	strategy,
+	snapshot
+from final_results
+on conflict on constraint uniq_operator_avs_strategy_snapshots do nothing;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(snapshotDate string) error {
-	tableName := "operator_avs_strategy_snapshots"
 	contractAddresses := r.globalConfig.GetContractsMapForChain()
 
 	query, err := rewardsUtils.RenderQueryTemplate(operatorAvsStrategyWindowsQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
-		r.logger.Sugar().Errorw("Failed to render operator AVS strategy snapshots query", "error", err)
+		r.logger.Sugar().Errorw("Failed to render operator AVS strategy snapshots query", zap.Error(err))
 		return err
 	}
 
-	err = r.generateAndInsertFromQuery(tableName, query, []interface{}{
-		sql.Named("avsDirectoryAddress", contractAddresses.AvsDirectory),
-	})
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate operator_avs_registration_snapshots", "error", err)
-		return err
+	res := r.grm.Exec(query, sql.Named("avsDirectoryAddress", contractAddresses.AvsDirectory))
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to generate operator_avs_registration_snapshots",
+			zap.String("snapshotDate", snapshotDate),
+			zap.Error(res.Error),
+		)
+		return res.Error
 	}
 	return nil
 }

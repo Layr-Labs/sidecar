@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"text/template"
 
-	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -107,41 +106,6 @@ func RenderQueryTemplate(query string, variables map[string]interface{}) (string
 
 func FormatTableName(tableName string, snapshotDate string) string {
 	return fmt.Sprintf("%s_%s", tableName, utils.SnakeCase(snapshotDate))
-}
-
-func GenerateAndInsertFromQuery(
-	grm *gorm.DB,
-	tableName string,
-	query string,
-	variables []interface{},
-	l *zap.Logger,
-) error {
-	tmpTableName := fmt.Sprintf("%s_tmp", tableName)
-
-	queryWithInsert := fmt.Sprintf("CREATE TABLE %s AS %s", tmpTableName, query)
-
-	_, err := helpers.WrapTxAndCommit(func(tx *gorm.DB) (interface{}, error) {
-		queries := []string{
-			queryWithInsert,
-			fmt.Sprintf(`drop table if exists %s`, tableName),
-			fmt.Sprintf(`alter table %s rename to %s`, tmpTableName, tableName),
-		}
-		for i, query := range queries {
-			var res *gorm.DB
-			if i == 0 && variables != nil && len(variables) > 0 {
-				res = tx.Exec(query, variables...)
-			} else {
-				res = tx.Exec(query)
-			}
-			if res.Error != nil {
-				l.Sugar().Errorw("Failed to execute query", "query", query, "error", res.Error)
-				return nil, res.Error
-			}
-		}
-		return nil, nil
-	}, grm, nil)
-
-	return err
 }
 
 func DropTableIfExists(grm *gorm.DB, tableName string, l *zap.Logger) error {

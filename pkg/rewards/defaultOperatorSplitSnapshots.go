@@ -1,8 +1,12 @@
 package rewards
 
-import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+import (
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"go.uber.org/zap"
+)
 
 const defaultOperatorSplitSnapshotQuery = `
+insert into default_operator_split_snapshots (split, snapshot)
 WITH default_operator_splits_with_block_info as (
 	select
 		dos.new_default_operator_split_bips as split,
@@ -56,24 +60,29 @@ final_results as (
 			CROSS JOIN
 		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
 )
-select * from final_results
+select
+	split,
+	snapshot
+from final_results
+on conflict on constraint uniq_default_operator_split_snapshots do nothing;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertDefaultOperatorSplitSnapshots(snapshotDate string) error {
-	tableName := "default_operator_split_snapshots"
-
 	query, err := rewardsUtils.RenderQueryTemplate(defaultOperatorSplitSnapshotQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
-		r.logger.Sugar().Errorw("Failed to render query template", "error", err)
+		r.logger.Sugar().Errorw("Failed to render query template", zap.Error(err))
 		return err
 	}
 
-	err = r.generateAndInsertFromQuery(tableName, query, nil)
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate default_operator_split_snapshots", "error", err)
-		return err
+	res := r.grm.Exec(query)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to generate default_operator_split_snapshots",
+			zap.String("snapshotDate", snapshotDate),
+			zap.Error(res.Error),
+		)
+		return res.Error
 	}
 	return nil
 }
