@@ -196,7 +196,7 @@ func (idx *Indexer) IndexContractUpgrade(ctx context.Context, blockNumber uint64
 		return nil
 	}
 
-	_, err := idx.ContractManager.CreateProxyContract(upgradedLog.Address, newProxiedAddress, blockNumber)
+	_, err := idx.ContractManager.CreateProxyContract(context.Background(), upgradedLog.Address, newProxiedAddress, blockNumber)
 	if err != nil {
 		idx.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err))
 		return err
