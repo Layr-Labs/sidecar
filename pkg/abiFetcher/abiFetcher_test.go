@@ -44,7 +44,7 @@ func Test_AbiFetcher(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	baseUrl := "https://tame-fabled-liquid.quiknode.pro/f27d4be93b4d7de3679f5c5ae881233f857407a0/"
+	baseUrl := "http://72.46.85.253:8545"
 	ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
 	ethConfig.BaseUrl = baseUrl
 
