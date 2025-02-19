@@ -52,6 +52,6 @@ func Test_AbiFetcher(t *testing.T) {
 
 	t.Run("Test fetching ABI from IPFS", func(t *testing.T) {
 		af := NewAbiFetcher(client, l)
-		_ = af.FetchAbiFromIPFS(context.Background(), "0xdabdb3cd346b7d5f5779b0b614ede1cc9dcba5b7")
+		_, _, _ = af.FetchMetadataFromAddress(context.Background(), "0x29a954e9e7f12936db89b183ecdf879fbbb99f14")
 	})
 }
