@@ -64,41 +64,37 @@ func (cm *ContractManager) HandleContractUpgrade(ctx context.Context, blockNumbe
 		}
 	}
 
-	if newProxiedAddress != "" {
-		err := cm.CreateUpgradedProxyContract(ctx, blockNumber, upgradedLog.Address, newProxiedAddress)
-		if err != nil {
-			cm.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err))
+	if newProxiedAddress == "" {
+		// check the storage slot at the provided block number of the transaction
+		storageValue, err := cm.EthereumClient.GetStorageAt(ctx, upgradedLog.Address, ethereum.EIP1967_STORAGE_SLOT, hexutil.EncodeUint64(blockNumber))
+		if err != nil || storageValue == "" {
+			cm.Logger.Sugar().Errorw("Failed to get storage value",
+				zap.Error(err),
+				zap.Uint64("block", blockNumber),
+				zap.String("upgradedLogAddress", upgradedLog.Address),
+			)
 			return err
 		}
-		cm.Logger.Sugar().Infow("Upgraded proxy contract", zap.String("contractAddress", upgradedLog.Address), zap.String("proxyContractAddress", newProxiedAddress))
-		return nil
+		if len(storageValue) != 66 {
+			cm.Logger.Sugar().Errorw("Invalid storage value",
+				zap.Uint64("block", blockNumber),
+				zap.String("storageValue", storageValue),
+			)
+			return err
+		}
+
+		newProxiedAddress = "0x" + storageValue[26:]
+		if newProxiedAddress == "" {
+			cm.Logger.Sugar().Debugw("No new proxied address found", zap.String("address", upgradedLog.Address))
+			return fmt.Errorf("no new proxied address found for %s during the 'Upgraded' event", upgradedLog.Address)
+		}
 	}
 
-	// check the storage slot at the provided block number of the transaction
-	storageValue, err := cm.EthereumClient.GetStorageAt(ctx, upgradedLog.Address, ethereum.EIP1967_STORAGE_SLOT, hexutil.EncodeUint64(blockNumber))
-	if err != nil || storageValue == "" {
-		cm.Logger.Sugar().Errorw("Failed to get storage value",
-			zap.Error(err),
-			zap.Uint64("block", blockNumber),
-			zap.String("upgradedLogAddress", upgradedLog.Address),
-		)
+	err := cm.CreateUpgradedProxyContract(ctx, blockNumber, upgradedLog.Address, newProxiedAddress)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err))
 		return err
 	}
-	if len(storageValue) != 66 {
-		cm.Logger.Sugar().Errorw("Invalid storage value",
-			zap.Uint64("block", blockNumber),
-			zap.String("storageValue", storageValue),
-		)
-		return err
-	}
-
-	newProxiedAddress = storageValue[26:]
-
-	if newProxiedAddress == "" {
-		cm.Logger.Sugar().Debugw("No new proxied address found", zap.String("address", upgradedLog.Address))
-		return fmt.Errorf("No new proxied address found for %s during the 'Upgraded' event", upgradedLog.Address)
-	}
-
 	cm.Logger.Sugar().Infow("Upgraded proxy contract", zap.String("contractAddress", upgradedLog.Address), zap.String("proxyContractAddress", newProxiedAddress))
 	return nil
 }
@@ -120,7 +116,7 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 	}
 	
 	// Create a proxy contract
-	proxyContract, err := cm.ContractStore.CreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
+	_, err := cm.ContractStore.CreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
 	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to create proxy contract",
 			zap.Error(err),
