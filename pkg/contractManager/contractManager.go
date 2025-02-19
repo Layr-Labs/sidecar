@@ -130,13 +130,21 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 	}	
 	
 	// Fetch ABIs
+	bytecodeHash, abi, err := cm.AbiFetcher.FetchMetadataFromAddress(ctx, proxyContractAddress)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to fetch metadata from proxy contract",
+			zap.Error(err),
+			zap.String("proxyContractAddress", proxyContractAddress),
+		)
+		return err
+	}
 
 	// Create contract
 	_, err = cm.ContractStore.CreateContract(
 		proxyContractAddress,
-		"",
+		abi,
 		true,
-		"",
+		bytecodeHash,
 		"",
 		true,
 	)
