@@ -26,6 +26,7 @@ import (
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+	"github.com/ethereum/go-ethereum/common"
 	"gorm.io/gorm"
 )
 
