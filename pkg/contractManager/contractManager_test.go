@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/agiledragon/gomonkey/v2"
 	"gorm.io/gorm"
 )
 
@@ -153,7 +154,6 @@ func Test_ContractManager(t *testing.T) {
 				return "mockedBytecodeHash", "mockedAbi", nil
 			})
 		defer patches.Reset()
-
 		// Perform the upgrade
 		blockNumber := 5
 		cm := NewContractManager(contractStore, client, af, sdc, l)
