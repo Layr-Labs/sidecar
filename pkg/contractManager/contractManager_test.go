@@ -65,16 +65,16 @@ func Test_ContractManager(t *testing.T) {
 	}
 
 	contract := &contractStore.Contract{
-		ContractAddress:         "0x123",
+		ContractAddress:         "0x1234567890abcdef1234567890abcdef12345678",
 		ContractAbi:             "[]",
 		Verified:                true,
-		BytecodeHash:            "0x123",
+		BytecodeHash:            "bdb91271fe8c69b356d8f42eaa7e00d0e119258706ae4179403aa2ea45caffed",
 		MatchingContractAddress: "",
 	}
 	proxyContract := &contractStore.ProxyContract{
 		BlockNumber:          1,
 		ContractAddress:      contract.ContractAddress,
-		ProxyContractAddress: "0x456",
+		ProxyContractAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
 	}
 
 	sdc, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
@@ -122,7 +122,7 @@ func Test_ContractManager(t *testing.T) {
 				{
 					Name:    "implementation",
 					Type:    "address",
-					Value:   common.HexToAddress("0x789"),
+					Value:   common.HexToAddress("0x7890123456789012345678901234567890123456"),
 					Indexed: true,
 				},
 			},
