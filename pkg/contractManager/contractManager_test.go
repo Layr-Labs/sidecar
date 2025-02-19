@@ -53,7 +53,7 @@ func Test_ContractManager(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	baseUrl := "https://winter-white-crater.ethereum-holesky.quiknode.pro/1b1d75c4ada73b7ad98e1488880649d4ea637733/"
+	baseUrl := "http://72.46.85.253:8545"
 	ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
 	ethConfig.BaseUrl = baseUrl
 
