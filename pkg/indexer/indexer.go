@@ -10,7 +10,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/parser"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
-	"github.com/ethereum/go-ethereum/common"
 	"gorm.io/gorm"
 	"slices"
 	"strings"
@@ -155,55 +154,6 @@ func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fet
 		}
 	}
 	return parsedTransactions, nil
-}
-
-func (idx *Indexer) IndexContractUpgrade(ctx context.Context, blockNumber uint64, upgradedLog *parser.DecodedLog) error {
-	// the new address that the contract points to
-	newProxiedAddress := ""
-
-	// Check the arguments for the new address. EIP-1967 contracts include this as an argument.
-	// Otherwise, we'll check the storage slot
-	for _, arg := range upgradedLog.Arguments {
-		if arg.Name == "implementation" && arg.Value != "" && arg.Value != nil {
-			newProxiedAddress = arg.Value.(common.Address).String()
-		}
-	}
-
-	// check the storage slot at the provided block number of the transaction
-	if newProxiedAddress == "" {
-		storageValue, err := idx.Fetcher.GetContractStorageSlot(context.Background(), upgradedLog.Address, blockNumber)
-		if err != nil || storageValue == "" {
-			idx.Logger.Sugar().Errorw("Failed to get storage value",
-				zap.Error(err),
-				zap.Uint64("block", blockNumber),
-				zap.String("upgradedLogAddress", upgradedLog.Address),
-			)
-			return err
-		}
-		if len(storageValue) != 66 {
-			idx.Logger.Sugar().Errorw("Invalid storage value",
-				zap.Uint64("block", blockNumber),
-				zap.String("storageValue", storageValue),
-			)
-			return err
-		}
-
-		newProxiedAddress = storageValue[26:]
-	}
-
-	if newProxiedAddress == "" {
-		idx.Logger.Sugar().Debugw("No new proxied address found", zap.String("address", upgradedLog.Address))
-		return nil
-	}
-
-	_, err := idx.ContractManager.CreateProxyContract(context.Background(), upgradedLog.Address, newProxiedAddress, blockNumber)
-	if err != nil {
-		idx.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err))
-		return err
-	}
-
-	idx.Logger.Sugar().Infow("Upgraded proxy contract", zap.String("contractAddress", upgradedLog.Address), zap.String("proxyContractAddress", newProxiedAddress))
-	return nil
 }
 
 func (idx *Indexer) IndexFetchedBlock(fetchedBlock *fetcher.FetchedBlock) (*storage.Block, bool, error) {
