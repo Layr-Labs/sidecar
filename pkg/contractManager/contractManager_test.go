@@ -2,6 +2,7 @@ package contractManager
 
 import (
 	"context"
+	"net/http"
 	"database/sql"
 	"log"
 	"testing"
@@ -17,6 +18,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/parser"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
+	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"github.com/ethereum/go-ethereum/common"
@@ -46,18 +48,26 @@ func setup() (
 }
 
 func Test_ContractManager(t *testing.T) {
-	// uses setup from restakedStrategies_test
 	dbName, grm, l, cfg, err := setup()
+    if err != nil {
+        t.Fatal(err)
+    }
 
-	if err != nil {
-		t.Fatal(err)
-	}
+    httpmock.Activate()
+    defer httpmock.DeactivateAndReset()
+
+    httpmock.RegisterResponder("POST", "http://72.46.85.253:8545",
+        httpmock.NewStringResponder(200, `{"result": "0x0000000000000000000000004567890123456789012345678901234567890123"}`))
+
+    mockHttpClient := &http.Client{
+        Transport: httpmock.DefaultTransport,
+    }
 
 	baseUrl := "http://72.46.85.253:8545"
 	ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
 	ethConfig.BaseUrl = baseUrl
 
-	client := ethereum.NewClient(ethConfig, l)
+	client := ethereum.NewClient(ethConfig, l, mockHttpClient)
 
 	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 	if err != nil {
@@ -129,8 +139,9 @@ func Test_ContractManager(t *testing.T) {
 		}
 
 		// Perform the upgrade
+		blockNumber := 5
 		cm := NewContractManager(contractStore, client, sdc, l)
-		err = cm.HandleContractUpgrade(context.Background(), 5, upgradedLog)
+		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 
 		// Verify database state after upgrade
@@ -143,6 +154,33 @@ func Test_ContractManager(t *testing.T) {
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 2, proxyContractCount)
 	})	
+	t.Run("Test getting address from storage slot", func(t *testing.T) {
+		// An upgrade event without implementation argument
+		upgradedLog := &parser.DecodedLog{
+			LogIndex:  0,
+			Address:   contract.ContractAddress,
+			EventName: "Upgraded",
+			Arguments: []parser.Argument{},
+		}
+
+		// Perform the upgrade
+		blockNumber := 10
+		cm := NewContractManager(contractStore, client, sdc, l)
+		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
+		assert.Nil(t, err)
+
+		// Verify database state after upgrade
+		var contractCount int
+		var proxyContractCount int
+		newProxyContractAddress := "0x4567890123456789012345678901234567890123"
+		res := grm.Raw(`select count(*) from contracts where contract_address=@newProxyContractAddress`, sql.Named("newProxyContractAddress", newProxyContractAddress)).Scan(&contractCount)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, 1, contractCount)
+
+		res = grm.Raw(`select count(*) from proxy_contracts where contract_address=@contractAddress`, sql.Named("contractAddress", contract.ContractAddress)).Scan(&proxyContractCount)		
+		assert.Nil(t, res.Error)
+		assert.Equal(t, 3, proxyContractCount)
+	})
 	t.Cleanup(func() {
 		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
