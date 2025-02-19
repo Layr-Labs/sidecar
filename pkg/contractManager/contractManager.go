@@ -65,7 +65,7 @@ func (cm *ContractManager) HandleContractUpgrade(ctx context.Context, blockNumbe
 	}
 
 	if newProxiedAddress != "" {
-		err := cm.CreateUpgradedProxyContract(context.Background(), blockNumber, upgradedLog.Address, newProxiedAddress)
+		err := cm.CreateUpgradedProxyContract(ctx, blockNumber, upgradedLog.Address, newProxiedAddress)
 		if err != nil {
 			cm.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err))
 			return err
@@ -75,7 +75,7 @@ func (cm *ContractManager) HandleContractUpgrade(ctx context.Context, blockNumbe
 	}
 
 	// check the storage slot at the provided block number of the transaction
-	storageValue, err := cm.GetContractStorageSlot(context.Background(), upgradedLog.Address, blockNumber)
+	storageValue, err := cm.EthereumClient.GetStorageAt(ctx, upgradedLog.Address, ethereum.EIP1967_STORAGE_SLOT, hexutil.EncodeUint64(blockNumber))
 	if err != nil || storageValue == "" {
 		cm.Logger.Sugar().Errorw("Failed to get storage value",
 			zap.Error(err),
@@ -147,15 +147,8 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 			zap.String("proxyContractAddress", proxyContractAddress),
 		)
 		return err
-	} else {
-		cm.Logger.Sugar().Debugf("Created new contract for proxy contract", zap.String("proxyContractAddress", proxyContractAddress))
 	}
+	cm.Logger.Sugar().Debugf("Created new contract for proxy contract", zap.String("proxyContractAddress", proxyContractAddress))
 	
 	return nil
-}
-
-func (cm *ContractManager) GetContractStorageSlot(ctx context.Context, contractAddress string, blockNumber uint64) (string, error) {
-	stringBlock := hexutil.EncodeUint64(blockNumber)
-	
-	return cm.EthereumClient.GetStorageAt(ctx, contractAddress, ethereum.EIP1967_STORAGE_SLOT, stringBlock)
 }
