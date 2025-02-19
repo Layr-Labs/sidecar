@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/metrics/prometheus"
 	"github.com/Layr-Labs/sidecar/internal/version"
+	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
@@ -74,6 +75,8 @@ var runCmd = &cobra.Command{
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
+		af := abiFetcher.NewAbiFetcher(client, l)
+		
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
 		pg, err := postgres.NewPostgres(pgConfig)
@@ -96,7 +99,7 @@ var runCmd = &cobra.Command{
 			log.Fatalf("Failed to initialize core contracts: %v", err)
 		}
 
-		cm := contractManager.NewContractManager(contractStore, client, sink, l)
+		cm := contractManager.NewContractManager(contractStore, client, af, sink, l)
 
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {

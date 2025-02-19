@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Layr-Labs/sidecar/internal/metrics"
-	// "github.com/Layr-Labs/sidecar/pkg/abiFetcher"
+	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/parser"
@@ -17,6 +17,7 @@ import (
 type ContractManager struct {
 	ContractStore  contractStore.ContractStore
 	EthereumClient *ethereum.Client
+    AbiFetcher     *abiFetcher.AbiFetcher
 	metricsSink    *metrics.MetricsSink
 	Logger         *zap.Logger
 }
@@ -24,12 +25,14 @@ type ContractManager struct {
 func NewContractManager(
 	cs contractStore.ContractStore,
 	e *ethereum.Client,
+	af *abiFetcher.AbiFetcher,
 	ms *metrics.MetricsSink,
 	l *zap.Logger,
 ) *ContractManager {
 	return &ContractManager{
 		ContractStore:  cs,
 		EthereumClient: e,
+		AbiFetcher:     af,
 		metricsSink:    ms,
 		Logger:         l,
 	}
