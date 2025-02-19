@@ -95,10 +95,10 @@ func (s *PostgresContractStore) FindOrCreateContract(
 ) (*contractStore.Contract, bool, error) {
 	found := false
 	upsertedContract, err := helpers.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
-		contract, err := s.GetContractForAddress(address)
-		if err != nil {
-			s.Logger.Sugar().Errorw("Failed to get contract for address", zap.Error(err), zap.String("address", address))
-			return nil, err
+		contract := &contractStore.Contract{}
+		result := s.Db.First(&contract, "contract_address = ?", strings.ToLower(address))
+		if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, result.Error
 		}
 
 		// found contract
@@ -107,7 +107,7 @@ func (s *PostgresContractStore) FindOrCreateContract(
 			return contract, nil
 		}
 
-		contract, err = s.CreateContract(address, abiJson, verified, bytecodeHash, matchingContractAddress, checkedForAbi)
+		contract, err := s.CreateContract(address, abiJson, verified, bytecodeHash, matchingContractAddress, checkedForAbi)
 		if err != nil {
 			s.Logger.Sugar().Errorw("Failed to create contract", zap.Error(err), zap.String("address", address))
 			return nil, err
@@ -147,11 +147,11 @@ func (s *PostgresContractStore) FindOrCreateProxyContract(
 	proxyContractAddress = strings.ToLower(proxyContractAddress)
 
 	upsertedContract, err := helpers.WrapTxAndCommit[*contractStore.ProxyContract](func(tx *gorm.DB) (*contractStore.ProxyContract, error) {
+		contract := &contractStore.ProxyContract{}
 		// Proxy contracts are unique on block_number && contract
-		contract, err := s.GetProxyContractForAddress(blockNumber, contractAddress)
-		if err != nil {
-			s.Logger.Sugar().Errorw("Failed to get proxy contract for address", zap.Error(err), zap.String("contractAddress", contractAddress))
-			return nil, err
+		result := tx.First(&contract, "contract_address = ? and block_number = ?", contractAddress, blockNumber)
+		if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, result.Error
 		}
 
 		// found contract

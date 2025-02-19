@@ -15,6 +15,27 @@ import (
 	"gorm.io/gorm"
 )
 
+func setup() (
+	string,
+	*gorm.DB,
+	*zap.Logger,
+	*config.Config,
+	error,
+) {
+	cfg := config.NewConfig()
+	cfg.Chain = config.Chain_Mainnet
+	cfg.Debug = os.Getenv(config.Debug) == "true"
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
+	if err != nil {
+		return dbname, nil, nil, nil, err
+	}
+
+	return dbname, grm, l, cfg, nil
+}
 
 func Test_AbiFetcher(t *testing.T) {
 	_, _, l, _, err := setup()
