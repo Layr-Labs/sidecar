@@ -11,6 +11,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -50,8 +51,29 @@ func Test_AbiFetcher(t *testing.T) {
 
 	client := ethereum.NewClient(ethConfig, l)
 
+	t.Run("Test getting IPFS url from bytecode", func(t *testing.T) {
+		af := NewAbiFetcher(client, l)
+
+		address := "0x29a954e9e7f12936db89b183ecdf879fbbb99f14"
+		bytecode, err := af.EthereumClient.GetCode(context.Background(), address)
+		assert.Nil(t, err)
+
+		url, err := af.GetIPFSUrlFromBytecode(bytecode)
+		assert.Nil(t, err)
+
+		expectedUrl := "https://ipfs.io/ipfs/QmeuBk6fmBdgW3B3h11LRkFw8shYLbMb4w7ko82jCxg6jR"
+		assert.Equal(t, expectedUrl, url)
+	})
 	t.Run("Test fetching ABI from IPFS", func(t *testing.T) {
 		af := NewAbiFetcher(client, l)
-		_, _, _ = af.FetchMetadataFromAddress(context.Background(), "0x29a954e9e7f12936db89b183ecdf879fbbb99f14")
+
+		address := "0x29a954e9e7f12936db89b183ecdf879fbbb99f14"
+		bytecode, err := af.EthereumClient.GetCode(context.Background(), address)
+		assert.Nil(t, err)
+
+		abi, err := af.FetchAbiFromIPFS(address, bytecode)
+		assert.Nil(t, err)
+
+		assert.Greater(t, len(abi), 0)
 	})
 }
