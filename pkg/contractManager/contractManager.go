@@ -14,6 +14,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"go.uber.org/zap"
 	"github.com/mr-tron/base58"
+	// "gorm.io/gorm/clause"
 )
 
 type ContractManager struct {
@@ -145,24 +146,69 @@ func (cm *ContractManager) FetchAbiFromIPFS(ctx context.Context, address string)
 	return nil
 }
 
+
+func (cm *ContractManager) HandleContractUpgrade(ctx context.Context, blockNumber uint64, upgradedLog *parser.DecodedLog) error {
+	// the new address that the contract points to
+	newProxiedAddress := ""
+
+	// Check the arguments for the new address. EIP-1967 contracts include this as an argument.
+	// Otherwise, we'll check the storage slot
+	for _, arg := range upgradedLog.Arguments {
+		if arg.Name == "implementation" && arg.Value != "" && arg.Value != nil {
+			newProxiedAddress = arg.Value.(common.Address).String()
+			break
+		}
+	}
+
+	if newProxiedAddress != "" {
+		_, err := cm.CreateProxyContract(context.Background(), blockNumber, upgradedLog.Address, newProxiedAddress)
+		if err != nil {
+			idx.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err))
+			return err
+		}
+		return nil
+	}
+
+	// check the storage slot at the provided block number of the transaction
+	storageValue, err := idx.Fetcher.GetContractStorageSlot(context.Background(), upgradedLog.Address, blockNumber)
+	if err != nil || storageValue == "" {
+		idx.Logger.Sugar().Errorw("Failed to get storage value",
+			zap.Error(err),
+			zap.Uint64("block", blockNumber),
+			zap.String("upgradedLogAddress", upgradedLog.Address),
+		)
+		return err
+	}
+	if len(storageValue) != 66 {
+		idx.Logger.Sugar().Errorw("Invalid storage value",
+			zap.Uint64("block", blockNumber),
+			zap.String("storageValue", storageValue),
+		)
+		return err
+	}
+
+	newProxiedAddress = storageValue[26:]
+
+	if newProxiedAddress == "" {
+		idx.Logger.Sugar().Debugw("No new proxied address found", zap.String("address", upgradedLog.Address))
+		return fmt.Errorf("No new proxied address found for %s during the 'Upgraded' event", upgradedLog.Address)
+	}
+
+	idx.Logger.Sugar().Infow("Upgraded proxy contract", zap.String("contractAddress", upgradedLog.Address), zap.String("proxyContractAddress", newProxiedAddress))
+	return nil
+}
+
+// used in indexer.go
 func (cm *ContractManager) CreateProxyContract(
 	ctx context.Context,
+	blockNumber uint64,
 	contractAddress string,
 	proxyContractAddress string,
-	blockNumber uint64,
 ) (*contractStore.ProxyContract, error) {
 	// Check if proxy contract already exists
-	proxyContract, err := cm.ContractStore.GetProxyContractForAddress(contractAddress, blockNumber)
-	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to find proxy contract in store",
-			zap.Error(err),
-			zap.String("contractAddress", contractAddress),
-			zap.String("proxyContractAddress", proxyContractAddress),
-		)
-		return nil, err
-	}
+	proxyContract, _ := cm.ContractStore.GetProxyContractForAddress(blockNumber, contractAddress)
 	if proxyContract != nil {
-		cm.Logger.Sugar().Debugw("Found existing proxy contract",
+		cm.Logger.Sugar().Debugw("Found existing proxy contract when trying to create one",
 			zap.String("contractAddress", contractAddress),
 			zap.String("proxyContractAddress", proxyContractAddress),
 		)
@@ -170,16 +216,16 @@ func (cm *ContractManager) CreateProxyContract(
 	}
 	
 	// Create a proxy contract
-	proxyContract := &contractStore.ProxyContract{
-		BlockNumber:          int64(blockNumber),
-		ContractAddress:      contractAddress,
-		ProxyContractAddress: proxyContractAddress,
-	}
+	proxyContract, err := cm.ContractStore.CreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to create proxy contract",
+			zap.Error(err),
+			zap.String("contractAddress", contractAddress),
+			zap.String("proxyContractAddress", proxyContractAddress),
+		)
+		return nil, err
+	}	
 
-	result = tx.Model(&contractStore.ProxyContract{}).Clauses(clause.Returning{}).Create(&proxyContract)
-	if result.Error != nil {
-		return nil, result.Error
-	}
 	// bytecode, err := cm.EthereumClient.GetCode(context.Background(), proxyContractAddress)
 	// if err != nil {
 	// 	cm.Logger.Sugar().Errorw("Failed to get proxy contract bytecode",
@@ -196,13 +242,13 @@ func (cm *ContractManager) CreateProxyContract(
 	// )
 
 	// get all info and create contract
-	_, _, err = cm.ContractStore.FindOrCreateContract(
+	_, err = cm.ContractStore.CreateContract(
 		proxyContractAddress,
 		"",
-		false,
-		bytecodeHash,
+		true,
 		"",
-		false,
+		"",
+		true,
 	)
 	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to create new contract for proxy contract",

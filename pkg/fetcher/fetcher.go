@@ -246,12 +246,7 @@ func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, e
 }
 
 func (f *Fetcher) GetContractStorageSlot(ctx context.Context, contractAddress string, blockNumber uint64) (string, error) {
-	stringBlock := ""
-	if blockNumber == 0 {
-		stringBlock = "latest"
-	} else {
-		stringBlock = hexutil.EncodeUint64(blockNumber)
-	}
-
+	stringBlock := hexutil.EncodeUint64(blockNumber)
+	
 	return f.EthClient.GetStorageAt(ctx, contractAddress, ethereum.EIP1967_STORAGE_SLOT, stringBlock)
 }
