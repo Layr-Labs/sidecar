@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"database/sql"
 	"log"
+    "reflect"
 	"testing"
 
 	"os"
@@ -23,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/agiledragon/gomonkey/v2"
 	"gorm.io/gorm"
 )
 
@@ -141,6 +143,13 @@ func Test_ContractManager(t *testing.T) {
 			},
 		}
 
+		// Patch abiFetcher
+		patches := gomonkey.ApplyMethod(reflect.TypeOf(af), "FetchMetadataFromAddress",
+			func(_ *abiFetcher.AbiFetcher, _ context.Context, _ string) (string, string, error) {
+				return "mockedBytecodeHash", "mockedAbi", nil
+			})
+		defer patches.Reset()
+		
 		// Perform the upgrade
 		blockNumber := 5
 		cm := NewContractManager(contractStore, client, af, sdc, l)
@@ -165,6 +174,13 @@ func Test_ContractManager(t *testing.T) {
 			EventName: "Upgraded",
 			Arguments: []parser.Argument{},
 		}
+
+		// Patch abiFetcher
+		patches := gomonkey.ApplyMethod(reflect.TypeOf(af), "FetchMetadataFromAddress",
+			func(_ *abiFetcher.AbiFetcher, _ context.Context, _ string) (string, string, error) {
+				return "mockedBytecodeHash", "mockedAbi", nil
+			})
+		defer patches.Reset()
 
 		// Perform the upgrade
 		blockNumber := 10
