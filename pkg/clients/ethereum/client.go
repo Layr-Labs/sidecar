@@ -96,10 +96,13 @@ func DefaultChunkedCallEthereumClientConfig() *EthereumClientConfig {
 	}
 }
 
-func NewClient(cfg *EthereumClientConfig, l *zap.Logger) *Client {
+func NewClient(cfg *EthereumClientConfig, l *zap.Logger, hc ...*http.Client) *Client {
 	client := &http.Client{
 		Timeout: time.Second * 10,
 	}
+	if len(hc) > 0 && hc[0] != nil {
+        client = hc[0]
+    }
 
 	l.Sugar().Infow("Creating new Ethereum client", zap.Any("config", cfg))
 
