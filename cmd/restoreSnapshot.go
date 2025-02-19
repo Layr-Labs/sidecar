@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/version"
+	"go.uber.org/zap"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -27,21 +29,21 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
 
-		svc, err := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
-			InputFile:  cfg.SnapshotConfig.InputFile,
-			Host:       cfg.DatabaseConfig.Host,
-			Port:       cfg.DatabaseConfig.Port,
-			User:       cfg.DatabaseConfig.User,
-			Password:   cfg.DatabaseConfig.Password,
-			DbName:     cfg.DatabaseConfig.DbName,
-			SchemaName: cfg.DatabaseConfig.SchemaName,
-		}, l)
-		if err != nil {
-			return err
-		}
+		ss := snapshot.NewSnapshotService(l)
 
-		if err := svc.RestoreSnapshot(); err != nil {
-			return fmt.Errorf("failed to restore snapshot: %w", err)
+		err = ss.RestoreFromSnapshot(&snapshot.RestoreSnapshotConfig{
+			SnapshotConfig: snapshot.SnapshotConfig{
+				Chain:          cfg.Chain,
+				SidecarVersion: version.GetVersion(),
+				DBConfig:       snapshot.CreateSnapshotDbConfigFromConfig(cfg.DatabaseConfig),
+				Verbose:        cfg.Debug,
+			},
+			Input:                   cfg.SnapshotConfig.InputFile,
+			VerifySnapshotHash:      true,
+			VerifySnapshotSignature: false,
+		})
+		if err != nil {
+			l.Sugar().Fatalw("Failed to restore snapshot", zap.Error(err))
 		}
 
 		return nil

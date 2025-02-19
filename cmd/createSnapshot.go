@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/version"
+	"go.uber.org/zap"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -24,21 +26,20 @@ var createSnapshotCmd = &cobra.Command{
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
 
-		svc, err := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
-			OutputFile: cfg.SnapshotConfig.OutputFile,
-			Host:       cfg.DatabaseConfig.Host,
-			Port:       cfg.DatabaseConfig.Port,
-			User:       cfg.DatabaseConfig.User,
-			Password:   cfg.DatabaseConfig.Password,
-			DbName:     cfg.DatabaseConfig.DbName,
-			SchemaName: cfg.DatabaseConfig.SchemaName,
-		}, l)
-		if err != nil {
-			return err
-		}
+		ss := snapshot.NewSnapshotService(l)
 
-		if err := svc.CreateSnapshot(); err != nil {
-			return fmt.Errorf("failed to create snapshot: %w", err)
+		_, err = ss.CreateSnapshot(&snapshot.CreateSnapshotConfig{
+			SnapshotConfig: snapshot.SnapshotConfig{
+				Chain:          cfg.Chain,
+				SidecarVersion: version.GetVersion(),
+				DBConfig:       snapshot.CreateSnapshotDbConfigFromConfig(cfg.DatabaseConfig),
+				Verbose:        cfg.Debug,
+			},
+			DestinationPath: cfg.SnapshotConfig.OutputFile,
+		})
+
+		if err != nil {
+			l.Sugar().Fatalw("Failed to create snapshot", zap.Error(err))
 		}
 
 		return nil

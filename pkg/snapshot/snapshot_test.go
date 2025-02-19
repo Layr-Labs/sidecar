@@ -1,238 +1,276 @@
 package snapshot
 
 import (
-	"os"
-	"path/filepath"
-	"testing"
-
+	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
-	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
 )
 
-func TestNewSnapshotService(t *testing.T) {
-	cfg := &SnapshotConfig{}
-	l, _ := zap.NewDevelopment()
-	svc, err := NewSnapshotService(cfg, l)
-	assert.NoError(t, err, "NewSnapshotService should not return an error")
-	assert.NotNil(t, svc, "SnapshotService should not be nil")
-	assert.Equal(t, cfg, svc.cfg, "SnapshotConfig should match")
-	assert.Equal(t, l, svc.l, "Logger should match")
-}
-
-func TestValidateCreateSnapshotConfig(t *testing.T) {
-	cfg := &SnapshotConfig{
-		Host:       "localhost",
-		Port:       5432,
-		DbName:     "testdb",
-		User:       "testuser",
-		Password:   "testpassword",
-		SchemaName: "public",
-		OutputFile: "/tmp/test_snapshot.sql",
-	}
-	l, _ := zap.NewDevelopment()
-	svc, err := NewSnapshotService(cfg, l)
-	assert.NoError(t, err, "NewSnapshotService should not return an error")
-	err = svc.validateCreateSnapshotConfig()
-	assert.NoError(t, err, "Snapshot config should be valid")
-}
-
-func TestValidateCreateSnapshotConfigMissingOutputFile(t *testing.T) {
-	cfg := &SnapshotConfig{
-		Host:       "localhost",
-		Port:       5432,
-		DbName:     "testdb",
-		User:       "testuser",
-		Password:   "testpassword",
-		SchemaName: "public",
-		OutputFile: "",
-	}
-	l, _ := zap.NewDevelopment()
-	svc, err := NewSnapshotService(cfg, l)
-	assert.NoError(t, err, "NewSnapshotService should not return an error")
-	err = svc.validateCreateSnapshotConfig()
-	assert.Error(t, err, "Snapshot config should be invalid if output file is missing")
-}
-
-func TestSetupSnapshotDump(t *testing.T) {
-	cfg := &SnapshotConfig{
-		Host:       "localhost",
-		Port:       5432,
-		DbName:     "testdb",
-		User:       "testuser",
-		Password:   "testpassword",
-		SchemaName: "public",
-		OutputFile: "/tmp/test_snapshot.sql",
-	}
-	l, _ := zap.NewDevelopment()
-	svc, err := NewSnapshotService(cfg, l)
-	assert.NoError(t, err, "NewSnapshotService should not return an error")
-	dump, err := svc.setupSnapshotDump()
-	assert.NoError(t, err, "Dump setup should not fail")
-	assert.NotNil(t, dump, "Dump should not be nil")
-}
-
-func TestValidateRestoreConfig(t *testing.T) {
-	tempDir := t.TempDir()
-	snapshotFile := filepath.Join(tempDir, "TestValidateRestoreConfig.sql")
-	_, err := os.Create(snapshotFile)
-	assert.NoError(t, err, "Creating snapshot file should not fail")
-
-	cfg := &SnapshotConfig{
-		Host:       "localhost",
-		Port:       5432,
-		DbName:     "testdb",
-		User:       "testuser",
-		Password:   "testpassword",
-		SchemaName: "public",
-		InputFile:  snapshotFile,
-	}
-	l, _ := zap.NewDevelopment()
-	svc, err := NewSnapshotService(cfg, l)
-	assert.NoError(t, err, "NewSnapshotService should not return an error")
-	err = svc.validateRestoreConfig()
-	assert.NoError(t, err, "Restore config should be valid")
-	os.Remove(snapshotFile)
-}
-
-func TestValidateRestoreConfigMissingInputFile(t *testing.T) {
-	cfg := &SnapshotConfig{
-		Host:       "localhost",
-		Port:       5432,
-		DbName:     "testdb",
-		User:       "testuser",
-		Password:   "testpassword",
-		SchemaName: "public",
-		InputFile:  "",
-	}
-	l, _ := zap.NewDevelopment()
-	svc, err := NewSnapshotService(cfg, l)
-	assert.NoError(t, err, "NewSnapshotService should not return an error")
-	err = svc.validateRestoreConfig()
-	assert.Error(t, err, "Restore config should be invalid if input file is missing")
-}
-
-func TestSetupRestore(t *testing.T) {
-	cfg := &SnapshotConfig{
-		Host:       "localhost",
-		Port:       5432,
-		DbName:     "testdb",
-		User:       "testuser",
-		Password:   "testpassword",
-		SchemaName: "public",
-		InputFile:  "/tmp/test_snapshot.sql",
-	}
-	l, _ := zap.NewDevelopment()
-	svc, err := NewSnapshotService(cfg, l)
-	assert.NoError(t, err, "NewSnapshotService should not return an error")
-	restore, err := svc.setupRestore()
-	assert.NoError(t, err, "Restore setup should not fail")
-	assert.NotNil(t, restore, "Restore should not be nil")
-}
-
-func setup() (*config.Config, *zap.Logger, error) {
+func setupCreateSnapshot() (
+	string,
+	*gorm.DB,
+	*zap.Logger,
+	*config.Config,
+	error,
+) {
 	cfg := config.NewConfig()
-	cfg.Chain = config.Chain_Mainnet
+	cfg.Chain = config.Chain_Holesky
 	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	l, err := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
-	if err != nil {
-		return nil, nil, err
-	}
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	return cfg, l, nil
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
+	if err != nil {
+		return dbname, nil, nil, nil, err
+	}
+	cfg.DatabaseConfig.DbName = dbname
+
+	return dbname, grm, l, cfg, nil
 }
 
-func TestCreateAndRestoreSnapshot(t *testing.T) {
-	tempDir := t.TempDir()
-	dumpFile := filepath.Join(tempDir, "TestCreateAndRestoreSnapshot.dump")
+func setupRestoreSnapshot() (
+	string,
+	*gorm.DB,
+	*zap.Logger,
+	*config.Config,
+	error,
+) {
+	cfg := config.NewConfig()
+	cfg.Chain = config.Chain_Holesky
+	cfg.Debug = os.Getenv(config.Debug) == "true"
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	cfg, l, setupErr := setup()
-	if setupErr != nil {
-		t.Fatal(setupErr)
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+
+	dbname, _, grm, err := postgres.GetTestPostgresDatabaseWithoutMigrations(cfg.DatabaseConfig, l)
+	if err != nil {
+		return dbname, nil, nil, nil, err
 	}
+	cfg.DatabaseConfig.DbName = dbname
 
-	t.Run("Create snapshot from a database with migrations", func(t *testing.T) {
-		dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
-		if dbErr != nil {
-			t.Fatal(dbErr)
-		}
+	return dbname, grm, l, cfg, nil
+}
 
-		snapshotCfg := &SnapshotConfig{
-			OutputFile: dumpFile,
-			Host:       cfg.DatabaseConfig.Host,
-			Port:       cfg.DatabaseConfig.Port,
-			User:       cfg.DatabaseConfig.User,
-			Password:   cfg.DatabaseConfig.Password,
-			DbName:     dbName,
-			SchemaName: cfg.DatabaseConfig.SchemaName,
-		}
+func lsDir(path string) ([]os.DirEntry, error) {
+	files, err := os.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+	return files, nil
+}
 
-		svc, err := NewSnapshotService(snapshotCfg, l)
-		assert.NoError(t, err, "NewSnapshotService should not return an error")
-		err = svc.CreateSnapshot()
-		assert.NoError(t, err, "Creating snapshot should not fail")
+func Test_SnapshotService(t *testing.T) {
 
-		fileInfo, err := os.Stat(dumpFile)
-		assert.NoError(t, err, "Snapshot file should be created")
-		assert.Greater(t, fileInfo.Size(), int64(4096), "Snapshot file size should be greater than 4KB")
+	t.Run("Should create new snapshot service", func(t *testing.T) {
+		l, err := logger.NewLogger(&logger.LoggerConfig{Debug: false})
+		assert.Nil(t, err)
 
-		t.Cleanup(func() {
-			postgres.TeardownTestDatabase(dbName, cfg, dbGrm, l)
+		ss := NewSnapshotService(l)
+		assert.NotNil(t, ss)
+	})
+
+	t.Run("SnapshotConfig validation", func(t *testing.T) {
+		t.Run("Validate a SnapshotConfig with all params", func(t *testing.T) {
+			cfg := &SnapshotConfig{
+				Chain:          config.Chain_Mainnet,
+				SidecarVersion: "v1.0.0",
+				DBConfig: SnapshotDatabaseConfig{
+					Host:     "localhost",
+					Port:     5432,
+					DbName:   "test_db",
+					User:     "test_user",
+					Password: "test_password",
+				},
+			}
+
+			valid, err := cfg.IsValid()
+			assert.True(t, valid)
+			assert.Nil(t, err)
+		})
+		t.Run("Validate a SnapshotConfig with valid empty db params", func(t *testing.T) {
+			cfg := &SnapshotConfig{
+				Chain:          config.Chain_Mainnet,
+				SidecarVersion: "v1.0.0",
+				DBConfig: SnapshotDatabaseConfig{
+					DbName: "test_db",
+					User:   "test_user",
+				},
+			}
+
+			valid, err := cfg.IsValid()
+			assert.True(t, valid)
+			assert.Nil(t, err)
+		})
+		t.Run("Validate a SnapshotConfig with empty DbName as invalid", func(t *testing.T) {
+			cfg := &SnapshotConfig{
+				Chain:          config.Chain_Mainnet,
+				SidecarVersion: "v1.0.0",
+				DBConfig: SnapshotDatabaseConfig{
+					User: "test_user",
+				},
+			}
+
+			valid, err := cfg.IsValid()
+			assert.False(t, valid)
+			assert.NotNil(t, err)
 		})
 	})
 
-	t.Run("Restore snapshot to a new database", func(t *testing.T) {
-		dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabaseWithoutMigrations(cfg.DatabaseConfig, l)
-		if dbErr != nil {
-			t.Fatal(dbErr)
-		}
+	t.Run("CreateSnapshot", func(t *testing.T) {
+		t.Run("Validate a SnapshotConfig with empty destination path as invalid", func(t *testing.T) {
+			cfg := &CreateSnapshotConfig{
+				SnapshotConfig: SnapshotConfig{
+					Chain:          config.Chain_Mainnet,
+					SidecarVersion: "v1.0.0",
+					DBConfig: SnapshotDatabaseConfig{
+						DbName: "test_db",
+						User:   "test_user",
+					},
+				},
+				DestinationPath: "",
+			}
 
-		snapshotCfg := &SnapshotConfig{
-			OutputFile: "",
-			InputFile:  dumpFile,
-			Host:       cfg.DatabaseConfig.Host,
-			Port:       cfg.DatabaseConfig.Port,
-			User:       cfg.DatabaseConfig.User,
-			Password:   cfg.DatabaseConfig.Password,
-			DbName:     dbName,
-			SchemaName: cfg.DatabaseConfig.SchemaName,
-		}
-		svc, err := NewSnapshotService(snapshotCfg, l)
-		assert.NoError(t, err, "NewSnapshotService should not return an error")
-		err = svc.RestoreSnapshot()
-		assert.NoError(t, err, "Restoring snapshot should not fail")
+			valid, err := cfg.IsValid()
+			assert.False(t, valid)
+			assert.NotNil(t, err)
+		})
+		t.Run("Should create a snapshot with hash file", func(t *testing.T) {
+			dbName, grm, l, cfg, err := setupCreateSnapshot()
 
-		// Validate the restore process
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		// 1) Count how many migration records already exist in db
-		var countBefore int64
-		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countBefore)
+			u, err := uuid.NewRandom()
+			if err != nil {
+				t.Fatal(err)
+			}
+			destPath, err := filepath.Abs(fmt.Sprintf("%s/snapshot_test_%s", os.TempDir(), u.String()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			fmt.Printf("destPath: %s\n", destPath)
+			_ = os.MkdirAll(destPath, os.ModePerm)
 
-		// 2) Setup your migrator for db (the restored snapshot) and attempt running all migrations
-		migrator := migrations.NewMigrator(nil, dbGrm, l, cfg)
-		err = migrator.MigrateAll()
-		assert.NoError(t, err, "Expected MigrateAll to succeed on db")
+			ss := NewSnapshotService(l)
+			snapshotFile, err := ss.CreateSnapshot(&CreateSnapshotConfig{
+				SnapshotConfig: SnapshotConfig{
+					Chain:          cfg.Chain,
+					SidecarVersion: "v1.0.0",
+					DBConfig:       CreateSnapshotDbConfigFromConfig(cfg.DatabaseConfig),
+				},
+				DestinationPath: destPath,
+			})
+			assert.Nil(t, err)
+			assert.NotNil(t, snapshotFile)
 
-		// 3) Count again after running migrations
-		var countAfter int64
-		dbGrm.Raw("SELECT COUNT(*) FROM migrations").Scan(&countAfter)
+			files, err := lsDir(snapshotFile.Dir)
+			assert.Nil(t, err)
+			assert.Equal(t, 2, len(files))
+			fmt.Printf("files: %+v\n", files)
 
-		// 4) If countBefore == countAfter, no new migration records were created
-		//    => meaning db was already fully up-to-date
-		assert.Equal(t, countBefore, countAfter, "No migrations should have been newly applied if db matches the original")
+			// shell out to sha256sum to validate the snapshot file
+			cmd := exec.Command("/bin/bash", "-c", fmt.Sprintf("cd %s && sha256sum -c %s", snapshotFile.Dir, snapshotFile.HashFileName()))
+			output, err := cmd.CombinedOutput()
+			assert.Nil(t, err)
+			assert.Contains(t, string(output), "OK")
 
-		t.Cleanup(func() {
-			postgres.TeardownTestDatabase(dbName, cfg, dbGrm, l)
+			t.Cleanup(func() {
+				postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+				_ = os.RemoveAll(snapshotFile.Dir)
+			})
 		})
 	})
 
-	t.Cleanup(func() {
-		os.Remove(dumpFile)
+	t.Run("RestoreSnapshot", func(t *testing.T) {
+		t.Run("Should restore a snapshot", func(t *testing.T) {
+			var snapshotFile *SnapshotFile
+			var originalMigrations []string
+			t.Run("Should create a snapshot to restore from", func(t *testing.T) {
+				dbName, grm, l, cfg, err := setupCreateSnapshot()
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				u, err := uuid.NewRandom()
+				if err != nil {
+					t.Fatal(err)
+				}
+				destPath, err := filepath.Abs(fmt.Sprintf("%s/snapshot_test_%s", os.TempDir(), u.String()))
+				if err != nil {
+					t.Fatal(err)
+				}
+				fmt.Printf("destPath: %s\n", destPath)
+				_ = os.MkdirAll(destPath, os.ModePerm)
+
+				ss := NewSnapshotService(l)
+				snapshotFile, err = ss.CreateSnapshot(&CreateSnapshotConfig{
+					SnapshotConfig: SnapshotConfig{
+						Chain:          cfg.Chain,
+						SidecarVersion: "v1.0.0",
+						DBConfig:       CreateSnapshotDbConfigFromConfig(cfg.DatabaseConfig),
+					},
+					DestinationPath: destPath,
+				})
+				assert.Nil(t, err)
+				assert.NotNil(t, snapshotFile)
+
+				query := `select name from migrations order by name desc`
+				res := grm.Raw(query).Scan(&originalMigrations)
+				if res.Error != nil {
+					t.Fatal(res.Error)
+				}
+
+				t.Cleanup(func() {
+					postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+				})
+			})
+
+			t.Run("Should restore from a snapshot", func(t *testing.T) {
+				dbName, grm, l, cfg, err := setupRestoreSnapshot()
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				ss := NewSnapshotService(l)
+				err = ss.RestoreFromSnapshot(&RestoreSnapshotConfig{
+					SnapshotConfig: SnapshotConfig{
+						Chain:          cfg.Chain,
+						SidecarVersion: "v1.0.0",
+						DBConfig:       CreateSnapshotDbConfigFromConfig(cfg.DatabaseConfig),
+					},
+					Input: snapshotFile.FullPath(),
+				})
+
+				var migrations []string
+				query := `select name from migrations order by name desc`
+				res := grm.Raw(query).Scan(&migrations)
+				if res.Error != nil {
+					t.Fatal(res.Error)
+				}
+				for i, m := range migrations {
+					assert.Equal(t, originalMigrations[i], m)
+				}
+
+				t.Cleanup(func() {
+					postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+				})
+			})
+
+			t.Cleanup(func() {
+				_ = os.RemoveAll(snapshotFile.Dir)
+			})
+		})
 	})
 }

@@ -53,7 +53,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	string,
 ) {
 	const (
-		rpcUrl = "https://tame-fabled-liquid.quiknode.pro/f27d4be93b4d7de3679f5c5ae881233f857407a0/"
+		rpcUrl = "http://72.46.85.253:8545"
 	)
 
 	cfg := config.NewConfig()
