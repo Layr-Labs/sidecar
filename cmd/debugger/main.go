@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+
+	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
@@ -54,6 +56,8 @@ func main() {
 
 	client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
+	af := abiFetcher.NewAbiFetcher(client, l)
+	
 	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
 	pg, err := postgres.NewPostgres(pgConfig)
@@ -76,7 +80,7 @@ func main() {
 		log.Fatalf("Failed to initialize core contracts: %v", err)
 	}
 
-	cm := contractManager.NewContractManager(contractStore, client, sdc, l)
+	cm := contractManager.NewContractManager(contractStore, client, af, sdc, l)
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 	if err != nil {

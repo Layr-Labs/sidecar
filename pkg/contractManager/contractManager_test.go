@@ -13,6 +13,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
@@ -68,6 +69,8 @@ func Test_ContractManager(t *testing.T) {
 	ethConfig.BaseUrl = baseUrl
 
 	client := ethereum.NewClient(ethConfig, l, mockHttpClient)
+
+	af := abiFetcher.NewAbiFetcher(client, l)
 
 	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 	if err != nil {
@@ -140,7 +143,7 @@ func Test_ContractManager(t *testing.T) {
 
 		// Perform the upgrade
 		blockNumber := 5
-		cm := NewContractManager(contractStore, client, sdc, l)
+		cm := NewContractManager(contractStore, client, af, sdc, l)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 
@@ -165,7 +168,7 @@ func Test_ContractManager(t *testing.T) {
 
 		// Perform the upgrade
 		blockNumber := 10
-		cm := NewContractManager(contractStore, client, sdc, l)
+		cm := NewContractManager(contractStore, client, af, sdc, l)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 

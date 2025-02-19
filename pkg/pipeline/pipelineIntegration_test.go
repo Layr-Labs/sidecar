@@ -9,6 +9,7 @@ import (
 
 	"os"
 
+    "github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
@@ -76,6 +77,8 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	ethConfig.BaseUrl = rpcUrl
 	client := ethereum.NewClient(ethConfig, l)
 
+	af := abiFetcher.NewAbiFetcher(client, l)
+
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
 		log.Fatal(err)
@@ -86,7 +89,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 		log.Fatalf("Failed to initialize core contracts: %v", err)
 	}
 
-	cm := contractManager.NewContractManager(contractStore, client, sdc, l)
+	cm := contractManager.NewContractManager(contractStore, client, af, sdc, l)
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 
