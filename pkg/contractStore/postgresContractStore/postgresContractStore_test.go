@@ -203,7 +203,7 @@ func Test_PostgresContractStore(t *testing.T) {
 			ProxyContractAddress: "0x456",
 		}
 
-		proxy, err := cs.GetProxyContractForAddress(proxyContract.ContractAddress, uint64(proxyContract.BlockNumber))
+		proxy, err := cs.GetProxyContractForAddress(uint64(proxyContract.BlockNumber), proxyContract.ContractAddress)
 		assert.Nil(t, err)
 		assert.Equal(t, proxyContract.BlockNumber, proxy.BlockNumber)
 		assert.Equal(t, proxyContract.ContractAddress, proxy.ContractAddress)
