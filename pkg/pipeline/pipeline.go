@@ -220,6 +220,12 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 		}
 	}
 
+	if err = p.stateManager.RunPrecommitProcessors(blockNumber); err != nil {
+		p.Logger.Sugar().Errorw("Failed to run precommit processors", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		hasError = true
+		return err
+	}
+
 	blockFetchTime = time.Now()
 	committedState, err := p.stateManager.CommitFinalState(blockNumber)
 	if err != nil {
