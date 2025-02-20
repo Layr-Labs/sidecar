@@ -764,7 +764,7 @@ func (ss *StakerSharesModel) GetDelegatedStakerSharesInPrecommitState(slashDiff 
 		from staker_share_deltas as ssd
 			on ssd.staker in @stakerAddresses
 			and ssd.strategy = @strategy
-			and ssd.block_number <= @blockNumber
+			and ssd.block_number < @blockNumber
 		group by
 			ds.staker
 		
@@ -798,7 +798,7 @@ func (ss *StakerSharesModel) GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff 
 				ROW_NUMBER() OVER (PARTITION BY staker ORDER BY block_number desc, log_index desc) as rn
 			from staker_delegation_changes
 			where
-				block_number < @blockNumber
+				block_number <= @blockNumber
 		),
 		delegated_stakers as (
 			select
@@ -818,7 +818,7 @@ func (ss *StakerSharesModel) GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff 
 			staker_share_deltas as ssd
 			on ssd.staker = ds.staker
 			and ssd.strategy = @strategy
-			and ssd.block_number < @blockNumber
+			and ssd.block_number <= @blockNumber
 		group by
 			ds.staker
 	`
