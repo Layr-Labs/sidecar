@@ -63,8 +63,10 @@ type DatabaseConfig struct {
 }
 
 type SnapshotConfig struct {
-	OutputFile string
-	InputFile  string
+	OutputFile  string
+	Input       string
+	VerifyInput bool
+	ManifestURL string
 }
 
 type RpcConfig struct {
@@ -98,6 +100,10 @@ type SidecarPrimaryConfig struct {
 	IsPrimary bool
 }
 
+type RunConfig struct {
+	FromScratch bool
+}
+
 type Config struct {
 	Debug                bool
 	EthereumRpcConfig    EthereumRpcConfig
@@ -109,6 +115,7 @@ type Config struct {
 	DataDogConfig        DataDogConfig
 	PrometheusConfig     PrometheusConfig
 	SidecarPrimaryConfig SidecarPrimaryConfig
+	RunConfig            RunConfig
 }
 
 func StringWithDefault(value, defaultValue string) string {
@@ -127,8 +134,10 @@ var (
 	DatabaseDbName     = "database.db_name"
 	DatabaseSchemaName = "database.schema_name"
 
-	SnapshotOutputFile = "output_file"
-	SnapshotInputFile  = "input_file"
+	SnapshotOutputFile  = "snapshot.output-file"
+	SnapshotInput       = "snapshot.input"
+	SnapshotVerifyInput = "snapshot.verify-input"
+	SnapshotManifestURL = "snapshot.manifest-url"
 
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
@@ -147,6 +156,8 @@ var (
 	PrometheusPort    = "prometheus.port"
 
 	SidecarPrimaryUrl = "sidecar-primary.url"
+
+	FromScratch = "run.from-scratch"
 )
 
 func NewConfig() *Config {
@@ -172,8 +183,10 @@ func NewConfig() *Config {
 		},
 
 		SnapshotConfig: SnapshotConfig{
-			OutputFile: viper.GetString(normalizeFlagName(SnapshotOutputFile)),
-			InputFile:  viper.GetString(normalizeFlagName(SnapshotInputFile)),
+			OutputFile:  viper.GetString(normalizeFlagName(SnapshotOutputFile)),
+			Input:       viper.GetString(normalizeFlagName(SnapshotInput)),
+			VerifyInput: viper.GetBool(normalizeFlagName(SnapshotVerifyInput)),
+			ManifestURL: viper.GetString(normalizeFlagName(SnapshotManifestURL)),
 		},
 
 		RpcConfig: RpcConfig{
@@ -201,6 +214,10 @@ func NewConfig() *Config {
 
 		SidecarPrimaryConfig: SidecarPrimaryConfig{
 			Url: viper.GetString(normalizeFlagName(SidecarPrimaryUrl)),
+		},
+
+		RunConfig: RunConfig{
+			FromScratch: viper.GetBool(normalizeFlagName(FromScratch)),
 		},
 	}
 }
