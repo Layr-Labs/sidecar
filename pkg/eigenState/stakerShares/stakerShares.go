@@ -51,6 +51,7 @@ type StakerShareDeltas struct {
 	Shares               string
 	StrategyIndex        uint64
 	TransactionHash      string
+	TransactionIndex     uint64 `gorm:"-"`
 	LogIndex             uint64
 	BlockTime            time.Time
 	BlockDate            string
@@ -161,13 +162,14 @@ func (ss *StakerSharesModel) handleStakerDepositEvent(log *storage.TransactionLo
 	}
 
 	return &StakerShareDeltas{
-		Staker:          stakerAddress,
-		Strategy:        outputData.Strategy,
-		Shares:          shares.String(),
-		StrategyIndex:   uint64(0),
-		LogIndex:        log.LogIndex,
-		TransactionHash: log.TransactionHash,
-		BlockNumber:     log.BlockNumber,
+		Staker:           stakerAddress,
+		Strategy:         outputData.Strategy,
+		Shares:           shares.String(),
+		StrategyIndex:    uint64(0),
+		LogIndex:         log.LogIndex,
+		TransactionHash:  log.TransactionHash,
+		TransactionIndex: log.TransactionIndex,
+		BlockNumber:      log.BlockNumber,
 	}, nil
 }
 
@@ -207,13 +209,14 @@ func (ss *StakerSharesModel) handlePodSharesUpdatedEvent(log *storage.Transactio
 	}
 
 	return &StakerShareDeltas{
-		Staker:          staker,
-		Strategy:        "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0",
-		Shares:          sharesDelta.String(),
-		StrategyIndex:   uint64(0),
-		LogIndex:        log.LogIndex,
-		TransactionHash: log.TransactionHash,
-		BlockNumber:     log.BlockNumber,
+		Staker:           staker,
+		Strategy:         "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0",
+		Shares:           sharesDelta.String(),
+		StrategyIndex:    uint64(0),
+		LogIndex:         log.LogIndex,
+		TransactionHash:  log.TransactionHash,
+		TransactionIndex: log.TransactionIndex,
+		BlockNumber:      log.BlockNumber,
 	}, nil
 }
 
@@ -241,13 +244,14 @@ func (ss *StakerSharesModel) handleM1StakerWithdrawals(log *storage.TransactionL
 	}
 
 	return &StakerShareDeltas{
-		Staker:          stakerAddress,
-		Strategy:        outputData.Strategy,
-		Shares:          shares.Mul(shares, big.NewInt(-1)).String(),
-		StrategyIndex:   uint64(0),
-		LogIndex:        log.LogIndex,
-		TransactionHash: log.TransactionHash,
-		BlockNumber:     log.BlockNumber,
+		Staker:           stakerAddress,
+		Strategy:         outputData.Strategy,
+		Shares:           shares.Mul(shares, big.NewInt(-1)).String(),
+		StrategyIndex:    uint64(0),
+		LogIndex:         log.LogIndex,
+		TransactionHash:  log.TransactionHash,
+		TransactionIndex: log.TransactionIndex,
+		BlockNumber:      log.BlockNumber,
 	}, nil
 }
 
@@ -379,6 +383,7 @@ func (ss *StakerSharesModel) handleM2QueuedWithdrawal(log *storage.TransactionLo
 			TransactionHash:      log.TransactionHash,
 			BlockNumber:          log.BlockNumber,
 			WithdrawalRootString: outputData.WithdrawalRootString,
+			TransactionIndex:     log.TransactionIndex,
 		}
 		records = append(records, r)
 	}
@@ -435,6 +440,7 @@ func (ss *StakerSharesModel) handleSlashingWithdrawalQueued(log *storage.Transac
 			TransactionHash:      log.TransactionHash,
 			BlockNumber:          log.BlockNumber,
 			WithdrawalRootString: outputData.WithdrawalRootString,
+			TransactionIndex:     log.TransactionIndex,
 		}
 		records = append(records, r)
 	}
@@ -474,13 +480,14 @@ func (ss *StakerSharesModel) handleOperatorSlashedEvent(log *storage.Transaction
 			return nil, fmt.Errorf("Failed to convert wadSlashed to big.Int: %s", outputData.WadSlashed[i])
 		}
 		stateDiffs = append(stateDiffs, &SlashDiff{
-			SlashedEntity:   outputData.Operator,
-			BeaconChain:     false,
-			Strategy:        strategy,
-			WadSlashed:      wadSlashed,
-			TransactionHash: log.TransactionHash,
-			LogIndex:        log.LogIndex,
-			BlockNumber:     log.BlockNumber,
+			SlashedEntity:    outputData.Operator,
+			BeaconChain:      false,
+			Strategy:         strategy,
+			WadSlashed:       wadSlashed,
+			TransactionHash:  log.TransactionHash,
+			LogIndex:         log.LogIndex,
+			BlockNumber:      log.BlockNumber,
+			TransactionIndex: log.TransactionIndex,
 		})
 	}
 
@@ -523,13 +530,14 @@ func (ss *StakerSharesModel) handleBeaconChainSlashingFactorDecreasedEvent(log *
 	wadSlashed = wadSlashed.Sub(big.NewInt(1e18), wadSlashed)
 
 	return &SlashDiff{
-		SlashedEntity:   outputData.Staker,
-		BeaconChain:     true,
-		Strategy:        "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0",
-		WadSlashed:      wadSlashed,
-		TransactionHash: log.TransactionHash,
-		LogIndex:        log.LogIndex,
-		BlockNumber:     log.BlockNumber,
+		SlashedEntity:    outputData.Staker,
+		BeaconChain:      true,
+		Strategy:         "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0",
+		WadSlashed:       wadSlashed,
+		TransactionHash:  log.TransactionHash,
+		LogIndex:         log.LogIndex,
+		BlockNumber:      log.BlockNumber,
+		TransactionIndex: log.TransactionIndex,
 	}, nil
 }
 
@@ -975,6 +983,158 @@ func (ss *StakerSharesModel) getFlattenedPrecommitDelegatedStakers(blockNumber u
 	}
 
 	return finalStakers
+}
+
+func getNetDeltaKey(staker, strategy string) string {
+	return fmt.Sprintf("%s-%s", staker, strategy)
+}
+
+func (ss *StakerSharesModel) otherPrepareState(blockNumber uint64) ([]*StakerShareDeltas, error) {
+	shareDeltas, ok := ss.shareDeltaAccumulator[blockNumber]
+	if !ok {
+		msg := "delta accumulator was not initialized"
+		ss.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
+		return nil, errors.New(msg)
+	}
+	slashes, ok := ss.SlashingAccumulator[blockNumber]
+	if !ok {
+		msg := "slashing accumulator was not initialized"
+		ss.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
+		return nil, errors.New(msg)
+	}
+
+	// Ensure that all of our slashes are sorted by transactionIndex asc and logIndex asc
+	slashesByTransaction := make(map[uint64][]*SlashDiff)
+	transactionIndexes := make([]uint64, 0)
+	for _, slash := range slashes {
+		if _, ok := slashesByTransaction[slash.TransactionIndex]; !ok {
+			slashesByTransaction[slash.TransactionIndex] = make([]*SlashDiff, 0)
+			transactionIndexes = append(transactionIndexes, slash.TransactionIndex)
+		}
+		slashesByTransaction[slash.TransactionIndex] = append(slashesByTransaction[slash.TransactionIndex], slash)
+	}
+	slices.Sort(transactionIndexes)
+	orderedSlashes := make([]*SlashDiff, 0)
+	for _, transactionIndex := range transactionIndexes {
+		slices.SortFunc(slashesByTransaction[transactionIndex], func(a, b *SlashDiff) int {
+			return int(a.LogIndex - b.LogIndex)
+		})
+		for _, slash := range slashesByTransaction[transactionIndex] {
+			orderedSlashes = append(orderedSlashes, slash)
+		}
+	}
+
+	// keep track of the running sum of deltas found in this current block, if any
+	netDeltas := make(map[string]*big.Int)
+	slashedDeltas := make([]*StakerShareDeltas, 0)
+	records := make([]*StakerShareDeltas, 0)
+
+	for _, slash := range orderedSlashes {
+		// Iterate over all of the in-memory deltas and find the ones that are before the slashing event
+		//
+		// For the records that DO come before the slashing event, capture their running share sum up to the slashing
+		// event so that we can add it to the existing sum from the database.
+		for _, delta := range shareDeltas {
+			// add the delta to the new list that will contain deposit/withdrawl deltas AND slashes
+			records = append(records, delta)
+
+			if delta.TransactionIndex > slash.TransactionIndex {
+				continue
+			}
+			if delta.TransactionIndex == slash.TransactionIndex && delta.LogIndex > slash.LogIndex {
+				continue
+			}
+			key := getNetDeltaKey(delta.Staker, delta.Strategy)
+			if _, ok := netDeltas[key]; !ok {
+				netDeltas[key] = big.NewInt(0)
+			}
+			shares, success := new(big.Int).SetString(delta.Shares, 10)
+			if !success {
+				return nil, fmt.Errorf("failed to convert shares to big.Int: %s", delta.Shares)
+			}
+			netDeltas[key] = netDeltas[key].Add(netDeltas[key], shares)
+		}
+
+		// Get staker shares up to the current block for all delegated stakers, INCLUDING stakers delegated in this block
+		var stakerShares []*StakerShares
+		var err error
+		if slash.BeaconChain {
+			stakerShares, err = ss.GetStakerSharesFromDB(slash.SlashedEntity, slash.Strategy)
+			if err != nil {
+				ss.logger.Sugar().Errorw("Failed to fetch staker shares from DB", zap.Error(err))
+				return nil, err
+			}
+		} else {
+			stakerShares, err = ss.GetMergedDelegatedStakerSharesAtTimeOfSlashing(slash)
+			if err != nil {
+				ss.logger.Sugar().Errorw("Failed to fetch merged delegated staker shares from DB", zap.Error(err))
+				return nil, err
+			}
+		}
+
+		// Iterate over all of the delegated stakers and slash them, adding a new delta record to capture the
+		// amount that was slashed.
+		for _, stakerShare := range stakerShares {
+			// Take the share amount from the database and add the in-memory delta to it, if it exists
+			key := getNetDeltaKey(stakerShare.Staker, slash.Strategy)
+			newDeltaShares, ok := netDeltas[key]
+			if !ok {
+				// if there isnt a net delta record, set it to 0
+				newDeltaShares = big.NewInt(0)
+				netDeltas[key] = newDeltaShares
+			}
+
+			shares, success := new(big.Int).SetString(stakerShare.Shares, 10)
+			if !success {
+				return nil, fmt.Errorf("failed to convert shares to big.Int: %s", stakerShare.Shares)
+			}
+
+			// add any delta shares
+			shares = shares.Add(shares, newDeltaShares)
+
+			// if the delegated staker has 0 total shares after accounting for delta shares, skip them
+			if shares.Cmp(big.NewInt(0)) == 0 {
+				ss.logger.Sugar().Debugw("Staker shares are 0, skipping",
+					zap.String("staker", stakerShare.Staker),
+					zap.String("strategy", slash.Strategy),
+					zap.String("shares", shares.String()),
+				)
+				continue
+			}
+
+			// slash the shares and create a new slash delta record
+			sharesSlashed := new(big.Int).Div(new(big.Int).Mul(shares, slash.WadSlashed), big.NewInt(-1e18))
+			slashedDeltas = append(slashedDeltas, &StakerShareDeltas{
+				Staker:           stakerShare.Staker,
+				Strategy:         slash.Strategy,
+				Shares:           sharesSlashed.String(),
+				StrategyIndex:    0,
+				LogIndex:         slash.LogIndex,
+				TransactionHash:  slash.TransactionHash,
+				BlockNumber:      slash.BlockNumber,
+				TransactionIndex: slash.TransactionIndex,
+			})
+
+			// update the net deltas with the slashed shares to keep a running in-memory total
+			netDeltas[key] = netDeltas[key].Add(netDeltas[key], sharesSlashed)
+		}
+	}
+	if len(slashes) > 0 {
+		ss.logger.Sugar().Debugw("Slashes found, printing records...")
+		for _, r := range records {
+			ss.logger.Sugar().Debugw("Staker shares",
+				zap.String("staker", r.Staker),
+				zap.String("strategy", r.Strategy),
+				zap.String("shares", r.Shares),
+				zap.Int("strategyIndex", int(r.StrategyIndex)),
+				zap.String("transactionHash", r.TransactionHash),
+				zap.Uint64("logIndex", r.LogIndex),
+				zap.Uint64("blockNumber", r.BlockNumber),
+			)
+		}
+	}
+
+	return nil, nil
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
