@@ -57,6 +57,12 @@ type StakerShareDeltas struct {
 	WithdrawalRootString string `gorm:"-"`
 }
 
+type PrecommitDelegatedStaker struct {
+	Staker    string
+	Operator  string
+	Delegated bool
+}
+
 func NewSlotID(transactionHash string, logIndex uint64, staker string, strategy string, strategyIndex uint64) types.SlotID {
 	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%s_%016x", staker, strategy, strategyIndex))
 }
@@ -68,9 +74,10 @@ type StakerSharesModel struct {
 	globalConfig *config.Config
 
 	// Accumulates deltas for each block
-	committedState        map[uint64][]*StakerShareDeltas
-	shareDeltaAccumulator map[uint64][]*StakerShareDeltas
-	slashingAccumulator   map[uint64][]*SlashDiff
+	committedState            map[uint64][]*StakerShareDeltas
+	shareDeltaAccumulator     map[uint64][]*StakerShareDeltas
+	SlashingAccumulator       map[uint64][]*SlashDiff
+	PrecommitDelegatedStakers map[uint64][]*PrecommitDelegatedStaker
 }
 
 func NewStakerSharesModel(
@@ -80,13 +87,14 @@ func NewStakerSharesModel(
 	globalConfig *config.Config,
 ) (*StakerSharesModel, error) {
 	model := &StakerSharesModel{
-		BaseEigenState:        base.BaseEigenState{},
-		DB:                    grm,
-		logger:                logger,
-		globalConfig:          globalConfig,
-		committedState:        make(map[uint64][]*StakerShareDeltas),
-		shareDeltaAccumulator: make(map[uint64][]*StakerShareDeltas),
-		slashingAccumulator:   make(map[uint64][]*SlashDiff),
+		BaseEigenState:            base.BaseEigenState{},
+		DB:                        grm,
+		logger:                    logger,
+		globalConfig:              globalConfig,
+		committedState:            make(map[uint64][]*StakerShareDeltas),
+		shareDeltaAccumulator:     make(map[uint64][]*StakerShareDeltas),
+		SlashingAccumulator:       make(map[uint64][]*SlashDiff),
+		PrecommitDelegatedStakers: make(map[uint64][]*PrecommitDelegatedStaker),
 	}
 
 	esm.RegisterState(model, 3)
@@ -631,9 +639,9 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[*Accu
 		}
 
 		ss.shareDeltaAccumulator[log.BlockNumber] = append(ss.shareDeltaAccumulator[log.BlockNumber], shareDeltaRecords...)
-		ss.slashingAccumulator[log.BlockNumber] = append(ss.slashingAccumulator[log.BlockNumber], slashDiffs...)
+		ss.SlashingAccumulator[log.BlockNumber] = append(ss.SlashingAccumulator[log.BlockNumber], slashDiffs...)
 
-		return &AccumulatedStateChanges{ShareDeltas: ss.shareDeltaAccumulator[log.BlockNumber], SlashDiffs: ss.slashingAccumulator[log.BlockNumber]}, nil
+		return &AccumulatedStateChanges{ShareDeltas: ss.shareDeltaAccumulator[log.BlockNumber], SlashDiffs: ss.SlashingAccumulator[log.BlockNumber]}, nil
 	}
 
 	// Create an ordered list of block numbers
@@ -679,14 +687,16 @@ func (ss *StakerSharesModel) IsInterestingLog(log *storage.TransactionLog) bool 
 func (ss *StakerSharesModel) SetupStateForBlock(blockNumber uint64) error {
 	ss.committedState[blockNumber] = make([]*StakerShareDeltas, 0)
 	ss.shareDeltaAccumulator[blockNumber] = make([]*StakerShareDeltas, 0)
-	ss.slashingAccumulator[blockNumber] = make([]*SlashDiff, 0)
+	ss.SlashingAccumulator[blockNumber] = make([]*SlashDiff, 0)
+	ss.PrecommitDelegatedStakers[blockNumber] = make([]*PrecommitDelegatedStaker, 0)
 	return nil
 }
 
 func (ss *StakerSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(ss.committedState, blockNumber)
 	delete(ss.shareDeltaAccumulator, blockNumber)
-	delete(ss.slashingAccumulator, blockNumber)
+	delete(ss.SlashingAccumulator, blockNumber)
+	delete(ss.PrecommitDelegatedStakers, blockNumber)
 	return nil
 }
 
@@ -825,7 +835,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 		ss.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
 		return nil, errors.New(msg)
 	}
-	slashes, ok := ss.slashingAccumulator[blockNumber]
+	slashes, ok := ss.SlashingAccumulator[blockNumber]
 	if !ok {
 		msg := "slashing accumulator was not initialized"
 		ss.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
@@ -838,7 +848,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 
 	shareDeltaIndex := 0
 	slashingIndex := 0
-	for shareDeltaIndex < len(ss.shareDeltaAccumulator[blockNumber]) || slashingIndex < len(ss.slashingAccumulator[blockNumber]) {
+	for shareDeltaIndex < len(ss.shareDeltaAccumulator[blockNumber]) || slashingIndex < len(ss.SlashingAccumulator[blockNumber]) {
 		// initialize to max logIndex so we can compare
 		shareDelta := &StakerShareDeltas{LogIndex: math.MaxUint64}
 		slashDiff := &SlashDiff{LogIndex: math.MaxUint64}
@@ -848,8 +858,8 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 			shareDelta = ss.shareDeltaAccumulator[blockNumber][shareDeltaIndex]
 		}
 
-		if slashingIndex < len(ss.slashingAccumulator[blockNumber]) {
-			slashDiff = ss.slashingAccumulator[blockNumber][slashingIndex]
+		if slashingIndex < len(ss.SlashingAccumulator[blockNumber]) {
+			slashDiff = ss.SlashingAccumulator[blockNumber][slashingIndex]
 		}
 
 		if shareDelta.LogIndex < slashDiff.LogIndex {

@@ -268,3 +268,7 @@ func (s *StakerDelegationsModel) ListForBlockRange(startBlockNumber uint64, endB
 func (s *StakerDelegationsModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
 	return true, nil
 }
+
+func (s *StakerDelegationsModel) GetAccumulatedState(blockNumber uint64) []*StakerDelegationChange {
+	return s.stateAccumulator[blockNumber]
+}
