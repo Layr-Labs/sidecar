@@ -107,6 +107,11 @@ func (sm *StateMigration) MigrateState(currentBlockNumber uint64) ([][]byte, map
 			}
 		}
 
+		if err := stateMan.RunPrecommitProcessors(bn); err != nil {
+			sm.logger.Sugar().Errorw("Failed to run precommit processors", zap.Uint64("blockNumber", bn), zap.Error(err))
+			return nil, nil, err
+		}
+
 		committedState, err := stateMan.CommitFinalState(bn)
 		if err != nil {
 			sm.logger.Sugar().Errorw("Failed to commit final state", zap.Uint64("blockNumber", bn), zap.Error(err))

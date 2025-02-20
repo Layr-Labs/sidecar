@@ -27,10 +27,11 @@ type StateRoot struct {
 }
 
 type EigenStateManager struct {
-	StateModels   map[int]types.IEigenStateModel
-	logger        *zap.Logger
-	DB            *gorm.DB
-	stateMigrator stateMigratorTypes.IStateMigrator
+	StateModels         map[int]types.IEigenStateModel
+	PrecommitProcessors map[int]types.IEigenPrecommitProcessor
+	logger              *zap.Logger
+	DB                  *gorm.DB
+	stateMigrator       stateMigratorTypes.IStateMigrator
 }
 
 func NewEigenStateManager(sm stateMigratorTypes.IStateMigrator, logger *zap.Logger, grm *gorm.DB) *EigenStateManager {
@@ -48,6 +49,13 @@ func (e *EigenStateManager) RegisterState(model types.IEigenStateModel, index in
 		e.logger.Sugar().Fatalf("Registering model model at index %d which already exists and belongs to %s", index, m.GetModelName())
 	}
 	e.StateModels[index] = model
+}
+
+func (e *EigenStateManager) RegisterPrecommitProcessor(precommitProcessor types.IEigenPrecommitProcessor, index int) {
+	if m, ok := e.PrecommitProcessors[index]; ok {
+		e.logger.Sugar().Fatalf("Registering precommit processor at index %d which already exists and belongs to %s", index, m.GetName())
+	}
+	e.PrecommitProcessors[index] = precommitProcessor
 }
 
 // Given a log, allow each state model to determine if/how to process it.
@@ -91,6 +99,27 @@ func (e *EigenStateManager) InitProcessingForBlock(blockNumber uint64) error {
 	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
 		err := state.SetupStateForBlock(blockNumber)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *EigenStateManager) GetSortedPrecommitProcessorIndexes() []int {
+	indexes := make([]int, 0, len(e.PrecommitProcessors))
+	for i := range e.PrecommitProcessors {
+		indexes = append(indexes, i)
+	}
+	slices.Sort(indexes)
+	return indexes
+}
+
+func (e *EigenStateManager) RunPrecommitProcessors(blockNumber uint64) error {
+	mappedModels := e.GetModelsMappedByName()
+	for _, index := range e.GetSortedPrecommitProcessorIndexes() {
+		precommitProcessor := e.PrecommitProcessors[index]
+		err := precommitProcessor.Process(blockNumber, mappedModels)
 		if err != nil {
 			return err
 		}
