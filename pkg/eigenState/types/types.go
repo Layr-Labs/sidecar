@@ -54,6 +54,11 @@ type IEigenStateModel interface {
 	IsActiveForBlockHeight(blockHeight uint64) (bool, error)
 }
 
+type IEigenPrecommitProcessor interface {
+	Process(blockNumber uint64, models map[string]IEigenStateModel) error
+	GetName() string
+}
+
 // StateTransitions
 // Map of block number to function that will transition the state to the next block.
 type StateTransitions[T any] map[uint64]func(log *storage.TransactionLog) (T, error)
