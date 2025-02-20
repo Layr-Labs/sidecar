@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"testing"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -20,6 +21,7 @@ func setupOperatorSetOperatorRegistrationSnapshot() (
 	*config.Config,
 	*gorm.DB,
 	*zap.Logger,
+	*metrics.MetricsSink,
 	error,
 ) {
 	testContext := getRewardsTestContext()
@@ -32,19 +34,21 @@ func setupOperatorSetOperatorRegistrationSnapshot() (
 	case "mainnet-reduced":
 		cfg.Chain = config.Chain_Mainnet
 	default:
-		return "", nil, nil, nil, fmt.Errorf("Unknown test context")
+		return "", nil, nil, nil, nil, fmt.Errorf("Unknown test context")
 	}
 
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
+	sink, _ := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, nil)
+
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
-		return dbname, nil, nil, nil, err
+		return dbname, nil, nil, nil, nil, err
 	}
 
-	return dbname, cfg, grm, l, nil
+	return dbname, cfg, grm, l, sink, nil
 }
 
 func teardownOperatorSetOperatorRegistrationSnapshot(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
@@ -84,7 +88,7 @@ func Test_OperatorSetOperatorRegistrationSnapshots(t *testing.T) {
 	}
 
 	// projectRoot := getProjectRootPath()
-	dbFileName, cfg, grm, l, err := setupOperatorSetOperatorRegistrationSnapshot()
+	dbFileName, cfg, grm, l, sink, err := setupOperatorSetOperatorRegistrationSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +119,7 @@ func Test_OperatorSetOperatorRegistrationSnapshots(t *testing.T) {
 
 	t.Run("Should generate the proper operatorSetOperatorRegistrationSnapshots", func(t *testing.T) {
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
-		rewards, _ := NewRewardsCalculator(cfg, grm, nil, sog, l)
+		rewards, _ := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
 
 		err := rewards.GenerateAndInsertOperatorSetOperatorRegistrationSnapshots(snapshotDate)
 		assert.Nil(t, err)
