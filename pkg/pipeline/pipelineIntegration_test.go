@@ -90,7 +90,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 
-	sm := stateManager.NewEigenStateManager(l, grm)
+	sm := stateManager.NewEigenStateManager(nil, l, grm)
 	msm := metaStateManager.NewMetaStateManager(grm, l, cfg)
 
 	if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {

@@ -56,7 +56,7 @@ func Test_DisabledDistributionRoots(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	esm := stateManager.NewEigenStateManager(l, grm)
+	esm := stateManager.NewEigenStateManager(nil, l, grm)
 	model, err := NewDisabledDistributionRootsModel(esm, grm, l, cfg)
 
 	t.Run("Parse a disabled distribution root", func(t *testing.T) {

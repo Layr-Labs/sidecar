@@ -286,3 +286,7 @@ func (a *AvsOperatorsModel) ListForBlockRange(startBlockNumber uint64, endBlockN
 	}
 	return base.CastCommittedStateToInterface(records), nil
 }
+
+func (a *AvsOperatorsModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
+}

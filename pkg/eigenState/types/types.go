@@ -50,6 +50,8 @@ type IEigenStateModel interface {
 
 	// ListForBlockRange lists all records for the block range, inclusive of start and end block numbers
 	ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error)
+
+	IsActiveForBlockHeight(blockHeight uint64) (bool, error)
 }
 
 // StateTransitions
@@ -66,4 +68,6 @@ var (
 	MerkleLeafPrefix_EigenStateRoot   MerkleLeafPrefix = []byte("0x02")
 	MerkleLeafPrefix_EigenStateBlock  MerkleLeafPrefix = []byte("0x03")
 	MerkleLeafPrefix_EigenStateChange MerkleLeafPrefix = []byte("0x04")
+	MerkleLeafPrefix_MigrationRoot    MerkleLeafPrefix = []byte("0x05")
+	MerkleLeafPrefix_MigratedState    MerkleLeafPrefix = []byte("0x06")
 )

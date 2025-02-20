@@ -7,6 +7,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/version"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/proofs"
@@ -82,7 +83,12 @@ var rpcCmd = &cobra.Command{
 			log.Fatalln(err)
 		}
 
-		sm := stateManager.NewEigenStateManager(l, grm)
+		smig, err := stateMigrator.NewStateMigrator(grm, cfg, l)
+		if err != nil {
+			l.Sugar().Fatalw("Failed to create state migrator", zap.Error(err))
+		}
+
+		sm := stateManager.NewEigenStateManager(smig, l, grm)
 
 		if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
 			l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))

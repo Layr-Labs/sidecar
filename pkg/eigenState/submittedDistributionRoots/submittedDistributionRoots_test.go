@@ -56,7 +56,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	esm := stateManager.NewEigenStateManager(l, grm)
+	esm := stateManager.NewEigenStateManager(nil, l, grm)
 	model, err := NewSubmittedDistributionRootsModel(esm, grm, l, cfg)
 
 	insertedRoots := make([]*types.SubmittedDistributionRoot, 0)

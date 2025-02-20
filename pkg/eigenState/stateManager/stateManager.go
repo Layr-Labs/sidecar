@@ -3,6 +3,7 @@ package stateManager
 import (
 	"encoding/binary"
 	"errors"
+	stateMigratorTypes "github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator/types"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -26,16 +27,18 @@ type StateRoot struct {
 }
 
 type EigenStateManager struct {
-	StateModels map[int]types.IEigenStateModel
-	logger      *zap.Logger
-	DB          *gorm.DB
+	StateModels   map[int]types.IEigenStateModel
+	logger        *zap.Logger
+	DB            *gorm.DB
+	stateMigrator stateMigratorTypes.IStateMigrator
 }
 
-func NewEigenStateManager(logger *zap.Logger, grm *gorm.DB) *EigenStateManager {
+func NewEigenStateManager(sm stateMigratorTypes.IStateMigrator, logger *zap.Logger, grm *gorm.DB) *EigenStateManager {
 	return &EigenStateManager{
-		StateModels: make(map[int]types.IEigenStateModel),
-		logger:      logger,
-		DB:          grm,
+		StateModels:   make(map[int]types.IEigenStateModel),
+		logger:        logger,
+		DB:            grm,
+		stateMigrator: sm,
 	}
 }
 
@@ -48,18 +51,34 @@ func (e *EigenStateManager) RegisterState(model types.IEigenStateModel, index in
 }
 
 // Given a log, allow each state model to determine if/how to process it.
-func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog) error {
+func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog, requireModelActiveForBlock bool) error {
 	e.logger.Sugar().Debugw("Handling log state change", zap.String("transactionHash", log.TransactionHash), zap.Uint64("logIndex", log.LogIndex))
 	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
 		if state.IsInterestingLog(log) {
+			isActive, err := state.IsActiveForBlockHeight(log.BlockNumber)
+			if err != nil {
+				e.logger.Sugar().Errorw("Failed to check if model is active for block",
+					zap.String("model", state.GetModelName()),
+					zap.Uint64("blockNumber", log.BlockNumber),
+					zap.Error(err),
+				)
+				return err
+			}
+			if requireModelActiveForBlock && !isActive {
+				e.logger.Sugar().Debugw("Model not active for block, skipping",
+					zap.String("model", state.GetModelName()),
+					zap.Uint64("blockNumber", log.BlockNumber),
+				)
+				continue
+			}
 			e.logger.Sugar().Debugw("Handling log for model",
 				zap.String("model", state.GetModelName()),
 				zap.String("transactionHash", log.TransactionHash),
 				zap.Uint64("logIndex", log.LogIndex),
 				zap.String("eventName", log.EventName),
 			)
-			_, err := state.HandleStateChange(log)
+			_, err = state.HandleStateChange(log)
 			if err != nil {
 				return err
 			}
@@ -110,7 +129,6 @@ func (e *EigenStateManager) CleanupProcessedStateForBlock(blockNumber uint64) er
 
 func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64, blockHash string) (types.StateRoot, error) {
 	sortedIndexes := e.GetSortedModelIndexes()
-	common.FromHex(blockHash)
 	roots := [][]byte{
 		append(types.MerkleLeafPrefix_Block, binary.BigEndian.AppendUint64([]byte{}, blockNumber)...),
 		append(types.MerkleLeafPrefix_BlockHash, common.FromHex(blockHash)...),
@@ -126,6 +144,18 @@ func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64, blockHash stri
 		// a nil value indicates the model did not have any state changes for this block
 		if leaf != nil {
 			roots = append(roots, leaf)
+		}
+	}
+
+	// Handle any migrations needed for the given block number.
+	if e.stateMigrator != nil {
+		migrationRoot, _, err := e.stateMigrator.RunMigrationsForBlock(blockNumber)
+		if err != nil {
+			return "", err
+		}
+		if migrationRoot != nil {
+			migrationRoot = append(types.MerkleLeafPrefix_MigrationRoot, migrationRoot...)
+			roots = append(roots, migrationRoot)
 		}
 	}
 

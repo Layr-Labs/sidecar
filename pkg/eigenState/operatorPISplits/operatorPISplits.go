@@ -329,3 +329,7 @@ func (ops *OperatorPISplitModel) ListForBlockRange(startBlockNumber uint64, endB
 	}
 	return base.CastCommittedStateToInterface(splits), nil
 }
+
+func (ops *OperatorPISplitModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
+}

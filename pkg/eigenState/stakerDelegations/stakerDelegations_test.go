@@ -52,13 +52,13 @@ func Test_DelegatedStakersState(t *testing.T) {
 	}
 
 	t.Run("Should create a new StakerDelegationsModel", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		model, err := NewStakerDelegationsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, model)
 	})
 	t.Run("Should correctly generate state across multiple blocks", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		blocks := []uint64{
 			300,
 			301,

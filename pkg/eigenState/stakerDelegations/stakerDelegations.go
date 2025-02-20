@@ -264,3 +264,7 @@ func (s *StakerDelegationsModel) ListForBlockRange(startBlockNumber uint64, endB
 	}
 	return base.CastCommittedStateToInterface(deltas), nil
 }
+
+func (s *StakerDelegationsModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
+}
