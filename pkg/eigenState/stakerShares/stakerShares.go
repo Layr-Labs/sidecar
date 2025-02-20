@@ -33,14 +33,15 @@ type SlashDiff struct {
 	// still slashes all of the stakers that are delegated to the operator.
 	SlashedEntity string
 	// whether the slashing was done by the beacon chain or an EigenLayer AVS
-	BeaconChain     bool
-	Strategy        string
-	WadSlashed      *big.Int
-	TransactionHash string
-	LogIndex        uint64
-	BlockTime       time.Time
-	BlockDate       string
-	BlockNumber     uint64
+	BeaconChain      bool
+	Strategy         string
+	WadSlashed       *big.Int
+	TransactionHash  string
+	TransactionIndex uint64 `gorm:"-"`
+	LogIndex         uint64
+	BlockTime        time.Time
+	BlockDate        string
+	BlockNumber      uint64
 }
 
 // Table staker_share_deltas
@@ -58,9 +59,12 @@ type StakerShareDeltas struct {
 }
 
 type PrecommitDelegatedStaker struct {
-	Staker    string
-	Operator  string
-	Delegated bool
+	Staker           string
+	Operator         string
+	Delegated        bool
+	TransactionHash  string
+	TransactionIndex uint64
+	LogIndex         uint64
 }
 
 func NewSlotID(transactionHash string, logIndex uint64, staker string, strategy string, strategyIndex uint64) types.SlotID {
@@ -729,9 +733,54 @@ type StakerShares struct {
 	Shares string
 }
 
+// GetDelegatedStakerSharesInPrecommitState handles finding shares of stakers that were delegated to the operator
+// in this current block
+func (ss *StakerSharesModel) GetDelegatedStakerSharesInPrecommitState(slashDiff *SlashDiff) ([]*StakerShares, error) {
+	precommitStakers := ss.getFlattenedPrecommitDelegatedStakers(slashDiff.BlockNumber, slashDiff)
+
+	if len(precommitStakers) == 0 {
+		return nil, nil
+	}
+
+	delegatedStakers := make([]string, 0)
+	for _, staker := range precommitStakers {
+		if staker.Delegated {
+			delegatedStakers = append(delegatedStakers, staker.Staker)
+		}
+	}
+
+	query := `
+		select
+			ds.staker as staker,
+			COALESCE(sum(ssd.shares), 0) as shares
+		from staker_share_deltas as ssd
+			on ssd.staker in @stakerAddresses
+			and ssd.strategy = @strategy
+			and ssd.block_number <= @blockNumber
+		group by
+			ds.staker
+		
+	`
+
+	// get the staker shares for the stakers who were delegated to the operator
+	// and update the shares with the new max magnitude
+	stakerShares := make([]*StakerShares, 0)
+	res := ss.DB.Raw(query,
+		sql.Named("blockNumber", slashDiff.BlockNumber),
+		sql.Named("strategy", slashDiff.Strategy),
+		sql.Named("stakerAddresses", delegatedStakers),
+	).Scan(&stakerShares)
+	if res.Error != nil {
+		ss.logger.Sugar().Errorw("Failed to fetch staker_shares", zap.Error(res.Error))
+		return nil, res.Error
+	}
+
+	return stakerShares, nil
+}
+
 // GetDelegatedStakerSharesAtTimeOfSlashing returns the shares of the stakers that were delegated to the operator at the time of slashing for the strategy being slashed
 // it will return 0 shares for stakers were delegated, but have no shares in the strategy being slashed
-func (ss *StakerSharesModel) GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff *SlashDiff) (*[]StakerShares, error) {
+func (ss *StakerSharesModel) GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff *SlashDiff) ([]*StakerShares, error) {
 	query := `
 		with ranked_staker_delegations as (
 			select
@@ -765,7 +814,7 @@ func (ss *StakerSharesModel) GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff 
 		group by
 			ds.staker
 	`
-	stakerShares := make([]StakerShares, 0)
+	stakerShares := make([]*StakerShares, 0)
 
 	// get the staker shares for the stakers who were delegated to the operator
 	// and update the shares with the new max magnitude
@@ -789,10 +838,40 @@ func (ss *StakerSharesModel) GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff 
 		)
 	}
 
-	return &stakerShares, nil
+	return stakerShares, nil
 }
 
-func (ss *StakerSharesModel) GetStakerSharesFromDB(staker string, strategy string) (*[]StakerShares, error) {
+func (ss *StakerSharesModel) GetMergedDelegatedStakerSharesAtTimeOfSlashing(slashDiff *SlashDiff) ([]*StakerShares, error) {
+	stakerShares, err := ss.GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff)
+	if err != nil {
+		return nil, err
+	}
+
+	// get the staker shares for the stakers who were delegated to the operator
+	// and update the shares with the new max magnitude
+	delegatedStakerShares, err := ss.GetDelegatedStakerSharesInPrecommitState(slashDiff)
+	if err != nil {
+		return nil, err
+	}
+
+	mappedStakerShares := make(map[string]*StakerShares)
+
+	for _, stakerShare := range stakerShares {
+		if _, ok := mappedStakerShares[stakerShare.Staker]; !ok {
+			mappedStakerShares[stakerShare.Staker] = stakerShare
+		}
+	}
+	// its possible that the precommit staker delegation covers a wider range and thus has more shares, so if its preset,
+	// set the value
+	for _, delegatedStakerShare := range delegatedStakerShares {
+		mappedStakerShares[delegatedStakerShare.Staker] = delegatedStakerShare
+	}
+
+	stakerShares = append(stakerShares, delegatedStakerShares...)
+	return stakerShares, nil
+}
+
+func (ss *StakerSharesModel) GetStakerSharesFromDB(staker string, strategy string) ([]*StakerShares, error) {
 	query := `
         select
             staker,
@@ -806,7 +885,7 @@ func (ss *StakerSharesModel) GetStakerSharesFromDB(staker string, strategy strin
             strategy
     `
 	// there should only be one record for the pair
-	stakerShares := make([]StakerShares, 0)
+	stakerShares := make([]*StakerShares, 0)
 	res := ss.DB.Raw(query,
 		sql.Named("staker", staker),
 		sql.Named("strategy", strategy),
@@ -818,13 +897,84 @@ func (ss *StakerSharesModel) GetStakerSharesFromDB(staker string, strategy strin
 
 	// if there are no shares, return a record with 0 shares
 	if len(stakerShares) == 0 {
-		stakerShares = append(stakerShares, StakerShares{
+		stakerShares = append(stakerShares, &StakerShares{
 			Staker: staker,
 			Shares: "0",
 		})
 	}
 
-	return &stakerShares, nil
+	return stakerShares, nil
+}
+
+// GetFlattenedPrecommitDelegatedStakers returns a list of single staker delegation states for the given block
+func (ss *StakerSharesModel) getFlattenedPrecommitDelegatedStakers(blockNumber uint64, slashDiff *SlashDiff) []*PrecommitDelegatedStaker {
+	mappedStakers := make(map[uint64]map[uint64]*PrecommitDelegatedStaker, 0)
+	precommitDelegations, ok := ss.PrecommitDelegatedStakers[blockNumber]
+	if !ok {
+		ss.logger.Sugar().Infow("No precommit delegated stakers found", zap.Uint64("blockNumber", blockNumber))
+		return nil
+	}
+
+	// Take all precommit delegated stakers and map them by transaction index and log index.
+	//
+	// Filter out any transactions where the index > the slashDiff. i.e. we only want delegations
+	// that happened in the current block, but before the slashing event
+	for _, staker := range precommitDelegations {
+		transactionIndex := staker.TransactionIndex
+		logIndex := staker.LogIndex
+
+		// if the delegation happened after the slashing event, skip it
+		if transactionIndex > slashDiff.TransactionIndex {
+			continue
+		}
+
+		// if the delegation happened in the same transaction as the slashing event, but after the log index, skip it
+		if transactionIndex == slashDiff.TransactionIndex && logIndex > slashDiff.LogIndex {
+			continue
+		}
+
+		if _, ok := mappedStakers[transactionIndex]; !ok {
+			mappedStakers[transactionIndex] = make(map[uint64]*PrecommitDelegatedStaker)
+		}
+		if _, ok := mappedStakers[transactionIndex][logIndex]; ok {
+			ss.logger.Sugar().Infow("Duplicate precommit delegated staker found", zap.Any("staker", staker), zap.Uint64("blockNumber", blockNumber))
+			continue
+		}
+		mappedStakers[transactionIndex][logIndex] = staker
+	}
+
+	// extract all transaction indexes so that we can sort them
+	transactionIndexes := make([]uint64, 0)
+	for index, _ := range mappedStakers {
+		transactionIndexes = append(transactionIndexes, index)
+	}
+	slices.Sort(transactionIndexes)
+
+	// iterate of the sorted transaction indexes, sort all its log indexes then, in order, append each staker to the list
+	orderedStakers := make([]*PrecommitDelegatedStaker, 0)
+	for _, txIndex := range transactionIndexes {
+		logIndexs := make([]uint64, 0)
+		for logIndex, _ := range mappedStakers[txIndex] {
+			logIndexs = append(logIndexs, logIndex)
+		}
+		slices.Sort(logIndexs)
+		for _, logIndex := range logIndexs {
+			orderedStakers = append(orderedStakers, mappedStakers[txIndex][logIndex])
+		}
+	}
+	collapsedStakers := make(map[string]*PrecommitDelegatedStaker)
+	// memoize stakers into a map to remove duplicates and get the latest action
+	for _, staker := range orderedStakers {
+		key := fmt.Sprintf("%s-%s", staker.Staker, staker.Operator)
+		collapsedStakers[key] = staker
+	}
+	// turn the map back into a list
+	finalStakers := make([]*PrecommitDelegatedStaker, 0)
+	for _, staker := range collapsedStakers {
+		finalStakers = append(finalStakers, staker)
+	}
+
+	return finalStakers
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
@@ -894,10 +1044,10 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 				zap.Uint64("logIndex", slashDiff.LogIndex),
 			)
 
-			var stakerShares *[]StakerShares
+			var stakerShares []*StakerShares
 			var err error
 			if !slashDiff.BeaconChain {
-				stakerShares, err = ss.GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff)
+				stakerShares, err = ss.GetMergedDelegatedStakerSharesAtTimeOfSlashing(slashDiff)
 			} else {
 				stakerShares, err = ss.GetStakerSharesFromDB(slashDiff.SlashedEntity, slashDiff.Strategy)
 			}
@@ -905,7 +1055,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 				return nil, err
 			}
 
-			for _, stakerShare := range *stakerShares {
+			for _, stakerShare := range stakerShares {
 				// loop through every delegated staker
 				// check if they have previous deposits, withdrawals, or slashes in the current block that need to be taken into account
 				key := fmt.Sprintf("%s-%s", stakerShare.Staker, slashDiff.Strategy)

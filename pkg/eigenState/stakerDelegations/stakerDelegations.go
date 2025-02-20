@@ -17,12 +17,13 @@ import (
 )
 
 type StakerDelegationChange struct {
-	Staker          string
-	Operator        string
-	BlockNumber     uint64
-	Delegated       bool
-	LogIndex        uint64
-	TransactionHash string
+	Staker           string
+	Operator         string
+	BlockNumber      uint64
+	Delegated        bool
+	LogIndex         uint64
+	TransactionHash  string
+	TransactionIndex uint64 `gorm:"-"`
 }
 
 type StakerDelegationsModel struct {
@@ -81,11 +82,12 @@ func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[*
 		operator := strings.ToLower(arguments[1].Value.(string))
 
 		delta := &StakerDelegationChange{
-			Staker:          staker,
-			Operator:        operator,
-			BlockNumber:     log.BlockNumber,
-			LogIndex:        log.LogIndex,
-			TransactionHash: log.TransactionHash,
+			Staker:           staker,
+			Operator:         operator,
+			BlockNumber:      log.BlockNumber,
+			LogIndex:         log.LogIndex,
+			TransactionHash:  log.TransactionHash,
+			TransactionIndex: log.TransactionIndex,
 		}
 		if log.EventName == "StakerUndelegated" {
 			delta.Delegated = false

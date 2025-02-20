@@ -63,9 +63,12 @@ func (sp *SlashingProcessor) Process(blockNumber uint64, models map[string]types
 	precommitDelegations := make([]*stakerShares.PrecommitDelegatedStaker, 0)
 	for _, d := range delegations {
 		precommitDelegations = append(precommitDelegations, &stakerShares.PrecommitDelegatedStaker{
-			Staker:    d.Staker,
-			Operator:  d.Operator,
-			Delegated: d.Delegated,
+			Staker:           d.Staker,
+			Operator:         d.Operator,
+			Delegated:        d.Delegated,
+			TransactionHash:  d.TransactionHash,
+			TransactionIndex: d.TransactionIndex,
+			LogIndex:         d.LogIndex,
 		})
 	}
 	stakerSharesModel.PrecommitDelegatedStakers[blockNumber] = precommitDelegations
