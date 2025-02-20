@@ -17,7 +17,7 @@ func Test_RewardsV2_1(t *testing.T) {
 		return
 	}
 
-	dbFileName, cfg, grm, l, err := setupRewardsV2()
+	dbFileName, cfg, grm, l, sink, err := setupRewardsV2()
 	fmt.Printf("Using db file: %+v\n", dbFileName)
 
 	if err != nil {
@@ -27,7 +27,7 @@ func Test_RewardsV2_1(t *testing.T) {
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 
 	t.Run("Should initialize the rewards calculator", func(t *testing.T) {
-		rc, err := NewRewardsCalculator(cfg, grm, nil, sog, l)
+		rc, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
 		assert.Nil(t, err)
 		if err != nil {
 			t.Fatal(err)
