@@ -953,8 +953,8 @@ func (ss *StakerSharesModel) getFlattenedPrecommitDelegatedStakers(blockNumber u
 
 	// extract all transaction indexes so that we can sort them
 	transactionIndexes := make([]uint64, 0)
-	for index, _ := range mappedStakers {
-		transactionIndexes = append(transactionIndexes, index)
+	for txIndex := range mappedStakers {
+		transactionIndexes = append(transactionIndexes, txIndex)
 	}
 	slices.Sort(transactionIndexes)
 
@@ -989,6 +989,7 @@ func getNetDeltaKey(staker, strategy string) string {
 	return fmt.Sprintf("%s-%s", staker, strategy)
 }
 
+//nolint:unused
 func (ss *StakerSharesModel) otherPrepareState(blockNumber uint64) ([]*StakerShareDeltas, error) {
 	shareDeltas, ok := ss.shareDeltaAccumulator[blockNumber]
 	if !ok {
@@ -1207,7 +1208,8 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 			var stakerShares []*StakerShares
 			var err error
 			if !slashDiff.BeaconChain {
-				stakerShares, err = ss.GetMergedDelegatedStakerSharesAtTimeOfSlashing(slashDiff)
+				// stakerShares, err = ss.GetMergedDelegatedStakerSharesAtTimeOfSlashing(slashDiff)
+				stakerShares, err = ss.GetDelegatedStakerSharesAtTimeOfSlashing(slashDiff)
 			} else {
 				stakerShares, err = ss.GetStakerSharesFromDB(slashDiff.SlashedEntity, slashDiff.Strategy)
 			}
