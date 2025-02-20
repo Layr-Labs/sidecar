@@ -1,6 +1,7 @@
 package rewards
 
 import (
+	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ func setupOperatorDirectedOperatorSetRewards() (
 	*config.Config,
 	*gorm.DB,
 	*zap.Logger,
+	*metrics.MetricsSink,
 	error,
 ) {
 	cfg := tests.GetConfig()
@@ -27,12 +29,14 @@ func setupOperatorDirectedOperatorSetRewards() (
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
+	sink, _ := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, nil)
+
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
-		return dbname, nil, nil, nil, err
+		return dbname, nil, nil, nil, nil, err
 	}
 
-	return dbname, cfg, grm, l, nil
+	return dbname, cfg, grm, l, sink, nil
 }
 
 func teardownOperatorDirectedOperatorSetRewards(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
@@ -84,7 +88,7 @@ func Test_OperatorDirectedOperatorSetRewards(t *testing.T) {
 		return
 	}
 
-	dbFileName, cfg, grm, l, err := setupOperatorDirectedOperatorSetRewards()
+	dbFileName, cfg, grm, l, sink, err := setupOperatorDirectedOperatorSetRewards()
 
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +123,7 @@ func Test_OperatorDirectedOperatorSetRewards(t *testing.T) {
 
 	t.Run("Should generate the proper operatorDirectedOperatorSetRewards", func(t *testing.T) {
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
-		rewards, _ := NewRewardsCalculator(cfg, grm, nil, sog, l)
+		rewards, _ := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
 
 		err = rewards.GenerateAndInsertOperatorDirectedOperatorSetRewards(snapshotDate)
 		assert.Nil(t, err)
