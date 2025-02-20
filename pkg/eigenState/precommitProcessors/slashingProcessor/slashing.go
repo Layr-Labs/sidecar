@@ -29,6 +29,7 @@ func (sp *SlashingProcessor) GetName() string {
 }
 
 func (sp *SlashingProcessor) Process(blockNumber uint64, models map[string]types.IEigenStateModel) error {
+	sp.logger.Sugar().Debug("Running slashing processor for block number", zap.Uint64("blockNumber", blockNumber))
 	stakerSharesModel, ok := models[stakerShares.StakerSharesModelName].(*stakerShares.StakerSharesModel)
 	if !ok || stakerSharesModel == nil {
 		sp.logger.Sugar().Error("Staker shares model not found in models map")
@@ -62,14 +63,16 @@ func (sp *SlashingProcessor) Process(blockNumber uint64, models map[string]types
 	// inject the current block delegations into the staker shares model
 	precommitDelegations := make([]*stakerShares.PrecommitDelegatedStaker, 0)
 	for _, d := range delegations {
-		precommitDelegations = append(precommitDelegations, &stakerShares.PrecommitDelegatedStaker{
+		delegation := &stakerShares.PrecommitDelegatedStaker{
 			Staker:           d.Staker,
 			Operator:         d.Operator,
 			Delegated:        d.Delegated,
 			TransactionHash:  d.TransactionHash,
 			TransactionIndex: d.TransactionIndex,
 			LogIndex:         d.LogIndex,
-		})
+		}
+		fmt.Printf("Delegation: %+v\n", delegation)
+		precommitDelegations = append(precommitDelegations, delegation)
 	}
 	stakerSharesModel.PrecommitDelegatedStakers[blockNumber] = precommitDelegations
 	return nil

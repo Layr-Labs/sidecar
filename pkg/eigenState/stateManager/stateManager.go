@@ -36,10 +36,11 @@ type EigenStateManager struct {
 
 func NewEigenStateManager(sm stateMigratorTypes.IStateMigrator, logger *zap.Logger, grm *gorm.DB) *EigenStateManager {
 	return &EigenStateManager{
-		StateModels:   make(map[int]types.IEigenStateModel),
-		logger:        logger,
-		DB:            grm,
-		stateMigrator: sm,
+		StateModels:         make(map[int]types.IEigenStateModel),
+		logger:              logger,
+		DB:                  grm,
+		stateMigrator:       sm,
+		PrecommitProcessors: make(map[int]types.IEigenPrecommitProcessor),
 	}
 }
 

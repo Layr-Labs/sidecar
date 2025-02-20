@@ -455,7 +455,6 @@ func Test_StakerSharesState(t *testing.T) {
 		}
 		assert.Equal(t, 4, count)
 	})
-
 	t.Run("Should capture Slashing withdrawals", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		blockNumber := uint64(200)
@@ -473,13 +472,13 @@ func Test_StakerSharesState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		sahresModel, err := NewStakerSharesModel(esm, grm, l, cfg)
+		sharesModel, err := NewStakerSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
-		err = sahresModel.SetupStateForBlock(blockNumber)
+		err = sharesModel.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		change, err := sahresModel.HandleStateChange(&log)
+		change, err := sharesModel.HandleStateChange(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
@@ -491,13 +490,12 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, strings.ToLower("0x8e4662c95c2206fa22b408426f2b457672674963"), shareDiff.Staker)
 		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", shareDiff.Strategy)
 
-		preparedState, err := sahresModel.prepareState(blockNumber)
+		preparedState, err := sharesModel.prepareState(blockNumber)
 		assert.Nil(t, err)
 		for _, shareDelta := range preparedState {
 			fmt.Printf("ShareDelta: %+v\n", shareDelta)
 		}
 	})
-
 	t.Run("Should capture Slashing withdrawals for multiple strategies", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		blockNumber := uint64(200)
@@ -538,142 +536,6 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), shareDiff.Staker)
 		assert.Equal(t, "0xe523267698c81a372191136e477fdebfa33d9fb5", shareDiff.Strategy)
 	})
-
-	t.Run("Should capture delegate, deposit, slash in same block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(nil, l, grm)
-
-		blockNumber := uint64(200)
-		err = createBlock(grm, blockNumber)
-		assert.Nil(t, err)
-
-		delegationModel, err := stakerDelegations.NewStakerDelegationsModel(esm, grm, l, cfg)
-		assert.Nil(t, err)
-
-		err = delegationModel.SetupStateForBlock(blockNumber)
-		assert.Nil(t, err)
-
-		sharesModel, err := NewStakerSharesModel(esm, grm, l, cfg)
-		assert.Nil(t, err)
-
-		err = sharesModel.SetupStateForBlock(blockNumber)
-		assert.Nil(t, err)
-
-		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 300, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0xbde83df53bc7d159700e966ad5d21e8b7c619459")
-		assert.Nil(t, err)
-
-		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", big.NewInt(1e18))
-		assert.Nil(t, err)
-
-		change, err := processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
-		assert.Nil(t, err)
-
-		diffs := change.(*AccumulatedStateChanges)
-		assert.Equal(t, 1, len(diffs.SlashDiffs))
-
-		slashDiff := diffs.SlashDiffs[0]
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.SlashedEntity)
-		assert.False(t, slashDiff.BeaconChain)
-		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
-		assert.Equal(t, "100000000000000000", slashDiff.WadSlashed.String())
-
-		err = delegationModel.CommitFinalState(blockNumber)
-		assert.Nil(t, err)
-
-		err = sharesModel.CommitFinalState(blockNumber)
-		assert.Nil(t, err)
-
-		query := `
-			select * from staker_share_deltas
-			where block_number = ?
-			order by log_index asc
-		`
-		results := []*StakerShareDeltas{}
-		res := sharesModel.DB.Raw(query, blockNumber).Scan(&results)
-		assert.Nil(t, res.Error)
-
-		assert.Equal(t, 2, len(results))
-
-		// assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		// assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[0].Strategy)
-		// assert.Equal(t, "1000000000000000000", results[0].Shares)
-		//
-		// assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[1].Staker)
-		// assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[1].Strategy)
-		// assert.Equal(t, "-100000000000000000", results[1].Shares)
-
-		teardown(grm)
-	})
-
-	t.Run("Should capture many deposits and slash in same block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(nil, l, grm)
-
-		blockNumber := uint64(200)
-		err = createBlock(grm, blockNumber)
-		assert.Nil(t, err)
-
-		delegationModel, err := stakerDelegations.NewStakerDelegationsModel(esm, grm, l, cfg)
-		assert.Nil(t, err)
-
-		err = delegationModel.SetupStateForBlock(blockNumber)
-		assert.Nil(t, err)
-
-		sharesModel, err := NewStakerSharesModel(esm, grm, l, cfg)
-		assert.Nil(t, err)
-
-		err = sharesModel.SetupStateForBlock(blockNumber)
-		assert.Nil(t, err)
-
-		// ----------------------
-		// Handle events
-		// ----------------------
-		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 300, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0xbde83df53bc7d159700e966ad5d21e8b7c619459")
-		assert.Nil(t, err)
-		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 301, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", "0xbde83df53bc7d159700e966ad5d21e8b7c619459")
-		assert.Nil(t, err)
-
-		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", big.NewInt(1e18))
-		assert.Nil(t, err)
-		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", big.NewInt(2e18))
-		assert.Nil(t, err)
-
-		_, err = processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
-		assert.Nil(t, err)
-
-		err = delegationModel.CommitFinalState(blockNumber)
-		assert.Nil(t, err)
-
-		err = sharesModel.CommitFinalState(blockNumber)
-		assert.Nil(t, err)
-
-		query := `
-			select * from staker_share_deltas
-			where block_number = ?
-			order by log_index, staker asc
-		`
-		results := []*StakerShareDeltas{}
-		res := sharesModel.DB.Raw(query, blockNumber).Scan(&results)
-		assert.Nil(t, res.Error)
-
-		assert.Equal(t, 4, len(results))
-		//assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		//assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[0].Strategy)
-		//assert.Equal(t, "1000000000000000000", results[0].Shares)
-		//
-		//assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", results[1].Staker)
-		//assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[1].Strategy)
-		//assert.Equal(t, "2000000000000000000", results[1].Shares)
-		//
-		//assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[2].Staker)
-		//assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[2].Strategy)
-		//assert.Equal(t, "-100000000000000000", results[2].Shares)
-		//
-		//assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", results[3].Staker)
-		//assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[3].Strategy)
-		//assert.Equal(t, "-200000000000000000", results[3].Shares)
-
-		teardown(grm)
-	})
-
 	t.Run("Should capture many deposits and slash in a different block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
@@ -738,18 +600,17 @@ func Test_StakerSharesState(t *testing.T) {
 		res := sharesModel.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 
-		// assert.Equal(t, 2, len(results))
-		// assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		// assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[0].Strategy)
-		// assert.Equal(t, "-100000000000000000", results[0].Shares)
-		//
-		// assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", results[1].Staker)
-		// assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[1].Strategy)
-		// assert.Equal(t, "-200000000000000000", results[1].Shares)
+		assert.Equal(t, 2, len(results))
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[0].Strategy)
+		assert.Equal(t, "-100000000000000000", results[0].Shares)
+
+		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", results[1].Staker)
+		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[1].Strategy)
+		assert.Equal(t, "-200000000000000000", results[1].Shares)
 
 		teardown(grm)
 	})
-
 	t.Run("Should slash deposits and delegations in previous block with greater logIndex", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
@@ -808,14 +669,13 @@ func Test_StakerSharesState(t *testing.T) {
 		res := sharesModel.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 
-		// assert.Equal(t, 1, len(results))
-		// assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		// assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[0].Strategy)
-		// assert.Equal(t, "-100000000000000000", results[0].Shares)
+		assert.Equal(t, 1, len(results))
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[0].Strategy)
+		assert.Equal(t, "-100000000000000000", results[0].Shares)
 
 		teardown(grm)
 	})
-
 	t.Run("Should not slash delegated staker in a different strategy for a deposit in same block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
@@ -871,13 +731,12 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, res.Error)
 
 		assert.Equal(t, 1, len(results))
-		// assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		// assert.Equal(t, "0x1234567890abcdef1234567890abcdef12345678", results[0].Strategy)
-		// assert.Equal(t, "1000000000000000000", results[0].Shares)
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0x1234567890abcdef1234567890abcdef12345678", results[0].Strategy)
+		assert.Equal(t, "1000000000000000000", results[0].Shares)
 
 		teardown(grm)
 	})
-
 	t.Run("Should not slash delegated staker in a different strategy deposited in previous block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		blockNumber := uint64(200)
@@ -908,9 +767,14 @@ func Test_StakerSharesState(t *testing.T) {
 
 		err = delegationModel.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
+
 		err = sharesModel.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
-
+		query := `select * from staker_share_deltas where block_number = ?`
+		results := []StakerShareDeltas{}
+		res := sharesModel.DB.Raw(query, blockNumber).Scan(&results)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, 1, len(results))
 		// ------------------------
 		// New block
 		// ------------------------
@@ -927,22 +791,19 @@ func Test_StakerSharesState(t *testing.T) {
 		err = sharesModel.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
-		query := `
-				select * from staker_share_deltas
-			`
-		results := []*StakerShareDeltas{}
-		res := sharesModel.DB.Raw(query).Scan(&results)
+		query = `select * from staker_share_deltas`
+		results = []StakerShareDeltas{}
+		res = sharesModel.DB.Raw(query).Scan(&results)
 		assert.Nil(t, res.Error)
 
 		assert.Equal(t, 1, len(results))
-		// assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		// assert.Equal(t, "0x1234567890abcdef1234567890abcdef12345678", results[0].Strategy)
-		// assert.Equal(t, "1000000000000000000", results[0].Shares)
-		// assert.Equal(t, blockNumber-1, results[0].BlockNumber)
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0x1234567890abcdef1234567890abcdef12345678", results[0].Strategy)
+		assert.Equal(t, "1000000000000000000", results[0].Shares)
+		assert.Equal(t, blockNumber-1, results[0].BlockNumber)
 
 		teardown(grm)
 	})
-
 	t.Run("Should not slash deposit after slashing in same block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
@@ -1006,17 +867,16 @@ func Test_StakerSharesState(t *testing.T) {
 
 		assert.Equal(t, 2, len(results))
 
-		// assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		// assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[0].Strategy)
-		// assert.Equal(t, "-100000000000000000", results[0].Shares)
-		//
-		// assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[1].Staker)
-		// assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[1].Strategy)
-		// assert.Equal(t, "1000000000000000000", results[1].Shares)
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[0].Strategy)
+		assert.Equal(t, "-100000000000000000", results[0].Shares)
+
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[1].Staker)
+		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[1].Strategy)
+		assert.Equal(t, "1000000000000000000", results[1].Shares)
 
 		teardown(grm)
 	})
-
 	t.Run("Should process slashing for several strategies correctly", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
@@ -1075,17 +935,17 @@ func Test_StakerSharesState(t *testing.T) {
 		diffs := change.(*AccumulatedStateChanges)
 		assert.Equal(t, 2, len(diffs.SlashDiffs))
 
-		// slashDiff := diffs.SlashDiffs[0]
-		// assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.SlashedEntity)
-		// assert.False(t, slashDiff.BeaconChain)
-		// assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
-		// assert.Equal(t, "100000000000000000", slashDiff.WadSlashed.String())
-		//
-		// slashDiff = diffs.SlashDiffs[1]
-		// assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.SlashedEntity)
-		// assert.False(t, slashDiff.BeaconChain)
-		// assert.Equal(t, "0x1234567890abcdef1234567890abcdef12345678", slashDiff.Strategy)
-		// assert.Equal(t, "900000000000000000", slashDiff.WadSlashed.String())
+		slashDiff := diffs.SlashDiffs[0]
+		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.SlashedEntity)
+		assert.False(t, slashDiff.BeaconChain)
+		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
+		assert.Equal(t, "100000000000000000", slashDiff.WadSlashed.String())
+
+		slashDiff = diffs.SlashDiffs[1]
+		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", slashDiff.SlashedEntity)
+		assert.False(t, slashDiff.BeaconChain)
+		assert.Equal(t, "0x1234567890abcdef1234567890abcdef12345678", slashDiff.Strategy)
+		assert.Equal(t, "900000000000000000", slashDiff.WadSlashed.String())
 
 		err = sharesModel.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -1115,7 +975,6 @@ func Test_StakerSharesState(t *testing.T) {
 
 		teardown(grm)
 	})
-
 	t.Run("Should handle a full slashing", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
@@ -1173,14 +1032,13 @@ func Test_StakerSharesState(t *testing.T) {
 		res := sharesModel.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 
-		// assert.Equal(t, 1, len(results))
-		// assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		// assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[0].Strategy)
-		// assert.Equal(t, "-1000000000000000000", results[0].Shares)
+		assert.Equal(t, 1, len(results))
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", results[0].Strategy)
+		assert.Equal(t, "-1000000000000000000", results[0].Shares)
 
 		teardown(grm)
 	})
-
 	t.Run("Should not slash when staker has 0 shares", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
@@ -1251,7 +1109,6 @@ func Test_StakerSharesState(t *testing.T) {
 
 		teardown(grm)
 	})
-
 	t.Run("Should handle beacon chain slashing of deposit in same block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
@@ -1439,13 +1296,13 @@ func Test_StakerSharesState(t *testing.T) {
 
 		assert.Equal(t, 2, len(results))
 
-		// assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		// assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
-		// assert.Equal(t, "-500000000000000000", results[0].Shares)
-		//
-		// assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[1].Staker)
-		// assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[1].Strategy)
-		// assert.Equal(t, "-250000000000000000", results[1].Shares)
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
+		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
+		assert.Equal(t, "-500000000000000000", results[0].Shares)
+
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[1].Staker)
+		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[1].Strategy)
+		assert.Equal(t, "-250000000000000000", results[1].Shares)
 
 		teardown(grm)
 	})
@@ -1528,7 +1385,6 @@ func Test_StakerSharesState(t *testing.T) {
 
 		teardown(grm)
 	})
-
 	t.Run("Should handle full beacon slashing", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
@@ -1586,7 +1442,6 @@ func Test_StakerSharesState(t *testing.T) {
 
 		teardown(grm)
 	})
-
 	t.Run("Should not beacon chain slash when staker has 0 shares", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
@@ -1640,7 +1495,6 @@ func Test_StakerSharesState(t *testing.T) {
 
 		teardown(grm)
 	})
-
 	t.Run("Should handle failed unmarshalling gracefully", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
@@ -1732,7 +1586,7 @@ func processSlashing(stakerSharesModel *StakerSharesModel, allocationManager str
 		wadSlashedJson[i] = json.Number(wad.String())
 	}
 
-	operatorSlashedEvent := operatorSlashedOutputData{
+	operatorSlashedEvent := OperatorSlashedOutputData{
 		Operator:   operator,
 		Strategies: strategies,
 		WadSlashed: wadSlashedJson,
@@ -1760,7 +1614,7 @@ func processSlashing(stakerSharesModel *StakerSharesModel, allocationManager str
 }
 
 func processBeaconChainSlashing(stakerSharesModel *StakerSharesModel, eigenpodManager string, blockNumber, logIndex uint64, staker string, prevBeaconChainScalingFactor, newBeaconChainScalingFactor uint64) (interface{}, error) {
-	beaconChainSlashingFactorDecreasedEvent := beaconChainSlashingFactorDecreasedOutputData{
+	beaconChainSlashingFactorDecreasedEvent := BeaconChainSlashingFactorDecreasedOutputData{
 		Staker:                        staker,
 		PrevBeaconChainSlashingFactor: prevBeaconChainScalingFactor,
 		NewBeaconChainSlashingFactor:  newBeaconChainScalingFactor,
