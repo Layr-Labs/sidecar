@@ -8,8 +8,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/btcsuite/btcutil/base58"
 	"go.uber.org/zap"
@@ -17,7 +17,9 @@ import (
 
 type AbiFetcher struct {
 	EthereumClient *ethereum.Client
+	httpClient     *http.Client
 	Logger         *zap.Logger
+	Config         *config.Config
 }
 
 type Response struct {
@@ -28,11 +30,15 @@ type Response struct {
 
 func NewAbiFetcher(
 	e *ethereum.Client,
+	hc *http.Client,
 	l *zap.Logger,
+	cfg *config.Config,
 ) *AbiFetcher {
 	return &AbiFetcher{
 		EthereumClient: e,
+		httpClient:     hc,
 		Logger:         l,
+		Config:         cfg,
 	}
 }
 
@@ -51,7 +57,6 @@ func (af *AbiFetcher) FetchMetadataFromAddress(ctx context.Context, address stri
 		zap.String("address", address),
 		zap.String("bytecodeHash", bytecodeHash),
 	)
-	fmt.Printf("bytecodeHash: %s", bytecodeHash)
 
 	// fetch ABI using IPFS
 	// TODO: add a fallback method using Etherscan
@@ -93,7 +98,7 @@ func (af *AbiFetcher) GetIPFSUrlFromBytecode(bytecode string) (string, error) {
 	// Convert to base58
 	base58Hash := base58.Encode(bytes)
 
-	return fmt.Sprintf("https://ipfs.io/ipfs/%s", base58Hash), nil
+	return fmt.Sprintf("%s/%s", af.Config.IpfsConfig.Url, base58Hash), nil
 }
 
 func (af *AbiFetcher) FetchAbiFromIPFS(address string, bytecode string) (string, error) {
@@ -107,13 +112,8 @@ func (af *AbiFetcher) FetchAbiFromIPFS(address string, bytecode string) (string,
 	}
 	af.Logger.Sugar().Debug("Successfully retrieved IPFS URL",
 		zap.String("address", address),
-		zap.String("IPFS URL", url),
+		zap.String("ipfsUrl", url),
 	)
-	fmt.Printf("IPFS URL: %s \n", url)
-
-	httpClient := &http.Client{
-		Timeout: 5 * time.Second,
-	}
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	if err != nil {
@@ -124,7 +124,7 @@ func (af *AbiFetcher) FetchAbiFromIPFS(address string, bytecode string) (string,
 		return "", err
 	}
 
-	resp, err := httpClient.Do(req)
+	resp, err := af.httpClient.Do(req)
 	if err != nil {
 		af.Logger.Sugar().Errorw("Failed to perform HTTP request",
 			zap.Error(err),

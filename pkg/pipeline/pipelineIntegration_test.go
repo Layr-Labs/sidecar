@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/pkg/metaState"
 	"log"
+	"net/http"
 	"testing"
+	"time"
 
 	"os"
 
@@ -78,7 +80,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	ethConfig.BaseUrl = rpcUrl
 	client := ethereum.NewClient(ethConfig, l)
 
-	af := abiFetcher.NewAbiFetcher(client, l)
+	af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg)
 
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {

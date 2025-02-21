@@ -2,7 +2,10 @@ package abiFetcher
 
 import (
 	"context"
+	"net/http"
+	"reflect"
 	"testing"
+	"time"
 
 	"os"
 
@@ -11,6 +14,8 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
+	"github.com/agiledragon/gomonkey/v2"
+	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -39,10 +44,14 @@ func setup() (
 }
 
 func Test_AbiFetcher(t *testing.T) {
-	_, _, l, _, err := setup()
+	_, _, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	httpClient := &http.Client{
+		Timeout: 5 * time.Second,
 	}
 
 	baseUrl := "http://72.46.85.253:8545"
@@ -52,7 +61,7 @@ func Test_AbiFetcher(t *testing.T) {
 	client := ethereum.NewClient(ethConfig, l)
 
 	t.Run("Test getting IPFS url from bytecode", func(t *testing.T) {
-		af := NewAbiFetcher(client, l)
+		af := NewAbiFetcher(client, httpClient, l, cfg)
 
 		address := "0x29a954e9e7f12936db89b183ecdf879fbbb99f14"
 		bytecode, err := af.EthereumClient.GetCode(context.Background(), address)
@@ -65,15 +74,36 @@ func Test_AbiFetcher(t *testing.T) {
 		assert.Equal(t, expectedUrl, url)
 	})
 	t.Run("Test fetching ABI from IPFS", func(t *testing.T) {
-		af := NewAbiFetcher(client, l)
+		mockUrl := "https://test"
+		patches := gomonkey.ApplyMethod(reflect.TypeOf(&AbiFetcher{}), "GetIPFSUrlFromBytecode",
+			func(_ *AbiFetcher, _ string) (string, error) {
+				return mockUrl, nil
+			})
+		defer patches.Reset()
+
+		httpmock.Activate()
+		defer httpmock.DeactivateAndReset()
+
+		mockAbiResponse := `{
+			"output": {
+				"abi": "[{\"type\":\"function\",\"name\":\"test\"}]"
+			}
+		}`
+
+		httpmock.RegisterResponder("GET", mockUrl,
+			httpmock.NewStringResponder(200, mockAbiResponse))
+
+		mockHttpClient := &http.Client{
+			Transport: httpmock.DefaultTransport,
+		}
+
+		af := NewAbiFetcher(client, mockHttpClient, l, cfg)
 
 		address := "0x29a954e9e7f12936db89b183ecdf879fbbb99f14"
-		bytecode, err := af.EthereumClient.GetCode(context.Background(), address)
+		abi, err := af.FetchAbiFromIPFS(address, "mocked")
 		assert.Nil(t, err)
 
-		abi, err := af.FetchAbiFromIPFS(address, bytecode)
-		assert.Nil(t, err)
-
-		assert.Greater(t, len(abi), 0)
+		expectedAbi := `"[{\"type\":\"function\",\"name\":\"test\"}]"`
+		assert.Equal(t, abi, expectedAbi)
 	})
 }
