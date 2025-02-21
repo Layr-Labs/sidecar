@@ -61,7 +61,7 @@ func (sp *SlashingProcessor) Process(blockNumber uint64, models map[string]types
 
 	// get the in-memory staker delegations for this block. If there arent any, theres nothing to do
 	delegations := stakerDelegationModel.GetAccumulatedState(blockNumber)
-	if delegations == nil || len(delegations) == 0 {
+	if len(delegations) == 0 {
 		sp.logger.Sugar().Debug("No staker delegations found for block number", zap.Uint64("blockNumber", blockNumber))
 		return nil
 	}

@@ -300,31 +300,3 @@ func processSlashing(stakerSharesModel *stakerShares.StakerSharesModel, allocati
 
 	return stakerSharesModel.HandleStateChange(&slashingLog)
 }
-
-func processBeaconChainSlashing(stakerSharesModel *stakerShares.StakerSharesModel, eigenpodManager string, blockNumber, logIndex uint64, staker string, prevBeaconChainScalingFactor, newBeaconChainScalingFactor uint64) (interface{}, error) {
-	beaconChainSlashingFactorDecreasedEvent := stakerShares.BeaconChainSlashingFactorDecreasedOutputData{
-		Staker:                        staker,
-		PrevBeaconChainSlashingFactor: prevBeaconChainScalingFactor,
-		NewBeaconChainSlashingFactor:  newBeaconChainScalingFactor,
-	}
-	beaconChainSlashingFactorDecreasedJson, err := json.Marshal(beaconChainSlashingFactorDecreasedEvent)
-	if err != nil {
-		return nil, err
-	}
-
-	beaconChainSlashingFactorDecreasedLog := storage.TransactionLog{
-		TransactionHash:  "some hash",
-		TransactionIndex: 100,
-		BlockNumber:      blockNumber,
-		Address:          eigenpodManager,
-		Arguments:        ``,
-		EventName:        "BeaconChainSlashingFactorDecreased",
-		LogIndex:         logIndex,
-		OutputData:       string(beaconChainSlashingFactorDecreasedJson),
-		CreatedAt:        time.Time{},
-		UpdatedAt:        time.Time{},
-		DeletedAt:        time.Time{},
-	}
-
-	return stakerSharesModel.HandleStateChange(&beaconChainSlashingFactorDecreasedLog)
-}

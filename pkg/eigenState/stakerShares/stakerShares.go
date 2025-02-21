@@ -960,12 +960,12 @@ func (ss *StakerSharesModel) getFlattenedPrecommitDelegatedStakers(blockNumber u
 	// iterate of the sorted transaction indexes, sort all its log indexes then, in order, append each staker to the list
 	orderedStakers := make([]*PrecommitDelegatedStaker, 0)
 	for _, txIndex := range transactionIndexes {
-		logIndexs := make([]uint64, 0)
-		for logIndex, _ := range mappedStakers[txIndex] {
-			logIndexs = append(logIndexs, logIndex)
+		logIndexes := make([]uint64, 0)
+		for logIndex := range mappedStakers[txIndex] {
+			logIndexes = append(logIndexes, logIndex)
 		}
-		slices.Sort(logIndexs)
-		for _, logIndex := range logIndexs {
+		slices.Sort(logIndexes)
+		for _, logIndex := range logIndexes {
 			orderedStakers = append(orderedStakers, mappedStakers[txIndex][logIndex])
 		}
 	}
@@ -1005,9 +1005,7 @@ func orderSlashes(slashes []*SlashDiff) []*SlashDiff {
 		slices.SortFunc(slashesByTransaction[transactionIndex], func(a, b *SlashDiff) int {
 			return int(a.LogIndex - b.LogIndex)
 		})
-		for _, slash := range slashesByTransaction[transactionIndex] {
-			orderedSlashes = append(orderedSlashes, slash)
-		}
+		orderedSlashes = append(orderedSlashes, slashesByTransaction[transactionIndex]...)
 	}
 	return orderedSlashes
 }
@@ -1037,9 +1035,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 	records := make([]*StakerShareDeltas, 0)
 
 	// copy share deltas to the new records result slice so we dont mutate the original list of deltas
-	for _, shareDelta := range shareDeltas {
-		records = append(records, shareDelta)
-	}
+	records = append(records, shareDeltas...)
 
 	for _, slash := range orderedSlashes {
 		// Iterate over all of the in-memory deltas and find the ones that are before the slashing event
