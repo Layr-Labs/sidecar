@@ -71,7 +71,6 @@ func (sp *SlashingProcessor) Process(blockNumber uint64, models map[string]types
 			TransactionIndex: d.TransactionIndex,
 			LogIndex:         d.LogIndex,
 		}
-		fmt.Printf("Delegation: %+v\n", delegation)
 		precommitDelegations = append(precommitDelegations, delegation)
 	}
 	stakerSharesModel.PrecommitDelegatedStakers[blockNumber] = precommitDelegations

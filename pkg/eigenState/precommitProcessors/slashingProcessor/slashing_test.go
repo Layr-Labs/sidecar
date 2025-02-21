@@ -28,7 +28,7 @@ func setup() (
 ) {
 	cfg := config.NewConfig()
 	cfg.Chain = config.Chain_Mainnet
-	cfg.Debug = true
+	cfg.Debug = false
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
@@ -124,9 +124,6 @@ func Test_SlashingPrecommitProcessor(t *testing.T) {
 		results := []*stakerShares.StakerShareDeltas{}
 		res := sharesModel.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
-		for i, result := range results {
-			fmt.Printf("Result %d: %+v\n", i, result)
-		}
 		assert.Equal(t, 2, len(results))
 
 		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)

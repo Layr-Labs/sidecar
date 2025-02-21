@@ -30,7 +30,7 @@ func setup() (
 ) {
 	cfg := config.NewConfig()
 	cfg.Chain = config.Chain_Mainnet
-	cfg.Debug = true
+	cfg.Debug = false
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
@@ -492,9 +492,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		preparedState, err := sharesModel.prepareState(blockNumber)
 		assert.Nil(t, err)
-		for _, shareDelta := range preparedState {
-			fmt.Printf("ShareDelta: %+v\n", shareDelta)
-		}
+		assert.Equal(t, 1, len(preparedState))
 	})
 	t.Run("Should capture Slashing withdrawals for multiple strategies", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
