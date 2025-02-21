@@ -28,6 +28,12 @@ func (sp *SlashingProcessor) GetName() string {
 	return "slashingProcessor"
 }
 
+// Process handles compiling staker shares and delegation state for the current block.
+//
+// When applying slashing conditions, we need to ensure that we're capturing not only past delegation events,
+// but also those that are occurring in the current block. Since the StakerShares model knows nothing about
+// the StakerDelegation model and since changes arent committed until the very end, we need a mechanism
+// to inject the current block's delegation events into the StakerShares model for consideration for slashing.
 func (sp *SlashingProcessor) Process(blockNumber uint64, models map[string]types.IEigenStateModel) error {
 	sp.logger.Sugar().Debug("Running slashing processor for block number", zap.Uint64("blockNumber", blockNumber))
 	stakerSharesModel, ok := models[stakerShares.StakerSharesModelName].(*stakerShares.StakerSharesModel)
