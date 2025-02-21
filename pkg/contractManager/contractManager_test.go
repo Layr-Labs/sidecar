@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"reflect"
 	"testing"
+	"time"
 
 	"os"
 
@@ -72,7 +73,7 @@ func Test_ContractManager(t *testing.T) {
 
 	client := ethereum.NewClient(ethConfig, l, mockHttpClient)
 
-	af := abiFetcher.NewAbiFetcher(client, l)
+	af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg)
 
 	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 	if err != nil {

@@ -53,7 +53,7 @@ func (cm *ContractManager) GetContractWithProxy(
 	return contract, nil
 }
 
-// this function is called when there's an "Upgraded" event
+// HandleContractUpgrade parses an Upgraded contract log and inserts the new upgraded implementation into the database
 func (cm *ContractManager) HandleContractUpgrade(ctx context.Context, blockNumber uint64, upgradedLog *parser.DecodedLog) error {
 	// the new address that the contract points to
 	newProxiedAddress := ""
@@ -87,10 +87,11 @@ func (cm *ContractManager) HandleContractUpgrade(ctx context.Context, blockNumbe
 		}
 
 		newProxiedAddress = "0x" + storageValue[26:]
-		if newProxiedAddress == "" {
-			cm.Logger.Sugar().Debugw("No new proxied address found", zap.String("address", upgradedLog.Address))
-			return fmt.Errorf("no new proxied address found for %s during the 'Upgraded' event", upgradedLog.Address)
-		}
+	}
+
+	if newProxiedAddress == "" {
+		cm.Logger.Sugar().Debugw("No new proxied address found", zap.String("address", upgradedLog.Address))
+		return fmt.Errorf("no new proxied address found for %s during the 'Upgraded' event", upgradedLog.Address)
 	}
 
 	err := cm.CreateUpgradedProxyContract(ctx, blockNumber, upgradedLog.Address, newProxiedAddress)

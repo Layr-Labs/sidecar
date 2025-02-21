@@ -98,6 +98,10 @@ type SidecarPrimaryConfig struct {
 	IsPrimary bool
 }
 
+type IpfsConfig struct {
+	Url string
+}
+
 type Config struct {
 	Debug                bool
 	EthereumRpcConfig    EthereumRpcConfig
@@ -109,6 +113,7 @@ type Config struct {
 	DataDogConfig        DataDogConfig
 	PrometheusConfig     PrometheusConfig
 	SidecarPrimaryConfig SidecarPrimaryConfig
+	IpfsConfig           IpfsConfig
 }
 
 func StringWithDefault(value, defaultValue string) string {
@@ -147,6 +152,8 @@ var (
 	PrometheusPort    = "prometheus.port"
 
 	SidecarPrimaryUrl = "sidecar-primary.url"
+
+	IpfsUrl = "ipfs.url"
 )
 
 func NewConfig() *Config {
@@ -201,6 +208,10 @@ func NewConfig() *Config {
 
 		SidecarPrimaryConfig: SidecarPrimaryConfig{
 			Url: viper.GetString(normalizeFlagName(SidecarPrimaryUrl)),
+		},
+
+		IpfsConfig: IpfsConfig{
+			Url: StringWithDefault(viper.GetString(normalizeFlagName(IpfsUrl)), "https://ipfs.io/ipfs"),
 		},
 	}
 }
