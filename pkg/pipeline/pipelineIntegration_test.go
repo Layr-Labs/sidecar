@@ -10,7 +10,7 @@ import (
 
 	"os"
 
-    "github.com/Layr-Labs/sidecar/pkg/abiFetcher"
+	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"

@@ -2,10 +2,10 @@ package contractManager
 
 import (
 	"context"
-	"net/http"
 	"database/sql"
 	"log"
-    "reflect"
+	"net/http"
+	"reflect"
 	"testing"
 
 	"os"
@@ -20,11 +20,11 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/parser"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
+	"github.com/agiledragon/gomonkey/v2"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/agiledragon/gomonkey/v2"
 	"gorm.io/gorm"
 )
 
@@ -52,19 +52,19 @@ func setup() (
 
 func Test_ContractManager(t *testing.T) {
 	dbName, grm, l, cfg, err := setup()
-    if err != nil {
-        t.Fatal(err)
-    }
+	if err != nil {
+		t.Fatal(err)
+	}
 
-    httpmock.Activate()
-    defer httpmock.DeactivateAndReset()
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
 
-    httpmock.RegisterResponder("POST", "http://72.46.85.253:8545",
-        httpmock.NewStringResponder(200, `{"result": "0x0000000000000000000000004567890123456789012345678901234567890123"}`))
+	httpmock.RegisterResponder("POST", "http://72.46.85.253:8545",
+		httpmock.NewStringResponder(200, `{"result": "0x0000000000000000000000004567890123456789012345678901234567890123"}`))
 
-    mockHttpClient := &http.Client{
-        Transport: httpmock.DefaultTransport,
-    }
+	mockHttpClient := &http.Client{
+		Transport: httpmock.DefaultTransport,
+	}
 
 	baseUrl := "http://72.46.85.253:8545"
 	ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
@@ -114,17 +114,17 @@ func Test_ContractManager(t *testing.T) {
 		// Check if contract and proxy contract exist
 		var contractCount int
 		contractAddress := contract.ContractAddress
-		res := grm.Raw(`select count(*) from contracts where contract_address=@contractAddress`, sql.Named("contractAddress", contractAddress)).Scan(&contractCount)		
+		res := grm.Raw(`select count(*) from contracts where contract_address=@contractAddress`, sql.Named("contractAddress", contractAddress)).Scan(&contractCount)
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, contractCount)
 
 		proxyContractAddress := proxyContract.ContractAddress
-		res = grm.Raw(`select count(*) from contracts where contract_address=@proxyContractAddress`, sql.Named("proxyContractAddress", proxyContractAddress)).Scan(&contractCount)		
+		res = grm.Raw(`select count(*) from contracts where contract_address=@proxyContractAddress`, sql.Named("proxyContractAddress", proxyContractAddress)).Scan(&contractCount)
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, contractCount)
 
 		var proxyContractCount int
-		res = grm.Raw(`select count(*) from proxy_contracts where contract_address=@contractAddress`, sql.Named("contractAddress", contractAddress)).Scan(&proxyContractCount)		
+		res = grm.Raw(`select count(*) from proxy_contracts where contract_address=@contractAddress`, sql.Named("contractAddress", contractAddress)).Scan(&proxyContractCount)
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, proxyContractCount)
 
@@ -149,7 +149,7 @@ func Test_ContractManager(t *testing.T) {
 				return "mockedBytecodeHash", "mockedAbi", nil
 			})
 		defer patches.Reset()
-		
+
 		// Perform the upgrade
 		blockNumber := 5
 		cm := NewContractManager(contractStore, client, af, sdc, l)
@@ -162,10 +162,10 @@ func Test_ContractManager(t *testing.T) {
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, contractCount)
 
-		res = grm.Raw(`select count(*) from proxy_contracts where contract_address=@contractAddress`, sql.Named("contractAddress", contractAddress)).Scan(&proxyContractCount)		
+		res = grm.Raw(`select count(*) from proxy_contracts where contract_address=@contractAddress`, sql.Named("contractAddress", contractAddress)).Scan(&proxyContractCount)
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 2, proxyContractCount)
-	})	
+	})
 	t.Run("Test getting address from storage slot", func(t *testing.T) {
 		// An upgrade event without implementation argument
 		upgradedLog := &parser.DecodedLog{
@@ -196,7 +196,7 @@ func Test_ContractManager(t *testing.T) {
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, contractCount)
 
-		res = grm.Raw(`select count(*) from proxy_contracts where contract_address=@contractAddress`, sql.Named("contractAddress", contract.ContractAddress)).Scan(&proxyContractCount)		
+		res = grm.Raw(`select count(*) from proxy_contracts where contract_address=@contractAddress`, sql.Named("contractAddress", contract.ContractAddress)).Scan(&proxyContractCount)
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 3, proxyContractCount)
 	})

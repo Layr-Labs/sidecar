@@ -13,7 +13,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/tests"
-    "github.com/Layr-Labs/sidecar/pkg/abiFetcher"
+	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/multicallContractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
