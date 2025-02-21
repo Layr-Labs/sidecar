@@ -874,8 +874,13 @@ func (ss *StakerSharesModel) GetMergedDelegatedStakerSharesAtTimeOfSlashing(slas
 		mappedStakerShares[delegatedStakerShare.Staker] = delegatedStakerShare
 	}
 
-	stakerShares = append(stakerShares, delegatedStakerShares...)
-	return stakerShares, nil
+	// convert the map back to a slice
+	combinedStakerShares := make([]*StakerShares, 0)
+	for _, mappedStakerShare := range mappedStakerShares {
+		combinedStakerShares = append(combinedStakerShares, mappedStakerShare)
+	}
+
+	return combinedStakerShares, nil
 }
 
 func (ss *StakerSharesModel) GetStakerSharesFromDB(staker string, strategy string) ([]*StakerShares, error) {
