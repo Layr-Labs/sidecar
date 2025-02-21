@@ -71,7 +71,8 @@ func Test_ContractManager(t *testing.T) {
 	ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
 	ethConfig.BaseUrl = baseUrl
 
-	client := ethereum.NewClient(ethConfig, l, mockHttpClient)
+	client := ethereum.NewClient(ethConfig, l)
+	client.SetHttpClient(mockHttpClient)
 
 	af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg)
 
