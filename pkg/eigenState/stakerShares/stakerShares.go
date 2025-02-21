@@ -990,7 +990,7 @@ func (ss *StakerSharesModel) getFlattenedPrecommitDelegatedStakers(blockNumber u
 }
 
 func getNetDeltaKey(staker, strategy string) string {
-	return fmt.Sprintf("%s-%s", staker, strategy)
+	return strings.ToLower(fmt.Sprintf("%s-%s", staker, strategy))
 }
 
 func orderSlashes(slashes []*SlashDiff) []*SlashDiff {
