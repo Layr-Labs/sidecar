@@ -42,7 +42,7 @@ func NewAbiFetcher(
 	}
 }
 
-func (af *AbiFetcher) FetchMetadataFromAddress(ctx context.Context, address string) (string, string, error) {
+func (af *AbiFetcher) FetchContractDetails(ctx context.Context, address string) (string, string, error) {
 	bytecode, err := af.EthereumClient.GetCode(ctx, address)
 	if err != nil {
 		af.Logger.Sugar().Errorw("Failed to get the contract bytecode",
