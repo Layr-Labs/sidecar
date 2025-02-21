@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/precommitProcessors"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
@@ -95,6 +96,8 @@ func main() {
 	if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
 	}
+
+	precommitProcessors.LoadPrecommitProcessors(sm, grm, l)
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 

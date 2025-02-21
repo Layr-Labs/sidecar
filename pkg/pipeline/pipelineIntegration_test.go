@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/precommitProcessors"
 	"log"
 	"testing"
 
@@ -96,6 +97,8 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
 	}
+	precommitProcessors.LoadPrecommitProcessors(sm, grm, l)
+
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 	rc, _ := rewards.NewRewardsCalculator(cfg, grm, mds, sog, sdc, l)
 
