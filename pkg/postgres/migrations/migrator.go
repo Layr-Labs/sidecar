@@ -7,6 +7,8 @@ import (
 	_202502100846_goldTableRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502100846_goldTableRewardHashIndex"
 	_202502211539_hydrateClaimedRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502211539_hydrateClaimedRewards"
 	_202503030846_cleanupConstraintNames "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503030846_cleanupConstraintNames"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -62,8 +64,7 @@ import (
 	_202501301505_operatorSetStrategyRegistrationSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501301505_operatorSetStrategyRegistrationSnapshots"
 	_202501301945_operatorDirectedOperatorSetRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501301945_operatorDirectedOperatorSetRewards"
 	_202502051830_addOperatorSetIdToStakerOperator "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502051830_addOperatorSetIdToStakerOperator"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
+	_202502252204_operatorSplitModel "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502252204_operatorSplitModel"
 )
 
 type Migration interface {
@@ -160,6 +161,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202501301945_operatorDirectedOperatorSetRewards.Migration{},
 		&_202502051830_addOperatorSetIdToStakerOperator.Migration{},
 		&_202503030846_cleanupConstraintNames.Migration{},
+		&_202502252204_operatorSplitModel.Migration{},
 	}
 
 	for _, migration := range migrations {

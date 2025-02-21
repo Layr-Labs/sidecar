@@ -12,6 +12,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetOperatorRegistrations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetSplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetStrategyRegistrations"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSets"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/rewardSubmissions"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerDelegations"
@@ -86,6 +87,10 @@ func LoadEigenStateModels(
 	}
 	if _, err := operatorSetStrategyRegistrations.NewOperatorSetStrategyRegistrationModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Errorw("Failed to create OperatorSetStrategyRegistrationModel", zap.Error(err))
+		return err
+	}
+	if _, err := operatorSets.NewOperatorSetModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create OperatorSetModel", zap.Error(err))
 		return err
 	}
 	return nil
