@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/precommitProcessors"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator/helpers"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator/types"
@@ -45,6 +46,8 @@ func (sm *StateMigration) MigrateState(currentBlockNumber uint64) ([][]byte, map
 		sm.logger.Sugar().Errorw("Failed to load eigen state models for migration", zap.Error(err))
 		return nil, nil, err
 	}
+
+	precommitProcessors.LoadPrecommitProcessors(stateMan, sm.db, sm.logger)
 
 	contracts := sm.globalConfig.GetContractsMapForChain()
 
@@ -105,6 +108,11 @@ func (sm *StateMigration) MigrateState(currentBlockNumber uint64) ([][]byte, map
 				sm.logger.Sugar().Errorw("Failed to handle log state change", zap.String("transactionHash", tl.TransactionHash), zap.Uint64("logIndex", tl.LogIndex), zap.Error(err))
 				return nil, nil, err
 			}
+		}
+
+		if err := stateMan.RunPrecommitProcessors(bn); err != nil {
+			sm.logger.Sugar().Errorw("Failed to run precommit processors", zap.Uint64("blockNumber", bn), zap.Error(err))
+			return nil, nil, err
 		}
 
 		committedState, err := stateMan.CommitFinalState(bn)

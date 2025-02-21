@@ -7,6 +7,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/version"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/precommitProcessors"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
@@ -93,6 +94,8 @@ var rpcCmd = &cobra.Command{
 		if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
 			l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
 		}
+
+		precommitProcessors.LoadPrecommitProcessors(sm, grm, l)
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 
