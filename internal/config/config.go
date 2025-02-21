@@ -102,6 +102,10 @@ type IpfsConfig struct {
 	Url string
 }
 
+type EtherscanConfig struct {
+	ApiKeys []string
+}
+
 type Config struct {
 	Debug                bool
 	EthereumRpcConfig    EthereumRpcConfig
@@ -114,6 +118,7 @@ type Config struct {
 	PrometheusConfig     PrometheusConfig
 	SidecarPrimaryConfig SidecarPrimaryConfig
 	IpfsConfig           IpfsConfig
+	EtherscanConfig		 EtherscanConfig
 }
 
 func StringWithDefault(value, defaultValue string) string {
@@ -154,6 +159,8 @@ var (
 	SidecarPrimaryUrl = "sidecar-primary.url"
 
 	IpfsUrl = "ipfs.url"
+	
+	EtherscanApiKey = "etherscan.api_key"
 )
 
 func NewConfig() *Config {
@@ -212,6 +219,10 @@ func NewConfig() *Config {
 
 		IpfsConfig: IpfsConfig{
 			Url: StringWithDefault(viper.GetString(normalizeFlagName(IpfsUrl)), "https://ipfs.io/ipfs"),
+		},
+		
+		EtherscanConfig: EtherscanConfig{
+			ApiKeys: viper.GetStringSlice(normalizeFlagName(EtherscanApiKey)),
 		},
 	}
 }
