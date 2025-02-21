@@ -57,7 +57,7 @@ func main() {
 	client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
 	af := abiFetcher.NewAbiFetcher(client, l)
-	
+
 	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
 	pg, err := postgres.NewPostgres(pgConfig)

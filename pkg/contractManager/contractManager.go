@@ -17,7 +17,7 @@ import (
 type ContractManager struct {
 	ContractStore  contractStore.ContractStore
 	EthereumClient *ethereum.Client
-    AbiFetcher     *abiFetcher.AbiFetcher
+	AbiFetcher     *abiFetcher.AbiFetcher
 	metricsSink    *metrics.MetricsSink
 	Logger         *zap.Logger
 }
@@ -117,7 +117,7 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 		)
 		return nil
 	}
-	
+
 	// Create a proxy contract
 	_, err := cm.ContractStore.CreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
 	if err != nil {
@@ -127,8 +127,8 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 			zap.String("proxyContractAddress", proxyContractAddress),
 		)
 		return err
-	}	
-	
+	}
+
 	// Fetch ABIs
 	bytecodeHash, abi, err := cm.AbiFetcher.FetchMetadataFromAddress(ctx, proxyContractAddress)
 	if err != nil {
@@ -156,6 +156,6 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 		return err
 	}
 	cm.Logger.Sugar().Debugf("Created new contract for proxy contract", zap.String("proxyContractAddress", proxyContractAddress))
-	
+
 	return nil
 }
