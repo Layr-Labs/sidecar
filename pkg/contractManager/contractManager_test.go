@@ -146,7 +146,7 @@ func Test_ContractManager(t *testing.T) {
 		}
 
 		// Patch abiFetcher
-		patches := gomonkey.ApplyMethod(reflect.TypeOf(af), "FetchMetadataFromAddress",
+		patches := gomonkey.ApplyMethod(reflect.TypeOf(af), "FetchContractDetails",
 			func(_ *abiFetcher.AbiFetcher, _ context.Context, _ string) (string, string, error) {
 				return "mockedBytecodeHash", "mockedAbi", nil
 			})
@@ -178,7 +178,7 @@ func Test_ContractManager(t *testing.T) {
 		}
 
 		// Patch abiFetcher
-		patches := gomonkey.ApplyMethod(reflect.TypeOf(af), "FetchMetadataFromAddress",
+		patches := gomonkey.ApplyMethod(reflect.TypeOf(af), "FetchContractDetails",
 			func(_ *abiFetcher.AbiFetcher, _ context.Context, _ string) (string, string, error) {
 				return "mockedBytecodeHash", "mockedAbi", nil
 			})
