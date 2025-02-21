@@ -11,6 +11,8 @@ import (
 	_202502211539_hydrateClaimedRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502211539_hydrateClaimedRewards"
 	_202503030846_cleanupConstraintNames "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503030846_cleanupConstraintNames"
 	_202503042014_stakerOperatorIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503042014_stakerOperatorIndex"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	_202409061249_bootstrapDb "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061249_bootstrapDb"
@@ -66,9 +68,8 @@ import (
 	_202501301945_operatorDirectedOperatorSetRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501301945_operatorDirectedOperatorSetRewards"
 	_202502051830_addOperatorSetIdToStakerOperator "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502051830_addOperatorSetIdToStakerOperator"
 	_202502180836_snapshotUniqueConstraints "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502180836_snapshotUniqueConstraints"
+	_202502252204_operatorSplitModel "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502252204_operatorSplitModel"
 	_202503051449_addContractTypeColumn "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503051449_addContractTypeColumn"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // Migration interface defines the contract for database migrations.
@@ -201,6 +202,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202501301945_operatorDirectedOperatorSetRewards.Migration{},
 		&_202502051830_addOperatorSetIdToStakerOperator.Migration{},
 		&_202503030846_cleanupConstraintNames.Migration{},
+		&_202502252204_operatorSplitModel.Migration{},
 	}
 
 	for _, migration := range migrations {
