@@ -110,6 +110,10 @@ func NewClient(cfg *EthereumClientConfig, l *zap.Logger) *Client {
 	}
 }
 
+func (c *Client) SetHttpClient(client *http.Client) {
+	c.httpClient = client
+}
+
 func (c *Client) GetEthereumContractCaller() (*ethclient.Client, error) {
 	d, err := ethclient.Dial(c.clientConfig.BaseUrl)
 	if err != nil {

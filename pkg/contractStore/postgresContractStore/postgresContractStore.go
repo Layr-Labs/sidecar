@@ -45,6 +45,46 @@ func (s *PostgresContractStore) GetContractForAddress(address string) (*contract
 	return contract, nil
 }
 
+func (s *PostgresContractStore) GetProxyContractForAddress(blockNumber uint64, address string) (*contractStore.ProxyContract, error) {
+	var proxyContract *contractStore.ProxyContract
+
+	result := s.Db.First(&proxyContract, "contract_address = ? and block_number = ?", address, blockNumber)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			s.Logger.Sugar().Debugf("proxyContract not found in store '%s'", address)
+			return nil, nil
+		}
+		return nil, result.Error
+	}
+
+	return proxyContract, nil
+}
+
+func (s *PostgresContractStore) CreateContract(
+	address string,
+	abiJson string,
+	verified bool,
+	bytecodeHash string,
+	matchingContractAddress string,
+	checkedForAbi bool,
+) (*contractStore.Contract, error) {
+	contract := &contractStore.Contract{
+		ContractAddress:         strings.ToLower(address),
+		ContractAbi:             abiJson,
+		Verified:                verified,
+		BytecodeHash:            bytecodeHash,
+		MatchingContractAddress: matchingContractAddress,
+		CheckedForAbi:           checkedForAbi,
+	}
+
+	result := s.Db.Create(contract)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return contract, nil
+}
+
 func (s *PostgresContractStore) FindOrCreateContract(
 	address string,
 	abiJson string,
@@ -66,23 +106,35 @@ func (s *PostgresContractStore) FindOrCreateContract(
 			found = true
 			return contract, nil
 		}
-		contract = &contractStore.Contract{
-			ContractAddress:         strings.ToLower(address),
-			ContractAbi:             abiJson,
-			Verified:                verified,
-			BytecodeHash:            bytecodeHash,
-			MatchingContractAddress: matchingContractAddress,
-			CheckedForAbi:           checkedForAbi,
-		}
 
-		result = s.Db.Create(contract)
-		if result.Error != nil {
-			return nil, result.Error
+		contract, err := s.CreateContract(address, abiJson, verified, bytecodeHash, matchingContractAddress, checkedForAbi)
+		if err != nil {
+			s.Logger.Sugar().Errorw("Failed to create contract", zap.Error(err), zap.String("address", address))
+			return nil, err
 		}
 
 		return contract, nil
 	}, s.Db, nil)
 	return upsertedContract, found, err
+}
+
+func (s *PostgresContractStore) CreateProxyContract(
+	blockNumber uint64,
+	contractAddress string,
+	proxyContractAddress string,
+) (*contractStore.ProxyContract, error) {
+	proxyContract := &contractStore.ProxyContract{
+		BlockNumber:          int64(blockNumber),
+		ContractAddress:      contractAddress,
+		ProxyContractAddress: proxyContractAddress,
+	}
+
+	result := s.Db.Model(&contractStore.ProxyContract{}).Clauses(clause.Returning{}).Create(&proxyContract)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return proxyContract, nil
 }
 
 func (s *PostgresContractStore) FindOrCreateProxyContract(
@@ -107,15 +159,11 @@ func (s *PostgresContractStore) FindOrCreateProxyContract(
 			found = true
 			return contract, nil
 		}
-		proxyContract := &contractStore.ProxyContract{
-			BlockNumber:          int64(blockNumber),
-			ContractAddress:      contractAddress,
-			ProxyContractAddress: proxyContractAddress,
-		}
 
-		result = tx.Model(&contractStore.ProxyContract{}).Clauses(clause.Returning{}).Create(&proxyContract)
-		if result.Error != nil {
-			return nil, result.Error
+		proxyContract, err := s.CreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
+		if err != nil {
+			s.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err), zap.String("contractAddress", contractAddress))
+			return nil, err
 		}
 
 		return proxyContract, nil

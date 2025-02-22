@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/version"
+	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
@@ -29,6 +30,8 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"log"
+	"net/http"
+	"time"
 )
 
 var runDatabaseCmd = &cobra.Command{
@@ -59,6 +62,8 @@ var runDatabaseCmd = &cobra.Command{
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
+		af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg)
+
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
 		pg, err := postgres.NewPostgres(pgConfig)
@@ -81,7 +86,7 @@ var runDatabaseCmd = &cobra.Command{
 			log.Fatalf("Failed to initialize core contracts: %v", err)
 		}
 
-		cm := contractManager.NewContractManager(contractStore, client, sdc, l)
+		cm := contractManager.NewContractManager(contractStore, client, af, sdc, l)
 
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {
