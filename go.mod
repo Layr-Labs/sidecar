@@ -38,6 +38,7 @@ require (
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
+	github.com/agiledragon/gomonkey/v2 v2.13.0 // indirect
 	github.com/akuity/grpc-gateway-client v0.0.0-20240912082144-55a48e8b4b89 // indirect
 	github.com/alevinval/sse v1.0.1 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
