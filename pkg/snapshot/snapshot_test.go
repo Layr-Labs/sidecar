@@ -252,6 +252,7 @@ func Test_SnapshotService(t *testing.T) {
 					},
 					Input: snapshotFile.FullPath(),
 				})
+				assert.Nil(t, err)
 
 				var migrations []string
 				query := `select name from migrations order by name desc`

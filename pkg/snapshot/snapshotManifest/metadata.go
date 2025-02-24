@@ -3,7 +3,7 @@ package snapshotManifest
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rogpeppe/go-internal/semver"
+	"golang.org/x/mod/semver"
 	"time"
 )
 
