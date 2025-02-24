@@ -18,7 +18,7 @@ var runVersionCmd = &cobra.Command{
 		v := version.GetVersion()
 		commit := version.GetCommit()
 
-		fmt.Printf("Version: %s\nCommit: %s\n", v, commit)
+		fmt.Printf("SidecarVersion: %s\nCommit: %s\n", v, commit)
 	},
 }
 

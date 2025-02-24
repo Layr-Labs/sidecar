@@ -10,8 +10,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// SnapshotConfig encapsulates all configuration needed for snapshot operations.
-type SnapshotConfig struct {
+// OldSnapshotConfig encapsulates all configuration needed for snapshot operations.
+type OldSnapshotConfig struct {
 	OutputFile string
 	InputFile  string
 	Host       string
@@ -22,14 +22,14 @@ type SnapshotConfig struct {
 	SchemaName string
 }
 
-// SnapshotService encapsulates the configuration and logger for snapshot operations.
-type SnapshotService struct {
-	cfg *SnapshotConfig
+// OldSnapshotService encapsulates the configuration and logger for snapshot operations.
+type OldSnapshotService struct {
+	cfg *OldSnapshotConfig
 	l   *zap.Logger
 }
 
-// NewSnapshotService initializes a new SnapshotService with the given configuration and logger.
-func NewSnapshotService(cfg *SnapshotConfig, l *zap.Logger) (*SnapshotService, error) {
+// OldNewSnapshotService initializes a new OldSnapshotService with the given configuration and logger.
+func OldNewSnapshotService(cfg *OldSnapshotConfig, l *zap.Logger) (*OldSnapshotService, error) {
 	var err error
 
 	cfg.InputFile, err = resolveFilePath(cfg.InputFile)
@@ -43,7 +43,7 @@ func NewSnapshotService(cfg *SnapshotConfig, l *zap.Logger) (*SnapshotService, e
 
 	l.Sugar().Infow("Resolved file paths", "inputFile", cfg.InputFile, "outputFile", cfg.OutputFile)
 
-	return &SnapshotService{
+	return &OldSnapshotService{
 		cfg: cfg,
 		l:   l,
 	}, nil
@@ -69,7 +69,7 @@ func resolveFilePath(path string) (string, error) {
 }
 
 // CreateSnapshot creates a snapshot of the database based on the provided configuration.
-func (s *SnapshotService) CreateSnapshot() error {
+func (s *OldSnapshotService) CreateSnapshot() error {
 	if err := s.validateCreateSnapshotConfig(); err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func (s *SnapshotService) CreateSnapshot() error {
 }
 
 // RestoreSnapshot restores a snapshot of the database based on the provided configuration.
-func (s *SnapshotService) RestoreSnapshot() error {
+func (s *OldSnapshotService) RestoreSnapshot() error {
 	if err := s.validateRestoreConfig(); err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (s *SnapshotService) RestoreSnapshot() error {
 	return nil
 }
 
-func (s *SnapshotService) validateCreateSnapshotConfig() error {
+func (s *OldSnapshotService) validateCreateSnapshotConfig() error {
 	if s.cfg.Host == "" {
 		return fmt.Errorf("database host is required")
 	}
@@ -125,7 +125,7 @@ func (s *SnapshotService) validateCreateSnapshotConfig() error {
 	return nil
 }
 
-func (s *SnapshotService) setupSnapshotDump() (*pgcommands.Dump, error) {
+func (s *OldSnapshotService) setupSnapshotDump() (*pgcommands.Dump, error) {
 	dump, err := pgcommands.NewDump(&pgcommands.Postgres{
 		Host:     s.cfg.Host,
 		Port:     s.cfg.Port,
@@ -147,7 +147,7 @@ func (s *SnapshotService) setupSnapshotDump() (*pgcommands.Dump, error) {
 	return dump, nil
 }
 
-func (s *SnapshotService) validateRestoreConfig() error {
+func (s *OldSnapshotService) validateRestoreConfig() error {
 	if s.cfg.InputFile == "" {
 		return fmt.Errorf("restore snapshot file path i.e. `input-file` must be specified")
 	}
@@ -160,7 +160,7 @@ func (s *SnapshotService) validateRestoreConfig() error {
 	return nil
 }
 
-func (s *SnapshotService) setupRestore() (*pgcommands.Restore, error) {
+func (s *OldSnapshotService) setupRestore() (*pgcommands.Restore, error) {
 	restore, err := pgcommands.NewRestore(&pgcommands.Postgres{
 		Host:     s.cfg.Host,
 		Port:     s.cfg.Port,
