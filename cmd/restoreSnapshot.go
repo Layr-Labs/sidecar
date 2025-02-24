@@ -38,9 +38,10 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 				DBConfig:       snapshot.CreateSnapshotDbConfigFromConfig(cfg.DatabaseConfig),
 				Verbose:        cfg.Debug,
 			},
-			Input:                   cfg.SnapshotConfig.InputFile,
-			VerifySnapshotHash:      true,
-			VerifySnapshotSignature: false,
+			Input:                   cfg.RestoreSnapshotConfig.InputFile,
+			VerifySnapshotHash:      cfg.RestoreSnapshotConfig.VerifyHash,
+			VerifySnapshotSignature: cfg.RestoreSnapshotConfig.VerifySignature,
+			ManifestUrl:             cfg.RestoreSnapshotConfig.ManifestUrl,
 		})
 		if err != nil {
 			l.Sugar().Fatalw("Failed to restore snapshot", zap.Error(err))

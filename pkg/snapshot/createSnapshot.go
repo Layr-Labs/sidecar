@@ -18,6 +18,8 @@ func defaultDumpOptions() []string {
 	}
 }
 
+const DefaultKind = "full"
+
 func (ss *SnapshotService) isValidDestinationPath(destPath string) (bool, error) {
 	stat, err := os.Stat(destPath)
 	if err != nil {
@@ -52,7 +54,7 @@ func (ss *SnapshotService) CreateSnapshot(cfg *CreateSnapshotConfig) (*SnapshotF
 		return nil, fmt.Errorf("invalid destination path: %w", err)
 	}
 
-	snapshotFile := newSnapshotDumpFile(destPath, cfg.Chain.String(), cfg.SidecarVersion, cfg.DBConfig.SchemaName)
+	snapshotFile := newSnapshotDumpFile(destPath, cfg.Chain.String(), cfg.SidecarVersion, cfg.DBConfig.SchemaName, DefaultKind)
 
 	res, err := ss.performDump(snapshotFile, cfg)
 	if err != nil {
@@ -69,7 +71,27 @@ func (ss *SnapshotService) CreateSnapshot(cfg *CreateSnapshotConfig) (*SnapshotF
 	}
 	ss.logger.Sugar().Infow("Snapshot hash generated", zap.String("outputFile", snapshotFile.FullPath()))
 
+	if err := ss.generateMetadataFile(snapshotFile, cfg); err != nil {
+		return nil, fmt.Errorf("error generating metadata file: %w", err)
+	}
+
 	return snapshotFile, nil
+}
+
+func (ss *SnapshotService) generateMetadataFile(snapshotFile *SnapshotFile, cfg *CreateSnapshotConfig) error {
+	if !cfg.GenerateMetadataFile {
+		ss.logger.Sugar().Infow("Skipping metadata file generation", zap.String("metadataFile", snapshotFile.MetadataFilePath()))
+		return nil
+	}
+
+	ss.logger.Sugar().Infow("Generating metadata file", zap.String("metadataFile", snapshotFile.MetadataFilePath()))
+
+	if err := snapshotFile.GenerateAndSaveMetadata(); err != nil {
+		return fmt.Errorf("error generating metadata file: %w", err)
+	}
+	ss.logger.Sugar().Infow("Metadata file generated", zap.String("metadataFile", snapshotFile.MetadataFilePath()))
+
+	return nil
 }
 
 func (ss *SnapshotService) performDump(snapshotFile *SnapshotFile, cfg *CreateSnapshotConfig) (*Result, error) {

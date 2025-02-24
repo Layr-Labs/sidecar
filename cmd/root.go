@@ -64,8 +64,15 @@ func init() {
 	rootCmd.AddCommand(rpcCmd)
 
 	// bind any subcommand flags
-	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "Path to save the snapshot file to (required)")
-	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInputFile, "", "Path to the snapshot file (required)")
+	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "(deprecated, use --output) Path to save the snapshot file")
+	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutput, "", "Path to save the snapshot file")
+	createSnapshotCmd.PersistentFlags().Bool(config.SnapshotOutputMetadataFile, true, "Generate a metadata file for the snapshot")
+
+	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInputFile, "", "(deprecated, use --input) Path to the snapshot file")
+	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInput, "", "Path to the snapshot file")
+	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotManifestUrl, "", "URL to the snapshot manifest file")
+	restoreSnapshotCmd.PersistentFlags().Bool(config.SnapshotVerifyHash, true, "Verify the hash of the snapshot file")
+	restoreSnapshotCmd.PersistentFlags().Bool(config.SnapshotVerifySignature, false, "Verify the signature of the snapshot file")
 
 	rpcCmd.PersistentFlags().String(config.SidecarPrimaryUrl, "", `RPC url of the "primary" Sidecar instance in an HA environment`)
 

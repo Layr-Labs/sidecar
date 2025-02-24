@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -14,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func setupCreateSnapshot() (
@@ -145,7 +147,7 @@ func Test_SnapshotService(t *testing.T) {
 			assert.False(t, valid)
 			assert.NotNil(t, err)
 		})
-		t.Run("Should create a snapshot with hash file", func(t *testing.T) {
+		t.Run("Should create a snapshot with hash file and metadata file", func(t *testing.T) {
 			dbName, grm, l, cfg, err := setupCreateSnapshot()
 
 			if err != nil {
@@ -170,14 +172,15 @@ func Test_SnapshotService(t *testing.T) {
 					SidecarVersion: "v1.0.0",
 					DBConfig:       CreateSnapshotDbConfigFromConfig(cfg.DatabaseConfig),
 				},
-				DestinationPath: destPath,
+				DestinationPath:      destPath,
+				GenerateMetadataFile: true,
 			})
 			assert.Nil(t, err)
 			assert.NotNil(t, snapshotFile)
 
 			files, err := lsDir(snapshotFile.Dir)
 			assert.Nil(t, err)
-			assert.Equal(t, 2, len(files))
+			assert.Equal(t, 3, len(files))
 			fmt.Printf("files: %+v\n", files)
 
 			// shell out to sha256sum to validate the snapshot file
@@ -185,6 +188,23 @@ func Test_SnapshotService(t *testing.T) {
 			output, err := cmd.CombinedOutput()
 			assert.Nil(t, err)
 			assert.Contains(t, string(output), "OK")
+
+			// open the metadata file and check the contents
+			metadataContents, err := os.ReadFile(snapshotFile.MetadataFilePath())
+			assert.Nil(t, err)
+			assert.NotEmpty(t, metadataContents)
+			fmt.Printf("metadataContents: %s\n", string(metadataContents))
+
+			var metadata SnapshotMetadata
+			err = json.Unmarshal(metadataContents, &metadata)
+			assert.Nil(t, err)
+
+			assert.Equal(t, cfg.Chain.String(), metadata.Chain)
+			assert.Equal(t, snapshotFile.Version, metadata.Version)
+			assert.Equal(t, snapshotFile.SchemaName, metadata.Schema)
+			assert.Equal(t, snapshotFile.Kind, metadata.Kind)
+			assert.Equal(t, snapshotFile.SnapshotFileName, metadata.FileName)
+			assert.Equal(t, snapshotFile.CreatedTimestamp.Format(time.RFC3339), metadata.Timestamp)
 
 			t.Cleanup(func() {
 				postgres.TeardownTestDatabase(dbName, cfg, grm, l)

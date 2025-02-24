@@ -46,7 +46,8 @@ func (sc *SnapshotConfig) IsValid() (bool, error) {
 
 type CreateSnapshotConfig struct {
 	SnapshotConfig
-	DestinationPath string
+	DestinationPath      string
+	GenerateMetadataFile bool
 }
 
 func (csc *CreateSnapshotConfig) IsValid() (bool, error) {

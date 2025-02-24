@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"io"
@@ -14,6 +15,20 @@ import (
 type SnapshotFile struct {
 	Dir              string
 	SnapshotFileName string
+	CreatedTimestamp time.Time
+	Chain            string
+	Version          string
+	SchemaName       string
+	Kind             string
+}
+
+type SnapshotMetadata struct {
+	Version   string `json:"version"`
+	Chain     string `json:"chain"`
+	Schema    string `json:"schema"`
+	Kind      string `json:"kind"`
+	Timestamp string `json:"timestamp"`
+	FileName  string `json:"fileName"`
 }
 
 func (sf *SnapshotFile) HashExt() string {
@@ -121,6 +136,45 @@ func (sf *SnapshotFile) ClearFiles() {
 	_ = os.Remove(sf.SignatureFilePath())
 }
 
+func (sf *SnapshotFile) MetadataFileName() string {
+	return "metadata.json"
+}
+
+func (sf *SnapshotFile) MetadataFilePath() string {
+	return fmt.Sprintf("%s/%s", sf.Dir, sf.MetadataFileName())
+}
+
+func (sf *SnapshotFile) GetMetadata() *SnapshotMetadata {
+	return &SnapshotMetadata{
+		Version:   sf.Version,
+		Chain:     sf.Chain,
+		Schema:    sf.SchemaName,
+		Kind:      sf.Kind,
+		Timestamp: sf.CreatedTimestamp.Format(time.RFC3339),
+		FileName:  sf.SnapshotFileName,
+	}
+}
+
+func (sf *SnapshotFile) GenerateAndSaveMetadata() error {
+	metadataFilePath := sf.MetadataFilePath()
+
+	metadata := sf.GetMetadata()
+	metadataJson, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error marshalling metadata: %w", err)
+	}
+
+	metadataFile, err := os.OpenFile(metadataFilePath, os.O_CREATE|os.O_WRONLY, 0775)
+	if err != nil {
+		return fmt.Errorf("error creating metadata file: %w", err)
+	}
+	_, err = metadataFile.Write(metadataJson)
+	if err != nil {
+		return fmt.Errorf("error writing metadata file: %w", err)
+	}
+	return nil
+}
+
 func newSnapshotFile(snapshotFileName string) *SnapshotFile {
 	name := filepath.Base(snapshotFileName)
 	dir := filepath.Dir(snapshotFileName)
@@ -131,14 +185,20 @@ func newSnapshotFile(snapshotFileName string) *SnapshotFile {
 	}
 }
 
-func newSnapshotDumpFile(destPath string, chain string, version string, schemaName string) *SnapshotFile {
+func newSnapshotDumpFile(destPath string, chain string, version string, schemaName string, kind string) *SnapshotFile {
 	// generate date YYYYMMDDhhmmss
-	date := time.Now().Format("20060102150405")
+	now := time.Now()
+	date := now.Format("20060102150405")
 
-	fileName := fmt.Sprintf("sidecar_%s_%s_%s_%s.dump", chain, version, schemaName, date)
+	fileName := fmt.Sprintf("sidecar_%s_%s_%s_%s_%s.dump", chain, kind, version, schemaName, date)
 
 	return &SnapshotFile{
 		Dir:              destPath,
 		SnapshotFileName: fileName,
+		CreatedTimestamp: now,
+		Chain:            chain,
+		Version:          version,
+		SchemaName:       schemaName,
+		Kind:             kind,
 	}
 }

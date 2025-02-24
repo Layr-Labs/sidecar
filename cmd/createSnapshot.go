@@ -35,7 +35,8 @@ var createSnapshotCmd = &cobra.Command{
 				DBConfig:       snapshot.CreateSnapshotDbConfigFromConfig(cfg.DatabaseConfig),
 				Verbose:        cfg.Debug,
 			},
-			DestinationPath: cfg.SnapshotConfig.OutputFile,
+			DestinationPath:      cfg.CreateSnapshotConfig.OutputFile,
+			GenerateMetadataFile: cfg.CreateSnapshotConfig.GenerateMetadataFile,
 		})
 
 		if err != nil {
