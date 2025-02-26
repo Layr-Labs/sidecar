@@ -20,6 +20,10 @@ func ConvertBytesToString(b []byte) string {
 	return "0x" + hex.EncodeToString(b)
 }
 
+func ConvertStringToBytes(s string) ([]byte, error) {
+	return hex.DecodeString(strings.TrimPrefix(s, "0x"))
+}
+
 func SnakeCase(s string) string {
 	notSnake := regexp.MustCompile(`[_-]`)
 	return notSnake.ReplaceAllString(s, "_")

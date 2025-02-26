@@ -6,8 +6,12 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/defaultOperatorSplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/disabledDistributionRoots"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAVSSplits"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorDirectedOperatorSetRewardSubmissions"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorDirectedRewardSubmissions"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorPISplits"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetOperatorRegistrations"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetSplits"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetStrategyRegistrations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/rewardSubmissions"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerDelegations"
@@ -66,6 +70,22 @@ func LoadEigenStateModels(
 	}
 	if _, err := defaultOperatorSplits.NewDefaultOperatorSplitModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Errorw("Failed to create DefaultOperatorSplitModel", zap.Error(err))
+		return err
+	}
+	if _, err := operatorDirectedOperatorSetRewardSubmissions.NewOperatorDirectedOperatorSetRewardSubmissionsModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create OperatorDirectedOperatorSetRewardSubmissionsModel", zap.Error(err))
+		return err
+	}
+	if _, err := operatorSetSplits.NewOperatorSetSplitModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create OperatorSetSplitModel", zap.Error(err))
+		return err
+	}
+	if _, err := operatorSetOperatorRegistrations.NewOperatorSetOperatorRegistrationModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create OperatorSetOperatorRegistrationModel", zap.Error(err))
+		return err
+	}
+	if _, err := operatorSetStrategyRegistrations.NewOperatorSetStrategyRegistrationModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create OperatorSetStrategyRegistrationModel", zap.Error(err))
 		return err
 	}
 	return nil

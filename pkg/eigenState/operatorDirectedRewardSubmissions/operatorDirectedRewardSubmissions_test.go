@@ -75,7 +75,7 @@ func Test_OperatorDirectedRewardSubmissions(t *testing.T) {
 	}
 
 	t.Run("Test each event type", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		model, err := NewOperatorDirectedRewardSubmissionsModel(esm, grm, l, cfg)
 
@@ -172,7 +172,7 @@ func Test_OperatorDirectedRewardSubmissions(t *testing.T) {
 	})
 
 	t.Run("Ensure an operator directed reward submission with a duration of 0 is not saved", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		model, err := NewOperatorDirectedRewardSubmissionsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 

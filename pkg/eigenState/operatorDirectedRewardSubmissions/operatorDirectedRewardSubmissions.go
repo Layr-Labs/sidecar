@@ -454,3 +454,7 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) ListForBlockRange(startBlock
 	}
 	return base.CastCommittedStateToInterface(submissions), nil
 }
+
+func (odrs *OperatorDirectedRewardSubmissionsModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
+}
