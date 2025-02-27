@@ -1,4 +1,4 @@
-package operatorAllocations
+package operatorAllocationDelayDelays
 
 import (
 	"encoding/json"
@@ -11,27 +11,23 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"math/big"
 	"slices"
 	"sort"
 	"strings"
 )
 
-type OperatorAllocation struct {
+type OperatorAllocationDelay struct {
 	Operator        string
-	Strategy        string
-	Magnitude       string
 	EffectiveBlock  uint64
-	OperatorSetId   uint64
-	Avs             string
+	Delay           uint64
 	BlockNumber     uint64
 	TransactionHash string
 	LogIndex        uint64
 }
 
-type OperatorAllocationModel struct {
+type OperatorAllocationDelayModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[[]*OperatorAllocation]
+	StateTransitions types.StateTransitions[[]*OperatorAllocationDelay]
 	DB               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
@@ -39,48 +35,43 @@ type OperatorAllocationModel struct {
 	globalConfig     *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[types.SlotID]*OperatorAllocation
-	committedState   map[uint64][]*OperatorAllocation
+	stateAccumulator map[uint64]map[types.SlotID]*OperatorAllocationDelay
+	committedState   map[uint64][]*OperatorAllocationDelay
 }
 
-func NewOperatorAllocationModel(
+func NewOperatorAllocationDelayModel(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
 	logger *zap.Logger,
 	globalConfig *config.Config,
-) (*OperatorAllocationModel, error) {
-	model := &OperatorAllocationModel{
+) (*OperatorAllocationDelayModel, error) {
+	model := &OperatorAllocationDelayModel{
 		BaseEigenState: base.BaseEigenState{
 			Logger: logger,
 		},
 		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[types.SlotID]*OperatorAllocation),
-		committedState:   make(map[uint64][]*OperatorAllocation),
+		stateAccumulator: make(map[uint64]map[types.SlotID]*OperatorAllocationDelay),
+		committedState:   make(map[uint64][]*OperatorAllocationDelay),
 	}
 
-	esm.RegisterState(model, 16)
+	esm.RegisterState(model, 17)
 	return model, nil
 }
 
-func (ops *OperatorAllocationModel) GetModelName() string {
+func (ops *OperatorAllocationDelayModel) GetModelName() string {
 	return "AllocationUpdated"
 }
 
-type operatorAllocationOutputData struct {
-	Operator    string      `json:"operator"`
-	Strategy    string      `json:"strategy"`
-	Magnitude   json.Number `json:"magnitude"`
-	EffectBlock uint64      `json:"effectBlock"`
-	OperatorSet struct {
-		Id  uint64 `json:"id"`
-		Avs string `json:"avs"`
-	} `json:"operatorSet"`
+type operatorAllocationDelayOutputData struct {
+	Operator    string `json:"operator"`
+	EffectBlock uint64 `json:"effectBlock"`
+	Delay       uint64 `json:"delay"`
 }
 
-func parseOperatorAllocationOutputData(outputDataStr string) (*operatorAllocationOutputData, error) {
-	outputData := &operatorAllocationOutputData{}
+func parseOperatorAllocationDelayOutputData(outputDataStr string) (*operatorAllocationDelayOutputData, error) {
+	outputData := &operatorAllocationDelayOutputData{}
 	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
 	decoder.UseNumber()
 
@@ -92,26 +83,16 @@ func parseOperatorAllocationOutputData(outputDataStr string) (*operatorAllocatio
 	return outputData, err
 }
 
-func (ops *OperatorAllocationModel) handleOperatorAllocationCreatedEvent(log *storage.TransactionLog) (*OperatorAllocation, error) {
-	outputData, err := parseOperatorAllocationOutputData(log.OutputData)
+func (ops *OperatorAllocationDelayModel) handleOperatorAllocationDelayCreatedEvent(log *storage.TransactionLog) (*OperatorAllocationDelay, error) {
+	outputData, err := parseOperatorAllocationDelayOutputData(log.OutputData)
 	if err != nil {
 		return nil, err
 	}
 
-	magnitude, success := new(big.Int).SetString(outputData.Magnitude.String(), 10)
-	if !success {
-		err := fmt.Errorf("Failed to parse magnitude: %s", outputData.Magnitude.String())
-		ops.logger.Sugar().Errorw("Failed to parse magnitude", zap.Error(err))
-		return nil, err
-	}
-
-	split := &OperatorAllocation{
+	split := &OperatorAllocationDelay{
 		Operator:        strings.ToLower(outputData.Operator),
-		Strategy:        strings.ToLower(outputData.Strategy),
-		Magnitude:       magnitude.String(),
 		EffectiveBlock:  outputData.EffectBlock,
-		OperatorSetId:   outputData.OperatorSet.Id,
-		Avs:             strings.ToLower(outputData.OperatorSet.Avs),
+		Delay:           outputData.Delay,
 		BlockNumber:     log.BlockNumber,
 		TransactionHash: log.TransactionHash,
 		LogIndex:        log.LogIndex,
@@ -120,11 +101,11 @@ func (ops *OperatorAllocationModel) handleOperatorAllocationCreatedEvent(log *st
 	return split, nil
 }
 
-func (ops *OperatorAllocationModel) GetStateTransitions() (types.StateTransitions[*OperatorAllocation], []uint64) {
-	stateChanges := make(types.StateTransitions[*OperatorAllocation])
+func (ops *OperatorAllocationDelayModel) GetStateTransitions() (types.StateTransitions[*OperatorAllocationDelay], []uint64) {
+	stateChanges := make(types.StateTransitions[*OperatorAllocationDelay])
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*OperatorAllocation, error) {
-		createdEvent, err := ops.handleOperatorAllocationCreatedEvent(log)
+	stateChanges[0] = func(log *storage.TransactionLog) (*OperatorAllocationDelay, error) {
+		createdEvent, err := ops.handleOperatorAllocationDelayCreatedEvent(log)
 		if err != nil {
 			return nil, err
 		}
@@ -133,7 +114,7 @@ func (ops *OperatorAllocationModel) GetStateTransitions() (types.StateTransition
 
 		_, ok := ops.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
-			err := fmt.Errorf("Duplicate operatorAllocation submitted for slot %s at block %d", slotId, log.BlockNumber)
+			err := fmt.Errorf("Duplicate operatorAllocationDelay submitted for slot %s at block %d", slotId, log.BlockNumber)
 			ops.logger.Sugar().Errorw("Duplicate operator PI split submitted", zap.Error(err))
 			return nil, err
 		}
@@ -156,33 +137,33 @@ func (ops *OperatorAllocationModel) GetStateTransitions() (types.StateTransition
 	return stateChanges, blockNumbers
 }
 
-func (ops *OperatorAllocationModel) getContractAddressesForEnvironment() map[string][]string {
+func (ops *OperatorAllocationDelayModel) getContractAddressesForEnvironment() map[string][]string {
 	contracts := ops.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.AllocationManager: {
-			"AllocationUpdated",
+			"AllocationDelaySet",
 		},
 	}
 }
 
-func (ops *OperatorAllocationModel) IsInterestingLog(log *storage.TransactionLog) bool {
+func (ops *OperatorAllocationDelayModel) IsInterestingLog(log *storage.TransactionLog) bool {
 	addresses := ops.getContractAddressesForEnvironment()
 	return ops.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (ops *OperatorAllocationModel) SetupStateForBlock(blockNumber uint64) error {
-	ops.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorAllocation)
-	ops.committedState[blockNumber] = make([]*OperatorAllocation, 0)
+func (ops *OperatorAllocationDelayModel) SetupStateForBlock(blockNumber uint64) error {
+	ops.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorAllocationDelay)
+	ops.committedState[blockNumber] = make([]*OperatorAllocationDelay, 0)
 	return nil
 }
 
-func (ops *OperatorAllocationModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
+func (ops *OperatorAllocationDelayModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(ops.stateAccumulator, blockNumber)
 	delete(ops.committedState, blockNumber)
 	return nil
 }
 
-func (ops *OperatorAllocationModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
+func (ops *OperatorAllocationDelayModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
 	stateChanges, sortedBlockNumbers := ops.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
@@ -203,7 +184,7 @@ func (ops *OperatorAllocationModel) HandleStateChange(log *storage.TransactionLo
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (ops *OperatorAllocationModel) prepareState(blockNumber uint64) ([]*OperatorAllocation, error) {
+func (ops *OperatorAllocationDelayModel) prepareState(blockNumber uint64) ([]*OperatorAllocationDelay, error) {
 	accumulatedState, ok := ops.stateAccumulator[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
@@ -211,7 +192,7 @@ func (ops *OperatorAllocationModel) prepareState(blockNumber uint64) ([]*Operato
 		return nil, err
 	}
 
-	recordsToInsert := make([]*OperatorAllocation, 0)
+	recordsToInsert := make([]*OperatorAllocationDelay, 0)
 	for _, split := range accumulatedState {
 		recordsToInsert = append(recordsToInsert, split)
 	}
@@ -219,7 +200,7 @@ func (ops *OperatorAllocationModel) prepareState(blockNumber uint64) ([]*Operato
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (ops *OperatorAllocationModel) CommitFinalState(blockNumber uint64) error {
+func (ops *OperatorAllocationDelayModel) CommitFinalState(blockNumber uint64) error {
 	recordsToInsert, err := ops.prepareState(blockNumber)
 	if err != nil {
 		return err
@@ -227,7 +208,7 @@ func (ops *OperatorAllocationModel) CommitFinalState(blockNumber uint64) error {
 
 	if len(recordsToInsert) > 0 {
 		for _, record := range recordsToInsert {
-			res := ops.DB.Model(&OperatorAllocation{}).Clauses(clause.Returning{}).Create(&record)
+			res := ops.DB.Model(&OperatorAllocationDelay{}).Clauses(clause.Returning{}).Create(&record)
 			if res.Error != nil {
 				ops.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
 				return res.Error
@@ -239,7 +220,7 @@ func (ops *OperatorAllocationModel) CommitFinalState(blockNumber uint64) error {
 }
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
-func (ops *OperatorAllocationModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
+func (ops *OperatorAllocationDelayModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	inserts, err := ops.prepareState(blockNumber)
 	if err != nil {
 		return nil, err
@@ -266,7 +247,7 @@ func (ops *OperatorAllocationModel) GenerateStateRoot(blockNumber uint64) ([]byt
 	return fullTree.Root(), nil
 }
 
-func (ops *OperatorAllocationModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+func (ops *OperatorAllocationDelayModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
 	records, ok := ops.committedState[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No committed state found for block %d", blockNumber)
@@ -276,29 +257,27 @@ func (ops *OperatorAllocationModel) GetCommittedState(blockNumber uint64) ([]int
 	return base.CastCommittedStateToInterface(records), nil
 }
 
-func (ops *OperatorAllocationModel) formatMerkleLeafValue(
+func (ops *OperatorAllocationDelayModel) formatMerkleLeafValue(
 	blockNumber uint64,
 	operator string,
-	strategy string,
-	operatorSetId uint64,
-	avs string,
+	effectiveBlock uint64,
+	delay uint64,
 ) (string, error) {
-	return fmt.Sprintf("%s_%s_%016x_%s", operator, strategy, operatorSetId, avs), nil
+	return fmt.Sprintf("%s_%016x_%016x", operator, effectiveBlock, delay), nil
 }
 
-func (ops *OperatorAllocationModel) sortValuesForMerkleTree(records []*OperatorAllocation) ([]*base.MerkleTreeInput, error) {
+func (ops *OperatorAllocationDelayModel) sortValuesForMerkleTree(records []*OperatorAllocationDelay) ([]*base.MerkleTreeInput, error) {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, record := range records {
 		slotID := base.NewSlotID(record.TransactionHash, record.LogIndex)
-		value, err := ops.formatMerkleLeafValue(record.BlockNumber, record.Operator, record.Strategy, record.OperatorSetId, record.Avs)
+		value, err := ops.formatMerkleLeafValue(record.BlockNumber, record.Operator, record.EffectiveBlock, record.Delay)
 		if err != nil {
 			ops.logger.Sugar().Errorw("Failed to format merkle leaf value",
 				zap.Error(err),
 				zap.Uint64("blockNumber", record.BlockNumber),
 				zap.String("operator", record.Operator),
-				zap.String("strategy", record.Strategy),
-				zap.Uint64("operatorSetId", record.OperatorSetId),
-				zap.String("avs", record.Avs),
+				zap.Uint64("effectiveBlock", record.EffectiveBlock),
+				zap.Uint64("delay", record.Delay),
 			)
 			return nil, err
 		}
@@ -315,12 +294,12 @@ func (ops *OperatorAllocationModel) sortValuesForMerkleTree(records []*OperatorA
 	return inputs, nil
 }
 
-func (ops *OperatorAllocationModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ops.BaseEigenState.DeleteState("operator_allocations", startBlockNumber, endBlockNumber, ops.DB)
+func (ops *OperatorAllocationDelayModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
+	return ops.BaseEigenState.DeleteState("operator_allocation_delays", startBlockNumber, endBlockNumber, ops.DB)
 }
 
-func (ops *OperatorAllocationModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
-	var splits []*OperatorAllocation
+func (ops *OperatorAllocationDelayModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	var splits []*OperatorAllocationDelay
 	res := ops.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
 	if res.Error != nil {
 		ops.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
@@ -329,6 +308,6 @@ func (ops *OperatorAllocationModel) ListForBlockRange(startBlockNumber uint64, e
 	return base.CastCommittedStateToInterface(splits), nil
 }
 
-func (ops *OperatorAllocationModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+func (ops *OperatorAllocationDelayModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
 	return true, nil
 }
