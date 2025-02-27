@@ -3,9 +3,15 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
+	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
@@ -14,10 +20,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"go.uber.org/zap"
@@ -27,6 +29,7 @@ type Pipeline struct {
 	Fetcher           *fetcher.Fetcher
 	Indexer           *indexer.Indexer
 	BlockStore        storage.BlockStore
+	contractManager   *contractManager.ContractManager
 	Logger            *zap.Logger
 	stateManager      *stateManager.EigenStateManager
 	metaStateManager  *metaStateManager.MetaStateManager
@@ -41,6 +44,7 @@ func NewPipeline(
 	f *fetcher.Fetcher,
 	i *indexer.Indexer,
 	bs storage.BlockStore,
+	cm *contractManager.ContractManager,
 	sm *stateManager.EigenStateManager,
 	msm *metaStateManager.MetaStateManager,
 	rc *rewards.RewardsCalculator,
@@ -54,6 +58,7 @@ func NewPipeline(
 		Fetcher:           f,
 		Indexer:           i,
 		Logger:            l,
+		contractManager:   cm,
 		stateManager:      sm,
 		metaStateManager:  msm,
 		rewardsCalculator: rc,
@@ -65,7 +70,7 @@ func NewPipeline(
 	}
 }
 
-func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.FetchedBlock, isBackfill bool) error {
+func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.FetchedBlock, isBackfill bool, isSideload bool) error {
 	blockNumber := block.Block.Number.Value()
 
 	totalRunTime := time.Now()
@@ -198,6 +203,10 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				)
 				hasError = true
 				return err
+			}
+
+			if isSideload && log.EventName == "Upgraded" {
+				p.contractManager.HandleContractUpgrade(ctx, blockNumber, log)
 			}
 		}
 		p.Logger.Sugar().Debugw("Handled log state changes",
@@ -384,7 +393,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	return nil
 }
 
-func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64, isBackfill bool) error {
+func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64, isBackfill bool, isSideload bool) error {
 	p.Logger.Sugar().Debugw("Running pipeline for block", zap.Uint64("blockNumber", blockNumber))
 
 	blockFetchTime := time.Now()
@@ -398,10 +407,10 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64, isBackfi
 		zap.Int64("fetchTime", time.Since(blockFetchTime).Milliseconds()),
 	)
 
-	return p.RunForFetchedBlock(ctx, block, isBackfill)
+	return p.RunForFetchedBlock(ctx, block, isBackfill, isSideload)
 }
 
-func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endBlock uint64, isBackfill bool) error {
+func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endBlock uint64, isBackfill bool, isSideload bool) error {
 	p.Logger.Sugar().Debugw("Running pipeline for block batch",
 		zap.Uint64("startBlock", startBlock),
 		zap.Uint64("endBlock", endBlock),
@@ -419,7 +428,7 @@ func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endB
 	})
 
 	for _, block := range fetchedBlocks {
-		if err := p.RunForFetchedBlock(ctx, block, isBackfill); err != nil {
+		if err := p.RunForFetchedBlock(ctx, block, isBackfill, isSideload); err != nil {
 			p.Logger.Sugar().Errorw("Failed to run pipeline for fetched block", zap.Uint64("blockNumber", block.Block.Number.Value()), zap.Error(err))
 			return err
 		}

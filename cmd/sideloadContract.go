@@ -85,7 +85,6 @@ var sideloadContractCmd = &cobra.Command{
 			return fmt.Errorf("failed to create gorm instance: %w", err)
 		}
 
-		
 		migrator := migrations.NewMigrator(pg.Db, grm, l, cfg)
 		if err = migrator.MigrateAll(); err != nil {
 			return fmt.Errorf("failed to migrate: %w", err)
@@ -135,7 +134,7 @@ var sideloadContractCmd = &cobra.Command{
 
 		go rcq.Process()
 
-		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sink, eb, l)
+		p := pipeline.NewPipeline(fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, sink, eb, l)
 
 		scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)
 		if err != nil {
