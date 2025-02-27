@@ -64,7 +64,7 @@ import (
 	_202501301505_operatorSetStrategyRegistrationSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501301505_operatorSetStrategyRegistrationSnapshots"
 	_202501301945_operatorDirectedOperatorSetRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501301945_operatorDirectedOperatorSetRewards"
 	_202502051830_addOperatorSetIdToStakerOperator "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502051830_addOperatorSetIdToStakerOperator"
-	_202502252204_operatorSplitModel "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502252204_operatorSplitModel"
+	_202502252204_operatorSplitModel "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502252204_slashingModels"
 )
 
 type Migration interface {
