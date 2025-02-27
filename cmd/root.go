@@ -67,6 +67,7 @@ func init() {
 	rootCmd.AddCommand(createSnapshotCmd)
 	rootCmd.AddCommand(restoreSnapshotCmd)
 	rootCmd.AddCommand(rpcCmd)
+	rootCmd.AddCommand(sideloadContractCmd)
 
 	// bind any subcommand flags
 	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "(deprecated, use --output) Path to save the snapshot file")
@@ -82,6 +83,10 @@ func init() {
 	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotKind, "full", "The kind of snapshot to restore (slim, full, or archive)")
 
 	rpcCmd.PersistentFlags().String(config.SidecarPrimaryUrl, "", `RPC url of the "primary" Sidecar instance in an HA environment`)
+
+	sideloadContractCmd.PersistentFlags().String(config.SideloadContractAddress, "", "Contract address to side-load")
+	sideloadContractCmd.PersistentFlags().String(config.IpfsUrl, "", "IPFS gateway URL")
+	sideloadContractCmd.PersistentFlags().String(config.EtherscanApiKey, "", "Etherscan API key")
 
 	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		key := config.KebabToSnakeCase(f.Name)
