@@ -67,7 +67,7 @@ import (
 	_202501301945_operatorDirectedOperatorSetRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501301945_operatorDirectedOperatorSetRewards"
 	_202502051830_addOperatorSetIdToStakerOperator "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502051830_addOperatorSetIdToStakerOperator"
 	_202502180836_snapshotUniqueConstraints "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502180836_snapshotUniqueConstraints"
-	_202502252204_operatorSplitModel "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502252204_operatorSplitModel"
+	_202502252204_slashingModels "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502252204_slashingModels"
 	_202503051449_addContractTypeColumn "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503051449_addContractTypeColumn"
 )
 
@@ -200,7 +200,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202501301945_operatorDirectedOperatorSetRewards.Migration{},
 		&_202502051830_addOperatorSetIdToStakerOperator.Migration{},
 		&_202503030846_cleanupConstraintNames.Migration{},
-		&_202502252204_operatorSplitModel.Migration{},
+		&_202502252204_slashingModels.Migration{},
 	}
 
 	for _, migration := range migrations {
