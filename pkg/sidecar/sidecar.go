@@ -79,7 +79,30 @@ func (s *Sidecar) Start(ctx context.Context) {
 		}
 	}()
 
-	s.StartIndexing(ctx)
+	s.StartIndexing(ctx, false)
+	/*
+		Main loop:
+
+		- Get current indexed block
+			- If no blocks, start from the genesis block
+			- If some blocks, start from last indexed block
+		- Once at tip, begin listening for new blocks
+	*/
+}
+
+func (s *Sidecar) StartSideload(ctx context.Context) {
+	s.Logger.Info("Starting side-loading a contract to sidecar")
+
+	// Spin up a goroutine that listens on a channel for a shutdown signal.
+	// When the signal is received, set shouldShutdown to true and return.
+	go func() {
+		for range s.ShutdownChan {
+			s.Logger.Sugar().Infow("Received shutdown signal")
+			s.shouldShutdown.Store(true)
+		}
+	}()
+
+	s.StartIndexing(ctx, true)
 	/*
 		Main loop:
 

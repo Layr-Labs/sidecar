@@ -91,9 +91,9 @@ var sideloadContractCmd = &cobra.Command{
 		}
 
 		contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-		if err := contractStore.InitializeCoreContracts(); err != nil {
-			return fmt.Errorf("failed to initialize core contracts: %w", err)
-		}
+		// if err := contractStore.InitializeCoreContracts(); err != nil {
+		// 	return fmt.Errorf("failed to initialize core contracts: %w", err)
+		// }
 
 		cm := contractManager.NewContractManager(contractStore, client, af, sink, l)
 
@@ -168,7 +168,7 @@ var sideloadContractCmd = &cobra.Command{
 		}
 
 		// Start the sidecar main process in a goroutine so that we can listen for a shutdown signal
-		go sidecar.Start(ctx)
+		go sidecar.StartSideload(ctx)
 
 		l.Sugar().Info("Started side-loading a contract to Sidecar")
 

@@ -19,23 +19,23 @@ func (s *Sidecar) GetLastIndexedBlock() (int64, error) {
 	return int64(block.Number), nil
 }
 
-func (s *Sidecar) StartIndexing(ctx context.Context) {
+func (s *Sidecar) StartIndexing(ctx context.Context, isSideload bool) {
 	// Start indexing from the given block number
 	// Once at tip, begin listening for new blocks
-	if err := s.IndexFromCurrentToTip(ctx); err != nil {
+	if err := s.IndexFromCurrentToTip(ctx, isSideload); err != nil {
 		s.Logger.Sugar().Fatalw("Failed to index from current to tip", zap.Error(err))
 	}
 
 	s.Logger.Sugar().Info("Backfill complete, transitioning to listening for new blocks")
 
-	if err := s.ProcessNewBlocks(ctx); err != nil {
+	if err := s.ProcessNewBlocks(ctx, isSideload); err != nil {
 		s.Logger.Sugar().Fatalw("Failed to process new blocks", zap.Error(err))
 	}
 }
 
 const BLOCK_POLL_INTERVAL = 6 * time.Second
 
-func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
+func (s *Sidecar) ProcessNewBlocks(ctx context.Context, isSideload bool) error {
 	for {
 		if s.shouldShutdown.Load() {
 			s.Logger.Sugar().Infow("Shutting down block listener...")
@@ -77,7 +77,7 @@ func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 		s.Logger.Sugar().Infow(fmt.Sprintf("%d new blocks detected, processing", blockDiff))
 
 		for i := uint64(latestIndexedBlock + 1); i <= latestTip; i++ {
-			if err := s.Pipeline.RunForBlock(ctx, i, false, false); err != nil {
+			if err := s.Pipeline.RunForBlock(ctx, i, false, isSideload); err != nil {
 				s.Logger.Sugar().Errorw("Failed to run pipeline for block",
 					zap.Uint64("blockNumber", i),
 					zap.Error(err),
@@ -138,7 +138,7 @@ func (p *Progress) UpdateAndPrintProgress(lastBlockProcessed uint64) {
 	)
 }
 
-func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
+func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context, isSideload bool) error {
 	lastIndexedBlock, err := s.GetLastIndexedBlock()
 	if err != nil {
 		return err
@@ -289,7 +289,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		if batchEndBlock > int64(tip) {
 			batchEndBlock = int64(tip)
 		}
-		if err := s.Pipeline.RunForBlockBatch(ctx, uint64(currentBlock), uint64(batchEndBlock), true, false); err != nil {
+		if err := s.Pipeline.RunForBlockBatch(ctx, uint64(currentBlock), uint64(batchEndBlock), true, isSideload); err != nil {
 			s.Logger.Sugar().Errorw("Failed to run pipeline for block batch",
 				zap.Error(err),
 				zap.Uint64("startBlock", uint64(currentBlock)),
