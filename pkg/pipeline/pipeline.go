@@ -3,9 +3,16 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
+	"github.com/Layr-Labs/sidecar/pkg/contractManager"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
@@ -14,10 +21,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"go.uber.org/zap"
@@ -31,6 +34,8 @@ type Pipeline struct {
 	Fetcher           *fetcher.Fetcher
 	Indexer           *indexer.Indexer
 	BlockStore        storage.BlockStore
+	contractStore     contractStore.ContractStore
+	contractManager   *contractManager.ContractManager
 	Logger            *zap.Logger
 	stateManager      *stateManager.EigenStateManager
 	metaStateManager  *metaStateManager.MetaStateManager
@@ -62,6 +67,8 @@ func NewPipeline(
 	f *fetcher.Fetcher,
 	i *indexer.Indexer,
 	bs storage.BlockStore,
+	cs contractStore.ContractStore,
+	cm *contractManager.ContractManager,
 	sm *stateManager.EigenStateManager,
 	msm *metaStateManager.MetaStateManager,
 	rc *rewards.RewardsCalculator,
@@ -75,6 +82,8 @@ func NewPipeline(
 		Fetcher:           f,
 		Indexer:           i,
 		Logger:            l,
+		contractStore:     cs,
+		contractManager:   cm,
 		stateManager:      sm,
 		metaStateManager:  msm,
 		rewardsCalculator: rc,
@@ -229,6 +238,24 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				)
 				hasError = true
 				return err
+			}
+
+			contract, err := p.contractStore.GetContractForAddress(strings.ToLower(log.Address))
+			if err != nil {
+				p.Logger.Sugar().Errorw("Failed to get contract for address", zap.String("address", log.Address), zap.Error(err))
+				return err
+			}
+
+			if log.EventName == "Upgraded" && contract != nil && contract.ContractType == contractStore.ContractType_External {
+				if err := p.contractManager.HandleContractUpgrade(ctx, blockNumber, log); err != nil {
+					p.Logger.Sugar().Errorw("Failed to handle contract upgrade",
+						zap.Uint64("blockNumber", blockNumber),
+						zap.String("transactionHash", pt.Transaction.Hash.Value()),
+						zap.Uint64("logIndex", log.LogIndex),
+						zap.Error(err),
+					)
+					return err
+				}
 			}
 		}
 		p.Logger.Sugar().Debugw("Handled log state changes",

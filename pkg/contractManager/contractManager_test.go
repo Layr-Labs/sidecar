@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"reflect"
 	"testing"
-	"time"
 
 	"os"
 
@@ -75,7 +74,7 @@ func Test_ContractManager(t *testing.T) {
 	client := ethereum.NewClient(ethConfig, l)
 	client.SetHttpClient(mockHttpClient)
 
-	af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg, []abiSource.AbiSource{})
+	af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, cfg, []abiSource.AbiSource{})
 
 	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 	if err != nil {
@@ -100,18 +99,18 @@ func Test_ContractManager(t *testing.T) {
 		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 	}
 
-	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-	if err := contractStore.InitializeCoreContracts(); err != nil {
+	cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
+	if err := cs.InitializeCoreContracts(); err != nil {
 		log.Fatalf("Failed to initialize core contracts: %v", err)
 	}
 
 	t.Run("Test indexing contract upgrades", func(t *testing.T) {
 		// Create a contract
-		_, err := contractStore.CreateContract(contract.ContractAddress, contract.ContractAbi, contract.Verified, contract.BytecodeHash, contract.MatchingContractAddress, false)
+		_, err := cs.CreateContract(contract.ContractAddress, contract.ContractAbi, contract.Verified, contract.BytecodeHash, contract.MatchingContractAddress, false, contractStore.ContractType_External)
 		assert.Nil(t, err)
 
 		// Create a proxy contract
-		_, err = contractStore.CreateProxyContract(uint64(proxyContract.BlockNumber), proxyContract.ContractAddress, proxyContract.ProxyContractAddress)
+		_, err = cs.CreateProxyContract(uint64(proxyContract.BlockNumber), proxyContract.ContractAddress, proxyContract.ProxyContractAddress)
 		assert.Nil(t, err)
 
 		// Check if contract and proxy contract exist
@@ -147,15 +146,19 @@ func Test_ContractManager(t *testing.T) {
 		}
 
 		// Patch abiFetcher
-		patches := gomonkey.ApplyMethod(reflect.TypeOf(af), "FetchContractDetails",
-			func(_ *abiFetcher.AbiFetcher, _ context.Context, _ string) (string, string, error) {
-				return "mockedBytecodeHash", "mockedAbi", nil
+		patches := gomonkey.ApplyMethod(reflect.TypeOf(af), "FetchContractBytecodeHash",
+			func(_ *abiFetcher.AbiFetcher, _ context.Context, _ string) (string, error) {
+				return "mockedBytecodeHash", nil
+			})
+		patches.ApplyMethod(reflect.TypeOf(af), "FetchContractAbi",
+			func(_ *abiFetcher.AbiFetcher, _ context.Context, _ string) (string, error) {
+				return "mockedAbi", nil
 			})
 		defer patches.Reset()
 
 		// Perform the upgrade
 		blockNumber := 5
-		cm := NewContractManager(contractStore, client, af, sdc, l)
+		cm := NewContractManager(cs, client, af, sdc, l)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 
@@ -179,15 +182,19 @@ func Test_ContractManager(t *testing.T) {
 		}
 
 		// Patch abiFetcher
-		patches := gomonkey.ApplyMethod(reflect.TypeOf(af), "FetchContractDetails",
-			func(_ *abiFetcher.AbiFetcher, _ context.Context, _ string) (string, string, error) {
-				return "mockedBytecodeHash", "mockedAbi", nil
+		patches := gomonkey.ApplyMethod(reflect.TypeOf(af), "FetchContractBytecodeHash",
+			func(_ *abiFetcher.AbiFetcher, _ context.Context, _ string) (string, error) {
+				return "mockedBytecodeHash", nil
+			})
+		patches.ApplyMethod(reflect.TypeOf(af), "FetchContractAbi",
+			func(_ *abiFetcher.AbiFetcher, _ context.Context, _ string) (string, error) {
+				return "mockedAbi", nil
 			})
 		defer patches.Reset()
 
 		// Perform the upgrade
 		blockNumber := 10
-		cm := NewContractManager(contractStore, client, af, sdc, l)
+		cm := NewContractManager(cs, client, af, sdc, l)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 

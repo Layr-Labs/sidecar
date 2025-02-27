@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/btcsuite/btcutil/base58"
@@ -31,6 +32,12 @@ func NewIpfs(hc *http.Client, l *zap.Logger, cfg *config.Config) *Ipfs {
 		httpClient: hc,
 		logger:     l,
 		config:     cfg,
+	}
+}
+
+func DefaultHttpClient() *http.Client {
+	return &http.Client{
+		Timeout: 5 * time.Second,
 	}
 }
 
