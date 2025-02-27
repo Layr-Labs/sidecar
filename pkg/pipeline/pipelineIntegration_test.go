@@ -45,6 +45,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	*fetcher.Fetcher,
 	*indexer.Indexer,
 	storage.BlockStore,
+	*contractManager.ContractManager,
 	*stateManager.EigenStateManager,
 	*metaStateManager.MetaStateManager,
 	*rewards.RewardsCalculator,
@@ -120,7 +121,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	eb := eventBus.NewEventBus(l)
 
-	return fetchr, idxr, mds, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbname
+	return fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbname
 
 }
 
@@ -128,12 +129,12 @@ func Test_PipelineIntegration(t *testing.T) {
 
 	t.Run("Should index a block, transaction with logs using native batched ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
-		fetchr, idxr, mds, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
+		fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sdc, eb, l)
+		p := NewPipeline(fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
-		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
+		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true, false)
 		assert.Nil(t, err)
 
 		query := `select * from avs_operator_state_changes where block_number = @blockNumber`
@@ -157,12 +158,12 @@ func Test_PipelineIntegration(t *testing.T) {
 	})
 	t.Run("Should index a block, transaction with logs using chunked ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultChunkedCallEthereumClientConfig()
-		fetchr, idxr, mds, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
+		fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sdc, eb, l)
+		p := NewPipeline(fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
-		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
+		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true, false)
 		assert.Nil(t, err)
 
 		query := `select * from avs_operator_state_changes where block_number = @blockNumber`

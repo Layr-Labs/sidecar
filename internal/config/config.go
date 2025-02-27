@@ -112,6 +112,10 @@ type SidecarPrimaryConfig struct {
 	IsPrimary bool
 }
 
+type SideloadConfig struct {
+	ContractAddress string
+}
+
 type IpfsConfig struct {
 	Url string
 }
@@ -132,6 +136,7 @@ type Config struct {
 	DataDogConfig         DataDogConfig
 	PrometheusConfig      PrometheusConfig
 	SidecarPrimaryConfig  SidecarPrimaryConfig
+	SideloadConfig        SideloadConfig
 	IpfsConfig            IpfsConfig
 	EtherscanConfig       EtherscanConfig
 }
@@ -190,6 +195,8 @@ var (
 	PrometheusPort    = "prometheus.port"
 
 	SidecarPrimaryUrl = "sidecar-primary.url"
+
+	SideloadContractAddress = "sideload.contract-address"
 
 	IpfsUrl = "ipfs.url"
 
@@ -257,6 +264,10 @@ func NewConfig() *Config {
 
 		SidecarPrimaryConfig: SidecarPrimaryConfig{
 			Url: viper.GetString(normalizeFlagName(SidecarPrimaryUrl)),
+		},
+
+		SideloadConfig: SideloadConfig{
+			ContractAddress: viper.GetString(normalizeFlagName(SideloadContractAddress)),
 		},
 
 		IpfsConfig: IpfsConfig{
