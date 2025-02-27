@@ -77,7 +77,7 @@ func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 		s.Logger.Sugar().Infow(fmt.Sprintf("%d new blocks detected, processing", blockDiff))
 
 		for i := uint64(latestIndexedBlock + 1); i <= latestTip; i++ {
-			if err := s.Pipeline.RunForBlock(ctx, i, false); err != nil {
+			if err := s.Pipeline.RunForBlock(ctx, i, false, false); err != nil {
 				s.Logger.Sugar().Errorw("Failed to run pipeline for block",
 					zap.Uint64("blockNumber", i),
 					zap.Error(err),
@@ -289,7 +289,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		if batchEndBlock > int64(tip) {
 			batchEndBlock = int64(tip)
 		}
-		if err := s.Pipeline.RunForBlockBatch(ctx, uint64(currentBlock), uint64(batchEndBlock), true); err != nil {
+		if err := s.Pipeline.RunForBlockBatch(ctx, uint64(currentBlock), uint64(batchEndBlock), true, false); err != nil {
 			s.Logger.Sugar().Errorw("Failed to run pipeline for block batch",
 				zap.Error(err),
 				zap.Uint64("startBlock", uint64(currentBlock)),
