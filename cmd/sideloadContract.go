@@ -91,9 +91,9 @@ var sideloadContractCmd = &cobra.Command{
 		}
 
 		contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-		if err := contractStore.InitializeCoreContracts(); err != nil {
-			return fmt.Errorf("failed to initialize core contracts: %w", err)
-		}
+		// if err := contractStore.InitializeCoreContracts(); err != nil {
+		// 	return fmt.Errorf("failed to initialize core contracts: %w", err)
+		// }
 
 		cm := contractManager.NewContractManager(contractStore, client, af, sink, l)
 
