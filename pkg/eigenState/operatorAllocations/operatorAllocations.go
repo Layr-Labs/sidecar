@@ -1,4 +1,4 @@
-package operatorSets
+package operatorAllocations
 
 import (
 	"encoding/json"
@@ -11,12 +11,17 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"math/big"
 	"slices"
 	"sort"
 	"strings"
 )
 
-type OperatorSet struct {
+type OperatorAllocation struct {
+	Operator        string
+	Strategy        string
+	Magnitude       string
+	EffectiveBlock  uint64
 	OperatorSetId   uint64
 	Avs             string
 	BlockNumber     uint64
@@ -24,9 +29,9 @@ type OperatorSet struct {
 	LogIndex        uint64
 }
 
-type OperatorSetModel struct {
+type OperatorAllocationModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[[]*OperatorSet]
+	StateTransitions types.StateTransitions[[]*OperatorAllocation]
 	DB               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
@@ -34,44 +39,48 @@ type OperatorSetModel struct {
 	globalConfig     *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[types.SlotID]*OperatorSet
-	committedState   map[uint64][]*OperatorSet
+	stateAccumulator map[uint64]map[types.SlotID]*OperatorAllocation
+	committedState   map[uint64][]*OperatorAllocation
 }
 
-func NewOperatorSetModel(
+func NewOperatorAllocationModel(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
 	logger *zap.Logger,
 	globalConfig *config.Config,
-) (*OperatorSetModel, error) {
-	model := &OperatorSetModel{
+) (*OperatorAllocationModel, error) {
+	model := &OperatorAllocationModel{
 		BaseEigenState: base.BaseEigenState{
 			Logger: logger,
 		},
 		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[types.SlotID]*OperatorSet),
-		committedState:   make(map[uint64][]*OperatorSet),
+		stateAccumulator: make(map[uint64]map[types.SlotID]*OperatorAllocation),
+		committedState:   make(map[uint64][]*OperatorAllocation),
 	}
 
-	esm.RegisterState(model, 15)
+	esm.RegisterState(model, 16)
 	return model, nil
 }
 
-func (ops *OperatorSetModel) GetModelName() string {
-	return "OperatorSetModel"
+func (ops *OperatorAllocationModel) GetModelName() string {
+	return "AllocationUpdated"
 }
 
-type operatorSetOutputData struct {
+type operatorAllocationOutputData struct {
+	Operator    string      `json:"operator"`
+	Strategy    string      `json:"strategy"`
+	Magnitude   json.Number `json:"magnitude"`
+	EffectBlock uint64      `json:"effectBlock"`
 	OperatorSet struct {
 		Id  uint64 `json:"id"`
 		Avs string `json:"avs"`
 	} `json:"operatorSet"`
 }
 
-func parseOperatorSetOutputData(outputDataStr string) (*operatorSetOutputData, error) {
-	outputData := &operatorSetOutputData{}
+func parseOperatorAllocationOutputData(outputDataStr string) (*operatorAllocationOutputData, error) {
+	outputData := &operatorAllocationOutputData{}
 	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
 	decoder.UseNumber()
 
@@ -83,13 +92,24 @@ func parseOperatorSetOutputData(outputDataStr string) (*operatorSetOutputData, e
 	return outputData, err
 }
 
-func (ops *OperatorSetModel) handleOperatorSetCreatedEvent(log *storage.TransactionLog) (*OperatorSet, error) {
-	outputData, err := parseOperatorSetOutputData(log.OutputData)
+func (ops *OperatorAllocationModel) handleOperatorAllocationCreatedEvent(log *storage.TransactionLog) (*OperatorAllocation, error) {
+	outputData, err := parseOperatorAllocationOutputData(log.OutputData)
 	if err != nil {
 		return nil, err
 	}
 
-	split := &OperatorSet{
+	magnitude, success := new(big.Int).SetString(outputData.Magnitude.String(), 10)
+	if !success {
+		err := fmt.Errorf("Failed to parse magnitude: %s", outputData.Magnitude.String())
+		ops.logger.Sugar().Errorw("Failed to parse magnitude", zap.Error(err))
+		return nil, err
+	}
+
+	split := &OperatorAllocation{
+		Operator:        strings.ToLower(outputData.Operator),
+		Strategy:        strings.ToLower(outputData.Strategy),
+		Magnitude:       magnitude.String(),
+		EffectiveBlock:  outputData.EffectBlock,
 		OperatorSetId:   outputData.OperatorSet.Id,
 		Avs:             strings.ToLower(outputData.OperatorSet.Avs),
 		BlockNumber:     log.BlockNumber,
@@ -100,11 +120,11 @@ func (ops *OperatorSetModel) handleOperatorSetCreatedEvent(log *storage.Transact
 	return split, nil
 }
 
-func (ops *OperatorSetModel) GetStateTransitions() (types.StateTransitions[*OperatorSet], []uint64) {
-	stateChanges := make(types.StateTransitions[*OperatorSet])
+func (ops *OperatorAllocationModel) GetStateTransitions() (types.StateTransitions[*OperatorAllocation], []uint64) {
+	stateChanges := make(types.StateTransitions[*OperatorAllocation])
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*OperatorSet, error) {
-		createdEvent, err := ops.handleOperatorSetCreatedEvent(log)
+	stateChanges[0] = func(log *storage.TransactionLog) (*OperatorAllocation, error) {
+		createdEvent, err := ops.handleOperatorAllocationCreatedEvent(log)
 		if err != nil {
 			return nil, err
 		}
@@ -113,7 +133,7 @@ func (ops *OperatorSetModel) GetStateTransitions() (types.StateTransitions[*Oper
 
 		_, ok := ops.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
-			err := fmt.Errorf("Duplicate operatorSet submitted for slot %s at block %d", slotId, log.BlockNumber)
+			err := fmt.Errorf("Duplicate operatorAllocation submitted for slot %s at block %d", slotId, log.BlockNumber)
 			ops.logger.Sugar().Errorw("Duplicate operator PI split submitted", zap.Error(err))
 			return nil, err
 		}
@@ -136,33 +156,33 @@ func (ops *OperatorSetModel) GetStateTransitions() (types.StateTransitions[*Oper
 	return stateChanges, blockNumbers
 }
 
-func (ops *OperatorSetModel) getContractAddressesForEnvironment() map[string][]string {
+func (ops *OperatorAllocationModel) getContractAddressesForEnvironment() map[string][]string {
 	contracts := ops.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.AllocationManager: {
-			"OperatorSetCreated",
+			"AllocationUpdated",
 		},
 	}
 }
 
-func (ops *OperatorSetModel) IsInterestingLog(log *storage.TransactionLog) bool {
+func (ops *OperatorAllocationModel) IsInterestingLog(log *storage.TransactionLog) bool {
 	addresses := ops.getContractAddressesForEnvironment()
 	return ops.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (ops *OperatorSetModel) SetupStateForBlock(blockNumber uint64) error {
-	ops.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorSet)
-	ops.committedState[blockNumber] = make([]*OperatorSet, 0)
+func (ops *OperatorAllocationModel) SetupStateForBlock(blockNumber uint64) error {
+	ops.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorAllocation)
+	ops.committedState[blockNumber] = make([]*OperatorAllocation, 0)
 	return nil
 }
 
-func (ops *OperatorSetModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
+func (ops *OperatorAllocationModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(ops.stateAccumulator, blockNumber)
 	delete(ops.committedState, blockNumber)
 	return nil
 }
 
-func (ops *OperatorSetModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
+func (ops *OperatorAllocationModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
 	stateChanges, sortedBlockNumbers := ops.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
@@ -183,7 +203,7 @@ func (ops *OperatorSetModel) HandleStateChange(log *storage.TransactionLog) (int
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (ops *OperatorSetModel) prepareState(blockNumber uint64) ([]*OperatorSet, error) {
+func (ops *OperatorAllocationModel) prepareState(blockNumber uint64) ([]*OperatorAllocation, error) {
 	accumulatedState, ok := ops.stateAccumulator[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
@@ -191,7 +211,7 @@ func (ops *OperatorSetModel) prepareState(blockNumber uint64) ([]*OperatorSet, e
 		return nil, err
 	}
 
-	recordsToInsert := make([]*OperatorSet, 0)
+	recordsToInsert := make([]*OperatorAllocation, 0)
 	for _, split := range accumulatedState {
 		recordsToInsert = append(recordsToInsert, split)
 	}
@@ -199,7 +219,7 @@ func (ops *OperatorSetModel) prepareState(blockNumber uint64) ([]*OperatorSet, e
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (ops *OperatorSetModel) CommitFinalState(blockNumber uint64) error {
+func (ops *OperatorAllocationModel) CommitFinalState(blockNumber uint64) error {
 	recordsToInsert, err := ops.prepareState(blockNumber)
 	if err != nil {
 		return err
@@ -207,7 +227,7 @@ func (ops *OperatorSetModel) CommitFinalState(blockNumber uint64) error {
 
 	if len(recordsToInsert) > 0 {
 		for _, record := range recordsToInsert {
-			res := ops.DB.Model(&OperatorSet{}).Clauses(clause.Returning{}).Create(&record)
+			res := ops.DB.Model(&OperatorAllocation{}).Clauses(clause.Returning{}).Create(&record)
 			if res.Error != nil {
 				ops.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
 				return res.Error
@@ -219,7 +239,7 @@ func (ops *OperatorSetModel) CommitFinalState(blockNumber uint64) error {
 }
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
-func (ops *OperatorSetModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
+func (ops *OperatorAllocationModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	inserts, err := ops.prepareState(blockNumber)
 	if err != nil {
 		return nil, err
@@ -246,7 +266,7 @@ func (ops *OperatorSetModel) GenerateStateRoot(blockNumber uint64) ([]byte, erro
 	return fullTree.Root(), nil
 }
 
-func (ops *OperatorSetModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+func (ops *OperatorAllocationModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
 	records, ok := ops.committedState[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No committed state found for block %d", blockNumber)
@@ -256,23 +276,27 @@ func (ops *OperatorSetModel) GetCommittedState(blockNumber uint64) ([]interface{
 	return base.CastCommittedStateToInterface(records), nil
 }
 
-func (ops *OperatorSetModel) formatMerkleLeafValue(
+func (ops *OperatorAllocationModel) formatMerkleLeafValue(
 	blockNumber uint64,
+	operator string,
+	strategy string,
 	operatorSetId uint64,
 	avs string,
 ) (string, error) {
-	return fmt.Sprintf("%016x_%s", operatorSetId, avs), nil
+	return fmt.Sprintf("%s_%s_%016x_%s", operator, strategy, operatorSetId, avs), nil
 }
 
-func (ops *OperatorSetModel) sortValuesForMerkleTree(records []*OperatorSet) ([]*base.MerkleTreeInput, error) {
+func (ops *OperatorAllocationModel) sortValuesForMerkleTree(records []*OperatorAllocation) ([]*base.MerkleTreeInput, error) {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, record := range records {
 		slotID := base.NewSlotID(record.TransactionHash, record.LogIndex)
-		value, err := ops.formatMerkleLeafValue(record.BlockNumber, record.OperatorSetId, record.Avs)
+		value, err := ops.formatMerkleLeafValue(record.BlockNumber, record.Operator, record.Strategy, record.OperatorSetId, record.Avs)
 		if err != nil {
 			ops.logger.Sugar().Errorw("Failed to format merkle leaf value",
 				zap.Error(err),
 				zap.Uint64("blockNumber", record.BlockNumber),
+				zap.String("operator", record.Operator),
+				zap.String("strategy", record.Strategy),
 				zap.Uint64("operatorSetId", record.OperatorSetId),
 				zap.String("avs", record.Avs),
 			)
@@ -291,12 +315,12 @@ func (ops *OperatorSetModel) sortValuesForMerkleTree(records []*OperatorSet) ([]
 	return inputs, nil
 }
 
-func (ops *OperatorSetModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
+func (ops *OperatorAllocationModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return ops.BaseEigenState.DeleteState("operator_pi_splits", startBlockNumber, endBlockNumber, ops.DB)
 }
 
-func (ops *OperatorSetModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
-	var splits []*OperatorSet
+func (ops *OperatorAllocationModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	var splits []*OperatorAllocation
 	res := ops.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
 	if res.Error != nil {
 		ops.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
@@ -305,6 +329,6 @@ func (ops *OperatorSetModel) ListForBlockRange(startBlockNumber uint64, endBlock
 	return base.CastCommittedStateToInterface(splits), nil
 }
 
-func (ops *OperatorSetModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+func (ops *OperatorAllocationModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
 	return true, nil
 }
