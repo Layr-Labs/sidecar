@@ -292,7 +292,7 @@ func (ops *OperatorSetModel) sortValuesForMerkleTree(records []*OperatorSet) ([]
 }
 
 func (ops *OperatorSetModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ops.BaseEigenState.DeleteState("operator_pi_splits", startBlockNumber, endBlockNumber, ops.DB)
+	return ops.BaseEigenState.DeleteState("operator_sets", startBlockNumber, endBlockNumber, ops.DB)
 }
 
 func (ops *OperatorSetModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
