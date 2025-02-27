@@ -1,4 +1,4 @@
-package operatorSets
+package operatorAllocations
 
 import (
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -38,7 +38,7 @@ func setup() (
 	return dbname, grm, l, cfg, nil
 }
 
-func createBlock(model *OperatorSetModel, blockNumber uint64) error {
+func createBlock(model *OperatorAllocationModel, blockNumber uint64) error {
 	block := &storage.Block{
 		Number:    blockNumber,
 		Hash:      "some hash",
@@ -51,7 +51,7 @@ func createBlock(model *OperatorSetModel, blockNumber uint64) error {
 	return nil
 }
 
-func Test_OperatorSets(t *testing.T) {
+func Test_OperatorAllocations(t *testing.T) {
 	dbName, grm, l, cfg, err := setup()
 
 	if err != nil {
@@ -61,9 +61,9 @@ func Test_OperatorSets(t *testing.T) {
 	t.Run("Test each event type", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
-		model, err := NewOperatorSetModel(esm, grm, l, cfg)
+		model, err := NewOperatorAllocationModel(esm, grm, l, cfg)
 
-		t.Run("Handle an operator set", func(t *testing.T) {
+		t.Run("Handle an allocationUpdated", func(t *testing.T) {
 			blockNumber := uint64(102)
 
 			if err := createBlock(model, blockNumber); err != nil {
@@ -75,10 +75,10 @@ func Test_OperatorSets(t *testing.T) {
 				TransactionIndex: big.NewInt(100).Uint64(),
 				BlockNumber:      blockNumber,
 				Address:          cfg.GetContractsMapForChain().AllocationManager,
-				Arguments:        `[{"Name": "operatorSet", "Type": "(address,uint32)", "Value": null, "Indexed": false}]`,
-				EventName:        "OperatorSetCreated",
+				Arguments:        `[{"Name": "operator", "Type": "address", "Value": null, "Indexed": false}, {"Name": "operatorSet", "Type": "(address,uint32)", "Value": null, "Indexed": false}, {"Name": "strategy", "Type": "address", "Value": null, "Indexed": false}, {"Name": "magnitude", "Type": "uint64", "Value": null, "Indexed": false}, {"Name": "effectBlock", "Type": "uint32", "Value": null, "Indexed": false}]`,
+				EventName:        "AllocationUpdated",
 				LogIndex:         big.NewInt(12).Uint64(),
-				OutputData:       `{"operatorSet": {"id": 0, "avs": "0x99ee5cb4fd535f1bc9ca0f10da5078fe1f9fc866"}}`,
+				OutputData:       `{"operator": "0x93a797473810c125ece22f25a2087b6ceb8ce886", "strategy": "0x947e522010e22856071f8fb03e735fedfccd6e9f", "magnitude": 400000000000000000, "effectBlock": 2937866, "operatorSet": {"id": 5, "avs": "0x69aa865947f6c9191b02954b1dd1a44131541226"}}`,
 			}
 
 			err = model.SetupStateForBlock(blockNumber)
@@ -91,16 +91,20 @@ func Test_OperatorSets(t *testing.T) {
 			assert.Nil(t, err)
 			assert.NotNil(t, change)
 
-			record := change.(*OperatorSet)
+			record := change.(*OperatorAllocation)
 
-			assert.Equal(t, uint64(0), record.OperatorSetId)
-			assert.Equal(t, strings.ToLower("0x99ee5cb4fd535f1bc9ca0f10da5078fe1f9fc866"), strings.ToLower(record.Avs))
+			assert.Equal(t, strings.ToLower("0x93a797473810c125ece22f25a2087b6ceb8ce886"), record.Operator)
+			assert.Equal(t, strings.ToLower("0x947e522010e22856071f8fb03e735fedfccd6e9f"), record.Strategy)
+			assert.Equal(t, "400000000000000000", record.Magnitude)
+			assert.Equal(t, uint64(2937866), record.EffectiveBlock)
+			assert.Equal(t, uint64(5), record.OperatorSetId)
+			assert.Equal(t, strings.ToLower("0x69aa865947f6c9191b02954b1dd1a44131541226"), record.Avs)
 
 			err = model.CommitFinalState(blockNumber)
 			assert.Nil(t, err)
 
-			splits := make([]*OperatorSet, 0)
-			query := `select * from operator_sets where block_number = ?`
+			splits := make([]*OperatorAllocation, 0)
+			query := `select * from operator_allocations where block_number = ?`
 			res := model.DB.Raw(query, blockNumber).Scan(&splits)
 			assert.Nil(t, res.Error)
 			assert.Equal(t, 1, len(splits))
