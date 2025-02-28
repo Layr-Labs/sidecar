@@ -140,6 +140,15 @@ func (od *OperatorDirectedOperatorSetRewardSubmissionsModel) handleOperatorDirec
 	}
 	outputRewardData := outputData.OperatorDirectedRewardsSubmission
 
+	if outputRewardData.Duration == 0 {
+		od.Logger.Sugar().Debugw("Skipping operator directed operator set reward submission with zero duration",
+			zap.String("transactionHash", log.TransactionHash),
+			zap.Uint64("logIndex", log.LogIndex),
+			zap.Uint64("blockNumber", log.BlockNumber),
+		)
+		return []*OperatorDirectedOperatorSetRewardSubmission{}, nil
+	}
+
 	rewardSubmissions := make([]*OperatorDirectedOperatorSetRewardSubmission, 0)
 
 	for i, strategyAndMultiplier := range outputRewardData.StrategiesAndMultipliers {
