@@ -21,6 +21,8 @@ services:
       - SIDECAR_DATABASE_USER=sidecar
       - SIDECAR_DATABASE_PASSWORD=sidecar
       - SIDECAR_DATABASE_DB_NAME=sidecar
+    # uncomment below for PostgreSQL SSL support 
+    #  - SIDECAR_DATABASE_SSL_MODE=require # could be disable, require, verify-ca, verify-full
     depends_on:
       - postgres
     restart: unless-stopped
@@ -34,5 +36,16 @@ services:
       - POSTGRES_PASSWORD=sidecar
       - POSTGRES_DB=sidecar
     volumes:
-      - ${POSTGRES_DATA_PATH:-./postgres_data}:/var/lib/postgresql/data
+      - ${POSTGRES_DATA_PATH:-postgres_data}:/var/lib/postgresql/data
     restart: unless-stopped
+    command: [
+      "postgres", 
+      # uncomment below for PostgreSQL SSL support
+      # certs are included in base linux image
+      #  "-c", "ssl=on",
+      #  "-c", "ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem",
+      #  "-c", "ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key"
+      ]
+
+volumes:
+  postgres_data:

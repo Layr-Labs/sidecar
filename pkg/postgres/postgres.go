@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"regexp"
+	"slices"
+	"strings"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -15,6 +17,15 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+const defaultSSLMode = "disable"
+
+var validSSLModes = []string{
+	"disable",
+	"require",
+	"verify-ca",
+	"verify-full",
+}
+
 type PostgresConfig struct {
 	Host                string
 	Port                int
@@ -23,6 +34,10 @@ type PostgresConfig struct {
 	DbName              string
 	CreateDbIfNotExists bool
 	SchemaName          string
+	SSLMode             string
+	SSLCert             string
+	SSLKey              string
+	SSLRootCert         string
 }
 
 type Postgres struct {
@@ -78,23 +93,34 @@ func GetTestPostgresDatabaseWithoutMigrations(cfg config.DatabaseConfig, l *zap.
 
 func PostgresConfigFromDbConfig(dbCfg *config.DatabaseConfig) *PostgresConfig {
 	return &PostgresConfig{
-		Host:       dbCfg.Host,
-		Port:       dbCfg.Port,
-		Username:   dbCfg.User,
-		Password:   dbCfg.Password,
-		DbName:     dbCfg.DbName,
-		SchemaName: dbCfg.SchemaName,
+		Host:        dbCfg.Host,
+		Port:        dbCfg.Port,
+		Username:    dbCfg.User,
+		Password:    dbCfg.Password,
+		DbName:      dbCfg.DbName,
+		SchemaName:  dbCfg.SchemaName,
+		SSLMode:     dbCfg.SSLMode,
+		SSLCert:     dbCfg.SSLCert,
+		SSLKey:      dbCfg.SSLKey,
+		SSLRootCert: dbCfg.SSLRootCert,
 	}
 }
 
 func getPostgresRootConnection(cfg *PostgresConfig) (*sql.DB, error) {
-	postgresConnStr := getPostgresConnectionString(&PostgresConfig{
-		Host:     cfg.Host,
-		Port:     cfg.Port,
-		Username: cfg.Username,
-		Password: cfg.Password,
-		DbName:   "postgres",
+	postgresConnStr, err := getPostgresConnectionString(&PostgresConfig{
+		Host:        cfg.Host,
+		Port:        cfg.Port,
+		Username:    cfg.Username,
+		Password:    cfg.Password,
+		DbName:      "postgres",
+		SSLMode:     cfg.SSLMode,
+		SSLCert:     cfg.SSLCert,
+		SSLKey:      cfg.SSLKey,
+		SSLRootCert: cfg.SSLRootCert,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create postgres connection string: %v", err)
+	}
 
 	postgresDB, err := sql.Open("postgres", postgresConnStr)
 	if err != nil {
@@ -103,24 +129,47 @@ func getPostgresRootConnection(cfg *PostgresConfig) (*sql.DB, error) {
 	return postgresDB, nil
 }
 
-func getPostgresConnectionString(cfg *PostgresConfig) string {
+func getPostgresConnectionString(cfg *PostgresConfig) (string, error) {
 	authString := ""
+	sslMode := defaultSSLMode
+
 	if cfg.Username != "" {
 		authString = fmt.Sprintf("%s user=%s", authString, cfg.Username)
 	}
 	if cfg.Password != "" {
 		authString = fmt.Sprintf("%s password=%s", authString, cfg.Password)
 	}
-	baseString := fmt.Sprintf("host=%s %s dbname=%s port=%d sslmode=disable TimeZone=UTC",
+
+	if cfg.SSLMode != "" {
+		if !slices.Contains(validSSLModes, cfg.SSLMode) {
+			return "", fmt.Errorf("invalid ssl mode: %s. Must be one of: %s", cfg.SSLMode, strings.Join(validSSLModes, ", "))
+		}
+		sslMode = cfg.SSLMode
+	}
+
+	baseString := fmt.Sprintf("host=%s %s dbname=%s port=%d sslmode=%s TimeZone=UTC",
 		cfg.Host,
 		authString,
 		cfg.DbName,
 		cfg.Port,
+		sslMode,
 	)
-	if cfg.SchemaName != "" {
-		baseString = fmt.Sprintf("%s search_path=%s", baseString, cfg.SchemaName)
+
+	if sslMode != defaultSSLMode {
+		if cfg.SSLCert != "" {
+			baseString = fmt.Sprintf("%s sslcert=%s", baseString, cfg.SSLCert)
+		}
+		if cfg.SSLKey != "" {
+			baseString = fmt.Sprintf("%s sslkey=%s", baseString, cfg.SSLKey)
+		}
+		if cfg.SSLRootCert != "" {
+			baseString = fmt.Sprintf("%s sslrootcert=%s", baseString, cfg.SSLRootCert)
+		}
+		if cfg.SchemaName != "" {
+			baseString = fmt.Sprintf("%s search_path=%s", baseString, cfg.SchemaName)
+		}
 	}
-	return baseString
+	return baseString, nil
 }
 
 func DeleteTestDatabase(cfg *PostgresConfig, dbName string) error {
@@ -174,7 +223,10 @@ func NewPostgres(cfg *PostgresConfig) (*Postgres, error) {
 			return nil, fmt.Errorf("Failed to create database if not exists %+v", err)
 		}
 	}
-	connectString := getPostgresConnectionString(cfg)
+	connectString, err := getPostgresConnectionString(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create postgres connection string: %v", err)
+	}
 
 	db, err := sql.Open("postgres", connectString)
 	if err != nil {

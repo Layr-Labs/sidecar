@@ -40,6 +40,10 @@ func init() {
 	rootCmd.PersistentFlags().String(config.DatabasePassword, "", `PostgreSQL password`)
 	rootCmd.PersistentFlags().String(config.DatabaseDbName, "sidecar", `PostgreSQL database name`)
 	rootCmd.PersistentFlags().String(config.DatabaseSchemaName, "", `PostgreSQL schema name (default "public")`)
+	rootCmd.PersistentFlags().String(config.DatabaseSSLMode, "disable", `PostgreSQL SSL mode (default "disable", could be one of: disable, require, verify-ca, verify-full)`)
+	rootCmd.PersistentFlags().String(config.DatabaseSSLCert, "", `Path to client certificate file`)
+	rootCmd.PersistentFlags().String(config.DatabaseSSLKey, "", `Path to client private key file`)
+	rootCmd.PersistentFlags().String(config.DatabaseSSLRootCert, "", `Path to root certificate file`)
 
 	rootCmd.PersistentFlags().Bool(config.RewardsValidateRewardsRoot, true, `Validate rewards roots while indexing`)
 	rootCmd.PersistentFlags().Bool(config.RewardsGenerateStakerOperatorsTable, false, `Generate staker operators table while indexing`)

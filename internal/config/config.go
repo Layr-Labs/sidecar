@@ -54,12 +54,16 @@ type EthereumRpcConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host       string
-	Port       int
-	User       string
-	Password   string
-	DbName     string
-	SchemaName string
+	Host        string
+	Port        int
+	User        string
+	Password    string
+	DbName      string
+	SchemaName  string
+	SSLMode     string // disable, require, verify-ca, verify-full
+	SSLCert     string // path to client certificate
+	SSLKey      string // path to client private key
+	SSLRootCert string // path to root certificate
 }
 
 type SnapshotConfig struct {
@@ -153,13 +157,17 @@ func StringWithDefaults(values ...string) string {
 }
 
 var (
-	Debug              = "debug"
-	DatabaseHost       = "database.host"
-	DatabasePort       = "database.port"
-	DatabaseUser       = "database.user"
-	DatabasePassword   = "database.password"
-	DatabaseDbName     = "database.db_name"
-	DatabaseSchemaName = "database.schema_name"
+	Debug               = "debug"
+	DatabaseHost        = "database.host"
+	DatabasePort        = "database.port"
+	DatabaseUser        = "database.user"
+	DatabasePassword    = "database.password"
+	DatabaseDbName      = "database.db_name"
+	DatabaseSchemaName  = "database.schema_name"
+	DatabaseSSLMode     = "database.ssl_mode"
+	DatabaseSSLCert     = "database.ssl_cert"
+	DatabaseSSLKey      = "database.ssl_key"
+	DatabaseSSLRootCert = "database.ssl_root_cert"
 
 	SnapshotOutputFile = "output_file"
 	SnapshotOutput     = "output"
@@ -210,12 +218,16 @@ func NewConfig() *Config {
 		},
 
 		DatabaseConfig: DatabaseConfig{
-			Host:       viper.GetString(normalizeFlagName(DatabaseHost)),
-			Port:       viper.GetInt(normalizeFlagName(DatabasePort)),
-			User:       viper.GetString(normalizeFlagName(DatabaseUser)),
-			Password:   viper.GetString(normalizeFlagName(DatabasePassword)),
-			DbName:     viper.GetString(normalizeFlagName(DatabaseDbName)),
-			SchemaName: viper.GetString(normalizeFlagName(DatabaseSchemaName)),
+			Host:        viper.GetString(normalizeFlagName(DatabaseHost)),
+			Port:        viper.GetInt(normalizeFlagName(DatabasePort)),
+			User:        viper.GetString(normalizeFlagName(DatabaseUser)),
+			Password:    viper.GetString(normalizeFlagName(DatabasePassword)),
+			DbName:      viper.GetString(normalizeFlagName(DatabaseDbName)),
+			SchemaName:  viper.GetString(normalizeFlagName(DatabaseSchemaName)),
+			SSLMode:     StringWithDefault(viper.GetString(normalizeFlagName(DatabaseSSLMode)), "disable"),
+			SSLCert:     viper.GetString(normalizeFlagName(DatabaseSSLCert)),
+			SSLKey:      viper.GetString(normalizeFlagName(DatabaseSSLKey)),
+			SSLRootCert: viper.GetString(normalizeFlagName(DatabaseSSLRootCert)),
 		},
 
 		CreateSnapshotConfig: CreateSnapshotConfig{
