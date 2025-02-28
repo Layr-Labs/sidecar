@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/precommitProcessors"
+	"github.com/Layr-Labs/sidecar/pkg/metaState"
 	"log"
 	"os"
 	"testing"
@@ -19,7 +21,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
-	"github.com/Layr-Labs/sidecar/pkg/metaState"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/metaStateManager"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
@@ -106,6 +107,8 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	if err := metaState.LoadMetaStateModels(msm, grm, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to load meta state models", zap.Error(err))
 	}
+
+	precommitProcessors.LoadPrecommitProcessors(sm, grm, l)
 
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 	rc, _ := rewards.NewRewardsCalculator(cfg, grm, mds, sog, sdc, l)
