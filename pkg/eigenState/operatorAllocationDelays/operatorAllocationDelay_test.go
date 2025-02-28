@@ -100,11 +100,11 @@ func Test_OperatorAllocationDelays(t *testing.T) {
 			err = model.CommitFinalState(blockNumber)
 			assert.Nil(t, err)
 
-			splits := make([]*OperatorAllocationDelay, 0)
+			results := make([]*OperatorAllocationDelay, 0)
 			query := `select * from operator_allocation_delays where block_number = ?`
-			res := model.DB.Raw(query, blockNumber).Scan(&splits)
+			res := model.DB.Raw(query, blockNumber).Scan(&results)
 			assert.Nil(t, res.Error)
-			assert.Equal(t, 1, len(splits))
+			assert.Equal(t, 1, len(results))
 
 			stateRoot, err := model.GenerateStateRoot(blockNumber)
 			assert.Nil(t, err)
