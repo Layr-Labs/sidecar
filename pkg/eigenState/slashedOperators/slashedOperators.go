@@ -156,7 +156,7 @@ func (so *SlashedOperatorModel) GetStateTransitions() (types.StateTransitions[[]
 			_, ok := so.stateAccumulator[log.BlockNumber][slotId]
 			if ok {
 				err := fmt.Errorf("Duplicate slashedOperator submitted for slot %s at block %d", slotId, log.BlockNumber)
-				so.logger.Sugar().Errorw("Duplicate operator PI split submitted", zap.Error(err))
+				so.logger.Sugar().Errorw("Duplicate slashedOperator submitted", zap.Error(err))
 				return nil, err
 			}
 
