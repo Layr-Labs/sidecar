@@ -13,12 +13,16 @@ const (
 )
 
 type SnapshotDatabaseConfig struct {
-	Host       string
-	Port       int
-	DbName     string
-	User       string
-	Password   string
-	SchemaName string
+	Host        string
+	Port        int
+	DbName      string
+	User        string
+	Password    string
+	SchemaName  string
+	SSLMode     string
+	SSLKey      string
+	SSLCert     string
+	SSLRootCert string
 }
 
 func (sdc *SnapshotDatabaseConfig) IsValid() (bool, error) {
@@ -99,12 +103,16 @@ func CreateSnapshotDbConfigFromConfig(cfg config.DatabaseConfig) SnapshotDatabas
 	}
 
 	return SnapshotDatabaseConfig{
-		Host:       host,
-		Port:       port,
-		DbName:     cfg.DbName,
-		User:       cfg.User,
-		Password:   cfg.Password,
-		SchemaName: schemaName,
+		Host:        host,
+		Port:        port,
+		DbName:      cfg.DbName,
+		User:        cfg.User,
+		Password:    cfg.Password,
+		SchemaName:  schemaName,
+		SSLMode:     cfg.SSLMode,
+		SSLKey:      cfg.SSLKey,
+		SSLCert:     cfg.SSLCert,
+		SSLRootCert: cfg.SSLRootCert,
 	}
 }
 
@@ -147,4 +155,29 @@ func (ss *SnapshotService) pgConnectFlags(cfg SnapshotDatabaseConfig) []string {
 	}
 
 	return flags
+}
+
+func (ss *SnapshotService) buildPostgresEnvVars(cfg SnapshotDatabaseConfig) []string {
+	vars := []string{}
+	
+	vars = append(vars, fmt.Sprintf("PGPASSWORD=%s", cfg.Password))
+
+	if cfg.SSLMode == "" || cfg.SSLMode == "disable" {
+		return vars
+	}
+	vars = append(vars, fmt.Sprintf("PGSSLMODE=%s", cfg.SSLMode))
+
+	if cfg.SSLKey != "" {
+		vars = append(vars, fmt.Sprintf("PGSSLKEY=%s", cfg.SSLKey))
+	}
+
+	if cfg.SSLCert != "" {
+		vars = append(vars, fmt.Sprintf("PGSSLCERT=%s", cfg.SSLCert))
+	}
+
+	if cfg.SSLRootCert != "" {
+		vars = append(vars, fmt.Sprintf("PGSSLROOTCERT=%s", cfg.SSLRootCert))
+	}
+
+	return vars
 }
