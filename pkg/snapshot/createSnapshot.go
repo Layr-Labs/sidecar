@@ -153,7 +153,7 @@ func (ss *SnapshotService) performDump(snapshotFile *SnapshotFile, cfg *CreateSn
 	res.FullCommand = fmt.Sprintf("%s %s", fullCmdPath, strings.Join(cmdFlags, " "))
 
 	cmd := exec.Command(fullCmdPath, cmdFlags...)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("PGPASSWORD=%s", cfg.DBConfig.Password))
+	cmd.Env = append(cmd.Env, ss.buildPostgresEnvVars(cfg.DBConfig)...)
 
 	ss.logger.Sugar().Infow("Starting snapshot dump",
 		zap.String("fullCommand", res.FullCommand),
