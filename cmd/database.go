@@ -13,6 +13,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/precommitProcessors"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
@@ -109,6 +110,8 @@ var runDatabaseCmd = &cobra.Command{
 		if err := metaState.LoadMetaStateModels(msm, grm, l, cfg); err != nil {
 			l.Sugar().Fatalw("Failed to load meta state models", zap.Error(err))
 		}
+
+		precommitProcessors.LoadPrecommitProcessors(sm, grm, l)
 
 		fetchr := fetcher.NewFetcher(client, cfg, l)
 
