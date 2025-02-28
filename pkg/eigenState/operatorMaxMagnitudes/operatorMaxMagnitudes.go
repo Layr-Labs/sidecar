@@ -62,7 +62,7 @@ func NewOperatorMaxMagnitudeModel(
 }
 
 func (ops *OperatorMaxMagnitudeModel) GetModelName() string {
-	return "MaxMagnitude"
+	return "OperatorMaxMagnitude"
 }
 
 type operatorMaxMagnitudeOutputData struct {
@@ -123,7 +123,7 @@ func (ops *OperatorMaxMagnitudeModel) GetStateTransitions() (types.StateTransiti
 		_, ok := ops.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := fmt.Errorf("Duplicate operatorMaxMagnitude submitted for slot %s at block %d", slotId, log.BlockNumber)
-			ops.logger.Sugar().Errorw("Duplicate operator PI split submitted", zap.Error(err))
+			ops.logger.Sugar().Errorw("Duplicate operatorMaxMagnitude submitted", zap.Error(err))
 			return nil, err
 		}
 
