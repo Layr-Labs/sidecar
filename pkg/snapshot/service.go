@@ -159,7 +159,7 @@ func (ss *SnapshotService) pgConnectFlags(cfg SnapshotDatabaseConfig) []string {
 
 func (ss *SnapshotService) buildPostgresEnvVars(cfg SnapshotDatabaseConfig) []string {
 	vars := []string{}
-	
+
 	vars = append(vars, fmt.Sprintf("PGPASSWORD=%s", cfg.Password))
 
 	if cfg.SSLMode == "" || cfg.SSLMode == "disable" {
