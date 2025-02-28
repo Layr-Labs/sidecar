@@ -3,9 +3,8 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
-	_202501241111_addIndexesForRpcFunctions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241111_addIndexesForRpcFunctions"
-	_202502100846_goldTableRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502100846_goldTableRewardHashIndex"
-	_202502211539_hydrateClaimedRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502211539_hydrateClaimedRewards"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -52,6 +51,7 @@ import (
 	_202501061422_defaultOperatorSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061422_defaultOperatorSplits"
 	_202501071401_defaultOperatorSplitSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501071401_defaultOperatorSplitSnapshots"
 	_202501151039_rewardsClaimed "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501151039_rewardsClaimed"
+	_202501241111_addIndexesForRpcFunctions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241111_addIndexesForRpcFunctions"
 	_202501241322_operatorDirectedOperatorSetRewardSubmissions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241322_operatorDirectedOperatorSetRewardSubmissions"
 	_202501241533_operatorSetSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241533_operatorSetSplits"
 	_202501271727_operatorSetOperatorRegistrations "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501271727_operatorSetOperatorRegistrations"
@@ -61,8 +61,9 @@ import (
 	_202501301505_operatorSetStrategyRegistrationSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501301505_operatorSetStrategyRegistrationSnapshots"
 	_202501301945_operatorDirectedOperatorSetRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501301945_operatorDirectedOperatorSetRewards"
 	_202502051830_addOperatorSetIdToStakerOperator "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502051830_addOperatorSetIdToStakerOperator"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
+	_202502100846_goldTableRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502100846_goldTableRewardHashIndex"
+	_202502211539_hydrateClaimedRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502211539_hydrateClaimedRewards"
+	_202502252204_operatorSplitModel "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502252204_slashingModels"
 )
 
 type Migration interface {
@@ -158,6 +159,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202501301505_operatorSetStrategyRegistrationSnapshots.Migration{},
 		&_202501301945_operatorDirectedOperatorSetRewards.Migration{},
 		&_202502051830_addOperatorSetIdToStakerOperator.Migration{},
+		&_202502252204_operatorSplitModel.Migration{},
 	}
 
 	for _, migration := range migrations {
