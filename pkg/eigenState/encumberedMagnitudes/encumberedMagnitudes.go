@@ -123,7 +123,7 @@ func (ops *EncumberedMagnitudeModel) GetStateTransitions() (types.StateTransitio
 		_, ok := ops.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := fmt.Errorf("Duplicate encumberedMagnitude submitted for slot %s at block %d", slotId, log.BlockNumber)
-			ops.logger.Sugar().Errorw("Duplicate operator PI split submitted", zap.Error(err))
+			ops.logger.Sugar().Errorw("Duplicate encumberedMagnitude submitted", zap.Error(err))
 			return nil, err
 		}
 
