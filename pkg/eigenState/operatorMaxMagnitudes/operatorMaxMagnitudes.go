@@ -1,4 +1,4 @@
-package encumberedMagnitudes
+package operatorMaxMagnitudes
 
 import (
 	"encoding/json"
@@ -17,18 +17,18 @@ import (
 	"strings"
 )
 
-type EncumberedMagnitude struct {
-	Operator            string
-	Strategy            string
-	EncumberedMagnitude string
-	BlockNumber         uint64
-	TransactionHash     string
-	LogIndex            uint64
+type OperatorMaxMagnitude struct {
+	Operator        string
+	Strategy        string
+	MaxMagnitude    string
+	BlockNumber     uint64
+	TransactionHash string
+	LogIndex        uint64
 }
 
-type EncumberedMagnitudeModel struct {
+type OperatorMaxMagnitudeModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[[]*EncumberedMagnitude]
+	StateTransitions types.StateTransitions[*OperatorMaxMagnitude]
 	DB               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
@@ -36,43 +36,43 @@ type EncumberedMagnitudeModel struct {
 	globalConfig     *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[types.SlotID]*EncumberedMagnitude
-	committedState   map[uint64][]*EncumberedMagnitude
+	stateAccumulator map[uint64]map[types.SlotID]*OperatorMaxMagnitude
+	committedState   map[uint64][]*OperatorMaxMagnitude
 }
 
-func NewEncumberedMagnitudeModel(
+func NewOperatorMaxMagnitudeModel(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
 	logger *zap.Logger,
 	globalConfig *config.Config,
-) (*EncumberedMagnitudeModel, error) {
-	model := &EncumberedMagnitudeModel{
+) (*OperatorMaxMagnitudeModel, error) {
+	model := &OperatorMaxMagnitudeModel{
 		BaseEigenState: base.BaseEigenState{
 			Logger: logger,
 		},
 		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[types.SlotID]*EncumberedMagnitude),
-		committedState:   make(map[uint64][]*EncumberedMagnitude),
+		stateAccumulator: make(map[uint64]map[types.SlotID]*OperatorMaxMagnitude),
+		committedState:   make(map[uint64][]*OperatorMaxMagnitude),
 	}
 
-	esm.RegisterState(model, 18)
+	esm.RegisterState(model, 19)
 	return model, nil
 }
 
-func (ops *EncumberedMagnitudeModel) GetModelName() string {
-	return "EncumberedMagnitude"
+func (ops *OperatorMaxMagnitudeModel) GetModelName() string {
+	return "MaxMagnitude"
 }
 
-type encumberedMagnitudeOutputData struct {
-	Operator            string      `json:"operator"`
-	Strategy            string      `json:"strategy"`
-	EncumberedMagnitude json.Number `json:"encumberedMagnitude"`
+type operatorMaxMagnitudeOutputData struct {
+	Operator     string      `json:"operator"`
+	Strategy     string      `json:"strategy"`
+	MaxMagnitude json.Number `json:"maxMagnitude"`
 }
 
-func parseEncumberedMagnitudeOutputData(outputDataStr string) (*encumberedMagnitudeOutputData, error) {
-	outputData := &encumberedMagnitudeOutputData{}
+func parseOperatorMaxMagnitudeOutputData(outputDataStr string) (*operatorMaxMagnitudeOutputData, error) {
+	outputData := &operatorMaxMagnitudeOutputData{}
 	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
 	decoder.UseNumber()
 
@@ -84,36 +84,36 @@ func parseEncumberedMagnitudeOutputData(outputDataStr string) (*encumberedMagnit
 	return outputData, err
 }
 
-func (ops *EncumberedMagnitudeModel) handleEncumberedMagnitudeCreatedEvent(log *storage.TransactionLog) (*EncumberedMagnitude, error) {
-	outputData, err := parseEncumberedMagnitudeOutputData(log.OutputData)
+func (ops *OperatorMaxMagnitudeModel) handleOperatorMaxMagnitudeCreatedEvent(log *storage.TransactionLog) (*OperatorMaxMagnitude, error) {
+	outputData, err := parseOperatorMaxMagnitudeOutputData(log.OutputData)
 	if err != nil {
 		return nil, err
 	}
 
-	encumberedMagnitude, success := new(big.Int).SetString(outputData.EncumberedMagnitude.String(), 10)
+	operatorMaxMagnitude, success := new(big.Int).SetString(outputData.MaxMagnitude.String(), 10)
 	if !success {
-		err := fmt.Errorf("Failed to parse encumberedMagnitude: %s", outputData.EncumberedMagnitude.String())
-		ops.logger.Sugar().Errorw("Failed to parse encumberedMagnitude", zap.Error(err))
+		err := fmt.Errorf("Failed to parse operatorMaxMagnitude: %s", outputData.MaxMagnitude.String())
+		ops.logger.Sugar().Errorw("Failed to parse operatorMaxMagnitude", zap.Error(err))
 		return nil, err
 	}
 
-	split := &EncumberedMagnitude{
-		Operator:            strings.ToLower(outputData.Operator),
-		Strategy:            strings.ToLower(outputData.Strategy),
-		EncumberedMagnitude: encumberedMagnitude.String(),
-		BlockNumber:         log.BlockNumber,
-		TransactionHash:     log.TransactionHash,
-		LogIndex:            log.LogIndex,
+	split := &OperatorMaxMagnitude{
+		Operator:        strings.ToLower(outputData.Operator),
+		Strategy:        strings.ToLower(outputData.Strategy),
+		MaxMagnitude:    operatorMaxMagnitude.String(),
+		BlockNumber:     log.BlockNumber,
+		TransactionHash: log.TransactionHash,
+		LogIndex:        log.LogIndex,
 	}
 
 	return split, nil
 }
 
-func (ops *EncumberedMagnitudeModel) GetStateTransitions() (types.StateTransitions[*EncumberedMagnitude], []uint64) {
-	stateChanges := make(types.StateTransitions[*EncumberedMagnitude])
+func (ops *OperatorMaxMagnitudeModel) GetStateTransitions() (types.StateTransitions[*OperatorMaxMagnitude], []uint64) {
+	stateChanges := make(types.StateTransitions[*OperatorMaxMagnitude])
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*EncumberedMagnitude, error) {
-		createdEvent, err := ops.handleEncumberedMagnitudeCreatedEvent(log)
+	stateChanges[0] = func(log *storage.TransactionLog) (*OperatorMaxMagnitude, error) {
+		createdEvent, err := ops.handleOperatorMaxMagnitudeCreatedEvent(log)
 		if err != nil {
 			return nil, err
 		}
@@ -122,7 +122,7 @@ func (ops *EncumberedMagnitudeModel) GetStateTransitions() (types.StateTransitio
 
 		_, ok := ops.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
-			err := fmt.Errorf("Duplicate encumberedMagnitude submitted for slot %s at block %d", slotId, log.BlockNumber)
+			err := fmt.Errorf("Duplicate operatorMaxMagnitude submitted for slot %s at block %d", slotId, log.BlockNumber)
 			ops.logger.Sugar().Errorw("Duplicate operator PI split submitted", zap.Error(err))
 			return nil, err
 		}
@@ -145,33 +145,33 @@ func (ops *EncumberedMagnitudeModel) GetStateTransitions() (types.StateTransitio
 	return stateChanges, blockNumbers
 }
 
-func (ops *EncumberedMagnitudeModel) getContractAddressesForEnvironment() map[string][]string {
+func (ops *OperatorMaxMagnitudeModel) getContractAddressesForEnvironment() map[string][]string {
 	contracts := ops.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.AllocationManager: {
-			"EncumberedMagnitudeUpdated",
+			"MaxMagnitudeUpdated",
 		},
 	}
 }
 
-func (ops *EncumberedMagnitudeModel) IsInterestingLog(log *storage.TransactionLog) bool {
+func (ops *OperatorMaxMagnitudeModel) IsInterestingLog(log *storage.TransactionLog) bool {
 	addresses := ops.getContractAddressesForEnvironment()
 	return ops.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (ops *EncumberedMagnitudeModel) SetupStateForBlock(blockNumber uint64) error {
-	ops.stateAccumulator[blockNumber] = make(map[types.SlotID]*EncumberedMagnitude)
-	ops.committedState[blockNumber] = make([]*EncumberedMagnitude, 0)
+func (ops *OperatorMaxMagnitudeModel) SetupStateForBlock(blockNumber uint64) error {
+	ops.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorMaxMagnitude)
+	ops.committedState[blockNumber] = make([]*OperatorMaxMagnitude, 0)
 	return nil
 }
 
-func (ops *EncumberedMagnitudeModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
+func (ops *OperatorMaxMagnitudeModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(ops.stateAccumulator, blockNumber)
 	delete(ops.committedState, blockNumber)
 	return nil
 }
 
-func (ops *EncumberedMagnitudeModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
+func (ops *OperatorMaxMagnitudeModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
 	stateChanges, sortedBlockNumbers := ops.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
@@ -192,7 +192,7 @@ func (ops *EncumberedMagnitudeModel) HandleStateChange(log *storage.TransactionL
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (ops *EncumberedMagnitudeModel) prepareState(blockNumber uint64) ([]*EncumberedMagnitude, error) {
+func (ops *OperatorMaxMagnitudeModel) prepareState(blockNumber uint64) ([]*OperatorMaxMagnitude, error) {
 	accumulatedState, ok := ops.stateAccumulator[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
@@ -200,7 +200,7 @@ func (ops *EncumberedMagnitudeModel) prepareState(blockNumber uint64) ([]*Encumb
 		return nil, err
 	}
 
-	recordsToInsert := make([]*EncumberedMagnitude, 0)
+	recordsToInsert := make([]*OperatorMaxMagnitude, 0)
 	for _, split := range accumulatedState {
 		recordsToInsert = append(recordsToInsert, split)
 	}
@@ -208,7 +208,7 @@ func (ops *EncumberedMagnitudeModel) prepareState(blockNumber uint64) ([]*Encumb
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (ops *EncumberedMagnitudeModel) CommitFinalState(blockNumber uint64) error {
+func (ops *OperatorMaxMagnitudeModel) CommitFinalState(blockNumber uint64) error {
 	recordsToInsert, err := ops.prepareState(blockNumber)
 	if err != nil {
 		return err
@@ -216,7 +216,7 @@ func (ops *EncumberedMagnitudeModel) CommitFinalState(blockNumber uint64) error 
 
 	if len(recordsToInsert) > 0 {
 		for _, record := range recordsToInsert {
-			res := ops.DB.Model(&EncumberedMagnitude{}).Clauses(clause.Returning{}).Create(&record)
+			res := ops.DB.Model(&OperatorMaxMagnitude{}).Clauses(clause.Returning{}).Create(&record)
 			if res.Error != nil {
 				ops.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
 				return res.Error
@@ -228,7 +228,7 @@ func (ops *EncumberedMagnitudeModel) CommitFinalState(blockNumber uint64) error 
 }
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
-func (ops *EncumberedMagnitudeModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
+func (ops *OperatorMaxMagnitudeModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	inserts, err := ops.prepareState(blockNumber)
 	if err != nil {
 		return nil, err
@@ -255,7 +255,7 @@ func (ops *EncumberedMagnitudeModel) GenerateStateRoot(blockNumber uint64) ([]by
 	return fullTree.Root(), nil
 }
 
-func (ops *EncumberedMagnitudeModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+func (ops *OperatorMaxMagnitudeModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
 	records, ok := ops.committedState[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No committed state found for block %d", blockNumber)
@@ -265,27 +265,27 @@ func (ops *EncumberedMagnitudeModel) GetCommittedState(blockNumber uint64) ([]in
 	return base.CastCommittedStateToInterface(records), nil
 }
 
-func (ops *EncumberedMagnitudeModel) formatMerkleLeafValue(
+func (ops *OperatorMaxMagnitudeModel) formatMerkleLeafValue(
 	blockNumber uint64,
 	operator string,
 	strategy string,
-	encumberedMagnitude string,
+	operatorMaxMagnitude string,
 ) (string, error) {
-	return fmt.Sprintf("%s_%s_%s", operator, strategy, encumberedMagnitude), nil
+	return fmt.Sprintf("%s_%s_%s", operator, strategy, operatorMaxMagnitude), nil
 }
 
-func (ops *EncumberedMagnitudeModel) sortValuesForMerkleTree(records []*EncumberedMagnitude) ([]*base.MerkleTreeInput, error) {
+func (ops *OperatorMaxMagnitudeModel) sortValuesForMerkleTree(records []*OperatorMaxMagnitude) ([]*base.MerkleTreeInput, error) {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, record := range records {
 		slotID := base.NewSlotID(record.TransactionHash, record.LogIndex)
-		value, err := ops.formatMerkleLeafValue(record.BlockNumber, record.Operator, record.Strategy, record.EncumberedMagnitude)
+		value, err := ops.formatMerkleLeafValue(record.BlockNumber, record.Operator, record.Strategy, record.MaxMagnitude)
 		if err != nil {
 			ops.logger.Sugar().Errorw("Failed to format merkle leaf value",
 				zap.Error(err),
 				zap.Uint64("blockNumber", record.BlockNumber),
 				zap.String("operator", record.Operator),
 				zap.String("strategy", record.Strategy),
-				zap.String("encumberedMagnitude", record.EncumberedMagnitude),
+				zap.String("operatorMaxMagnitude", record.MaxMagnitude),
 			)
 			return nil, err
 		}
@@ -302,12 +302,12 @@ func (ops *EncumberedMagnitudeModel) sortValuesForMerkleTree(records []*Encumber
 	return inputs, nil
 }
 
-func (ops *EncumberedMagnitudeModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ops.BaseEigenState.DeleteState("encumbered_magnitudes", startBlockNumber, endBlockNumber, ops.DB)
+func (ops *OperatorMaxMagnitudeModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
+	return ops.BaseEigenState.DeleteState("operator_max_magnitudes", startBlockNumber, endBlockNumber, ops.DB)
 }
 
-func (ops *EncumberedMagnitudeModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
-	var splits []*EncumberedMagnitude
+func (ops *OperatorMaxMagnitudeModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	var splits []*OperatorMaxMagnitude
 	res := ops.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
 	if res.Error != nil {
 		ops.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
@@ -316,6 +316,6 @@ func (ops *EncumberedMagnitudeModel) ListForBlockRange(startBlockNumber uint64, 
 	return base.CastCommittedStateToInterface(splits), nil
 }
 
-func (ops *EncumberedMagnitudeModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+func (ops *OperatorMaxMagnitudeModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
 	return true, nil
 }

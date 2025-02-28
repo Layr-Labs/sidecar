@@ -10,6 +10,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAllocations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorDirectedOperatorSetRewardSubmissions"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorDirectedRewardSubmissions"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorMaxMagnitudes"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorPISplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetOperatorRegistrations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetSplits"
@@ -106,6 +107,10 @@ func LoadEigenStateModels(
 	}
 	if _, err := encumberedMagnitudes.NewEncumberedMagnitudeModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Errorw("Failed to create EncumberedMagnitudeModel", zap.Error(err))
+		return err
+	}
+	if _, err := operatorMaxMagnitudes.NewOperatorMaxMagnitudeModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create OperatorMaxMagnitudeModel", zap.Error(err))
 		return err
 	}
 	return nil
