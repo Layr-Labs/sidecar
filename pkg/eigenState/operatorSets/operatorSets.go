@@ -114,7 +114,7 @@ func (ops *OperatorSetModel) GetStateTransitions() (types.StateTransitions[*Oper
 		_, ok := ops.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := fmt.Errorf("Duplicate operatorSet submitted for slot %s at block %d", slotId, log.BlockNumber)
-			ops.logger.Sugar().Errorw("Duplicate operator PI split submitted", zap.Error(err))
+			ops.logger.Sugar().Errorw("Duplicate operatorSet submitted", zap.Error(err))
 			return nil, err
 		}
 

@@ -115,7 +115,7 @@ func (ops *OperatorAllocationDelayModel) GetStateTransitions() (types.StateTrans
 		_, ok := ops.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := fmt.Errorf("Duplicate operatorAllocationDelay submitted for slot %s at block %d", slotId, log.BlockNumber)
-			ops.logger.Sugar().Errorw("Duplicate operator PI split submitted", zap.Error(err))
+			ops.logger.Sugar().Errorw("Duplicate operatorAllocationDelay submitted", zap.Error(err))
 			return nil, err
 		}
 

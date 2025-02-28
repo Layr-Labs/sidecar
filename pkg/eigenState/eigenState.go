@@ -18,6 +18,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSets"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/rewardSubmissions"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperatorShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperators"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerDelegations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerShares"
@@ -111,6 +112,10 @@ func LoadEigenStateModels(
 	}
 	if _, err := operatorMaxMagnitudes.NewOperatorMaxMagnitudeModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Errorw("Failed to create OperatorMaxMagnitudeModel", zap.Error(err))
+		return err
+	}
+	if _, err := slashedOperatorShares.NewSlashedOperatorSharesModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create SlashedOperatorSharesModel", zap.Error(err))
 		return err
 	}
 	return nil
