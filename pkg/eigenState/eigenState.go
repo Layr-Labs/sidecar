@@ -16,6 +16,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSets"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/rewardSubmissions"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperators"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerDelegations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -96,6 +97,10 @@ func LoadEigenStateModels(
 	}
 	if _, err := operatorAllocations.NewOperatorAllocationModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Errorw("Failed to create OperatorAllocationModel", zap.Error(err))
+		return err
+	}
+	if _, err := slashedOperators.NewSlashedOperatorModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create SlashedOperatorModel", zap.Error(err))
 		return err
 	}
 	return nil
