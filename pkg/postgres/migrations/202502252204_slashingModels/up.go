@@ -93,6 +93,19 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 		`create index if not exists idx_operator_max_magnitudes_operator on operator_max_magnitudes (operator)`,
 		`create index if not exists idx_operator_max_magnitudes_operator_strategy on operator_max_magnitudes (operator, strategy)`,
 		`create index if not exists idx_operator_max_magnitudes_block_number on operator_max_magnitudes (block_number)`,
+		// slashed operator shares
+		`CREATE TABLE IF NOT EXISTS slashed_operator_shares (
+    		operator varchar not null,
+    		strategy varchar not null,
+    		total_slashed_shares numeric not null,
+    		transaction_hash varchar not null,
+    		log_index bigint not null,
+    		block_number bigint not null,
+    		unique(transaction_hash, log_index, block_number)
+    	)`,
+		`create index if not exists idx_slashed_operator_shares_operator on slashed_operator_shares (operator)`,
+		`create index if not exists idx_slashed_operator_shares_operator_strategy on slashed_operator_shares (operator, strategy)`,
+		`create index if not exists idx_slashed_operator_shares_block_number on slashed_operator_shares (block_number)`,
 	}
 	for _, query := range queries {
 		res := grm.Exec(query)
