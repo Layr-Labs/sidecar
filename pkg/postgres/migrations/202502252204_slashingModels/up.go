@@ -50,6 +50,22 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     	)`,
 		`create index if not exists idx_operator_allocation_delays_operator on operator_allocations (operator)`,
 		`create index if not exists idx_operator_allocation_delays_block_number on operator_sets (block_number)`,
+		// slashed operators
+		`CREATE TABLE IF NOT EXISTS slashed_operators (
+    		operator varchar not null,
+    		strategy varchar not null,
+    		wad_slashed numeric not null,
+    		description text not null,
+    		operator_set_id bigint not null,
+    		avs varchar not null,
+    		block_number bigint not null,
+    		transaction_hash varchar not null,
+    		log_index bigint not null,
+    		unique(transaction_hash, log_index, block_number, operator, strategy, avs, operator_set_id)
+    	)`,
+		`create index if not exists idx_slashed_operators_operator on slashed_operators (operator)`,
+		`create index if not exists idx_slashed_operators_operator_avs on slashed_operators (operator, avs)`,
+		`create index if not exists idx_slashed_operators_operator_set_avs on slashed_operators (operator_set_id, avs)`,
 	}
 	for _, query := range queries {
 		res := grm.Exec(query)
