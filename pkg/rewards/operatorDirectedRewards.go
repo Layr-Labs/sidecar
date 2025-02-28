@@ -1,8 +1,12 @@
 package rewards
 
-import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+import (
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"go.uber.org/zap"
+)
 
 const operatorDirectedRewardsQuery = `
+	insert into operator_directed_rewards (avs, reward_hash, token, operator, operator_index, amount, strategy, strategy_index, multiplier, start_timestamp, end_timestamp, duration, block_number, block_time, block_date)
 	with _operator_directed_rewards as (
 		SELECT
 			odrs.avs,
@@ -41,23 +45,25 @@ const operatorDirectedRewardsQuery = `
 		block_time,
 		block_date
 	from _operator_directed_rewards
+	on conflict on constraint uniq_operator_directed_rewards do nothing;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorDirectedRewards(snapshotDate string) error {
-	tableName := "operator_directed_rewards"
-
 	query, err := rewardsUtils.RenderQueryTemplate(operatorDirectedRewardsQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
-		r.logger.Sugar().Errorw("Failed to render rewards combined query", "error", err)
+		r.logger.Sugar().Errorw("Failed to render rewards combined query", zap.Error(err))
 		return err
 	}
 
-	err = r.generateAndInsertFromQuery(tableName, query, nil)
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate combined rewards", "error", err)
-		return err
+	res := r.grm.Exec(query)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to generate combined rewards",
+			zap.String("snapshotDate", snapshotDate),
+			zap.Error(res.Error),
+		)
+		return res.Error
 	}
 	return nil
 }

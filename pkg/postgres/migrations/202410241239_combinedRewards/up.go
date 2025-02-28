@@ -24,7 +24,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			duration integer,
 			block_number bigint not null,
 			block_time timestamp without time zone not null,
-			block_date date not null,
+			block_date text not null,
 			reward_type varchar not null
 		)`,
 	}
