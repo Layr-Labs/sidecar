@@ -5,6 +5,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/avsOperators"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/defaultOperatorSplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/disabledDistributionRoots"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/encumberedMagnitudes"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAVSSplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAllocations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorDirectedOperatorSetRewardSubmissions"
@@ -101,6 +102,10 @@ func LoadEigenStateModels(
 	}
 	if _, err := slashedOperators.NewSlashedOperatorModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Errorw("Failed to create SlashedOperatorModel", zap.Error(err))
+		return err
+	}
+	if _, err := encumberedMagnitudes.NewEncumberedMagnitudeModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create EncumberedMagnitudeModel", zap.Error(err))
 		return err
 	}
 	return nil

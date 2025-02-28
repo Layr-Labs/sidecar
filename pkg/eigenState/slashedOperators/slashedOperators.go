@@ -65,7 +65,7 @@ func NewSlashedOperatorModel(
 }
 
 func (so *SlashedOperatorModel) GetModelName() string {
-	return "AllocationUpdated"
+	return "SlashedOperators"
 }
 
 type slashedOperatorOutputData struct {
