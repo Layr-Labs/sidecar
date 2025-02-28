@@ -66,6 +66,20 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 		`create index if not exists idx_slashed_operators_operator on slashed_operators (operator)`,
 		`create index if not exists idx_slashed_operators_operator_avs on slashed_operators (operator, avs)`,
 		`create index if not exists idx_slashed_operators_operator_set_avs on slashed_operators (operator_set_id, avs)`,
+		`create index if not exists idx_slashed_operators_block_number on slashed_operators (block_number)`,
+		// encumbered magnitudes
+		`CREATE TABLE IF NOT EXISTS encumbered_magnitudes (
+    		operator varchar not null,
+    		strategy varchar not null,
+    		encumbered_magnitude numeric not null,
+    		transaction_hash varchar not null,
+    		log_index bigint not null,
+    		block_number bigint not null,
+    		unique(transaction_hash, log_index, block_number)
+    	)`,
+		`create index if not exists idx_encumbered_magnitudes_operator on encumbered_magnitudes (operator)`,
+		`create index if not exists idx_encumbered_magnitudes_operator_strategy on encumbered_magnitudes (operator, strategy)`,
+		`create index if not exists idx_encumbered_magnitudes_block_number on encumbered_magnitudes (block_number)`,
 	}
 	for _, query := range queries {
 		res := grm.Exec(query)

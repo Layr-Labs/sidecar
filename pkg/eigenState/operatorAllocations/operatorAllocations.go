@@ -65,7 +65,7 @@ func NewOperatorAllocationModel(
 }
 
 func (ops *OperatorAllocationModel) GetModelName() string {
-	return "AllocationUpdated"
+	return "OperatorAllocations"
 }
 
 type operatorAllocationOutputData struct {
