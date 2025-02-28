@@ -1,4 +1,4 @@
-package operatorAllocationDelayDelays
+package encumberedMagnitudes
 
 import (
 	"encoding/json"
@@ -11,23 +11,24 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"math/big"
 	"slices"
 	"sort"
 	"strings"
 )
 
-type OperatorAllocationDelay struct {
-	Operator        string
-	EffectiveBlock  uint64
-	Delay           uint64
-	BlockNumber     uint64
-	TransactionHash string
-	LogIndex        uint64
+type EncumberedMagnitude struct {
+	Operator            string
+	Strategy            string
+	EncumberedMagnitude string
+	BlockNumber         uint64
+	TransactionHash     string
+	LogIndex            uint64
 }
 
-type OperatorAllocationDelayModel struct {
+type EncumberedMagnitudeModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[[]*OperatorAllocationDelay]
+	StateTransitions types.StateTransitions[[]*EncumberedMagnitude]
 	DB               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
@@ -35,43 +36,43 @@ type OperatorAllocationDelayModel struct {
 	globalConfig     *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[types.SlotID]*OperatorAllocationDelay
-	committedState   map[uint64][]*OperatorAllocationDelay
+	stateAccumulator map[uint64]map[types.SlotID]*EncumberedMagnitude
+	committedState   map[uint64][]*EncumberedMagnitude
 }
 
-func NewOperatorAllocationDelayModel(
+func NewEncumberedMagnitudeModel(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
 	logger *zap.Logger,
 	globalConfig *config.Config,
-) (*OperatorAllocationDelayModel, error) {
-	model := &OperatorAllocationDelayModel{
+) (*EncumberedMagnitudeModel, error) {
+	model := &EncumberedMagnitudeModel{
 		BaseEigenState: base.BaseEigenState{
 			Logger: logger,
 		},
 		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[types.SlotID]*OperatorAllocationDelay),
-		committedState:   make(map[uint64][]*OperatorAllocationDelay),
+		stateAccumulator: make(map[uint64]map[types.SlotID]*EncumberedMagnitude),
+		committedState:   make(map[uint64][]*EncumberedMagnitude),
 	}
 
-	esm.RegisterState(model, 17)
+	esm.RegisterState(model, 18)
 	return model, nil
 }
 
-func (ops *OperatorAllocationDelayModel) GetModelName() string {
-	return "OperatorAllocationDelays"
+func (ops *EncumberedMagnitudeModel) GetModelName() string {
+	return "EncumberedMangnitude"
 }
 
-type operatorAllocationDelayOutputData struct {
-	Operator    string `json:"operator"`
-	EffectBlock uint64 `json:"effectBlock"`
-	Delay       uint64 `json:"delay"`
+type encumberedMagnitudeOutputData struct {
+	Operator            string      `json:"operator"`
+	Strategy            string      `json:"strategy"`
+	EncumberedMagnitude json.Number `json:"encumberedMagnitude"`
 }
 
-func parseOperatorAllocationDelayOutputData(outputDataStr string) (*operatorAllocationDelayOutputData, error) {
-	outputData := &operatorAllocationDelayOutputData{}
+func parseEncumberedMagnitudeOutputData(outputDataStr string) (*encumberedMagnitudeOutputData, error) {
+	outputData := &encumberedMagnitudeOutputData{}
 	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
 	decoder.UseNumber()
 
@@ -83,29 +84,36 @@ func parseOperatorAllocationDelayOutputData(outputDataStr string) (*operatorAllo
 	return outputData, err
 }
 
-func (ops *OperatorAllocationDelayModel) handleOperatorAllocationDelayCreatedEvent(log *storage.TransactionLog) (*OperatorAllocationDelay, error) {
-	outputData, err := parseOperatorAllocationDelayOutputData(log.OutputData)
+func (ops *EncumberedMagnitudeModel) handleEncumberedMagnitudeCreatedEvent(log *storage.TransactionLog) (*EncumberedMagnitude, error) {
+	outputData, err := parseEncumberedMagnitudeOutputData(log.OutputData)
 	if err != nil {
 		return nil, err
 	}
 
-	split := &OperatorAllocationDelay{
-		Operator:        strings.ToLower(outputData.Operator),
-		EffectiveBlock:  outputData.EffectBlock,
-		Delay:           outputData.Delay,
-		BlockNumber:     log.BlockNumber,
-		TransactionHash: log.TransactionHash,
-		LogIndex:        log.LogIndex,
+	encumberedMagnitude, success := new(big.Int).SetString(outputData.EncumberedMagnitude.String(), 10)
+	if !success {
+		err := fmt.Errorf("Failed to parse encumberedMagnitude: %s", outputData.EncumberedMagnitude.String())
+		ops.logger.Sugar().Errorw("Failed to parse encumberedMagnitude", zap.Error(err))
+		return nil, err
+	}
+
+	split := &EncumberedMagnitude{
+		Operator:            strings.ToLower(outputData.Operator),
+		Strategy:            strings.ToLower(outputData.Strategy),
+		EncumberedMagnitude: encumberedMagnitude.String(),
+		BlockNumber:         log.BlockNumber,
+		TransactionHash:     log.TransactionHash,
+		LogIndex:            log.LogIndex,
 	}
 
 	return split, nil
 }
 
-func (ops *OperatorAllocationDelayModel) GetStateTransitions() (types.StateTransitions[*OperatorAllocationDelay], []uint64) {
-	stateChanges := make(types.StateTransitions[*OperatorAllocationDelay])
+func (ops *EncumberedMagnitudeModel) GetStateTransitions() (types.StateTransitions[*EncumberedMagnitude], []uint64) {
+	stateChanges := make(types.StateTransitions[*EncumberedMagnitude])
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*OperatorAllocationDelay, error) {
-		createdEvent, err := ops.handleOperatorAllocationDelayCreatedEvent(log)
+	stateChanges[0] = func(log *storage.TransactionLog) (*EncumberedMagnitude, error) {
+		createdEvent, err := ops.handleEncumberedMagnitudeCreatedEvent(log)
 		if err != nil {
 			return nil, err
 		}
@@ -114,7 +122,7 @@ func (ops *OperatorAllocationDelayModel) GetStateTransitions() (types.StateTrans
 
 		_, ok := ops.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
-			err := fmt.Errorf("Duplicate operatorAllocationDelay submitted for slot %s at block %d", slotId, log.BlockNumber)
+			err := fmt.Errorf("Duplicate encumberedMagnitude submitted for slot %s at block %d", slotId, log.BlockNumber)
 			ops.logger.Sugar().Errorw("Duplicate operator PI split submitted", zap.Error(err))
 			return nil, err
 		}
@@ -137,33 +145,33 @@ func (ops *OperatorAllocationDelayModel) GetStateTransitions() (types.StateTrans
 	return stateChanges, blockNumbers
 }
 
-func (ops *OperatorAllocationDelayModel) getContractAddressesForEnvironment() map[string][]string {
+func (ops *EncumberedMagnitudeModel) getContractAddressesForEnvironment() map[string][]string {
 	contracts := ops.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.AllocationManager: {
-			"AllocationDelaySet",
+			"EncumberedMagnitudeUpdated",
 		},
 	}
 }
 
-func (ops *OperatorAllocationDelayModel) IsInterestingLog(log *storage.TransactionLog) bool {
+func (ops *EncumberedMagnitudeModel) IsInterestingLog(log *storage.TransactionLog) bool {
 	addresses := ops.getContractAddressesForEnvironment()
 	return ops.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (ops *OperatorAllocationDelayModel) SetupStateForBlock(blockNumber uint64) error {
-	ops.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorAllocationDelay)
-	ops.committedState[blockNumber] = make([]*OperatorAllocationDelay, 0)
+func (ops *EncumberedMagnitudeModel) SetupStateForBlock(blockNumber uint64) error {
+	ops.stateAccumulator[blockNumber] = make(map[types.SlotID]*EncumberedMagnitude)
+	ops.committedState[blockNumber] = make([]*EncumberedMagnitude, 0)
 	return nil
 }
 
-func (ops *OperatorAllocationDelayModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
+func (ops *EncumberedMagnitudeModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(ops.stateAccumulator, blockNumber)
 	delete(ops.committedState, blockNumber)
 	return nil
 }
 
-func (ops *OperatorAllocationDelayModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
+func (ops *EncumberedMagnitudeModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
 	stateChanges, sortedBlockNumbers := ops.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
@@ -184,7 +192,7 @@ func (ops *OperatorAllocationDelayModel) HandleStateChange(log *storage.Transact
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (ops *OperatorAllocationDelayModel) prepareState(blockNumber uint64) ([]*OperatorAllocationDelay, error) {
+func (ops *EncumberedMagnitudeModel) prepareState(blockNumber uint64) ([]*EncumberedMagnitude, error) {
 	accumulatedState, ok := ops.stateAccumulator[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
@@ -192,7 +200,7 @@ func (ops *OperatorAllocationDelayModel) prepareState(blockNumber uint64) ([]*Op
 		return nil, err
 	}
 
-	recordsToInsert := make([]*OperatorAllocationDelay, 0)
+	recordsToInsert := make([]*EncumberedMagnitude, 0)
 	for _, split := range accumulatedState {
 		recordsToInsert = append(recordsToInsert, split)
 	}
@@ -200,7 +208,7 @@ func (ops *OperatorAllocationDelayModel) prepareState(blockNumber uint64) ([]*Op
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (ops *OperatorAllocationDelayModel) CommitFinalState(blockNumber uint64) error {
+func (ops *EncumberedMagnitudeModel) CommitFinalState(blockNumber uint64) error {
 	recordsToInsert, err := ops.prepareState(blockNumber)
 	if err != nil {
 		return err
@@ -208,7 +216,7 @@ func (ops *OperatorAllocationDelayModel) CommitFinalState(blockNumber uint64) er
 
 	if len(recordsToInsert) > 0 {
 		for _, record := range recordsToInsert {
-			res := ops.DB.Model(&OperatorAllocationDelay{}).Clauses(clause.Returning{}).Create(&record)
+			res := ops.DB.Model(&EncumberedMagnitude{}).Clauses(clause.Returning{}).Create(&record)
 			if res.Error != nil {
 				ops.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
 				return res.Error
@@ -220,7 +228,7 @@ func (ops *OperatorAllocationDelayModel) CommitFinalState(blockNumber uint64) er
 }
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
-func (ops *OperatorAllocationDelayModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
+func (ops *EncumberedMagnitudeModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	inserts, err := ops.prepareState(blockNumber)
 	if err != nil {
 		return nil, err
@@ -247,7 +255,7 @@ func (ops *OperatorAllocationDelayModel) GenerateStateRoot(blockNumber uint64) (
 	return fullTree.Root(), nil
 }
 
-func (ops *OperatorAllocationDelayModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+func (ops *EncumberedMagnitudeModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
 	records, ok := ops.committedState[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No committed state found for block %d", blockNumber)
@@ -257,27 +265,27 @@ func (ops *OperatorAllocationDelayModel) GetCommittedState(blockNumber uint64) (
 	return base.CastCommittedStateToInterface(records), nil
 }
 
-func (ops *OperatorAllocationDelayModel) formatMerkleLeafValue(
+func (ops *EncumberedMagnitudeModel) formatMerkleLeafValue(
 	blockNumber uint64,
 	operator string,
-	effectiveBlock uint64,
-	delay uint64,
+	strategy string,
+	encumberedMagnitude string,
 ) (string, error) {
-	return fmt.Sprintf("%s_%016x_%016x", operator, effectiveBlock, delay), nil
+	return fmt.Sprintf("%s_%s_%s", operator, strategy, encumberedMagnitude), nil
 }
 
-func (ops *OperatorAllocationDelayModel) sortValuesForMerkleTree(records []*OperatorAllocationDelay) ([]*base.MerkleTreeInput, error) {
+func (ops *EncumberedMagnitudeModel) sortValuesForMerkleTree(records []*EncumberedMagnitude) ([]*base.MerkleTreeInput, error) {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, record := range records {
 		slotID := base.NewSlotID(record.TransactionHash, record.LogIndex)
-		value, err := ops.formatMerkleLeafValue(record.BlockNumber, record.Operator, record.EffectiveBlock, record.Delay)
+		value, err := ops.formatMerkleLeafValue(record.BlockNumber, record.Operator, record.Strategy, record.EncumberedMagnitude)
 		if err != nil {
 			ops.logger.Sugar().Errorw("Failed to format merkle leaf value",
 				zap.Error(err),
 				zap.Uint64("blockNumber", record.BlockNumber),
 				zap.String("operator", record.Operator),
-				zap.Uint64("effectiveBlock", record.EffectiveBlock),
-				zap.Uint64("delay", record.Delay),
+				zap.String("strategy", record.Strategy),
+				zap.String("encumberedMagnitude", record.EncumberedMagnitude),
 			)
 			return nil, err
 		}
@@ -294,12 +302,12 @@ func (ops *OperatorAllocationDelayModel) sortValuesForMerkleTree(records []*Oper
 	return inputs, nil
 }
 
-func (ops *OperatorAllocationDelayModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ops.BaseEigenState.DeleteState("operator_allocation_delays", startBlockNumber, endBlockNumber, ops.DB)
+func (ops *EncumberedMagnitudeModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
+	return ops.BaseEigenState.DeleteState("encumbered_magnitudes", startBlockNumber, endBlockNumber, ops.DB)
 }
 
-func (ops *OperatorAllocationDelayModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
-	var splits []*OperatorAllocationDelay
+func (ops *EncumberedMagnitudeModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	var splits []*EncumberedMagnitude
 	res := ops.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
 	if res.Error != nil {
 		ops.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
@@ -308,6 +316,6 @@ func (ops *OperatorAllocationDelayModel) ListForBlockRange(startBlockNumber uint
 	return base.CastCommittedStateToInterface(splits), nil
 }
 
-func (ops *OperatorAllocationDelayModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+func (ops *EncumberedMagnitudeModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
 	return true, nil
 }
