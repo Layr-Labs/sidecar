@@ -116,7 +116,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 			assert.Nil(t, err)
 			assert.NotNil(t, stateChange)
 
-			err = model.CommitFinalState(log.BlockNumber)
+			err = model.CommitFinalState(log.BlockNumber, false)
 			assert.Nil(t, err)
 
 			states := []StakerDelegationChange{}

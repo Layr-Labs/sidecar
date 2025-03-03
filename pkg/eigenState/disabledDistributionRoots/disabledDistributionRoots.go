@@ -166,7 +166,7 @@ func (ddr *DisabledDistributionRootsModel) prepareState(blockNumber uint64) ([]*
 	return preparedState, nil
 }
 
-func (ddr *DisabledDistributionRootsModel) CommitFinalState(blockNumber uint64) error {
+func (ddr *DisabledDistributionRootsModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	records, err := ddr.prepareState(blockNumber)
 	if err != nil {
 		return err

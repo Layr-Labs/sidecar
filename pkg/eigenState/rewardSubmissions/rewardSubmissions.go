@@ -291,7 +291,7 @@ func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSub
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
+func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	recordsToInsert, err := rs.prepareState(blockNumber)
 	if err != nil {
 		return err

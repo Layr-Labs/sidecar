@@ -212,7 +212,7 @@ func (a *AvsOperatorsModel) writeDeltaRecords(blockNumber uint64) error {
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64) error {
+func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	if err := a.writeDeltaRecords(blockNumber); err != nil {
 		return err
 	}
