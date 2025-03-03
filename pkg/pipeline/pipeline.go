@@ -258,7 +258,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	}
 
 	blockFetchTime = time.Now()
-	committedState, err := p.stateManager.CommitFinalState(blockNumber)
+	committedState, err := p.stateManager.CommitFinalState(blockNumber, false)
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to commit final state", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		hasError = true

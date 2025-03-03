@@ -14,7 +14,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type OperatorSetStrategyRegistration struct {
@@ -213,22 +212,18 @@ func (ossr *OperatorSetStrategyRegistrationModel) prepareState(blockNumber uint6
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (ossr *OperatorSetStrategyRegistrationModel) CommitFinalState(blockNumber uint64) error {
+func (ossr *OperatorSetStrategyRegistrationModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	recordsToInsert, err := ossr.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := ossr.DB.Model(&OperatorSetStrategyRegistration{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				ossr.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, ossr.GetTableName(), ossr.DB)
+	if err != nil {
+		ossr.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
+		return err
 	}
-	ossr.committedState[blockNumber] = recordsToInsert
+	ossr.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
@@ -312,8 +307,12 @@ func (ossr *OperatorSetStrategyRegistrationModel) sortValuesForMerkleTree(strate
 	return inputs, nil
 }
 
+func (ossr *OperatorSetStrategyRegistrationModel) GetTableName() string {
+	return "operator_set_strategy_registrations"
+}
+
 func (ossr *OperatorSetStrategyRegistrationModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ossr.BaseEigenState.DeleteState("operator_set_strategy_registrations", startBlockNumber, endBlockNumber, ossr.DB)
+	return ossr.BaseEigenState.DeleteState(ossr.GetTableName(), startBlockNumber, endBlockNumber, ossr.DB)
 }
 
 func (ossr *OperatorSetStrategyRegistrationModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
