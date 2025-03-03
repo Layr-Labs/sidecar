@@ -45,9 +45,28 @@
       },
 	{
 		"tab": "Sidecar API",
-		"openapi": "https://raw.githubusercontent.com/Layr-Labs/protocol-apis/refs/heads/sm-openapiv3/gen/openapi/api.swagger.json"
-	}
-    ]
+		"groups": [
+			{
+				"group": "API",
+				"openapi": {
+					"source": "https://raw.githubusercontent.com/Layr-Labs/protocol-apis/master/gen/openapi/api.swagger.json",
+					"directory": "api"
+				}
+			}
+		]
+	},
+	{
+		"tab": "Public API",
+		"groups": [
+			{
+				"group": "Public Sidecar API",
+				"openapi": {
+					"source": "https://raw.githubusercontent.com/Layr-Labs/protocol-apis/master/gen/openapi/api.public.swagger.json",
+					"directory": "public-api"
+				}
+			}
+		]
+	}]
   },
   "logo": {
     "light": "/logo/light.svg",
