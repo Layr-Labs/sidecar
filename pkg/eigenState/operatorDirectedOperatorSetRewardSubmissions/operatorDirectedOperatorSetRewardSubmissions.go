@@ -17,7 +17,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/types/numbers"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type OperatorDirectedOperatorSetRewardSubmission struct {
@@ -308,16 +307,12 @@ func (od *OperatorDirectedOperatorSetRewardSubmissionsModel) CommitFinalState(bl
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := od.DB.Model(&OperatorDirectedOperatorSetRewardSubmission{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				od.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, od.GetTableName(), od.DB)
+	if err != nil {
+		od.logger.Sugar().Errorw("Failed to insert records", zap.Error(err))
+		return err
 	}
-	od.committedState[blockNumber] = recordsToInsert
+	od.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
@@ -434,8 +429,12 @@ func (od *OperatorDirectedOperatorSetRewardSubmissionsModel) sortValuesForMerkle
 	return inputs, nil
 }
 
+func (od *OperatorDirectedOperatorSetRewardSubmissionsModel) GetTableName() string {
+	return "operator_directed_operator_set_reward_submissions"
+}
+
 func (od *OperatorDirectedOperatorSetRewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return od.BaseEigenState.DeleteState("operator_directed_operator_set_reward_submissions", startBlockNumber, endBlockNumber, od.DB)
+	return od.BaseEigenState.DeleteState(od.GetTableName(), startBlockNumber, endBlockNumber, od.DB)
 }
 
 func (od *OperatorDirectedOperatorSetRewardSubmissionsModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {

@@ -15,7 +15,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type OperatorSetSplit struct {
@@ -227,16 +226,12 @@ func (oss *OperatorSetSplitModel) CommitFinalState(blockNumber uint64, ignoreIns
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := oss.DB.Model(&OperatorSetSplit{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				oss.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, oss.GetTableName(), oss.DB)
+	if err != nil {
+		oss.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		return err
 	}
-	oss.committedState[blockNumber] = recordsToInsert
+	oss.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
@@ -326,8 +321,12 @@ func (oss *OperatorSetSplitModel) sortValuesForMerkleTree(splits []*OperatorSetS
 	return inputs, nil
 }
 
+func (oss *OperatorSetSplitModel) GetTableName() string {
+	return "operator_set_splits"
+}
+
 func (oss *OperatorSetSplitModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return oss.BaseEigenState.DeleteState("operator_set_splits", startBlockNumber, endBlockNumber, oss.DB)
+	return oss.BaseEigenState.DeleteState(oss.GetTableName(), startBlockNumber, endBlockNumber, oss.DB)
 }
 
 func (oss *OperatorSetSplitModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
