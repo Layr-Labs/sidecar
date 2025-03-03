@@ -52,6 +52,8 @@ type IEigenStateModel interface {
 	ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error)
 
 	IsActiveForBlockHeight(blockHeight uint64) (bool, error)
+
+	GetTableName() string
 }
 
 type IEigenPrecommitProcessor interface {

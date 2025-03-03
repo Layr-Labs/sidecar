@@ -14,7 +14,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type OperatorSetOperatorRegistration struct {
@@ -223,16 +222,12 @@ func (osor *OperatorSetOperatorRegistrationModel) CommitFinalState(blockNumber u
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := osor.DB.Model(&OperatorSetOperatorRegistration{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				osor.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, osor.GetTableName(), osor.DB)
+	if err != nil {
+		osor.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
+		return err
 	}
-	osor.committedState[blockNumber] = recordsToInsert
+	osor.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
@@ -316,8 +311,12 @@ func (osor *OperatorSetOperatorRegistrationModel) sortValuesForMerkleTree(operat
 	return inputs, nil
 }
 
+func (osor *OperatorSetOperatorRegistrationModel) GetTableName() string {
+	return "operator_set_operator_registrations"
+}
+
 func (osor *OperatorSetOperatorRegistrationModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return osor.BaseEigenState.DeleteState("operator_set_operator_registrations", startBlockNumber, endBlockNumber, osor.DB)
+	return osor.BaseEigenState.DeleteState(osor.GetTableName(), startBlockNumber, endBlockNumber, osor.DB)
 }
 
 func (osor *OperatorSetOperatorRegistrationModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
