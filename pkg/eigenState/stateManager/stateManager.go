@@ -129,11 +129,11 @@ func (e *EigenStateManager) RunPrecommitProcessors(blockNumber uint64) error {
 }
 
 // With all transactions/logs processed for a block, commit the final state to the table.
-func (e *EigenStateManager) CommitFinalState(blockNumber uint64) (map[string][]interface{}, error) {
+func (e *EigenStateManager) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) (map[string][]interface{}, error) {
 	committedState := make(map[string][]interface{})
 	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
-		err := state.CommitFinalState(blockNumber)
+		err := state.CommitFinalState(blockNumber, ignoreInsertConflicts)
 		if err != nil {
 			return committedState, err
 		}
