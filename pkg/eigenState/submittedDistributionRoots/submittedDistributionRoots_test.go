@@ -105,7 +105,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 		assert.Equal(t, blockNumber, typedChange.CreatedAtBlockNumber)
 		assert.Equal(t, uint64(100), typedChange.BlockNumber)
 
-		err = model.CommitFinalState(blockNumber)
+		err = model.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `SELECT * FROM submitted_distribution_roots WHERE block_number = ?`
@@ -167,7 +167,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 		assert.Equal(t, blockNumber, typedChange.CreatedAtBlockNumber)
 		assert.Equal(t, uint64(101), typedChange.BlockNumber)
 
-		err = model.CommitFinalState(blockNumber)
+		err = model.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `SELECT * FROM submitted_distribution_roots WHERE block_number = ?`

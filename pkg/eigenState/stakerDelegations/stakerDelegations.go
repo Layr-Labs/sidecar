@@ -10,7 +10,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"slices"
 	"sort"
 	"strings"
@@ -175,27 +174,20 @@ func (s *StakerDelegationsModel) prepareState(blockNumber uint64) ([]*StakerDele
 	return deltas, nil
 }
 
-func (s *StakerDelegationsModel) writeDeltaRecords(blockNumber uint64) error {
+func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	records, ok := s.stateAccumulator[blockNumber]
 	if !ok {
 		msg := "delta accumulator was not initialized"
 		s.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
 		return errors.New(msg)
 	}
-	if len(records) > 0 {
-		res := s.DB.Model(&StakerDelegationChange{}).Clauses(clause.Returning{}).Create(&records)
-		if res.Error != nil {
-			s.logger.Sugar().Errorw("Failed to insert delta records", zap.Error(res.Error))
-			return res.Error
-		}
-	}
-	return nil
-}
-
-func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
-	if err := s.writeDeltaRecords(blockNumber); err != nil {
+	insertedRecords, err := base.CommitFinalState(records, ignoreInsertConflicts, s.GetTableName(), s.DB)
+	if err != nil {
+		s.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
 		return err
 	}
+	s.committedState[blockNumber] = insertedRecords
+
 	return nil
 }
 
@@ -249,8 +241,12 @@ func (s *StakerDelegationsModel) sortValuesForMerkleTree(deltas []*StakerDelegat
 	return inputs
 }
 
+func (s *StakerDelegationsModel) GetTableName() string {
+	return "staker_delegation_changes"
+}
+
 func (s *StakerDelegationsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return s.BaseEigenState.DeleteState("staker_delegation_changes", startBlockNumber, endBlockNumber, s.DB)
+	return s.BaseEigenState.DeleteState(s.GetTableName(), startBlockNumber, endBlockNumber, s.DB)
 }
 
 func (s *StakerDelegationsModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {

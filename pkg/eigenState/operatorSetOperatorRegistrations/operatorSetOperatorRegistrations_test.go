@@ -115,7 +115,7 @@ func Test_OperatorSetOperatorRegistration(t *testing.T) {
 			assert.Equal(t, uint64(1), operatorRegistration.OperatorSetId)
 			assert.Equal(t, true, operatorRegistration.IsActive)
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			operatorRegistrations := make([]*OperatorSetOperatorRegistration, 0)
@@ -169,7 +169,7 @@ func Test_OperatorSetOperatorRegistration(t *testing.T) {
 			assert.Equal(t, uint64(1), operatorRegistration.OperatorSetId)
 			assert.Equal(t, false, operatorRegistration.IsActive)
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			operatorRegistrations := make([]*OperatorSetOperatorRegistration, 0)
