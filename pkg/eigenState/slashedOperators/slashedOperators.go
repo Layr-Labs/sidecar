@@ -10,7 +10,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"math/big"
 	"slices"
 	"sort"
@@ -242,22 +241,18 @@ func (so *SlashedOperatorModel) prepareState(blockNumber uint64) ([]*SlashedOper
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (so *SlashedOperatorModel) CommitFinalState(blockNumber uint64) error {
+func (so *SlashedOperatorModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	recordsToInsert, err := so.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := so.DB.Model(&SlashedOperator{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				so.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, so.GetTableName(), so.DB)
+	if err != nil {
+		so.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
+		return err
 	}
-	so.committedState[blockNumber] = recordsToInsert
+	so.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
@@ -335,8 +330,12 @@ func (so *SlashedOperatorModel) sortValuesForMerkleTree(records []*SlashedOperat
 	return inputs, nil
 }
 
+func (so *SlashedOperatorModel) GetTableName() string {
+	return "slashed_operators"
+}
+
 func (so *SlashedOperatorModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return so.BaseEigenState.DeleteState("slashed_operators", startBlockNumber, endBlockNumber, so.DB)
+	return so.BaseEigenState.DeleteState(so.GetTableName(), startBlockNumber, endBlockNumber, so.DB)
 }
 
 func (so *SlashedOperatorModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {

@@ -10,7 +10,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"math/big"
 	"slices"
 	"sort"
@@ -61,7 +60,7 @@ func NewOperatorMaxMagnitudeModel(
 	return model, nil
 }
 
-func (ops *OperatorMaxMagnitudeModel) GetModelName() string {
+func (omm *OperatorMaxMagnitudeModel) GetModelName() string {
 	return "OperatorMaxMagnitude"
 }
 
@@ -84,7 +83,7 @@ func parseOperatorMaxMagnitudeOutputData(outputDataStr string) (*operatorMaxMagn
 	return outputData, err
 }
 
-func (ops *OperatorMaxMagnitudeModel) handleOperatorMaxMagnitudeCreatedEvent(log *storage.TransactionLog) (*OperatorMaxMagnitude, error) {
+func (omm *OperatorMaxMagnitudeModel) handleOperatorMaxMagnitudeCreatedEvent(log *storage.TransactionLog) (*OperatorMaxMagnitude, error) {
 	outputData, err := parseOperatorMaxMagnitudeOutputData(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -93,7 +92,7 @@ func (ops *OperatorMaxMagnitudeModel) handleOperatorMaxMagnitudeCreatedEvent(log
 	operatorMaxMagnitude, success := new(big.Int).SetString(outputData.MaxMagnitude.String(), 10)
 	if !success {
 		err := fmt.Errorf("Failed to parse operatorMaxMagnitude: %s", outputData.MaxMagnitude.String())
-		ops.logger.Sugar().Errorw("Failed to parse operatorMaxMagnitude", zap.Error(err))
+		omm.logger.Sugar().Errorw("Failed to parse operatorMaxMagnitude", zap.Error(err))
 		return nil, err
 	}
 
@@ -109,25 +108,25 @@ func (ops *OperatorMaxMagnitudeModel) handleOperatorMaxMagnitudeCreatedEvent(log
 	return split, nil
 }
 
-func (ops *OperatorMaxMagnitudeModel) GetStateTransitions() (types.StateTransitions[*OperatorMaxMagnitude], []uint64) {
+func (omm *OperatorMaxMagnitudeModel) GetStateTransitions() (types.StateTransitions[*OperatorMaxMagnitude], []uint64) {
 	stateChanges := make(types.StateTransitions[*OperatorMaxMagnitude])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*OperatorMaxMagnitude, error) {
-		createdEvent, err := ops.handleOperatorMaxMagnitudeCreatedEvent(log)
+		createdEvent, err := omm.handleOperatorMaxMagnitudeCreatedEvent(log)
 		if err != nil {
 			return nil, err
 		}
 
 		slotId := base.NewSlotID(createdEvent.TransactionHash, createdEvent.LogIndex)
 
-		_, ok := ops.stateAccumulator[log.BlockNumber][slotId]
+		_, ok := omm.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := fmt.Errorf("Duplicate operatorMaxMagnitude submitted for slot %s at block %d", slotId, log.BlockNumber)
-			ops.logger.Sugar().Errorw("Duplicate operatorMaxMagnitude submitted", zap.Error(err))
+			omm.logger.Sugar().Errorw("Duplicate operatorMaxMagnitude submitted", zap.Error(err))
 			return nil, err
 		}
 
-		ops.stateAccumulator[log.BlockNumber][slotId] = createdEvent
+		omm.stateAccumulator[log.BlockNumber][slotId] = createdEvent
 
 		return createdEvent, nil
 	}
@@ -145,8 +144,8 @@ func (ops *OperatorMaxMagnitudeModel) GetStateTransitions() (types.StateTransiti
 	return stateChanges, blockNumbers
 }
 
-func (ops *OperatorMaxMagnitudeModel) getContractAddressesForEnvironment() map[string][]string {
-	contracts := ops.globalConfig.GetContractsMapForChain()
+func (omm *OperatorMaxMagnitudeModel) getContractAddressesForEnvironment() map[string][]string {
+	contracts := omm.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.AllocationManager: {
 			"MaxMagnitudeUpdated",
@@ -154,29 +153,29 @@ func (ops *OperatorMaxMagnitudeModel) getContractAddressesForEnvironment() map[s
 	}
 }
 
-func (ops *OperatorMaxMagnitudeModel) IsInterestingLog(log *storage.TransactionLog) bool {
-	addresses := ops.getContractAddressesForEnvironment()
-	return ops.BaseEigenState.IsInterestingLog(addresses, log)
+func (omm *OperatorMaxMagnitudeModel) IsInterestingLog(log *storage.TransactionLog) bool {
+	addresses := omm.getContractAddressesForEnvironment()
+	return omm.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (ops *OperatorMaxMagnitudeModel) SetupStateForBlock(blockNumber uint64) error {
-	ops.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorMaxMagnitude)
-	ops.committedState[blockNumber] = make([]*OperatorMaxMagnitude, 0)
+func (omm *OperatorMaxMagnitudeModel) SetupStateForBlock(blockNumber uint64) error {
+	omm.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorMaxMagnitude)
+	omm.committedState[blockNumber] = make([]*OperatorMaxMagnitude, 0)
 	return nil
 }
 
-func (ops *OperatorMaxMagnitudeModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
-	delete(ops.stateAccumulator, blockNumber)
-	delete(ops.committedState, blockNumber)
+func (omm *OperatorMaxMagnitudeModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
+	delete(omm.stateAccumulator, blockNumber)
+	delete(omm.committedState, blockNumber)
 	return nil
 }
 
-func (ops *OperatorMaxMagnitudeModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := ops.GetStateTransitions()
+func (omm *OperatorMaxMagnitudeModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
+	stateChanges, sortedBlockNumbers := omm.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
 		if log.BlockNumber >= blockNumber {
-			ops.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", log.BlockNumber))
+			omm.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", log.BlockNumber))
 
 			change, err := stateChanges[blockNumber](log)
 			if err != nil {
@@ -192,11 +191,11 @@ func (ops *OperatorMaxMagnitudeModel) HandleStateChange(log *storage.Transaction
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (ops *OperatorMaxMagnitudeModel) prepareState(blockNumber uint64) ([]*OperatorMaxMagnitude, error) {
-	accumulatedState, ok := ops.stateAccumulator[blockNumber]
+func (omm *OperatorMaxMagnitudeModel) prepareState(blockNumber uint64) ([]*OperatorMaxMagnitude, error) {
+	accumulatedState, ok := omm.stateAccumulator[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
-		ops.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		omm.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, err
 	}
 
@@ -208,33 +207,29 @@ func (ops *OperatorMaxMagnitudeModel) prepareState(blockNumber uint64) ([]*Opera
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (ops *OperatorMaxMagnitudeModel) CommitFinalState(blockNumber uint64) error {
-	recordsToInsert, err := ops.prepareState(blockNumber)
+func (omm *OperatorMaxMagnitudeModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
+	recordsToInsert, err := omm.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := ops.DB.Model(&OperatorMaxMagnitude{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				ops.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, omm.GetTableName(), omm.DB)
+	if err != nil {
+		omm.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
+		return err
 	}
-	ops.committedState[blockNumber] = recordsToInsert
+	omm.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
-func (ops *OperatorMaxMagnitudeModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
-	inserts, err := ops.prepareState(blockNumber)
+func (omm *OperatorMaxMagnitudeModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
+	inserts, err := omm.prepareState(blockNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	inputs, err := ops.sortValuesForMerkleTree(inserts)
+	inputs, err := omm.sortValuesForMerkleTree(inserts)
 	if err != nil {
 		return nil, err
 	}
@@ -243,9 +238,9 @@ func (ops *OperatorMaxMagnitudeModel) GenerateStateRoot(blockNumber uint64) ([]b
 		return nil, nil
 	}
 
-	fullTree, err := ops.MerkleizeEigenState(blockNumber, inputs)
+	fullTree, err := omm.MerkleizeEigenState(blockNumber, inputs)
 	if err != nil {
-		ops.logger.Sugar().Errorw("Failed to create merkle tree",
+		omm.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", inputs),
@@ -255,17 +250,17 @@ func (ops *OperatorMaxMagnitudeModel) GenerateStateRoot(blockNumber uint64) ([]b
 	return fullTree.Root(), nil
 }
 
-func (ops *OperatorMaxMagnitudeModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
-	records, ok := ops.committedState[blockNumber]
+func (omm *OperatorMaxMagnitudeModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := omm.committedState[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No committed state found for block %d", blockNumber)
-		ops.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		omm.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, err
 	}
 	return base.CastCommittedStateToInterface(records), nil
 }
 
-func (ops *OperatorMaxMagnitudeModel) formatMerkleLeafValue(
+func (omm *OperatorMaxMagnitudeModel) formatMerkleLeafValue(
 	blockNumber uint64,
 	operator string,
 	strategy string,
@@ -274,13 +269,13 @@ func (ops *OperatorMaxMagnitudeModel) formatMerkleLeafValue(
 	return fmt.Sprintf("%s_%s_%s", operator, strategy, operatorMaxMagnitude), nil
 }
 
-func (ops *OperatorMaxMagnitudeModel) sortValuesForMerkleTree(records []*OperatorMaxMagnitude) ([]*base.MerkleTreeInput, error) {
+func (omm *OperatorMaxMagnitudeModel) sortValuesForMerkleTree(records []*OperatorMaxMagnitude) ([]*base.MerkleTreeInput, error) {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, record := range records {
 		slotID := base.NewSlotID(record.TransactionHash, record.LogIndex)
-		value, err := ops.formatMerkleLeafValue(record.BlockNumber, record.Operator, record.Strategy, record.MaxMagnitude)
+		value, err := omm.formatMerkleLeafValue(record.BlockNumber, record.Operator, record.Strategy, record.MaxMagnitude)
 		if err != nil {
-			ops.logger.Sugar().Errorw("Failed to format merkle leaf value",
+			omm.logger.Sugar().Errorw("Failed to format merkle leaf value",
 				zap.Error(err),
 				zap.Uint64("blockNumber", record.BlockNumber),
 				zap.String("operator", record.Operator),
@@ -302,20 +297,24 @@ func (ops *OperatorMaxMagnitudeModel) sortValuesForMerkleTree(records []*Operato
 	return inputs, nil
 }
 
-func (ops *OperatorMaxMagnitudeModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ops.BaseEigenState.DeleteState("operator_max_magnitudes", startBlockNumber, endBlockNumber, ops.DB)
+func (omm *OperatorMaxMagnitudeModel) GetTableName() string {
+	return "operator_max_magnitudes"
 }
 
-func (ops *OperatorMaxMagnitudeModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+func (omm *OperatorMaxMagnitudeModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
+	return omm.BaseEigenState.DeleteState(omm.GetTableName(), startBlockNumber, endBlockNumber, omm.DB)
+}
+
+func (omm *OperatorMaxMagnitudeModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
 	var splits []*OperatorMaxMagnitude
-	res := ops.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
+	res := omm.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
 	if res.Error != nil {
-		ops.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
+		omm.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
 		return nil, res.Error
 	}
 	return base.CastCommittedStateToInterface(splits), nil
 }
 
-func (ops *OperatorMaxMagnitudeModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+func (omm *OperatorMaxMagnitudeModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
 	return true, nil
 }

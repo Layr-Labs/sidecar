@@ -96,7 +96,7 @@ func Test_OperatorSets(t *testing.T) {
 			assert.Equal(t, uint64(0), record.OperatorSetId)
 			assert.Equal(t, strings.ToLower("0x99ee5cb4fd535f1bc9ca0f10da5078fe1f9fc866"), strings.ToLower(record.Avs))
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			results := make([]*OperatorSet, 0)

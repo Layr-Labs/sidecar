@@ -7,6 +7,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/disabledDistributionRoots"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/encumberedMagnitudes"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAVSSplits"
+	operatorAllocationDelayDelays "github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAllocationDelays"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAllocations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorDirectedOperatorSetRewardSubmissions"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorDirectedRewardSubmissions"
@@ -118,5 +119,10 @@ func LoadEigenStateModels(
 		l.Sugar().Errorw("Failed to create SlashedOperatorSharesModel", zap.Error(err))
 		return err
 	}
+	if _, err := operatorAllocationDelayDelays.NewOperatorAllocationDelayModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create OperatorAllocationDelayModel", zap.Error(err))
+		return err
+	}
+	
 	return nil
 }
