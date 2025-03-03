@@ -96,7 +96,7 @@ func Test_EncumberedMagnitudes(t *testing.T) {
 			assert.Equal(t, "0x947e522010e22856071f8fb03e735fedfccd6e9f", record.Strategy)
 			assert.Equal(t, "100000000000000000", record.EncumberedMagnitude)
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			results := make([]*EncumberedMagnitude, 0)
