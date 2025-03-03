@@ -123,6 +123,10 @@ func Test_AvsOperatorState(t *testing.T) {
 			err = avsOperatorState.CommitFinalState(log.BlockNumber, false)
 			assert.Nil(t, err)
 
+			committedState, err := avsOperatorState.GetCommittedState(log.BlockNumber)
+			assert.Nil(t, err)
+			assert.Equal(t, len(committedState), 1)
+
 			states := []AvsOperatorStateChange{}
 			statesRes := avsOperatorState.DB.
 				Raw("select * from avs_operator_state_changes where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
@@ -279,6 +283,10 @@ func Test_AvsOperatorState(t *testing.T) {
 			if statesRes.Error != nil {
 				t.Fatalf("Failed to fetch avs_operator_state_changes: %v", statesRes.Error)
 			}
+
+			committedState, err := avsOperatorState.GetCommittedState(log.BlockNumber)
+			assert.Nil(t, err)
+			assert.Equal(t, len(committedState), 0)
 
 			assert.Equal(t, 1, len(states))
 		}
