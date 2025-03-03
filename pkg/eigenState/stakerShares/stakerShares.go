@@ -1190,7 +1190,7 @@ func (ss *StakerSharesModel) writeDeltaRecords(blockNumber uint64) error {
 	return nil
 }
 
-func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
+func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	if err := ss.writeDeltaRecords(blockNumber); err != nil {
 		return err
 	}

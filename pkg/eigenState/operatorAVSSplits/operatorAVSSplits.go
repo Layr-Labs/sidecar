@@ -213,7 +213,7 @@ func (oas *OperatorAVSSplitModel) prepareState(blockNumber uint64) ([]*OperatorA
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (oas *OperatorAVSSplitModel) CommitFinalState(blockNumber uint64) error {
+func (oas *OperatorAVSSplitModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	recordsToInsert, err := oas.prepareState(blockNumber)
 	if err != nil {
 		return err

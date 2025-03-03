@@ -198,7 +198,7 @@ func (dos *DefaultOperatorSplitModel) prepareState(blockNumber uint64) ([]*Defau
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (dos *DefaultOperatorSplitModel) CommitFinalState(blockNumber uint64) error {
+func (dos *DefaultOperatorSplitModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	recordsToInsert, err := dos.prepareState(blockNumber)
 	if err != nil {
 		return err
