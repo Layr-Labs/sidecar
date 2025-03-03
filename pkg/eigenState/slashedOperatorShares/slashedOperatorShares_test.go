@@ -96,7 +96,7 @@ func Test_SlashedOperatorShares(t *testing.T) {
 			assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", record.Strategy)
 			assert.Equal(t, "875000000000000000", record.TotalSlashedShares)
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			results := make([]*SlashedOperatorShares, 0)
