@@ -211,7 +211,7 @@ func (ops *OperatorPISplitModel) prepareState(blockNumber uint64) ([]*OperatorPI
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (ops *OperatorPISplitModel) CommitFinalState(blockNumber uint64) error {
+func (ops *OperatorPISplitModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	recordsToInsert, err := ops.prepareState(blockNumber)
 	if err != nil {
 		return err

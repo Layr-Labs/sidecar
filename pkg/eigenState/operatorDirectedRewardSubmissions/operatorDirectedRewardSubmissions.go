@@ -307,7 +307,7 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) prepareState(blockNumber uin
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (odrs *OperatorDirectedRewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
+func (odrs *OperatorDirectedRewardSubmissionsModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	recordsToInsert, err := odrs.prepareState(blockNumber)
 	if err != nil {
 		return err
