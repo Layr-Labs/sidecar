@@ -14,7 +14,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type DefaultOperatorSplit struct {
@@ -204,16 +203,12 @@ func (dos *DefaultOperatorSplitModel) CommitFinalState(blockNumber uint64, ignor
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := dos.DB.Model(&DefaultOperatorSplit{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				dos.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, dos.GetTableName(), dos.DB)
+	if err != nil {
+		dos.logger.Sugar().Errorw("Failed to insert records", zap.Error(err))
+		return err
 	}
-	dos.committedState[blockNumber] = recordsToInsert
+	dos.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
@@ -270,8 +265,12 @@ func (dos *DefaultOperatorSplitModel) sortValuesForMerkleTree(splits []*DefaultO
 	return inputs
 }
 
+func (dos *DefaultOperatorSplitModel) GetTableName() string {
+	return "default_operator_splits"
+}
+
 func (dos *DefaultOperatorSplitModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return dos.BaseEigenState.DeleteState("default_operator_splits", startBlockNumber, endBlockNumber, dos.DB)
+	return dos.BaseEigenState.DeleteState(dos.GetTableName(), startBlockNumber, endBlockNumber, dos.DB)
 }
 
 func (dos *DefaultOperatorSplitModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
