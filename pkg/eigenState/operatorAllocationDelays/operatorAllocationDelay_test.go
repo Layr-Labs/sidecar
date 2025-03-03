@@ -97,7 +97,7 @@ func Test_OperatorAllocationDelays(t *testing.T) {
 			assert.Equal(t, uint64(20), record.Delay)
 			assert.Equal(t, uint64(2969978), record.EffectiveBlock)
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			results := make([]*OperatorAllocationDelay, 0)

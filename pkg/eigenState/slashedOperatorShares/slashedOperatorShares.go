@@ -10,7 +10,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"math/big"
 	"slices"
 	"sort"
@@ -212,22 +211,18 @@ func (sos *SlashedOperatorSharesModel) prepareState(blockNumber uint64) ([]*Slas
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (sos *SlashedOperatorSharesModel) CommitFinalState(blockNumber uint64) error {
+func (sos *SlashedOperatorSharesModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	recordsToInsert, err := sos.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := sos.DB.Model(&SlashedOperatorShares{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				sos.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, sos.GetTableName(), sos.DB)
+	if err != nil {
+		sos.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
+		return err
 	}
-	sos.committedState[blockNumber] = recordsToInsert
+	sos.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
@@ -306,8 +301,12 @@ func (sos *SlashedOperatorSharesModel) sortValuesForMerkleTree(records []*Slashe
 	return inputs, nil
 }
 
+func (sos *SlashedOperatorSharesModel) GetTableName() string {
+	return "slashed_operator_shares"
+}
+
 func (sos *SlashedOperatorSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return sos.BaseEigenState.DeleteState("slashed_operator_shares", startBlockNumber, endBlockNumber, sos.DB)
+	return sos.BaseEigenState.DeleteState(sos.GetTableName(), startBlockNumber, endBlockNumber, sos.DB)
 }
 
 func (sos *SlashedOperatorSharesModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
