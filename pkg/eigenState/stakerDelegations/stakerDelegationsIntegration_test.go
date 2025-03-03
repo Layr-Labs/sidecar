@@ -121,7 +121,7 @@ func Test_StakerDelegationsIntegration(t *testing.T) {
 				}
 			}
 
-			if err := model.CommitFinalState(i); err != nil {
+			if err := model.CommitFinalState(i, false); err != nil {
 				t.Logf("Failed to commit final state for block %d", i)
 				t.Fatal(err)
 			}
