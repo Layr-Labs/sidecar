@@ -107,7 +107,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
-		err = model.CommitFinalState(block.Number)
+		err = model.CommitFinalState(block.Number, false)
 		assert.Nil(t, err)
 
 		states := []OperatorShareDeltas{}
@@ -173,7 +173,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
-		err = model.CommitFinalState(block.Number)
+		err = model.CommitFinalState(block.Number, false)
 		assert.Nil(t, err)
 
 		states = []OperatorShareDeltas{}

@@ -31,7 +31,7 @@ type IEigenStateModel interface {
 
 	// CommitFinalState
 	// Once all state changes are processed, commit the final state to the database
-	CommitFinalState(blockNumber uint64) error
+	CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error
 
 	// GetCommittedState
 	// Get the committed state for the model at the given block height.

@@ -243,7 +243,7 @@ func (osm *OperatorSharesModel) writeDeltaRecords(blockNumber uint64) error {
 	return nil
 }
 
-func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
+func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	if err := osm.writeDeltaRecords(blockNumber); err != nil {
 		return err
 	}

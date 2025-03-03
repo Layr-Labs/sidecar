@@ -115,7 +115,7 @@ func Test_OperatorAVSSplit(t *testing.T) {
 			assert.Equal(t, uint64(1000), split.OldOperatorAVSSplitBips)
 			assert.Equal(t, uint64(2000), split.NewOperatorAVSSplitBips)
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			splits := make([]*OperatorAVSSplit, 0)
