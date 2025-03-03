@@ -16,7 +16,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type RewardSubmission struct {
@@ -297,15 +296,13 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64, ignoreIns
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := rs.DB.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				rs.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, rs.GetTableName(), rs.DB)
+	if err != nil {
+		rs.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
+		return err
 	}
+	rs.committedState[blockNumber] = insertedRecords
+
 	return nil
 }
 
@@ -362,8 +359,12 @@ func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardS
 	return inputs
 }
 
+func (rs *RewardSubmissionsModel) GetTableName() string {
+	return "reward_submissions"
+}
+
 func (rs *RewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return rs.BaseEigenState.DeleteState("reward_submissions", startBlockNumber, endBlockNumber, rs.DB)
+	return rs.BaseEigenState.DeleteState(rs.GetTableName(), startBlockNumber, endBlockNumber, rs.DB)
 }
 
 func (rs *RewardSubmissionsModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
