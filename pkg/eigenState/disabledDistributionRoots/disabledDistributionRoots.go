@@ -9,7 +9,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"slices"
 	"sort"
 	"strings"
@@ -172,14 +171,12 @@ func (ddr *DisabledDistributionRootsModel) CommitFinalState(blockNumber uint64, 
 		return err
 	}
 
-	if len(records) > 0 {
-		res := ddr.DB.Model(&types.DisabledDistributionRoot{}).Clauses(clause.Returning{}).Create(&records)
-		if res.Error != nil {
-			ddr.logger.Sugar().Errorw("Failed to create new submitted_distribution_roots records", zap.Error(res.Error))
-			return res.Error
-		}
-		ddr.committedState[blockNumber] = records
+	insertedRecords, err := base.CommitFinalState(records, ignoreInsertConflicts, ddr.GetTableName(), ddr.DB)
+	if err != nil {
+		ddr.logger.Sugar().Errorw("Failed to create new submitted_distribution_roots records", zap.Error(err))
+		return err
 	}
+	ddr.committedState[blockNumber] = insertedRecords
 
 	return nil
 }
@@ -232,8 +229,12 @@ func (ddr *DisabledDistributionRootsModel) GenerateStateRoot(blockNumber uint64)
 	return fullTree.Root(), nil
 }
 
+func (ddr *DisabledDistributionRootsModel) GetTableName() string {
+	return "disabled_distribution_roots"
+}
+
 func (ddr *DisabledDistributionRootsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ddr.BaseEigenState.DeleteState("disabled_distribution_roots", startBlockNumber, endBlockNumber, ddr.DB)
+	return ddr.BaseEigenState.DeleteState(ddr.GetTableName(), startBlockNumber, endBlockNumber, ddr.DB)
 }
 
 func (ddr *DisabledDistributionRootsModel) GetAccumulatedState(blockNumber uint64) []*types.DisabledDistributionRoot {
