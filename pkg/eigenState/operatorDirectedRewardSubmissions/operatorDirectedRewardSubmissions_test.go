@@ -145,7 +145,7 @@ func Test_OperatorDirectedRewardSubmissions(t *testing.T) {
 				assert.Equal(t, "test reward submission", submission.Description)
 			}
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			rewards := make([]*OperatorDirectedRewardSubmission, 0)

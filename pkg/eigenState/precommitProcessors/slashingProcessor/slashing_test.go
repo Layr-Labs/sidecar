@@ -110,10 +110,10 @@ func Test_SlashingPrecommitProcessor(t *testing.T) {
 		err = esm.RunPrecommitProcessors(blockNumber)
 		assert.Nil(t, err)
 
-		err = delegationModel.CommitFinalState(blockNumber)
+		err = delegationModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `
@@ -179,10 +179,10 @@ func Test_SlashingPrecommitProcessor(t *testing.T) {
 		// -----------------------
 		err = esm.RunPrecommitProcessors(blockNumber)
 		assert.Nil(t, err)
-		err = delegationModel.CommitFinalState(blockNumber)
+		err = delegationModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `

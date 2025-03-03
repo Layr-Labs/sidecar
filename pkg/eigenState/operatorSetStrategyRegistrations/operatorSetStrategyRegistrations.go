@@ -213,7 +213,7 @@ func (ossr *OperatorSetStrategyRegistrationModel) prepareState(blockNumber uint6
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (ossr *OperatorSetStrategyRegistrationModel) CommitFinalState(blockNumber uint64) error {
+func (ossr *OperatorSetStrategyRegistrationModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	recordsToInsert, err := ossr.prepareState(blockNumber)
 	if err != nil {
 		return err

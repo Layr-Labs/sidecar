@@ -221,7 +221,7 @@ func (oss *OperatorSetSplitModel) prepareState(blockNumber uint64) ([]*OperatorS
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (oss *OperatorSetSplitModel) CommitFinalState(blockNumber uint64) error {
+func (oss *OperatorSetSplitModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	recordsToInsert, err := oss.prepareState(blockNumber)
 	if err != nil {
 		return err
