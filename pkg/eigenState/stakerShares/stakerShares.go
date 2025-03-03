@@ -24,7 +24,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type SlashDiff struct {
@@ -1147,7 +1146,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 	return records, nil
 }
 
-func (ss *StakerSharesModel) writeDeltaRecords(blockNumber uint64) error {
+func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	records, err := ss.prepareState(blockNumber)
 	if err != nil {
 		return err
@@ -1168,12 +1167,9 @@ func (ss *StakerSharesModel) writeDeltaRecords(blockNumber uint64) error {
 		r.BlockDate = block.BlockTime.Format(time.DateOnly)
 	}
 
-	res = ss.DB.Model(&StakerShareDeltas{}).Clauses(clause.Returning{}).Create(&records)
-	if res.Error != nil {
-		ss.logger.Sugar().Errorw("Failed to insert delta records",
-			zap.String("blockNumber", fmt.Sprint(blockNumber)),
-			zap.Error(res.Error),
-		)
+	insertedRecords, err := base.CommitFinalState(records, ignoreInsertConflicts, ss.GetTableName(), ss.DB)
+	if err != nil {
+		ss.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
 
 		var pgError *pgconn.PgError
 		if errors.As(res.Error, &pgError) {
@@ -1185,16 +1181,10 @@ func (ss *StakerSharesModel) writeDeltaRecords(blockNumber uint64) error {
 				zap.String("where", pgError.Where),
 			)
 		}
-		return res.Error
-	}
-	return nil
-}
 
-func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
-	if err := ss.writeDeltaRecords(blockNumber); err != nil {
 		return err
 	}
-
+	ss.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
@@ -1247,8 +1237,12 @@ func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerShareDeltas)
 	return inputs
 }
 
+func (ss *StakerSharesModel) GetTableName() string {
+	return "staker_share_deltas"
+}
+
 func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ss.BaseEigenState.DeleteState("staker_share_deltas", startBlockNumber, endBlockNumber, ss.DB)
+	return ss.BaseEigenState.DeleteState(ss.GetTableName(), startBlockNumber, endBlockNumber, ss.DB)
 }
 
 func (ss *StakerSharesModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {

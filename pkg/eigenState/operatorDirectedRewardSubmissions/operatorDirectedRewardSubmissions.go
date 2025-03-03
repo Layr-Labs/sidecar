@@ -17,7 +17,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/types/numbers"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type OperatorDirectedRewardSubmission struct {
@@ -313,16 +312,12 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) CommitFinalState(blockNumber
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := odrs.DB.Model(&OperatorDirectedRewardSubmission{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				odrs.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, odrs.GetTableName(), odrs.DB)
+	if err != nil {
+		odrs.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
+		return err
 	}
-	odrs.committedState[blockNumber] = recordsToInsert
+	odrs.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
@@ -441,8 +436,12 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) sortValuesForMerkleTree(subm
 	return inputs, nil
 }
 
+func (odrs *OperatorDirectedRewardSubmissionsModel) GetTableName() string {
+	return "operator_directed_reward_submissions"
+}
+
 func (odrs *OperatorDirectedRewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return odrs.BaseEigenState.DeleteState("operator_directed_reward_submissions", startBlockNumber, endBlockNumber, odrs.DB)
+	return odrs.BaseEigenState.DeleteState(odrs.GetTableName(), startBlockNumber, endBlockNumber, odrs.DB)
 }
 
 func (odrs *OperatorDirectedRewardSubmissionsModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {

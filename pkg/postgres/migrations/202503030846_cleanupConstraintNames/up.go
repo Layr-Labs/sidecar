@@ -4,18 +4,15 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/base"
 	"gorm.io/gorm"
 )
 
 type Migration struct {
 }
 
-func formatConstraintName(tableName string) string {
-	return fmt.Sprintf("uniq_%s", tableName)
-}
-
 func formatRenameQuery(tableName, constraintName string) string {
-	newName := formatConstraintName(tableName)
+	newName := base.FormatUniqueConstraintName(tableName)
 
 	return fmt.Sprintf("ALTER TABLE %s RENAME CONSTRAINT %s TO %s", tableName, constraintName, newName)
 }
