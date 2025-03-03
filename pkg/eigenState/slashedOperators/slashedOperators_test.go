@@ -109,7 +109,7 @@ func Test_SlashedOperators(t *testing.T) {
 				assert.Equal(t, strings.ToLower("0x69aa865947f6c9191b02954b1dd1a44131541226"), r.Avs)
 			}
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			foundRecords := make([]*SlashedOperator, 0)

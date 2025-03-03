@@ -10,7 +10,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"slices"
 	"sort"
 	"strings"
@@ -56,11 +55,11 @@ func NewOperatorAllocationDelayModel(
 		committedState:   make(map[uint64][]*OperatorAllocationDelay),
 	}
 
-	esm.RegisterState(model, 17)
+	esm.RegisterState(model, 21)
 	return model, nil
 }
 
-func (ops *OperatorAllocationDelayModel) GetModelName() string {
+func (oad *OperatorAllocationDelayModel) GetModelName() string {
 	return "OperatorAllocationDelays"
 }
 
@@ -83,7 +82,7 @@ func parseOperatorAllocationDelayOutputData(outputDataStr string) (*operatorAllo
 	return outputData, err
 }
 
-func (ops *OperatorAllocationDelayModel) handleOperatorAllocationDelayCreatedEvent(log *storage.TransactionLog) (*OperatorAllocationDelay, error) {
+func (oad *OperatorAllocationDelayModel) handleOperatorAllocationDelayCreatedEvent(log *storage.TransactionLog) (*OperatorAllocationDelay, error) {
 	outputData, err := parseOperatorAllocationDelayOutputData(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -101,25 +100,25 @@ func (ops *OperatorAllocationDelayModel) handleOperatorAllocationDelayCreatedEve
 	return split, nil
 }
 
-func (ops *OperatorAllocationDelayModel) GetStateTransitions() (types.StateTransitions[*OperatorAllocationDelay], []uint64) {
+func (oad *OperatorAllocationDelayModel) GetStateTransitions() (types.StateTransitions[*OperatorAllocationDelay], []uint64) {
 	stateChanges := make(types.StateTransitions[*OperatorAllocationDelay])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*OperatorAllocationDelay, error) {
-		createdEvent, err := ops.handleOperatorAllocationDelayCreatedEvent(log)
+		createdEvent, err := oad.handleOperatorAllocationDelayCreatedEvent(log)
 		if err != nil {
 			return nil, err
 		}
 
 		slotId := base.NewSlotID(createdEvent.TransactionHash, createdEvent.LogIndex)
 
-		_, ok := ops.stateAccumulator[log.BlockNumber][slotId]
+		_, ok := oad.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := fmt.Errorf("Duplicate operatorAllocationDelay submitted for slot %s at block %d", slotId, log.BlockNumber)
-			ops.logger.Sugar().Errorw("Duplicate operatorAllocationDelay submitted", zap.Error(err))
+			oad.logger.Sugar().Errorw("Duplicate operatorAllocationDelay submitted", zap.Error(err))
 			return nil, err
 		}
 
-		ops.stateAccumulator[log.BlockNumber][slotId] = createdEvent
+		oad.stateAccumulator[log.BlockNumber][slotId] = createdEvent
 
 		return createdEvent, nil
 	}
@@ -137,8 +136,8 @@ func (ops *OperatorAllocationDelayModel) GetStateTransitions() (types.StateTrans
 	return stateChanges, blockNumbers
 }
 
-func (ops *OperatorAllocationDelayModel) getContractAddressesForEnvironment() map[string][]string {
-	contracts := ops.globalConfig.GetContractsMapForChain()
+func (oad *OperatorAllocationDelayModel) getContractAddressesForEnvironment() map[string][]string {
+	contracts := oad.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.AllocationManager: {
 			"AllocationDelaySet",
@@ -146,29 +145,29 @@ func (ops *OperatorAllocationDelayModel) getContractAddressesForEnvironment() ma
 	}
 }
 
-func (ops *OperatorAllocationDelayModel) IsInterestingLog(log *storage.TransactionLog) bool {
-	addresses := ops.getContractAddressesForEnvironment()
-	return ops.BaseEigenState.IsInterestingLog(addresses, log)
+func (oad *OperatorAllocationDelayModel) IsInterestingLog(log *storage.TransactionLog) bool {
+	addresses := oad.getContractAddressesForEnvironment()
+	return oad.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (ops *OperatorAllocationDelayModel) SetupStateForBlock(blockNumber uint64) error {
-	ops.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorAllocationDelay)
-	ops.committedState[blockNumber] = make([]*OperatorAllocationDelay, 0)
+func (oad *OperatorAllocationDelayModel) SetupStateForBlock(blockNumber uint64) error {
+	oad.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorAllocationDelay)
+	oad.committedState[blockNumber] = make([]*OperatorAllocationDelay, 0)
 	return nil
 }
 
-func (ops *OperatorAllocationDelayModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
-	delete(ops.stateAccumulator, blockNumber)
-	delete(ops.committedState, blockNumber)
+func (oad *OperatorAllocationDelayModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
+	delete(oad.stateAccumulator, blockNumber)
+	delete(oad.committedState, blockNumber)
 	return nil
 }
 
-func (ops *OperatorAllocationDelayModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := ops.GetStateTransitions()
+func (oad *OperatorAllocationDelayModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
+	stateChanges, sortedBlockNumbers := oad.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
 		if log.BlockNumber >= blockNumber {
-			ops.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", log.BlockNumber))
+			oad.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", log.BlockNumber))
 
 			change, err := stateChanges[blockNumber](log)
 			if err != nil {
@@ -184,11 +183,11 @@ func (ops *OperatorAllocationDelayModel) HandleStateChange(log *storage.Transact
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (ops *OperatorAllocationDelayModel) prepareState(blockNumber uint64) ([]*OperatorAllocationDelay, error) {
-	accumulatedState, ok := ops.stateAccumulator[blockNumber]
+func (oad *OperatorAllocationDelayModel) prepareState(blockNumber uint64) ([]*OperatorAllocationDelay, error) {
+	accumulatedState, ok := oad.stateAccumulator[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
-		ops.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		oad.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, err
 	}
 
@@ -200,33 +199,29 @@ func (ops *OperatorAllocationDelayModel) prepareState(blockNumber uint64) ([]*Op
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (ops *OperatorAllocationDelayModel) CommitFinalState(blockNumber uint64) error {
-	recordsToInsert, err := ops.prepareState(blockNumber)
+func (oad *OperatorAllocationDelayModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
+	recordsToInsert, err := oad.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := ops.DB.Model(&OperatorAllocationDelay{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				ops.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, oad.GetTableName(), oad.DB)
+	if err != nil {
+		oad.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
+		return err
 	}
-	ops.committedState[blockNumber] = recordsToInsert
+	oad.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
-func (ops *OperatorAllocationDelayModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
-	inserts, err := ops.prepareState(blockNumber)
+func (oad *OperatorAllocationDelayModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
+	inserts, err := oad.prepareState(blockNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	inputs, err := ops.sortValuesForMerkleTree(inserts)
+	inputs, err := oad.sortValuesForMerkleTree(inserts)
 	if err != nil {
 		return nil, err
 	}
@@ -235,9 +230,9 @@ func (ops *OperatorAllocationDelayModel) GenerateStateRoot(blockNumber uint64) (
 		return nil, nil
 	}
 
-	fullTree, err := ops.MerkleizeEigenState(blockNumber, inputs)
+	fullTree, err := oad.MerkleizeEigenState(blockNumber, inputs)
 	if err != nil {
-		ops.logger.Sugar().Errorw("Failed to create merkle tree",
+		oad.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", inputs),
@@ -247,17 +242,17 @@ func (ops *OperatorAllocationDelayModel) GenerateStateRoot(blockNumber uint64) (
 	return fullTree.Root(), nil
 }
 
-func (ops *OperatorAllocationDelayModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
-	records, ok := ops.committedState[blockNumber]
+func (oad *OperatorAllocationDelayModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := oad.committedState[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No committed state found for block %d", blockNumber)
-		ops.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		oad.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, err
 	}
 	return base.CastCommittedStateToInterface(records), nil
 }
 
-func (ops *OperatorAllocationDelayModel) formatMerkleLeafValue(
+func (oad *OperatorAllocationDelayModel) formatMerkleLeafValue(
 	blockNumber uint64,
 	operator string,
 	effectiveBlock uint64,
@@ -266,13 +261,13 @@ func (ops *OperatorAllocationDelayModel) formatMerkleLeafValue(
 	return fmt.Sprintf("%s_%016x_%016x", operator, effectiveBlock, delay), nil
 }
 
-func (ops *OperatorAllocationDelayModel) sortValuesForMerkleTree(records []*OperatorAllocationDelay) ([]*base.MerkleTreeInput, error) {
+func (oad *OperatorAllocationDelayModel) sortValuesForMerkleTree(records []*OperatorAllocationDelay) ([]*base.MerkleTreeInput, error) {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, record := range records {
 		slotID := base.NewSlotID(record.TransactionHash, record.LogIndex)
-		value, err := ops.formatMerkleLeafValue(record.BlockNumber, record.Operator, record.EffectiveBlock, record.Delay)
+		value, err := oad.formatMerkleLeafValue(record.BlockNumber, record.Operator, record.EffectiveBlock, record.Delay)
 		if err != nil {
-			ops.logger.Sugar().Errorw("Failed to format merkle leaf value",
+			oad.logger.Sugar().Errorw("Failed to format merkle leaf value",
 				zap.Error(err),
 				zap.Uint64("blockNumber", record.BlockNumber),
 				zap.String("operator", record.Operator),
@@ -294,20 +289,24 @@ func (ops *OperatorAllocationDelayModel) sortValuesForMerkleTree(records []*Oper
 	return inputs, nil
 }
 
-func (ops *OperatorAllocationDelayModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ops.BaseEigenState.DeleteState("operator_allocation_delays", startBlockNumber, endBlockNumber, ops.DB)
+func (oad *OperatorAllocationDelayModel) GetTableName() string {
+	return "operator_allocation_delays"
 }
 
-func (ops *OperatorAllocationDelayModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+func (oad *OperatorAllocationDelayModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
+	return oad.BaseEigenState.DeleteState(oad.GetTableName(), startBlockNumber, endBlockNumber, oad.DB)
+}
+
+func (oad *OperatorAllocationDelayModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
 	var splits []*OperatorAllocationDelay
-	res := ops.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
+	res := oad.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
 	if res.Error != nil {
-		ops.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
+		oad.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
 		return nil, res.Error
 	}
 	return base.CastCommittedStateToInterface(splits), nil
 }
 
-func (ops *OperatorAllocationDelayModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+func (oad *OperatorAllocationDelayModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
 	return true, nil
 }
