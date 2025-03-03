@@ -115,7 +115,7 @@ func (sm *StateMigration) MigrateState(currentBlockNumber uint64) ([][]byte, map
 			return nil, nil, err
 		}
 
-		committedState, err := stateMan.CommitFinalState(bn)
+		committedState, err := stateMan.CommitFinalState(bn, true)
 		if err != nil {
 			sm.logger.Sugar().Errorw("Failed to commit final state", zap.Uint64("blockNumber", bn), zap.Error(err))
 			return nil, nil, err
