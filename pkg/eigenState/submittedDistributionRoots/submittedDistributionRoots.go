@@ -234,7 +234,7 @@ func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]
 	return preparedState, nil
 }
 
-func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64) error {
+func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	records, err := sdr.prepareState(blockNumber)
 	if err != nil {
 		return err
