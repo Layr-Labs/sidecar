@@ -114,7 +114,7 @@ func Test_OperatorPISplit(t *testing.T) {
 			assert.Equal(t, uint64(6545), split.NewOperatorPISplitBips)
 			assert.Equal(t, uint64(1000), split.OldOperatorPISplitBips)
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			splits := make([]*OperatorPISplit, 0)

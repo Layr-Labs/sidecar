@@ -17,7 +17,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type OperatorShareDeltas struct {
@@ -215,7 +214,7 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]*OperatorSha
 	return records, nil
 }
 
-func (osm *OperatorSharesModel) writeDeltaRecords(blockNumber uint64) error {
+func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	deltas := osm.stateAccumulator[blockNumber]
 	if len(deltas) == 0 {
 		return nil
@@ -233,20 +232,12 @@ func (osm *OperatorSharesModel) writeDeltaRecords(blockNumber uint64) error {
 		d.BlockDate = block.BlockTime.Format(time.DateOnly)
 	}
 
-	res = osm.DB.Model(&OperatorShareDeltas{}).Clauses(clause.Returning{}).Create(&deltas)
-	if res.Error != nil {
-		osm.logger.Sugar().Errorw("Failed to create new operator_share_deltas records", zap.Error(res.Error))
-		return res.Error
-	}
-	osm.committedState[blockNumber] = deltas
-
-	return nil
-}
-
-func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
-	if err := osm.writeDeltaRecords(blockNumber); err != nil {
+	insertedRecords, err := base.CommitFinalState(deltas, ignoreInsertConflicts, osm.GetTableName(), osm.DB)
+	if err != nil {
+		osm.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
 		return err
 	}
+	osm.committedState[blockNumber] = insertedRecords
 
 	return nil
 }
@@ -299,8 +290,12 @@ func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []*OperatorShareDe
 	return inputs
 }
 
+func (osm *OperatorSharesModel) GetTableName() string {
+	return "operator_share_deltas"
+}
+
 func (osm *OperatorSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return osm.BaseEigenState.DeleteState("operator_share_deltas", startBlockNumber, endBlockNumber, osm.DB)
+	return osm.BaseEigenState.DeleteState(osm.GetTableName(), startBlockNumber, endBlockNumber, osm.DB)
 }
 
 func (osm *OperatorSharesModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
