@@ -45,7 +45,7 @@
       },
 	{
 		"tab": "Sidecar API",
-		"openapi": "https://raw.githubusercontent.com/Layr-Labs/protocol-apis/074c9e14a4cba1b3fe7170abe06d8781d0a11d57/gen/openapi/openapi.yaml"
+		"openapi": "https://raw.githubusercontent.com/Layr-Labs/protocol-apis/refs/heads/sm-openapiv3/gen/openapi/api.swagger.json"
 	}
     ]
   },
