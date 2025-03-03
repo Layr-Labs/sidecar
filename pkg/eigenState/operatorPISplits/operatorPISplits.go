@@ -15,7 +15,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type OperatorPISplit struct {
@@ -211,22 +210,18 @@ func (ops *OperatorPISplitModel) prepareState(blockNumber uint64) ([]*OperatorPI
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (ops *OperatorPISplitModel) CommitFinalState(blockNumber uint64) error {
+func (ops *OperatorPISplitModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	recordsToInsert, err := ops.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := ops.DB.Model(&OperatorPISplit{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				ops.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, ops.GetTableName(), ops.DB)
+	if err != nil {
+		ops.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
+		return err
 	}
-	ops.committedState[blockNumber] = recordsToInsert
+	ops.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
@@ -316,8 +311,12 @@ func (ops *OperatorPISplitModel) sortValuesForMerkleTree(splits []*OperatorPISpl
 	return inputs, nil
 }
 
+func (ops *OperatorPISplitModel) GetTableName() string {
+	return "operator_pi_splits"
+}
+
 func (ops *OperatorPISplitModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ops.BaseEigenState.DeleteState("operator_pi_splits", startBlockNumber, endBlockNumber, ops.DB)
+	return ops.BaseEigenState.DeleteState(ops.GetTableName(), startBlockNumber, endBlockNumber, ops.DB)
 }
 
 func (ops *OperatorPISplitModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {

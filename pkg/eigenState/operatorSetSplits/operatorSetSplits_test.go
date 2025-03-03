@@ -102,7 +102,7 @@ func Test_OperatorSetSplit(t *testing.T) {
 			assert.Equal(t, uint64(1000), split.OldOperatorSetSplitBips)
 			assert.Equal(t, uint64(2000), split.NewOperatorSetSplitBips)
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			splits := make([]*OperatorSetSplit, 0)

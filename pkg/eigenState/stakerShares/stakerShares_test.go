@@ -136,7 +136,7 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "0x0fe4f44bee93503346a3ac9ee5a26b130a5796d6", shareDeltas[0].Strategy)
 		assert.Equal(t, "502179505706314959", shareDeltas[0].Shares)
 
-		err = sharesModel.CommitFinalState(transaction.BlockNumber)
+		err = sharesModel.CommitFinalState(transaction.BlockNumber, false)
 		assert.Nil(t, err)
 
 		// --------------------------------------------------------------------
@@ -206,7 +206,7 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
-		err = sharesModel.CommitFinalState(transaction.BlockNumber)
+		err = sharesModel.CommitFinalState(transaction.BlockNumber, false)
 		assert.Nil(t, err)
 
 		// --------------------------------------------------------------------
@@ -277,7 +277,7 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
-		err = sharesModel.CommitFinalState(transaction.BlockNumber)
+		err = sharesModel.CommitFinalState(transaction.BlockNumber, false)
 		assert.Nil(t, err)
 
 		// --------------------------------------------------------------------
@@ -326,7 +326,7 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
-		err = sharesModel.CommitFinalState(transaction.BlockNumber)
+		err = sharesModel.CommitFinalState(transaction.BlockNumber, false)
 		assert.Nil(t, err)
 
 		query := `select * from staker_share_deltas order by block_number asc`
@@ -445,7 +445,7 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, strings.ToLower("0x049ea11d337f185b1aa910d98e8fbd991f0fba7b"), typedChange.ShareDeltas[0].Staker)
 		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", typedChange.ShareDeltas[0].Strategy)
 
-		err = sharesModel.CommitFinalState(transaction.BlockNumber)
+		err = sharesModel.CommitFinalState(transaction.BlockNumber, false)
 		assert.Nil(t, err)
 
 		var count int
@@ -567,10 +567,10 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", big.NewInt(2e18))
 		assert.Nil(t, err)
 
-		err = delegationModel.CommitFinalState(blockNumber)
+		err = delegationModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		// ----------------------
@@ -586,7 +586,7 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `
@@ -637,9 +637,9 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 1000, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", big.NewInt(1e18))
 		assert.Nil(t, err)
 
-		err = delegationModel.CommitFinalState(blockNumber)
+		err = delegationModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		// ------------------------
@@ -655,7 +655,7 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `
@@ -714,9 +714,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
 		assert.Equal(t, "100000000000000000", slashDiff.WadSlashed.String())
 
-		err = delegationModel.CommitFinalState(blockNumber)
+		err = delegationModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `
@@ -763,10 +763,10 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0x1234567890abcdef1234567890abcdef12345678", big.NewInt(1e18))
 		assert.Nil(t, err)
 
-		err = delegationModel.CommitFinalState(blockNumber)
+		err = delegationModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 		query := `select * from staker_share_deltas where block_number = ?`
 		results := []StakerShareDeltas{}
@@ -786,7 +786,7 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e17)})
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query = `select * from staker_share_deltas`
@@ -830,9 +830,9 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", big.NewInt(1e18))
 		assert.Nil(t, err)
 
-		err = delegationModel.CommitFinalState(blockNumber)
+		err = delegationModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		// ------------------------
@@ -851,7 +851,7 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 600, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", big.NewInt(1e18))
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `
@@ -912,9 +912,9 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0x4444444444444444444444444444444444444444", "0x1234567890abcdef1234567890abcdef12345678", big.NewInt(4e18))
 		assert.Nil(t, err)
 
-		err = delegationModel.CommitFinalState(blockNumber)
+		err = delegationModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		// ------------------------
@@ -945,7 +945,7 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "0x1234567890abcdef1234567890abcdef12345678", slashDiff.Strategy)
 		assert.Equal(t, "900000000000000000", slashDiff.WadSlashed.String())
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `
@@ -1001,9 +1001,9 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", big.NewInt(1e18))
 		assert.Nil(t, err)
 
-		err = delegationModel.CommitFinalState(blockNumber)
+		err = delegationModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		// ------------------------
@@ -1019,7 +1019,7 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"}, []*big.Int{big.NewInt(1e18)})
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `
@@ -1065,9 +1065,9 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", big.NewInt(0))
 		assert.Nil(t, err)
 
-		err = delegationModel.CommitFinalState(blockNumber)
+		err = delegationModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		// ------------------------
@@ -1092,7 +1092,7 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", slashDiff.Strategy)
 		assert.Equal(t, "100000000000000000", slashDiff.WadSlashed.String())
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `
@@ -1143,7 +1143,7 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", slashDiff.Strategy)
 		assert.Equal(t, "100000000000000000", slashDiff.WadSlashed.String())
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		// Query the database to verify the share deltas
@@ -1190,7 +1190,7 @@ func Test_StakerSharesState(t *testing.T) {
 			big.NewInt(1e18))
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		blockNumber = blockNumber + 1
@@ -1207,7 +1207,7 @@ func Test_StakerSharesState(t *testing.T) {
 			1e18, 9e17)
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		// Query the database to verify the share deltas
@@ -1259,9 +1259,9 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDeposit(stakerShares, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", big.NewInt(1e18))
 		assert.Nil(t, err)
 
-		err = delegationModel.CommitFinalState(blockNumber)
+		err = delegationModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
-		err = stakerShares.CommitFinalState(blockNumber)
+		err = stakerShares.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		// ------------------------
@@ -1280,7 +1280,7 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processBeaconChainSlashing(stakerShares, cfg.GetContractsMapForChain().EigenpodManager, blockNumber, 600, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", 1e18, 5e17)
 		assert.Nil(t, err)
 
-		err = stakerShares.CommitFinalState(blockNumber)
+		err = stakerShares.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `
@@ -1332,9 +1332,9 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", big.NewInt(1e18))
 		assert.Nil(t, err)
 
-		err = delegationModel.CommitFinalState(blockNumber)
+		err = delegationModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		// ------------------------
@@ -1350,7 +1350,7 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0"}, []*big.Int{big.NewInt(5e17)})
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		blockNumber = blockNumber + 1
@@ -1363,7 +1363,7 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processBeaconChainSlashing(sharesModel, cfg.GetContractsMapForChain().EigenpodManager, blockNumber, 600, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", 1e18, 5e17)
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `
@@ -1403,7 +1403,7 @@ func Test_StakerSharesState(t *testing.T) {
 			big.NewInt(1e18))
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		blockNumber = blockNumber + 1
@@ -1418,7 +1418,7 @@ func Test_StakerSharesState(t *testing.T) {
 			blockNumber, 500, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", 1e18, 0)
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		// Query the database to verify the share deltas
@@ -1460,7 +1460,7 @@ func Test_StakerSharesState(t *testing.T) {
 			big.NewInt(0))
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		blockNumber = blockNumber + 1
@@ -1475,7 +1475,7 @@ func Test_StakerSharesState(t *testing.T) {
 			blockNumber, 500, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", 1e18, 9e17)
 		assert.Nil(t, err)
 
-		err = sharesModel.CommitFinalState(blockNumber)
+		err = sharesModel.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		// Query the database to verify the share deltas
