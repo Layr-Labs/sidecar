@@ -97,7 +97,7 @@ func Test_DisabledDistributionRoots(t *testing.T) {
 		assert.Equal(t, uint64(8), typedChange.RootIndex)
 		assert.Equal(t, blockNumber, typedChange.BlockNumber)
 
-		err = model.CommitFinalState(blockNumber)
+		err = model.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `SELECT * FROM disabled_distribution_roots WHERE block_number = ?`

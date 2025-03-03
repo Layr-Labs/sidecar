@@ -192,7 +192,7 @@ func (s *StakerDelegationsModel) writeDeltaRecords(blockNumber uint64) error {
 	return nil
 }
 
-func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
+func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	if err := s.writeDeltaRecords(blockNumber); err != nil {
 		return err
 	}
