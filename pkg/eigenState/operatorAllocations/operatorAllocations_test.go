@@ -100,7 +100,7 @@ func Test_OperatorAllocations(t *testing.T) {
 			assert.Equal(t, uint64(5), record.OperatorSetId)
 			assert.Equal(t, strings.ToLower("0x69aa865947f6c9191b02954b1dd1a44131541226"), record.Avs)
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			results := make([]*OperatorAllocation, 0)
