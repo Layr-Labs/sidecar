@@ -10,7 +10,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"math/big"
 	"slices"
 	"sort"
@@ -64,7 +63,7 @@ func NewOperatorAllocationModel(
 	return model, nil
 }
 
-func (ops *OperatorAllocationModel) GetModelName() string {
+func (oa *OperatorAllocationModel) GetModelName() string {
 	return "OperatorAllocations"
 }
 
@@ -92,7 +91,7 @@ func parseOperatorAllocationOutputData(outputDataStr string) (*operatorAllocatio
 	return outputData, err
 }
 
-func (ops *OperatorAllocationModel) handleOperatorAllocationCreatedEvent(log *storage.TransactionLog) (*OperatorAllocation, error) {
+func (oa *OperatorAllocationModel) handleOperatorAllocationCreatedEvent(log *storage.TransactionLog) (*OperatorAllocation, error) {
 	outputData, err := parseOperatorAllocationOutputData(log.OutputData)
 	if err != nil {
 		return nil, err
@@ -101,7 +100,7 @@ func (ops *OperatorAllocationModel) handleOperatorAllocationCreatedEvent(log *st
 	magnitude, success := new(big.Int).SetString(outputData.Magnitude.String(), 10)
 	if !success {
 		err := fmt.Errorf("Failed to parse magnitude: %s", outputData.Magnitude.String())
-		ops.logger.Sugar().Errorw("Failed to parse magnitude", zap.Error(err))
+		oa.logger.Sugar().Errorw("Failed to parse magnitude", zap.Error(err))
 		return nil, err
 	}
 
@@ -120,25 +119,25 @@ func (ops *OperatorAllocationModel) handleOperatorAllocationCreatedEvent(log *st
 	return split, nil
 }
 
-func (ops *OperatorAllocationModel) GetStateTransitions() (types.StateTransitions[*OperatorAllocation], []uint64) {
+func (oa *OperatorAllocationModel) GetStateTransitions() (types.StateTransitions[*OperatorAllocation], []uint64) {
 	stateChanges := make(types.StateTransitions[*OperatorAllocation])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*OperatorAllocation, error) {
-		createdEvent, err := ops.handleOperatorAllocationCreatedEvent(log)
+		createdEvent, err := oa.handleOperatorAllocationCreatedEvent(log)
 		if err != nil {
 			return nil, err
 		}
 
 		slotId := base.NewSlotID(createdEvent.TransactionHash, createdEvent.LogIndex)
 
-		_, ok := ops.stateAccumulator[log.BlockNumber][slotId]
+		_, ok := oa.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := fmt.Errorf("Duplicate operatorAllocation submitted for slot %s at block %d", slotId, log.BlockNumber)
-			ops.logger.Sugar().Errorw("Duplicate operatorAllocation submitted", zap.Error(err))
+			oa.logger.Sugar().Errorw("Duplicate operatorAllocation submitted", zap.Error(err))
 			return nil, err
 		}
 
-		ops.stateAccumulator[log.BlockNumber][slotId] = createdEvent
+		oa.stateAccumulator[log.BlockNumber][slotId] = createdEvent
 
 		return createdEvent, nil
 	}
@@ -156,8 +155,8 @@ func (ops *OperatorAllocationModel) GetStateTransitions() (types.StateTransition
 	return stateChanges, blockNumbers
 }
 
-func (ops *OperatorAllocationModel) getContractAddressesForEnvironment() map[string][]string {
-	contracts := ops.globalConfig.GetContractsMapForChain()
+func (oa *OperatorAllocationModel) getContractAddressesForEnvironment() map[string][]string {
+	contracts := oa.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.AllocationManager: {
 			"AllocationUpdated",
@@ -165,29 +164,29 @@ func (ops *OperatorAllocationModel) getContractAddressesForEnvironment() map[str
 	}
 }
 
-func (ops *OperatorAllocationModel) IsInterestingLog(log *storage.TransactionLog) bool {
-	addresses := ops.getContractAddressesForEnvironment()
-	return ops.BaseEigenState.IsInterestingLog(addresses, log)
+func (oa *OperatorAllocationModel) IsInterestingLog(log *storage.TransactionLog) bool {
+	addresses := oa.getContractAddressesForEnvironment()
+	return oa.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (ops *OperatorAllocationModel) SetupStateForBlock(blockNumber uint64) error {
-	ops.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorAllocation)
-	ops.committedState[blockNumber] = make([]*OperatorAllocation, 0)
+func (oa *OperatorAllocationModel) SetupStateForBlock(blockNumber uint64) error {
+	oa.stateAccumulator[blockNumber] = make(map[types.SlotID]*OperatorAllocation)
+	oa.committedState[blockNumber] = make([]*OperatorAllocation, 0)
 	return nil
 }
 
-func (ops *OperatorAllocationModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
-	delete(ops.stateAccumulator, blockNumber)
-	delete(ops.committedState, blockNumber)
+func (oa *OperatorAllocationModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
+	delete(oa.stateAccumulator, blockNumber)
+	delete(oa.committedState, blockNumber)
 	return nil
 }
 
-func (ops *OperatorAllocationModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
-	stateChanges, sortedBlockNumbers := ops.GetStateTransitions()
+func (oa *OperatorAllocationModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
+	stateChanges, sortedBlockNumbers := oa.GetStateTransitions()
 
 	for _, blockNumber := range sortedBlockNumbers {
 		if log.BlockNumber >= blockNumber {
-			ops.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", log.BlockNumber))
+			oa.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", log.BlockNumber))
 
 			change, err := stateChanges[blockNumber](log)
 			if err != nil {
@@ -203,11 +202,11 @@ func (ops *OperatorAllocationModel) HandleStateChange(log *storage.TransactionLo
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (ops *OperatorAllocationModel) prepareState(blockNumber uint64) ([]*OperatorAllocation, error) {
-	accumulatedState, ok := ops.stateAccumulator[blockNumber]
+func (oa *OperatorAllocationModel) prepareState(blockNumber uint64) ([]*OperatorAllocation, error) {
+	accumulatedState, ok := oa.stateAccumulator[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No accumulated state found for block %d", blockNumber)
-		ops.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		oa.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, err
 	}
 
@@ -219,33 +218,29 @@ func (ops *OperatorAllocationModel) prepareState(blockNumber uint64) ([]*Operato
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (ops *OperatorAllocationModel) CommitFinalState(blockNumber uint64) error {
-	recordsToInsert, err := ops.prepareState(blockNumber)
+func (oa *OperatorAllocationModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
+	recordsToInsert, err := oa.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := ops.DB.Model(&OperatorAllocation{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				ops.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, oa.GetTableName(), oa.DB)
+	if err != nil {
+		oa.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
+		return err
 	}
-	ops.committedState[blockNumber] = recordsToInsert
+	oa.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
-func (ops *OperatorAllocationModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
-	inserts, err := ops.prepareState(blockNumber)
+func (oa *OperatorAllocationModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
+	inserts, err := oa.prepareState(blockNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	inputs, err := ops.sortValuesForMerkleTree(inserts)
+	inputs, err := oa.sortValuesForMerkleTree(inserts)
 	if err != nil {
 		return nil, err
 	}
@@ -254,9 +249,9 @@ func (ops *OperatorAllocationModel) GenerateStateRoot(blockNumber uint64) ([]byt
 		return nil, nil
 	}
 
-	fullTree, err := ops.MerkleizeEigenState(blockNumber, inputs)
+	fullTree, err := oa.MerkleizeEigenState(blockNumber, inputs)
 	if err != nil {
-		ops.logger.Sugar().Errorw("Failed to create merkle tree",
+		oa.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", inputs),
@@ -266,17 +261,17 @@ func (ops *OperatorAllocationModel) GenerateStateRoot(blockNumber uint64) ([]byt
 	return fullTree.Root(), nil
 }
 
-func (ops *OperatorAllocationModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
-	records, ok := ops.committedState[blockNumber]
+func (oa *OperatorAllocationModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := oa.committedState[blockNumber]
 	if !ok {
 		err := fmt.Errorf("No committed state found for block %d", blockNumber)
-		ops.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		oa.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, err
 	}
 	return base.CastCommittedStateToInterface(records), nil
 }
 
-func (ops *OperatorAllocationModel) formatMerkleLeafValue(
+func (oa *OperatorAllocationModel) formatMerkleLeafValue(
 	blockNumber uint64,
 	operator string,
 	strategy string,
@@ -286,13 +281,13 @@ func (ops *OperatorAllocationModel) formatMerkleLeafValue(
 	return fmt.Sprintf("%s_%s_%016x_%s", operator, strategy, operatorSetId, avs), nil
 }
 
-func (ops *OperatorAllocationModel) sortValuesForMerkleTree(records []*OperatorAllocation) ([]*base.MerkleTreeInput, error) {
+func (oa *OperatorAllocationModel) sortValuesForMerkleTree(records []*OperatorAllocation) ([]*base.MerkleTreeInput, error) {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, record := range records {
 		slotID := base.NewSlotID(record.TransactionHash, record.LogIndex)
-		value, err := ops.formatMerkleLeafValue(record.BlockNumber, record.Operator, record.Strategy, record.OperatorSetId, record.Avs)
+		value, err := oa.formatMerkleLeafValue(record.BlockNumber, record.Operator, record.Strategy, record.OperatorSetId, record.Avs)
 		if err != nil {
-			ops.logger.Sugar().Errorw("Failed to format merkle leaf value",
+			oa.logger.Sugar().Errorw("Failed to format merkle leaf value",
 				zap.Error(err),
 				zap.Uint64("blockNumber", record.BlockNumber),
 				zap.String("operator", record.Operator),
@@ -315,20 +310,24 @@ func (ops *OperatorAllocationModel) sortValuesForMerkleTree(records []*OperatorA
 	return inputs, nil
 }
 
-func (ops *OperatorAllocationModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ops.BaseEigenState.DeleteState("operator_allocations", startBlockNumber, endBlockNumber, ops.DB)
+func (oa *OperatorAllocationModel) GetTableName() string {
+	return "operator_allocations"
 }
 
-func (ops *OperatorAllocationModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+func (oa *OperatorAllocationModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
+	return oa.BaseEigenState.DeleteState(oa.GetTableName(), startBlockNumber, endBlockNumber, oa.DB)
+}
+
+func (oa *OperatorAllocationModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
 	var splits []*OperatorAllocation
-	res := ops.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
+	res := oa.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
 	if res.Error != nil {
-		ops.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
+		oa.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
 		return nil, res.Error
 	}
 	return base.CastCommittedStateToInterface(splits), nil
 }
 
-func (ops *OperatorAllocationModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+func (oa *OperatorAllocationModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
 	return true, nil
 }
