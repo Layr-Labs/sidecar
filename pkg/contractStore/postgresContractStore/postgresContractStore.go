@@ -324,6 +324,8 @@ func (s *PostgresContractStore) loadContractData() (*contractStore.CoreContracts
 		filename = "mainnet.json"
 	case config.Chain_Holesky:
 		filename = "testnet.json"
+	case config.Chain_Sepolia:
+		filename = "sepolia.json"
 	case config.Chain_Preprod:
 		filename = "preprod.json"
 	default:

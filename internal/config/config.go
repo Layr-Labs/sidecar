@@ -28,6 +28,7 @@ const (
 	Chain_Mainnet Chain = "mainnet"
 	Chain_Holesky Chain = "holesky"
 	Chain_Preprod Chain = "preprod"
+	Chain_Sepolia Chain = "sepolia"
 
 	ENV_PREFIX = "SIDECAR"
 )
@@ -328,6 +329,7 @@ var AVSDirectoryAddresses = map[Chain]string{
 	Chain_Preprod: "0x141d6995556135D4997b2ff72EB443Be300353bC",
 	Chain_Holesky: "0x055733000064333CaDDbC92763c58BF0192fFeBf",
 	Chain_Mainnet: "0x135dda560e946695d6f155dacafc6f1f25c1f5af",
+	Chain_Sepolia: "", // TODO(seanmcgary): add Sepolia AVS Directory
 }
 
 type ContractAddresses struct {
@@ -361,6 +363,16 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			DelegationManager:  "0xa44151489861fe9e3055d95adc98fbd462b948e7",
 			AvsDirectory:       "0x055733000064333caddbc92763c58bf0192ffebf",
 			AllocationManager:  "0x78469728304326cbc65f8f95fa756b0b73164462",
+		}
+	} else if c.Chain == Chain_Sepolia {
+		// TODO(seanmcgary): add Sepolia contract addresses
+		return &ContractAddresses{
+			RewardsCoordinator: "",
+			EigenpodManager:    "",
+			StrategyManager:    "",
+			DelegationManager:  "",
+			AvsDirectory:       "",
+			AllocationManager:  "",
 		}
 	} else if c.Chain == Chain_Mainnet {
 		return &ContractAddresses{
@@ -399,6 +411,8 @@ func (c *Config) GetGenesisBlockNumber() uint64 {
 		return 1140406
 	case Chain_Holesky:
 		return 1167044
+	case Chain_Sepolia:
+		return 0 // TODO(seanmcgary): add Sepolia genesis block number
 	case Chain_Mainnet:
 		return 17445563
 	default:
@@ -483,6 +497,18 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 3516000,
 			},
 		}, nil
+	case Chain_Sepolia:
+		return ForkMap{
+			RewardsFork_Amazon:  Fork{Date: "1970-01-01"},
+			RewardsFork_Nile:    Fork{Date: "1970-01-01"},
+			RewardsFork_Panama:  Fork{Date: "1970-01-01"},
+			RewardsFork_Arno:    Fork{Date: "1970-01-01"},
+			RewardsFork_Trinity: Fork{Date: "1970-01-01"},
+			RewardsFork_Mississippi: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+		}, nil
 	case Chain_Mainnet:
 		return ForkMap{
 			RewardsFork_Amazon: Fork{
@@ -544,6 +570,10 @@ func (c *Config) GetModelForks() (ModelForkMap, error) {
 		return ModelForkMap{
 			ModelFork_Austin: 3113600,
 		}, nil
+	case Chain_Sepolia:
+		return ModelForkMap{
+			ModelFork_Austin: 0, // doesnt apply to sepolia
+		}, nil
 	case Chain_Mainnet:
 		return ModelForkMap{
 			ModelFork_Austin: 0, // doesnt apply to mainnet
@@ -553,22 +583,13 @@ func (c *Config) GetModelForks() (ModelForkMap, error) {
 
 }
 
-func (c *Config) GetEigenLayerGenesisBlockHeight() (uint64, error) {
-	switch c.Chain {
-	case Chain_Preprod, Chain_Holesky:
-		return 1, nil
-	case Chain_Mainnet:
-		return 1, nil
-	default:
-		return 0, fmt.Errorf("unsupported chain %s", c.Chain)
-	}
-}
-
 func (c *Config) GetOperatorRestakedStrategiesStartBlock() uint64 {
 	switch c.Chain {
 	case Chain_Preprod:
 	case Chain_Holesky:
 		return 1162800
+	case Chain_Sepolia:
+		return 0 // TODO(seanmcagry): add Sepolia start block
 	case Chain_Mainnet:
 		return 19616400
 	}
@@ -634,6 +655,7 @@ func (c *Config) CanIgnoreIncorrectRewardsRoot(blockNumber uint64) bool {
 		if blockNumber < 2046020 {
 			return true
 		}
+	case Chain_Sepolia:
 	case Chain_Mainnet:
 	}
 	return false

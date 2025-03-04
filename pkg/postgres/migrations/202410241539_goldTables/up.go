@@ -13,6 +13,7 @@ type Migration struct {
 var exludedAddresses = map[config.Chain][]string{
 	config.Chain_Preprod: []string{},
 	config.Chain_Holesky: []string{},
+	config.Chain_Sepolia: []string{},
 	config.Chain_Mainnet: []string{
 		"0x3d4eec9f015c9016f5142055a965188d17bba06f",
 		"0x56458b6686a033476a9472e6917fca33ce2ba4fa",
