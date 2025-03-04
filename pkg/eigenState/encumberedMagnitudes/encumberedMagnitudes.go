@@ -60,8 +60,10 @@ func NewEncumberedMagnitudeModel(
 	return model, nil
 }
 
+const EncumberedMagnitudeModelName = "EncumberedMagnitudeModel"
+
 func (em *EncumberedMagnitudeModel) GetModelName() string {
-	return "EncumberedMagnitude"
+	return EncumberedMagnitudeModelName
 }
 
 type encumberedMagnitudeOutputData struct {

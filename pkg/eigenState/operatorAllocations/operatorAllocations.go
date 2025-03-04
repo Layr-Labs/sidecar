@@ -63,8 +63,10 @@ func NewOperatorAllocationModel(
 	return model, nil
 }
 
+const OperatorAllocationModelName = "OperatorAllocationModel"
+
 func (oa *OperatorAllocationModel) GetModelName() string {
-	return "OperatorAllocations"
+	return OperatorAllocationModelName
 }
 
 type operatorAllocationOutputData struct {
