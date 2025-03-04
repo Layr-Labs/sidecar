@@ -29,12 +29,16 @@ func Test_UnexpectedLabelsParsing(t *testing.T) {
 		})
 		assert.Nil(t, err)
 	})
-	t.Run("Should return an error for no labels", func(t *testing.T) {
-		err := pmc.hasUnexpectedLabels(metricsTypes.MetricsType_Timing, metricsTypes.Metric_Timing_BlockProcessDuration, []metricsTypes.MetricsLabel{})
-		assert.NotNil(t, err)
-	})
 	t.Run("Should return an error for unexpected labels", func(t *testing.T) {
 		err := pmc.hasUnexpectedLabels(metricsTypes.MetricsType_Timing, metricsTypes.Metric_Timing_BlockProcessDuration, []metricsTypes.MetricsLabel{
+			{Name: "rewardsCalculated", Value: "10"},
+			{Name: "hasError", Value: "false"},
+			{Name: "unexpectedLabel", Value: "unexpectedValue"},
+		})
+		assert.NotNil(t, err)
+	})
+	t.Run("Should return an error for unexpected labels when expecting 0 labels", func(t *testing.T) {
+		err := pmc.hasUnexpectedLabels(metricsTypes.MetricsType_Gauge, metricsTypes.Metric_Gauge_CurrentBlockHeight, []metricsTypes.MetricsLabel{
 			{Name: "rewardsCalculated", Value: "10"},
 			{Name: "hasError", Value: "false"},
 			{Name: "unexpectedLabel", Value: "unexpectedValue"},

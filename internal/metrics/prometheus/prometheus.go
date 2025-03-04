@@ -3,6 +3,7 @@ package prometheus
 import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"slices"
@@ -103,11 +104,19 @@ func (pmc *PrometheusMetricsClient) findExpectedLabels(t metricsTypes.MetricsTyp
 
 // hasExpectedLabels checks if any unexpected labels are present in the given labels.
 func (pmc *PrometheusMetricsClient) hasUnexpectedLabels(t metricsTypes.MetricsType, name string, providedLabels []metricsTypes.MetricsLabel) error {
-	if len(providedLabels) == 0 {
-		return fmt.Errorf("no labels provided for metric '%s'", name)
-	}
 	expectedLabels := pmc.findExpectedLabels(t, name)
 	unexpectedLabels := make([]string, 0)
+
+	if len(expectedLabels) == 0 && len(providedLabels) > 0 {
+		pmc.logger.Sugar().Warnw("Prometheus metric has no expected labels but received labels",
+			zap.String("type", string(t)),
+			zap.String("name", name),
+			zap.Strings("providedLabels", utils.Map(providedLabels, func(label metricsTypes.MetricsLabel, i uint64) string {
+				return label.Name
+			})),
+		)
+		return fmt.Errorf("no expected labels, received '%s'", strings.Join(expectedLabels, ", "))
+	}
 
 	for _, label := range providedLabels {
 		if !slices.Contains(expectedLabels, label.Name) {
