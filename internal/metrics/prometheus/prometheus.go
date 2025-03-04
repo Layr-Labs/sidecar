@@ -1,9 +1,13 @@
 package prometheus
 
 import (
+	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -89,6 +93,48 @@ func (pmc *PrometheusMetricsClient) formatLabels(labels []metricsTypes.MetricsLa
 	return l
 }
 
+func (pmc *PrometheusMetricsClient) findExpectedLabels(t metricsTypes.MetricsType, name string) []string {
+	for _, types := range pmc.config.Metrics[t] {
+		if types.Name == name {
+			return types.Labels
+		}
+	}
+	return nil
+}
+
+// hasExpectedLabels checks if any unexpected labels are present in the given labels.
+func (pmc *PrometheusMetricsClient) hasUnexpectedLabels(t metricsTypes.MetricsType, name string, providedLabels []metricsTypes.MetricsLabel) error {
+	expectedLabels := pmc.findExpectedLabels(t, name)
+	unexpectedLabels := make([]string, 0)
+
+	if len(expectedLabels) == 0 && len(providedLabels) > 0 {
+		pmc.logger.Sugar().Warnw("Prometheus metric has no expected labels but received labels",
+			zap.String("type", string(t)),
+			zap.String("name", name),
+			zap.Strings("providedLabels", utils.Map(providedLabels, func(label metricsTypes.MetricsLabel, i uint64) string {
+				return label.Name
+			})),
+		)
+		return fmt.Errorf("no expected labels, received '%s'", strings.Join(expectedLabels, ", "))
+	}
+
+	for _, label := range providedLabels {
+		if !slices.Contains(expectedLabels, label.Name) {
+			unexpectedLabels = append(unexpectedLabels, label.Name)
+		}
+	}
+
+	if len(unexpectedLabels) > 0 {
+		pmc.logger.Sugar().Warnw("Prometheus metric has unexpected labels",
+			zap.String("type", string(t)),
+			zap.String("name", name),
+			zap.Strings("unexpectedLabels", unexpectedLabels),
+		)
+		return fmt.Errorf("unexpected labels: '%s'", strings.Join(unexpectedLabels, ", "))
+	}
+	return nil
+}
+
 func (pmc *PrometheusMetricsClient) Incr(name string, labels []metricsTypes.MetricsLabel, value float64) error {
 	m, ok := pmc.counters[name]
 	if !ok {
@@ -96,6 +142,9 @@ func (pmc *PrometheusMetricsClient) Incr(name string, labels []metricsTypes.Metr
 			zap.String("name", name),
 		)
 		return nil
+	}
+	if err := pmc.hasUnexpectedLabels(metricsTypes.MetricsType_Incr, name, labels); err != nil {
+		return err
 	}
 	m.With(pmc.formatLabels(labels)).Add(value)
 	return nil
@@ -108,6 +157,9 @@ func (pmc *PrometheusMetricsClient) Gauge(name string, value float64, labels []m
 			zap.String("name", name),
 		)
 		return nil
+	}
+	if err := pmc.hasUnexpectedLabels(metricsTypes.MetricsType_Gauge, name, labels); err != nil {
+		return err
 	}
 	m.With(pmc.formatLabels(labels)).Set(value)
 	return nil
@@ -124,6 +176,9 @@ func (pmc *PrometheusMetricsClient) Histogram(name string, value time.Duration, 
 			zap.String("name", name),
 		)
 		return nil
+	}
+	if err := pmc.hasUnexpectedLabels(metricsTypes.MetricsType_Timing, name, labels); err != nil {
+		return err
 	}
 	m.With(pmc.formatLabels(labels)).Observe(float64(value.Milliseconds()))
 	return nil

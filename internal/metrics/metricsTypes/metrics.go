@@ -51,12 +51,24 @@ var MetricTypes = map[MetricsType][]MetricsTypeConfig{
 			Labels: []string{},
 		},
 		MetricsTypeConfig{
-			Name:   Metric_Incr_GrpcRequest,
-			Labels: []string{},
+			Name: Metric_Incr_GrpcRequest,
+			Labels: []string{
+				"grpc_method",
+				"status",
+				"status_code",
+				"rpc",
+			},
 		},
 		MetricsTypeConfig{
-			Name:   Metric_Incr_HttpRequest,
-			Labels: []string{},
+			Name: Metric_Incr_HttpRequest,
+			Labels: []string{
+				"method",
+				"path",
+				"status_code",
+				"grpc_method",
+				"pattern",
+				"rpc",
+			},
 		},
 	},
 	MetricsType_Gauge: {
@@ -71,24 +83,45 @@ var MetricTypes = map[MetricsType][]MetricsTypeConfig{
 	},
 	MetricsType_Timing: {
 		MetricsTypeConfig{
-			Name:   Metric_Timing_GrpcDuration,
-			Labels: []string{},
+			Name: Metric_Timing_GrpcDuration,
+			Labels: []string{
+				"grpc_method",
+				"status",
+				"status_code",
+				"rpc",
+			},
 		},
 		MetricsTypeConfig{
-			Name:   Metric_Timing_HttpDuration,
-			Labels: []string{},
+			Name: Metric_Timing_HttpDuration,
+			Labels: []string{
+				"method",
+				"path",
+				"status_code",
+				"grpc_method",
+				"pattern",
+				"rpc",
+			},
 		},
 		MetricsTypeConfig{
-			Name:   Metric_Timing_RewardsCalcDuration,
-			Labels: []string{},
+			Name: Metric_Timing_RewardsCalcDuration,
+			Labels: []string{
+				"snapshotDate",
+			},
 		},
 		MetricsTypeConfig{
-			Name:   Metric_Timing_BlockProcessDuration,
-			Labels: []string{},
+			Name: Metric_Timing_BlockProcessDuration,
+			Labels: []string{
+				"rewardsCalculated",
+				"hasError",
+			},
 		},
 		MetricsTypeConfig{
-			Name:   Metric_Timing_CreateSnapshot,
-			Labels: []string{},
+			Name: Metric_Timing_CreateSnapshot,
+			Labels: []string{
+				"chain",
+				"sidecarVersion",
+				"kind",
+			},
 		},
 	},
 }
