@@ -4,6 +4,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator/helpers"
 	_02502031222_operatorSets "github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator/stateMigrations/202502031222_operatorSets"
+	_02503040918_slashingEvents "github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator/stateMigrations/202503040918_slashingEvents"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator/types"
 	eigenStateTypes "github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/wealdtech/go-merkletree/v2"
@@ -70,6 +71,12 @@ func (sm *StateMigrator) initialize() error {
 		// Mississippi hard fork. Applies to preprod and holesky to materialize EigenState models for operator sets
 		migrations.RegisterMigrations(forks[config.RewardsFork_Mississippi].BlockNumber, []types.IStateMigration{
 			_02502031222_operatorSets.NewStateMigration(sm.db, sm.logger, sm.globalConfig),
+		})
+	}
+	if brazosFork := forks[config.RewardsFork_Brazos]; brazosFork.BlockNumber != 0 {
+		// Brazos hard fork. Applies to preprod and holesky to materialize EigenState models for slashing events
+		migrations.RegisterMigrations(forks[config.RewardsFork_Brazos].BlockNumber, []types.IStateMigration{
+			_02503040918_slashingEvents.NewStateMigration(sm.db, sm.logger, sm.globalConfig),
 		})
 	}
 	sm.migrations = migrations
