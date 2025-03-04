@@ -59,8 +59,10 @@ func NewOperatorAllocationDelayModel(
 	return model, nil
 }
 
+const OperatorAllocationDelayModelName = "OperatorAllocationDelayModel"
+
 func (oad *OperatorAllocationDelayModel) GetModelName() string {
-	return "OperatorAllocationDelays"
+	return OperatorAllocationDelayModelName
 }
 
 type operatorAllocationDelayOutputData struct {
