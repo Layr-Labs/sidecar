@@ -62,8 +62,10 @@ func NewOperatorPISplitModel(
 	return model, nil
 }
 
+const OperatorPISplitModelName = "OperatorPISplitModel"
+
 func (ops *OperatorPISplitModel) GetModelName() string {
-	return "OperatorPISplitModel"
+	return OperatorPISplitModelName
 }
 
 type operatorPISplitOutputData struct {

@@ -60,8 +60,10 @@ func NewOperatorMaxMagnitudeModel(
 	return model, nil
 }
 
+const OperatorMaxMagnitudeModelName = "OperatorMaxMagnitudeModel"
+
 func (omm *OperatorMaxMagnitudeModel) GetModelName() string {
-	return "OperatorMaxMagnitude"
+	return OperatorMaxMagnitudeModelName
 }
 
 type operatorMaxMagnitudeOutputData struct {
