@@ -123,6 +123,6 @@ func LoadEigenStateModels(
 		l.Sugar().Errorw("Failed to create OperatorAllocationDelayModel", zap.Error(err))
 		return err
 	}
-	
+
 	return nil
 }
