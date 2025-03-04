@@ -58,8 +58,10 @@ func NewOperatorSetModel(
 	return model, nil
 }
 
+const OperatorSetModelName = "OperatorSetModel"
+
 func (os *OperatorSetModel) GetModelName() string {
-	return "OperatorSetModel"
+	return OperatorSetModelName
 }
 
 type operatorSetOutputData struct {

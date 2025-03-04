@@ -61,8 +61,10 @@ func NewOperatorSetStrategyRegistrationModel(
 	return model, nil
 }
 
+const OperatorSetStrategyRegistrationModelName = "OperatorSetStrategyRegistrationModel"
+
 func (ossr *OperatorSetStrategyRegistrationModel) GetModelName() string {
-	return "OperatorSetStrategyRegistrationModel"
+	return OperatorSetStrategyRegistrationModelName
 }
 
 type operatorSetStrategyRegistrationOutputData struct {
