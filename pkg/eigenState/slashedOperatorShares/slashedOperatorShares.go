@@ -60,8 +60,10 @@ func NewSlashedOperatorSharesModel(
 	return model, nil
 }
 
+const SlashedOperatorSharesModelName = "SlashedOperatorSharesModel"
+
 func (sos *SlashedOperatorSharesModel) GetModelName() string {
-	return "SlashedOperatorShares"
+	return SlashedOperatorSharesModelName
 }
 
 type slashedOperatorSharesOutputData struct {
