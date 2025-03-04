@@ -12,6 +12,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards/rewardsTypes"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"github.com/Layr-Labs/sidecar/pkg/service/baseDataService"
+	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	errors2 "github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -19,6 +20,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 )
 
 type RewardsDataService struct {
@@ -304,6 +306,28 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 		return nil, nil, res.Error
 	}
 	return claimableRewards, snapshot, nil
+}
+
+func (rds *RewardsDataService) findRewardsGenerationForSnapshotDate(snapshotDate string) (*storage.GeneratedRewardsSnapshots, error) {
+	query := `
+		select
+			*
+		from generated_rewards_snapshots
+		where
+			snapshot_date >= @snapshotDate
+			and status = 'complete'
+		order by snapshot_date asc
+		limit 1
+	`
+	var generatedSnapshot *storage.GeneratedRewardsSnapshots
+	res := rds.db.Raw(query, sql.Named("snapshotDate", snapshotDate)).Scan(&generatedSnapshot)
+	if res.Error != nil {
+		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, res.Error
+	}
+	return generatedSnapshot, nil
 }
 
 // findDistributionRootClosestToBlockHeight returns the distribution root that is closest to the provided block height
@@ -602,9 +626,28 @@ func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Co
 		return nil, fmt.Errorf("no distribution root found for root index '%d'", rootIndex)
 	}
 
+	rootSnapshotDate, err := time.Parse(time.DateOnly, root.GetSnapshotDate())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse snapshot date '%s' for root index '%d'", root.GetSnapshotDate(), rootIndex)
+	}
+
+	// snapshot date from the DistributionRoot is the underlying RewardsCalculationEnd date, which is the exclusive cutoff date.
+	// the date the rewards were generated is RewardsCalculationEnd + 1day
+	rewardsGenerationDate := rootSnapshotDate.Add(time.Hour * 24).Format(time.DateOnly)
+
+	// Rewards generation can happen at any point, so its not 100% guaranteed that the rewards for the rewardsGenerationDate
+	// actually happened. If it didnt, the rewards would be included in the next closest rewards generation by snapshot date.
+	rewardsGeneration, err := rds.findRewardsGenerationForSnapshotDate(rewardsGenerationDate)
+	if err != nil {
+		return nil, err
+	}
+	if rewardsGeneration == nil {
+		return nil, fmt.Errorf("no rewards generation found for snapshot date '%s'", rewardsGenerationDate)
+	}
+
 	tablePattern := fmt.Sprintf("%s_%s",
 		rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_11_GoldStaging],
-		utils.SnakeCase(root.GetSnapshotDate()),
+		utils.SnakeCase(rewardsGeneration.SnapshotDate),
 	)
 
 	stagingTableName, err := rewardsUtils.FindTableByLikeName(tablePattern, rds.db, rds.globalConfig.DatabaseConfig.SchemaName)
@@ -626,10 +669,13 @@ func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Co
 				reward_type
 			FROM combined_rewards as cr
 		) cr ON (cr.reward_hash = gt.reward_hash)
+		where
+			gt.snapshot <= date '{{.rewardCalculationEnd}}'
 	`
 
 	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
-		"goldStagingName": stagingTableName,
+		"goldStagingName":      stagingTableName,
+		"rewardCalculationEnd": root.GetSnapshotDate(),
 	})
 
 	if err != nil {
