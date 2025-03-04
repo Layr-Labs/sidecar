@@ -2,6 +2,7 @@ package ethereum
 
 import (
 	"encoding/json"
+	"github.com/pkg/errors"
 	"strings"
 	"time"
 
@@ -34,7 +35,7 @@ var (
 			block := &EthereumBlock{}
 
 			if err := json.Unmarshal(res, block); err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "failed to unmarshal block response: %s", string(res))
 			}
 			return block, nil
 		},
@@ -48,7 +49,7 @@ var (
 			receipt := &EthereumTransaction{}
 
 			if err := json.Unmarshal(res, receipt); err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "failed to unmarshal block response: %s", string(res))
 			}
 			return receipt, nil
 		},
@@ -62,7 +63,7 @@ var (
 			receipt := &EthereumTransactionReceipt{}
 
 			if err := json.Unmarshal(res, receipt); err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "failed to unmarshal block response: %s", string(res))
 			}
 			return receipt, nil
 		},
