@@ -18,7 +18,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			block_number bigint not null,
 			transaction_hash varchar not null,
 			log_index bigint not null,
-			unique (transaction_hash, log_index, block_number)
+			constraint uniq_operator_sets unique(transaction_hash, log_index, block_number)
     	)`,
 		`create index if not exists idx_operator_sets_avs on operator_sets (avs)`,
 		`create index if not exists idx_operator_sets_block_number on operator_sets (block_number)`,
@@ -33,7 +33,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			block_number bigint not null,
 			transaction_hash varchar not null,
 			log_index bigint not null,
-			unique (transaction_hash, log_index, block_number)
+			constraint uniq_operator_allocations unique(transaction_hash, log_index, block_number)
     	)`,
 		`create index if not exists idx_operator_allocations_operator on operator_allocations (operator)`,
 		`create index if not exists idx_operator_allocations_avs on operator_allocations (avs)`,
@@ -46,7 +46,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			block_number bigint not null,
 			transaction_hash varchar not null,
 			log_index bigint not null,
-			unique (transaction_hash, log_index, block_number)
+			constraint uniq_operator_allocation_delays unique(transaction_hash, log_index, block_number)
     	)`,
 		`create index if not exists idx_operator_allocation_delays_operator on operator_allocations (operator)`,
 		`create index if not exists idx_operator_allocation_delays_block_number on operator_sets (block_number)`,
@@ -61,7 +61,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     		block_number bigint not null,
     		transaction_hash varchar not null,
     		log_index bigint not null,
-    		unique(transaction_hash, log_index, block_number, operator, strategy, avs, operator_set_id)
+    		constraint uniq_slashed_operators unique(transaction_hash, log_index, block_number, operator, strategy, avs, operator_set_id)
     	)`,
 		`create index if not exists idx_slashed_operators_operator on slashed_operators (operator)`,
 		`create index if not exists idx_slashed_operators_operator_avs on slashed_operators (operator, avs)`,
@@ -75,7 +75,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     		transaction_hash varchar not null,
     		log_index bigint not null,
     		block_number bigint not null,
-    		unique(transaction_hash, log_index, block_number)
+    		constraint uniq_encumbered_magnitudes unique(transaction_hash, log_index, block_number)
     	)`,
 		`create index if not exists idx_encumbered_magnitudes_operator on encumbered_magnitudes (operator)`,
 		`create index if not exists idx_encumbered_magnitudes_operator_strategy on encumbered_magnitudes (operator, strategy)`,
@@ -88,7 +88,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     		transaction_hash varchar not null,
     		log_index bigint not null,
     		block_number bigint not null,
-    		unique(transaction_hash, log_index, block_number)
+    		constraint uniq_operator_max_magnitudes unique(transaction_hash, log_index, block_number)
     	)`,
 		`create index if not exists idx_operator_max_magnitudes_operator on operator_max_magnitudes (operator)`,
 		`create index if not exists idx_operator_max_magnitudes_operator_strategy on operator_max_magnitudes (operator, strategy)`,
@@ -101,7 +101,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     		transaction_hash varchar not null,
     		log_index bigint not null,
     		block_number bigint not null,
-    		unique(transaction_hash, log_index, block_number)
+    		constraint uniq_slashed_operator_shares unique(transaction_hash, log_index, block_number)
     	)`,
 		`create index if not exists idx_slashed_operator_shares_operator on slashed_operator_shares (operator)`,
 		`create index if not exists idx_slashed_operator_shares_operator_strategy on slashed_operator_shares (operator, strategy)`,
