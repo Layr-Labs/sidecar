@@ -74,8 +74,10 @@ func NewOperatorDirectedOperatorSetRewardSubmissionsModel(
 	return model, nil
 }
 
+const OperatorDirectedOperatorSetRewardSubmissionsModelName = "OperatorDirectedOperatorSetRewardSubmissionsModel"
+
 func (od *OperatorDirectedOperatorSetRewardSubmissionsModel) GetModelName() string {
-	return "OperatorDirectedOperatorSetRewardSubmissionsModel"
+	return OperatorDirectedOperatorSetRewardSubmissionsModelName
 }
 
 func (od *OperatorDirectedOperatorSetRewardSubmissionsModel) NewSlotID(

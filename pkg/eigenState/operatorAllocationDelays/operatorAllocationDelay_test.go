@@ -63,7 +63,7 @@ func Test_OperatorAllocationDelays(t *testing.T) {
 
 		model, err := NewOperatorAllocationDelayModel(esm, grm, l, cfg)
 
-		t.Run("Handle an allocationUpdated", func(t *testing.T) {
+		t.Run("Handle an AllocationDelaySet", func(t *testing.T) {
 			blockNumber := uint64(102)
 
 			if err := createBlock(model, blockNumber); err != nil {
