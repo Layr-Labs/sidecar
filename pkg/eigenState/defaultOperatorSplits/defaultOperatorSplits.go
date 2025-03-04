@@ -59,8 +59,10 @@ func NewDefaultOperatorSplitModel(
 	return model, nil
 }
 
+const DefaultOperatorSplitModelName = "DefaultOperatorSplitModel"
+
 func (dos *DefaultOperatorSplitModel) GetModelName() string {
-	return "DefaultOperatorSplitModel"
+	return DefaultOperatorSplitModelName
 }
 
 type defaultOperatorSplitOutputData struct {

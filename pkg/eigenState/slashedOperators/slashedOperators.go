@@ -63,8 +63,10 @@ func NewSlashedOperatorModel(
 	return model, nil
 }
 
+const SlashedOperatorModelName = "SlashedOperatorModel"
+
 func (so *SlashedOperatorModel) GetModelName() string {
-	return "SlashedOperators"
+	return SlashedOperatorModelName
 }
 
 type slashedOperatorOutputData struct {
