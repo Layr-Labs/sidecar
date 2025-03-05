@@ -20,7 +20,9 @@ type ContractStore interface {
 	GetContractWithProxyContract(address string, atBlockNumber uint64) (*ContractsTree, error)
 	SetContractCheckedForProxy(address string) (*Contract, error)
 
+	InitializeContracts(contractsData *CoreContractsData) error
 	InitializeCoreContracts() error
+	InitializeExternalContracts(filename string) error
 }
 
 // Tables.
