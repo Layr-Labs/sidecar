@@ -216,6 +216,17 @@ const config: Config = {
     } satisfies Preset.ThemeConfig,
 
   plugins: [
+	 [
+		 '@docusaurus/plugin-client-redirects',
+		 {
+			 redirects: [
+				 {
+					 from: '/',
+					 to: '/docs/sidecar/intro'
+				 }
+		 ]
+		 }
+	 ],
     [
       "docusaurus-plugin-openapi-docs",
       {
