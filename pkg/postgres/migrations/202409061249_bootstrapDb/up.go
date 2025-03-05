@@ -3,7 +3,6 @@ package _202409061249_bootstrapDb
 import (
 	"database/sql"
 	"fmt"
-
 	"github.com/Layr-Labs/sidecar/internal/config"
 
 	"gorm.io/gorm"
