@@ -4,8 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"golang.org/x/crypto/openpgp"
 	"io"
 	"os"
 	"path/filepath"
@@ -182,7 +182,7 @@ func (sf *SnapshotFile) ValidateSignature(publicKey string) (*openpgp.Entity, er
 	}
 	defer originalFile.Close()
 
-	signer, err := openpgp.CheckArmoredDetachedSignature(keyRing, originalFile, signagureFile)
+	signer, err := openpgp.CheckArmoredDetachedSignature(keyRing, originalFile, signagureFile, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error checking signature: %w", err)
 	}
