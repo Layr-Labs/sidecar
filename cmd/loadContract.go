@@ -3,17 +3,15 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
-	"github.com/Layr-Labs/sidecar/pkg/abiSource/etherscan"
-	"github.com/Layr-Labs/sidecar/pkg/abiSource/ipfs"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
-	etherscanClient "github.com/Layr-Labs/sidecar/pkg/clients/etherscan"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
-	"net/http"
-	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -24,12 +22,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-var sideloadContractCmd = &cobra.Command{
-	Use:   "sideload-contract",
-	Short: "Sideload a contract",
-	Long:  "Sideload a contract",
+var loadContractCmd = &cobra.Command{
+	Use:   "load-contract",
+	Short: "Load a contract",
+	Long:  "Load a contract",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		initSideloadContractCmd(cmd)
+		initLoadContractCmd(cmd)
 		cfg := config.NewConfig()
 
 		ctx := context.Background()
@@ -51,21 +49,7 @@ var sideloadContractCmd = &cobra.Command{
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
-		// set up abi source based on config
-		abiSource := []abiSource.AbiSource{}
-		httpClient := &http.Client{Timeout: 5 * time.Second}
-		if cfg.SideloadConfig.AbiSource == "ipfs" {
-			ipfsSource := ipfs.NewIpfs(httpClient, l, cfg)
-			abiSource = append(abiSource, ipfsSource)
-		} else if cfg.SideloadConfig.AbiSource == "etherscan" {
-			ec := etherscanClient.NewEtherscanClient(httpClient, l, cfg)
-			etherscanSource := etherscan.NewEtherscan(ec, l)
-			abiSource = append(abiSource, etherscanSource)
-		} else {
-			return fmt.Errorf("abi source %s not supported", cfg.SideloadConfig.AbiSource)
-		}
-
-		af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg, abiSource)
+		af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg, []abiSource.AbiSource{})
 
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
@@ -88,20 +72,22 @@ var sideloadContractCmd = &cobra.Command{
 
 		cm := contractManager.NewContractManager(contractStore, client, af, sink, l)
 
-		blockNumber := cfg.SideloadConfig.BlockNumber
-		contractAddress := cfg.SideloadConfig.ContractAddress
-		proxyContractAddress := cfg.SideloadConfig.ProxyContractAddress
+		blockNumber := cfg.LoadContractConfig.BlockNumber
+		contractAddress := cfg.LoadContractConfig.ContractAddress
+		contractAbi := cfg.LoadContractConfig.ContractAbi
+		implementationForAddress := cfg.LoadContractConfig.ImplementationForAddress
+		implementationAbi := cfg.LoadContractConfig.ImplementationAbi
 
-		err = cm.InitializeSideloadingContracts(ctx, blockNumber, contractAddress, proxyContractAddress)
+		err = cm.InitializeLoadingContract(ctx, blockNumber, contractAddress, contractAbi, implementationForAddress, implementationAbi)
 		if err != nil {
-			return fmt.Errorf("failed to initialize sideloading contracts: %w", err)
+			return fmt.Errorf("failed to initialize loading a contract: %w", err)
 		}
 
 		return nil
 	},
 }
 
-func initSideloadContractCmd(cmd *cobra.Command) {
+func initLoadContractCmd(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		if err := viper.BindPFlag(config.KebabToSnakeCase(f.Name), f); err != nil {
 			fmt.Printf("Failed to bind flag '%s' - %+v\n", f.Name, err)

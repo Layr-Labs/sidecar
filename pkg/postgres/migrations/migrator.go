@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
-	_202409061249_bootstrapDb "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061249_bootstrapDb"
 	_202409061250_eigenlayerStateTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061250_eigenlayerStateTables"
 	_202409061720_operatorShareChanges "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061720_operatorShareChanges"
 	_202409062151_stakerDelegations "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409062151_stakerDelegations"
@@ -53,6 +52,7 @@ import (
 	_202501061422_defaultOperatorSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061422_defaultOperatorSplits"
 	_202501071401_defaultOperatorSplitSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501071401_defaultOperatorSplitSnapshots"
 	_202501151039_rewardsClaimed "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501151039_rewardsClaimed"
+	_202503051016_bootstrapDb "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503051016_bootstrapDb"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -127,7 +127,6 @@ func initializeMigrationTable(db *gorm.DB) error {
 //   - error: Any error encountered during migration
 func (m *Migrator) MigrateAll() error {
 	migrations := []Migration{
-		&_202409061249_bootstrapDb.Migration{},
 		&_202409061250_eigenlayerStateTables.Migration{},
 		&_202409061720_operatorShareChanges.Migration{},
 		&_202409062151_stakerDelegations.Migration{},
@@ -174,6 +173,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202502100846_goldTableRewardHashIndex.Migration{},
 		&_202502211539_hydrateClaimedRewards.Migration{},
 		&_202503042014_stakerOperatorIndex.Migration{},
+		&_202503051016_bootstrapDb.Migration{},
 	}
 
 	for _, migration := range migrations {
