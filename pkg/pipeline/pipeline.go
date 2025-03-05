@@ -238,7 +238,15 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 			}
 
 			if p.globalConfig.SideloadConfig.Enabled && log.EventName == "Upgraded" {
-				p.contractManager.HandleContractUpgrade(ctx, blockNumber, log)
+				if err := p.contractManager.HandleContractUpgrade(ctx, blockNumber, log); err != nil {
+					p.Logger.Sugar().Errorw("Failed to handle contract upgrade",
+						zap.Uint64("blockNumber", blockNumber),
+						zap.String("transactionHash", pt.Transaction.Hash.Value()),
+						zap.Uint64("logIndex", log.LogIndex),
+						zap.Error(err),
+					)
+					return err
+				}
 			}
 		}
 		p.Logger.Sugar().Debugw("Handled log state changes",
