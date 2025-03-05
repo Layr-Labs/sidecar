@@ -51,6 +51,7 @@ var sideloadContractCmd = &cobra.Command{
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
+		// set up abi source based on config
 		abiSource := []abiSource.AbiSource{}
 		httpClient := &http.Client{Timeout: 5 * time.Second}
 		if cfg.SideloadConfig.AbiSource == "ipfs" {
@@ -91,18 +92,9 @@ var sideloadContractCmd = &cobra.Command{
 		contractAddress := cfg.SideloadConfig.ContractAddress
 		proxyContractAddress := cfg.SideloadConfig.ProxyContractAddress
 
-		err = cm.CreateContractWithAbi(ctx, blockNumber, contractAddress)
+		err = cm.InitializeSideloadingContracts(ctx, blockNumber, contractAddress, proxyContractAddress)
 		if err != nil {
-			return fmt.Errorf("failed to create the contractAddress in contracts: %w", err)
-		}
-		err = cm.CreateContractWithAbi(ctx, blockNumber, proxyContractAddress)
-		if err != nil {
-			return fmt.Errorf("failed to create the proxyContractAddress in contracts: %w", err)
-		}
-
-		_, err = contractStore.CreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
-		if err != nil {
-			return fmt.Errorf("failed to create a proxy contract: %w", err)
+			return fmt.Errorf("failed to initialize sideloading contracts: %w", err)
 		}
 
 		return nil
