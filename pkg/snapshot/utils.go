@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+// openFile creates or truncates a file at the specified path with write permissions.
+// It returns a file handle and any error encountered during the operation.
 func openFile(path string) (*os.File, error) {
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
 	if err != nil {
@@ -18,6 +20,9 @@ func openFile(path string) (*os.File, error) {
 	return file, nil
 }
 
+// streamErrorOutput reads from the provided ReadCloser and stores the output in the Result.
+// It uses a 32KB buffer to efficiently read the error output stream.
+// If an error occurs during reading, it populates the Result's Error field.
 func streamErrorOutput(out io.ReadCloser, result *Result) {
 	var output strings.Builder
 	buffer := make([]byte, 32*1024) // 32KB buffer
@@ -40,6 +45,9 @@ func streamErrorOutput(out io.ReadCloser, result *Result) {
 	}
 }
 
+// streamStdout reads from the provided ReadCloser and writes the content to either
+// a file specified by outputFileName or to stdout if outputFileName is empty.
+// It displays a progress bar during the operation and uses a 4MB buffer for efficient I/O.
 func streamStdout(out io.ReadCloser, outputFileName string) {
 	var dest io.Writer
 	if outputFileName != "" {
@@ -79,10 +87,14 @@ func streamStdout(out io.ReadCloser, outputFileName string) {
 	}
 }
 
+// getCmdPath returns the absolute path to the specified command executable.
+// It uses exec.LookPath to search for the command in the system's PATH.
 func getCmdPath(cmd string) (string, error) {
 	return exec.LookPath(cmd)
 }
 
+// cmdExists checks if the specified command exists in the system's PATH.
+// It returns true if the command exists and is executable, false otherwise.
 func cmdExists(cmd string) bool {
 	_, err := getCmdPath(cmd)
 

@@ -16,6 +16,8 @@ import (
 	"strings"
 )
 
+// defaultRestoreOptions returns the default command-line options for pg_restore.
+// These options configure how the database restoration is performed.
 func defaultRestoreOptions() []string {
 	return []string{
 		"--clean",
@@ -25,14 +27,20 @@ func defaultRestoreOptions() []string {
 	}
 }
 
+// Constants for snapshot restoration
 const (
+	// DefaultManifestUrl is the default URL for the snapshot manifest file
 	DefaultManifestUrl = "https://sidecar.eigenlayer.xyz/snapshots/manifest.json"
 )
 
+// Variables for snapshot restoration
 var (
+	// validUrlProtocols defines the allowed URL protocols for snapshot downloads
 	validUrlProtocols = []string{"http", "https"}
 )
 
+// downloadManifest downloads and parses the snapshot manifest from the specified URL.
+// Returns the parsed manifest and any error encountered.
 func (ss *SnapshotService) downloadManifest(url string) (*snapshotManifest.SnapshotManifest, error) {
 	res, err := http.Get(url)
 	if err != nil {
@@ -56,6 +64,9 @@ func (ss *SnapshotService) downloadManifest(url string) (*snapshotManifest.Snaps
 	return manifest, nil
 }
 
+// getRestoreFileFromManifest finds a compatible snapshot in the manifest based on the provided configuration.
+// It downloads the manifest from the URL specified in the configuration and searches for a matching snapshot.
+// Returns the snapshot information and any error encountered.
 func (ss *SnapshotService) getRestoreFileFromManifest(cfg *RestoreSnapshotConfig) (*snapshotManifest.Snapshot, error) {
 	manifestUrl := cfg.ManifestUrl
 	if manifestUrl == "" {
@@ -75,6 +86,9 @@ func (ss *SnapshotService) getRestoreFileFromManifest(cfg *RestoreSnapshotConfig
 	return snapshot, nil
 }
 
+// downloadFileToFile downloads a file from a URL to a local file path.
+// It displays a progress bar during the download.
+// Returns an error if the download fails.
 func downloadFileToFile(url string, dest string) error {
 	// create the file, or clear out the existing file
 	out, err := os.Create(dest)
@@ -110,6 +124,9 @@ func downloadFileToFile(url string, dest string) error {
 	return nil
 }
 
+// downloadSnapshot downloads a snapshot file and optionally its hash and signature files.
+// It creates a SnapshotFile instance for the downloaded snapshot.
+// Returns the SnapshotFile and any error encountered.
 func (ss *SnapshotService) downloadSnapshot(snapshotUrl string, cfg *RestoreSnapshotConfig) (*SnapshotFile, error) {
 	parsedUrl, err := url.Parse(snapshotUrl)
 	if err != nil {
@@ -160,6 +177,8 @@ func (ss *SnapshotService) downloadSnapshot(snapshotUrl string, cfg *RestoreSnap
 	return snapshotFile, nil
 }
 
+// isUrl checks if a string is a valid URL with an allowed protocol.
+// Returns true if the string is a valid URL, false otherwise.
 func (ss *SnapshotService) isUrl(input string) bool {
 	parsedUrl, err := url.Parse(input)
 	if err != nil {
@@ -168,6 +187,10 @@ func (ss *SnapshotService) isUrl(input string) bool {
 	return slices.Contains(validUrlProtocols, parsedUrl.Scheme)
 }
 
+// performRestore executes the pg_restore command to restore a database from a snapshot.
+// It sets up the command with the appropriate flags and environment variables,
+// and captures any error output.
+// Returns a Result instance containing information about the command execution and any error encountered.
 func (ss *SnapshotService) performRestore(snapshotFile *SnapshotFile, cfg *RestoreSnapshotConfig) (*Result, error) {
 	flags := defaultRestoreOptions()
 
@@ -216,6 +239,11 @@ func (ss *SnapshotService) performRestore(snapshotFile *SnapshotFile, cfg *Resto
 	return res, nil
 }
 
+// RestoreFromSnapshot restores a database from a snapshot according to the provided configuration.
+// It can download a snapshot from a URL or use a local snapshot file.
+// If no input is provided, it attempts to find a compatible snapshot in the manifest.
+// It verifies the snapshot's integrity if requested and restores it to the database.
+// Returns an error if any operation fails.
 func (ss *SnapshotService) RestoreFromSnapshot(cfg *RestoreSnapshotConfig) error {
 	if !cmdExists(PgRestore) {
 		return fmt.Errorf("pg_restore command not found")

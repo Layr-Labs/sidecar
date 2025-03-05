@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+// defaultDumpOptions returns the default command-line options for pg_dump.
+// These options configure the format and content of the database dump.
 func defaultDumpOptions() []string {
 	return []string{
 		"--no-owner",
@@ -20,14 +22,21 @@ func defaultDumpOptions() []string {
 	}
 }
 
+// Kind represents the type of snapshot to create.
 type Kind string
 
+// Constants defining the different types of snapshots.
 const (
+	// Kind_Slim creates a snapshot containing only gold tables.
 	Kind_Slim    Kind = "slim"
+	// Kind_Full creates a snapshot containing gold and sot tables.
 	Kind_Full    Kind = "full"
+	// Kind_Archive creates a complete snapshot of the database.
 	Kind_Archive Kind = "archive"
 )
 
+// kindFlags maps each Kind to a function that returns the appropriate pg_dump flags.
+// These flags determine which tables are included in the snapshot.
 var (
 	kindFlags = map[Kind]func(schema string) []string{
 		Kind_Slim: func(schema string) []string {
@@ -47,6 +56,8 @@ var (
 	}
 )
 
+// isValidDestinationPath checks if the provided path is a valid directory for storing snapshots.
+// Returns true if the path is a directory, false and an error otherwise.
 func (ss *SnapshotService) isValidDestinationPath(destPath string) (bool, error) {
 	stat, err := os.Stat(destPath)
 	if err != nil {
@@ -58,6 +69,10 @@ func (ss *SnapshotService) isValidDestinationPath(destPath string) (bool, error)
 	return true, nil
 }
 
+// CreateSnapshot creates a database snapshot according to the provided configuration.
+// It validates the configuration, checks for the existence of the pg_dump command,
+// and performs the snapshot dump. It also generates metadata and hash files if requested.
+// Returns a SnapshotFile instance for the created snapshot and any error encountered.
 func (ss *SnapshotService) CreateSnapshot(cfg *CreateSnapshotConfig) (*SnapshotFile, error) {
 	if !cmdExists(PgDump) {
 		return nil, fmt.Errorf("pg_dump not found in PATH")
@@ -121,6 +136,9 @@ func (ss *SnapshotService) CreateSnapshot(cfg *CreateSnapshotConfig) (*SnapshotF
 	return snapshotFile, nil
 }
 
+// generateMetadataFile creates a metadata file for the snapshot if requested in the configuration.
+// The metadata file contains information about the snapshot, such as its version, chain, and schema.
+// Returns an error if the metadata file cannot be created.
 func (ss *SnapshotService) generateMetadataFile(snapshotFile *SnapshotFile, cfg *CreateSnapshotConfig) error {
 	if !cfg.GenerateMetadataFile {
 		ss.logger.Sugar().Infow("Skipping metadata file generation", zap.String("metadataFile", snapshotFile.MetadataFilePath()))
@@ -137,6 +155,10 @@ func (ss *SnapshotService) generateMetadataFile(snapshotFile *SnapshotFile, cfg 
 	return nil
 }
 
+// performDump executes the pg_dump command to create a database snapshot.
+// It sets up the command with the appropriate flags and environment variables,
+// and streams the output to the snapshot file. It also captures any error output.
+// Returns a Result instance containing information about the command execution and any error encountered.
 func (ss *SnapshotService) performDump(snapshotFile *SnapshotFile, cfg *CreateSnapshotConfig) (*Result, error) {
 	flags := defaultDumpOptions()
 
