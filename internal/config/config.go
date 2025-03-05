@@ -117,11 +117,12 @@ type SidecarPrimaryConfig struct {
 	IsPrimary bool
 }
 
-type SideloadConfig struct {
-	AbiSource            string
-	ContractAddress      string
-	ProxyContractAddress string
-	BlockNumber          uint64
+type LoadContractConfig struct {
+	ContractAddress          string
+	ContractAbi              string
+	ImplementationForAddress string
+	ImplementationAbi        string
+	BlockNumber              uint64
 }
 
 type IpfsConfig struct {
@@ -144,7 +145,7 @@ type Config struct {
 	DataDogConfig         DataDogConfig
 	PrometheusConfig      PrometheusConfig
 	SidecarPrimaryConfig  SidecarPrimaryConfig
-	SideloadConfig        SideloadConfig
+	LoadContractConfig    LoadContractConfig
 	IpfsConfig            IpfsConfig
 	EtherscanConfig       EtherscanConfig
 }
@@ -209,10 +210,11 @@ var (
 
 	SidecarPrimaryUrl = "sidecar-primary.url"
 
-	SideloadAbiSource            = "sideload.abi-source"
-	SideloadContractAddress      = "sideload.contract-address"
-	SideloadProxyContractAddress = "sideload.proxy-contract-address"
-	SideloadBlockNumber          = "sideload.block-number"
+	LoadContractAddress                  = "load-contract.contract-address"
+	LoadContractAbi                      = "load-contract.contract-abi"
+	LoadContractImplementationForAddress = "load-contract.implementation-for-address"
+	LoadContractImplementationAbi        = "load-contract.implementation-abi"
+	LoadContractBlockNumber              = "load-contract.block-number"
 
 	IpfsUrl = "ipfs.url"
 
@@ -287,11 +289,12 @@ func NewConfig() *Config {
 			Url: viper.GetString(normalizeFlagName(SidecarPrimaryUrl)),
 		},
 
-		SideloadConfig: SideloadConfig{
-			AbiSource:            viper.GetString(normalizeFlagName(SideloadAbiSource)),
-			ContractAddress:      viper.GetString(normalizeFlagName(SideloadContractAddress)),
-			ProxyContractAddress: viper.GetString(normalizeFlagName(SideloadProxyContractAddress)),
-			BlockNumber:          viper.GetUint64(normalizeFlagName(SideloadBlockNumber)),
+		LoadContractConfig: LoadContractConfig{
+			ContractAddress:          viper.GetString(normalizeFlagName(LoadContractAddress)),
+			ContractAbi:              viper.GetString(normalizeFlagName(LoadContractAbi)),
+			ImplementationForAddress: viper.GetString(normalizeFlagName(LoadContractImplementationForAddress)),
+			ImplementationAbi:        viper.GetString(normalizeFlagName(LoadContractImplementationAbi)),
+			BlockNumber:              viper.GetUint64(normalizeFlagName(LoadContractBlockNumber)),
 		},
 
 		IpfsConfig: IpfsConfig{

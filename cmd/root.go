@@ -67,7 +67,7 @@ func init() {
 	rootCmd.AddCommand(createSnapshotCmd)
 	rootCmd.AddCommand(restoreSnapshotCmd)
 	rootCmd.AddCommand(rpcCmd)
-	rootCmd.AddCommand(sideloadContractCmd)
+	rootCmd.AddCommand(loadContractCmd)
 
 	// bind any subcommand flags
 	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "(deprecated, use --output) Path to save the snapshot file")
@@ -84,12 +84,11 @@ func init() {
 
 	rpcCmd.PersistentFlags().String(config.SidecarPrimaryUrl, "", `RPC url of the "primary" Sidecar instance in an HA environment`)
 
-	sideloadContractCmd.PersistentFlags().String(config.SideloadAbiSource, "", "ABI source for the contract (etherscan, ipfs)")
-	sideloadContractCmd.PersistentFlags().String(config.IpfsUrl, "", "IPFS gateway URL")
-	sideloadContractCmd.PersistentFlags().String(config.EtherscanApiKey, "", "Etherscan API key")
-	sideloadContractCmd.PersistentFlags().String(config.SideloadContractAddress, "", "Contract address to side-load")
-	sideloadContractCmd.PersistentFlags().String(config.SideloadProxyContractAddress, "", "Proxy contract address for the contract")
-	sideloadContractCmd.PersistentFlags().Uint64(config.SideloadBlockNumber, uint64(0), "Block number for proxy contract deployment")
+	loadContractCmd.PersistentFlags().String(config.LoadContractAddress, "", "Contract address to load")
+	loadContractCmd.PersistentFlags().String(config.LoadContractAbi, "", "ABI for the contract")
+	loadContractCmd.PersistentFlags().String(config.LoadContractImplementationForAddress, "", "Implementation contract address for the contract")
+	loadContractCmd.PersistentFlags().String(config.LoadContractImplementationAbi, "", "ABI for the implementation")
+	loadContractCmd.PersistentFlags().Uint64(config.LoadContractBlockNumber, uint64(0), "Block number for proxy contract deployment")
 
 	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		key := config.KebabToSnakeCase(f.Name)

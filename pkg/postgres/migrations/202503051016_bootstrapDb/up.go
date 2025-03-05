@@ -15,7 +15,7 @@ type Migration struct {
 func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		`DO $$ BEGIN
-			CREATE TYPE contract_type AS ENUM ('core', 'sideload');
+			CREATE TYPE contract_type AS ENUM ('core', 'external');
 		EXCEPTION
 			WHEN duplicate_object THEN null;
 		END $$;`,
