@@ -7,7 +7,7 @@ import (
 )
 
 var _1_goldActiveRewardsQuery = `
-create table {{.destTableName}} as
+insert into rewards_gold_1_active_rewards (avs, snapshot, token, tokens_per_day, tokens_per_day_decimal, multiplier, strategy, reward_hash, reward_type, reward_submission_date)
 WITH active_rewards_modified as (
     SELECT *,
            amount/(duration/86400) as tokens_per_day,
