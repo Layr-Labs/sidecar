@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"log"
-
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
@@ -30,8 +28,10 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
+	"github.com/Layr-Labs/sidecar/pkg/service/slashingDataService"
 	"github.com/Layr-Labs/sidecar/pkg/sidecar"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
+	"log"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -127,6 +127,7 @@ func main() {
 	rps := proofs.NewRewardsProofsStore(rc, l)
 	pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 	rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
+	sds := slashingDataService.NewSlashingDataService(grm, l, cfg)
 
 	scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)
 	if err != nil {
@@ -141,7 +142,7 @@ func main() {
 	rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 		GrpcPort: cfg.RpcConfig.GrpcPort,
 		HttpPort: cfg.RpcConfig.HttpPort,
-	}, mds, contractStore, cm, rc, rcq, eb, rps, pds, rds, scc, sdc, l, cfg)
+	}, mds, contractStore, cm, rc, rcq, eb, rps, pds, rds, sds, scc, sdc, l, cfg)
 
 	// RPC channel to notify the RPC server to shutdown gracefully
 	rpcChannel := make(chan bool)

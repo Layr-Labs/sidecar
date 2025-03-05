@@ -6,6 +6,8 @@ import (
 	"github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/common"
 	protocolV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/protocol"
 	"github.com/Layr-Labs/sidecar/pkg/service/types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (rpc *RpcServer) GetRegisteredAvsForOperator(ctx context.Context, request *protocolV1.GetRegisteredAvsForOperatorRequest) (*protocolV1.GetRegisteredAvsForOperatorResponse, error) {
@@ -133,4 +135,56 @@ func (rpc *RpcServer) GetEigenStateChanges(ctx context.Context, request *protoco
 	return &protocolV1.GetEigenStateChangesResponse{
 		Changes: changes,
 	}, nil
+}
+
+// ListStrategies lists all strategies and includes the:
+// - strategy address
+// - total staked
+// - list of tokens being rewarded
+func (s *RpcServer) ListStrategies(ctx context.Context, request *protocolV1.ListStrategiesRequest) (*protocolV1.ListStrategiesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "not implemented")
+}
+
+// ListStakerStrategies lists all strategies for a given staker and returns:
+// - the strategy
+// - the staked amount
+func (s *RpcServer) ListStakerStrategies(ctx context.Context, request *protocolV1.ListStakerStrategiesRequest) (*protocolV1.ListStakerStrategiesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "not implemented")
+}
+
+// GetStrategyForStaker returns the strategy for a given staker and includes the staked amount
+func (s *RpcServer) GetStrategyForStaker(ctx context.Context, request *protocolV1.GetStrategyForStakerRequest) (*protocolV1.GetStrategyForStakerResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "not implemented")
+}
+
+// ListStakerQueuedWithdrawals lists all queued withdrawals for a given staker and includes:
+// - the strategy
+// - the amount
+// - the block height the withdrawal was queued at
+func (s *RpcServer) ListStakerQueuedWithdrawals(ctx context.Context, request *protocolV1.ListStakerQueuedWithdrawalsRequest) (*protocolV1.ListStakerQueuedWithdrawalsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "not implemented")
+}
+
+// ListStrategyQueuedWithdrawals lists all queued withdrawals for a given strategy and includes:
+// - the staker
+// - the amount
+// - the block height the withdrawal was queued at
+func (s *RpcServer) ListStrategyQueuedWithdrawals(ctx context.Context, request *protocolV1.ListStrategyQueuedWithdrawalsRequest) (*protocolV1.ListStrategyQueuedWithdrawalsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "not implemented")
+}
+
+// ListOperatorQueuedWithdrawals lists all queued withdrawals by strategy and includes:
+// - the staker
+// - the amount
+// - the block height the withdrawal was queued at
+func (s *RpcServer) ListOperatorQueuedWithdrawals(ctx context.Context, request *protocolV1.ListOperatorQueuedWithdrawalsRequest) (*protocolV1.ListOperatorQueuedWithdrawalsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "not implemented")
+}
+
+// ListOperatorStrategyQueuedWithdrawals lists all queued withdrawals for a given strategy and includes:
+// - the staker
+// - the amount
+// - the block height the withdrawal was queued at
+func (s *RpcServer) ListOperatorStrategyQueuedWithdrawals(ctx context.Context, request *protocolV1.ListOperatorStrategyQueuedWithdrawalsRequest) (*protocolV1.ListOperatorStrategyQueuedWithdrawalsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "not implemented")
 }
