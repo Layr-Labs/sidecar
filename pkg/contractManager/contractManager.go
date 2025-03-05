@@ -1,3 +1,5 @@
+// Package contractManager provides functionality for managing Ethereum smart contracts,
+// including handling contract proxies, upgrades, and ABI fetching.
 package contractManager
 
 import (
@@ -14,14 +16,23 @@ import (
 	"go.uber.org/zap"
 )
 
+// ContractManager handles operations related to smart contracts, including
+// retrieving contract information, handling contract upgrades, and managing
+// proxy contracts.
 type ContractManager struct {
+	// ContractStore provides storage and retrieval of contract data
 	ContractStore  contractStore.ContractStore
+	// EthereumClient is used to interact with the Ethereum blockchain
 	EthereumClient *ethereum.Client
+	// AbiFetcher is used to fetch contract ABIs
 	AbiFetcher     *abiFetcher.AbiFetcher
+	// metricsSink collects metrics about contract operations
 	metricsSink    *metrics.MetricsSink
+	// Logger is used for logging contract operations
 	Logger         *zap.Logger
 }
 
+// NewContractManager creates a new ContractManager instance with the provided dependencies.
 func NewContractManager(
 	cs contractStore.ContractStore,
 	e *ethereum.Client,
@@ -38,6 +49,9 @@ func NewContractManager(
 	}
 }
 
+// GetContractWithProxy retrieves a contract and its associated proxy contract (if any)
+// for the given contract address at the specified block number.
+// It returns a ContractsTree containing the contract and proxy information.
 func (cm *ContractManager) GetContractWithProxy(
 	contractAddress string,
 	blockNumber uint64,
@@ -53,7 +67,10 @@ func (cm *ContractManager) GetContractWithProxy(
 	return contract, nil
 }
 
-// HandleContractUpgrade parses an Upgraded contract log and inserts the new upgraded implementation into the database
+// HandleContractUpgrade processes an Upgraded contract log event and updates the database
+// with the new implementation address. It handles both EIP-1967 compliant upgrades and
+// custom upgrade patterns by checking event arguments and storage slots.
+// Returns an error if the upgrade cannot be processed.
 func (cm *ContractManager) HandleContractUpgrade(ctx context.Context, blockNumber uint64, upgradedLog *parser.DecodedLog) error {
 	// the new address that the contract points to
 	newProxiedAddress := ""
@@ -103,6 +120,10 @@ func (cm *ContractManager) HandleContractUpgrade(ctx context.Context, blockNumbe
 	return nil
 }
 
+// CreateUpgradedProxyContract creates a new proxy contract relationship in the database.
+// It creates entries for both the proxy contract and the implementation contract,
+// fetching the ABI for the implementation contract.
+// If the proxy contract already exists, it returns without error.
 func (cm *ContractManager) CreateUpgradedProxyContract(
 	ctx context.Context,
 	blockNumber uint64,

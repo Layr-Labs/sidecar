@@ -1,3 +1,5 @@
+// Package postgresContractStore provides a PostgreSQL implementation of the contractStore interface
+// for storing and retrieving smart contract data, including ABIs, bytecode hashes, and proxy relationships.
 package postgresContractStore
 
 import (
@@ -15,12 +17,19 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// PostgresContractStore implements the contractStore.ContractStore interface using PostgreSQL.
+// It provides methods for storing and retrieving contract data, including ABIs and proxy relationships.
 type PostgresContractStore struct {
+	// Db is the GORM database connection
 	Db           *gorm.DB
+	// Logger is used for logging operations
 	Logger       *zap.Logger
+	// globalConfig contains application configuration
 	globalConfig *config.Config
 }
 
+// NewPostgresContractStore creates a new PostgresContractStore with the provided database connection,
+// logger, and configuration.
 func NewPostgresContractStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *PostgresContractStore {
 	cs := &PostgresContractStore{
 		Db:           db,
@@ -30,6 +39,8 @@ func NewPostgresContractStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *P
 	return cs
 }
 
+// GetContractForAddress retrieves a contract by its address.
+// Returns nil if the contract is not found.
 func (s *PostgresContractStore) GetContractForAddress(address string) (*contractStore.Contract, error) {
 	var contract *contractStore.Contract
 
@@ -45,6 +56,8 @@ func (s *PostgresContractStore) GetContractForAddress(address string) (*contract
 	return contract, nil
 }
 
+// GetProxyContractForAddress retrieves a proxy contract by its address and block number.
+// Returns nil if the proxy contract is not found.
 func (s *PostgresContractStore) GetProxyContractForAddress(blockNumber uint64, address string) (*contractStore.ProxyContract, error) {
 	var proxyContract *contractStore.ProxyContract
 
@@ -60,6 +73,9 @@ func (s *PostgresContractStore) GetProxyContractForAddress(blockNumber uint64, a
 	return proxyContract, nil
 }
 
+// CreateContract creates a new contract record in the database.
+// It stores the contract address, ABI, verification status, bytecode hash,
+// and other metadata.
 func (s *PostgresContractStore) CreateContract(
 	address string,
 	abiJson string,
@@ -85,6 +101,8 @@ func (s *PostgresContractStore) CreateContract(
 	return contract, nil
 }
 
+// FindOrCreateContract looks for a contract with the given address and creates it if not found.
+// Returns the contract, a boolean indicating whether it was found, and any error encountered.
 func (s *PostgresContractStore) FindOrCreateContract(
 	address string,
 	abiJson string,
@@ -118,6 +136,9 @@ func (s *PostgresContractStore) FindOrCreateContract(
 	return upsertedContract, found, err
 }
 
+// CreateProxyContract creates a new proxy contract relationship in the database.
+// It records the block number at which the proxy relationship was established,
+// the proxy contract address, and the implementation contract address.
 func (s *PostgresContractStore) CreateProxyContract(
 	blockNumber uint64,
 	contractAddress string,
@@ -137,6 +158,8 @@ func (s *PostgresContractStore) CreateProxyContract(
 	return proxyContract, nil
 }
 
+// FindOrCreateProxyContract looks for a proxy contract with the given parameters and creates it if not found.
+// Returns the proxy contract, a boolean indicating whether it was found, and any error encountered.
 func (s *PostgresContractStore) FindOrCreateProxyContract(
 	blockNumber uint64,
 	contractAddress string,
@@ -171,6 +194,9 @@ func (s *PostgresContractStore) FindOrCreateProxyContract(
 	return upsertedContract, found, err
 }
 
+// GetContractWithProxyContract retrieves a contract and its associated proxy contract (if any)
+// for the given address at the specified block number.
+// It returns a ContractsTree containing the contract and proxy information.
 func (s *PostgresContractStore) GetContractWithProxyContract(address string, atBlockNumber uint64) (*contractStore.ContractsTree, error) {
 	address = strings.ToLower(address)
 
@@ -218,6 +244,8 @@ func (s *PostgresContractStore) GetContractWithProxyContract(address string, atB
 	return contractTree, nil
 }
 
+// SetContractCheckedForProxy marks a contract as having been checked for a proxy relationship.
+// This is used to avoid redundant checks for contracts that don't use proxies.
 func (s *PostgresContractStore) SetContractCheckedForProxy(address string) (*contractStore.Contract, error) {
 	contract := &contractStore.Contract{}
 
@@ -235,6 +263,8 @@ func (s *PostgresContractStore) SetContractCheckedForProxy(address string) (*con
 	return contract, nil
 }
 
+// loadContractData loads core contract data from embedded JSON files based on the chain configuration.
+// This is used to initialize the database with known contract addresses and ABIs.
 func (s *PostgresContractStore) loadContractData() (*contractStore.CoreContractsData, error) {
 	var filename string
 	switch s.globalConfig.Chain {
