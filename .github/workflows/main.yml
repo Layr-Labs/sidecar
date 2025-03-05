@@ -10,11 +10,6 @@ on:
       - '**'
   workflow_dispatch:
 jobs:
-  custom-runner-test:
-    runs-on: protocol-gha-runners
-    steps:
-      - name: hello world
-        run: echo "Hello, world!"
   test:
     runs-on: ubuntu-24.04
     services:
@@ -57,7 +52,7 @@ jobs:
           echo $PATH
           make lint
   build-container:
-    runs-on: ubuntu-24.04
+    runs-on: protocol-gha-runners
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -88,9 +83,9 @@ jobs:
         run: |
           VERSION=$(cat VERSION | tr -d '[:space:]' | sed 's/+/_/g')
           if [[ $GITHUB_REF == refs/heads/master || $GITHUB_REF == refs/tags/* ]]; then
-            docker buildx build --platform "linux/amd64" -t $REGISTRY/$REPOSITORY:$VERSION -t $REGISTRY/$REPOSITORY:latest --push .
+            docker buildx build --platform "linux/amd64,linux/arm64" -t $REGISTRY/$REPOSITORY:$VERSION -t $REGISTRY/$REPOSITORY:latest --push .
           else
-            docker buildx build --platform "linux/amd64" -t $REGISTRY/$REPOSITORY:$VERSION --push .
+            docker buildx build --platform "linux/amd64,linux/arm64" -t $REGISTRY/$REPOSITORY:$VERSION --push .
           fi
   build-binaries:
     runs-on: ubuntu-latest
