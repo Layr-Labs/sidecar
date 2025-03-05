@@ -39,7 +39,7 @@ type ConsumerId string
 // It has a unique ID, a context for cancellation, and a channel for receiving events.
 type Consumer struct {
 	// Id uniquely identifies the consumer
-	Id      ConsumerId
+	Id ConsumerId
 	// Context can be used to signal cancellation
 	Context context.Context
 	// Channel receives events from the event bus
@@ -102,13 +102,13 @@ type IEventBus interface {
 // It is used as the payload for Event_BlockProcessed events.
 type BlockProcessedData struct {
 	// Block is the processed block
-	Block          *storage.Block
+	Block *storage.Block
 	// Transactions are the transactions in the block
-	Transactions   []*storage.Transaction
+	Transactions []*storage.Transaction
 	// Logs are the transaction logs in the block
-	Logs           []*storage.TransactionLog
+	Logs []*storage.TransactionLog
 	// StateRoot contains the state root information
-	StateRoot      *stateManager.StateRoot
+	StateRoot *stateManager.StateRoot
 	// CommittedState contains the committed state changes
 	CommittedState map[string][]interface{}
 }

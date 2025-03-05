@@ -10,7 +10,7 @@ import (
 // Command constants for PostgreSQL operations
 const (
 	// PgDump is the command name for PostgreSQL database dump
-	PgDump    = "pg_dump"
+	PgDump = "pg_dump"
 	// PgRestore is the command name for PostgreSQL database restore
 	PgRestore = "pg_restore"
 )
@@ -18,23 +18,23 @@ const (
 // SnapshotDatabaseConfig contains the configuration for connecting to a PostgreSQL database.
 type SnapshotDatabaseConfig struct {
 	// Host is the database server hostname
-	Host        string
+	Host string
 	// Port is the database server port
-	Port        int
+	Port int
 	// DbName is the name of the database to connect to
-	DbName      string
+	DbName string
 	// User is the username for database authentication
-	User        string
+	User string
 	// Password is the password for database authentication
-	Password    string
+	Password string
 	// SchemaName is the database schema to use
-	SchemaName  string
+	SchemaName string
 	// SSLMode specifies the SSL mode for the connection
-	SSLMode     string
+	SSLMode string
 	// SSLKey is the path to the client SSL key file
-	SSLKey      string
+	SSLKey string
 	// SSLCert is the path to the client SSL certificate file
-	SSLCert     string
+	SSLCert string
 	// SSLRootCert is the path to the SSL root certificate file
 	SSLRootCert string
 }
@@ -51,13 +51,13 @@ func (sdc *SnapshotDatabaseConfig) IsValid() (bool, error) {
 // SnapshotConfig contains the common configuration for snapshot operations.
 type SnapshotConfig struct {
 	// Chain identifies the blockchain network
-	Chain          config.Chain
+	Chain config.Chain
 	// SidecarVersion is the version of the sidecar software
 	SidecarVersion string
 	// DBConfig contains the database connection configuration
-	DBConfig       SnapshotDatabaseConfig
+	DBConfig SnapshotDatabaseConfig
 	// Verbose enables detailed logging
-	Verbose        bool
+	Verbose bool
 }
 
 // IsValid checks if the snapshot configuration is valid.
@@ -76,11 +76,11 @@ func (sc *SnapshotConfig) IsValid() (bool, error) {
 type CreateSnapshotConfig struct {
 	SnapshotConfig
 	// DestinationPath is the directory where the snapshot will be saved
-	DestinationPath      string
+	DestinationPath string
 	// GenerateMetadataFile indicates whether to generate a metadata file for the snapshot
 	GenerateMetadataFile bool
 	// Kind specifies the type of snapshot to create (Slim, Full, Archive)
-	Kind                 Kind
+	Kind Kind
 }
 
 // IsValid checks if the create snapshot configuration is valid.
@@ -102,17 +102,17 @@ func (csc *CreateSnapshotConfig) IsValid() (bool, error) {
 type RestoreSnapshotConfig struct {
 	SnapshotConfig
 	// VerifySnapshotHash indicates whether to verify the snapshot hash
-	VerifySnapshotHash      bool
+	VerifySnapshotHash bool
 	// VerifySnapshotSignature indicates whether to verify the snapshot signature
 	VerifySnapshotSignature bool
 	// SnapshotPublicKey is the public key used to verify the snapshot signature
-	SnapshotPublicKey       string
+	SnapshotPublicKey string
 	// ManifestUrl is the URL of the snapshot manifest
-	ManifestUrl             string
+	ManifestUrl string
 	// Input is the path or URL to the snapshot file
-	Input                   string
+	Input string
 	// Kind specifies the type of snapshot to restore (Slim, Full, Archive)
-	Kind                    Kind
+	Kind Kind
 }
 
 // IsValid checks if the restore snapshot configuration is valid.

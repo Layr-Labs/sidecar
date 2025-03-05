@@ -21,15 +21,15 @@ import (
 // proxy contracts.
 type ContractManager struct {
 	// ContractStore provides storage and retrieval of contract data
-	ContractStore  contractStore.ContractStore
+	ContractStore contractStore.ContractStore
 	// EthereumClient is used to interact with the Ethereum blockchain
 	EthereumClient *ethereum.Client
 	// AbiFetcher is used to fetch contract ABIs
-	AbiFetcher     *abiFetcher.AbiFetcher
+	AbiFetcher *abiFetcher.AbiFetcher
 	// metricsSink collects metrics about contract operations
-	metricsSink    *metrics.MetricsSink
+	metricsSink *metrics.MetricsSink
 	// Logger is used for logging contract operations
-	Logger         *zap.Logger
+	Logger *zap.Logger
 }
 
 // NewContractManager creates a new ContractManager instance with the provided dependencies.

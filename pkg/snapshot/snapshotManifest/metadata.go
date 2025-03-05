@@ -44,19 +44,19 @@ func (ca *CreatedAt) UnmarshalJSON(data []byte) error {
 // URL, schema, kind, and signature.
 type Snapshot struct {
 	// SidecarVersion is the version of sidecar that created the snapshot
-	SidecarVersion string    `json:"sidecarVersion"`
+	SidecarVersion string `json:"sidecarVersion"`
 	// Chain identifies the blockchain network for the snapshot
-	Chain          string    `json:"chain"`
+	Chain string `json:"chain"`
 	// CreatedAt is the timestamp when the snapshot was created
-	CreatedAt      CreatedAt `json:"createdAt"`
+	CreatedAt CreatedAt `json:"createdAt"`
 	// Url is the location where the snapshot file can be downloaded
-	Url            string    `json:"url"`
+	Url string `json:"url"`
 	// Schema is the database schema included in the snapshot
-	Schema         string    `json:"schema"`
+	Schema string `json:"schema"`
 	// Kind specifies the type of snapshot (Slim, Full, Archive)
-	Kind           string    `json:"kind"`
+	Kind string `json:"kind"`
 	// Signature is the cryptographic signature for the snapshot file
-	Signature      string    `json:"signature"`
+	Signature string `json:"signature"`
 }
 
 // Metadata contains version information for the snapshot manifest.
@@ -69,7 +69,7 @@ type Metadata struct {
 // It provides methods for finding compatible snapshots based on specified criteria.
 type SnapshotManifest struct {
 	// Metadata contains version information for the manifest
-	Metadata  Metadata    `json:"metadata"`
+	Metadata Metadata `json:"metadata"`
 	// Snapshots is a list of available snapshots
 	Snapshots []*Snapshot `json:"snapshots"`
 }

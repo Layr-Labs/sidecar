@@ -28,9 +28,9 @@ type Kind string
 // Constants defining the different types of snapshots.
 const (
 	// Kind_Slim creates a snapshot containing only gold tables.
-	Kind_Slim    Kind = "slim"
+	Kind_Slim Kind = "slim"
 	// Kind_Full creates a snapshot containing gold and sot tables.
-	Kind_Full    Kind = "full"
+	Kind_Full Kind = "full"
 	// Kind_Archive creates a complete snapshot of the database.
 	Kind_Archive Kind = "archive"
 )

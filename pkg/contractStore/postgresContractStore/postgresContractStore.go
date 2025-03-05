@@ -21,9 +21,9 @@ import (
 // It provides methods for storing and retrieving contract data, including ABIs and proxy relationships.
 type PostgresContractStore struct {
 	// Db is the GORM database connection
-	Db           *gorm.DB
+	Db *gorm.DB
 	// Logger is used for logging operations
-	Logger       *zap.Logger
+	Logger *zap.Logger
 	// globalConfig contains application configuration
 	globalConfig *config.Config
 }

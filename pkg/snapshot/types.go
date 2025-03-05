@@ -5,13 +5,13 @@ package snapshot
 // the operation's output, any errors encountered, and the command executed.
 type Result struct {
 	// Mime is the MIME type of the output file
-	Mime        string
+	Mime string
 	// File is the path to the output file
-	File        string
+	File string
 	// Output contains the standard output from the command
-	Output      string
+	Output string
 	// Error contains error information if the operation failed
-	Error       *ResultError
+	Error *ResultError
 	// FullCommand is the complete command that was executed
 	FullCommand string
 }
@@ -20,9 +20,9 @@ type Result struct {
 // a snapshot operation.
 type ResultError struct {
 	// Err is the underlying error
-	Err       error
+	Err error
 	// CmdOutput contains the command's error output
 	CmdOutput string
 	// ExitCode is the exit code returned by the command
-	ExitCode  int
+	ExitCode int
 }

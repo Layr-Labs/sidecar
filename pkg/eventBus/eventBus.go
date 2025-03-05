@@ -13,7 +13,7 @@ type EventBus struct {
 	// consumers is a thread-safe list of event consumers
 	consumers *eventBusTypes.ConsumerList
 	// logger is used for logging event operations
-	logger    *zap.Logger
+	logger *zap.Logger
 }
 
 // NewEventBus creates a new EventBus with the provided logger.

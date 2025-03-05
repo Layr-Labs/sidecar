@@ -13,10 +13,10 @@ type RewardsCalculationType string
 var (
 	// RewardsCalculationType_CalculateRewards indicates a request to calculate rewards for a specific cutoff date
 	RewardsCalculationType_CalculateRewards RewardsCalculationType = "calculateRewards"
-	
+
 	// RewardsCalculationType_BackfillStakerOperators indicates a request to backfill all staker-operator relationships
 	RewardsCalculationType_BackfillStakerOperators RewardsCalculationType = "backfillStakerOperators"
-	
+
 	// RewardsCalculationType_BackfillStakerOperatorsSnapshot indicates a request to backfill staker-operator relationships for a specific snapshot
 	RewardsCalculationType_BackfillStakerOperatorsSnapshot RewardsCalculationType = "backfillStakerOperatorsSnapshot"
 )
@@ -26,7 +26,7 @@ var (
 type RewardsCalculationData struct {
 	// CalculationType determines which calculation operation to perform
 	CalculationType RewardsCalculationType
-	
+
 	// CutoffDate is the date up to which to calculate rewards (format: YYYY-MM-DD)
 	// If empty or "latest", the latest available date will be used
 	CutoffDate string
@@ -37,7 +37,7 @@ type RewardsCalculationData struct {
 type RewardsCalculationMessage struct {
 	// Data contains the parameters for the calculation request
 	Data RewardsCalculationData
-	
+
 	// ResponseChan is the channel where the calculation response will be sent
 	// If nil, no response will be sent back
 	ResponseChan chan *RewardsCalculatorResponse
@@ -54,7 +54,7 @@ type RewardsCalculatorResponseData struct {
 type RewardsCalculatorResponse struct {
 	// Data contains the result of the calculation
 	Data *RewardsCalculatorResponseData
-	
+
 	// Error contains any error that occurred during calculation
 	// If nil, the calculation was successful
 	Error error
@@ -66,13 +66,13 @@ type RewardsCalculatorResponse struct {
 type RewardsCalculatorQueue struct {
 	// logger for logging operations and errors
 	logger *zap.Logger
-	
+
 	// rewardsCalculator performs the actual rewards calculations
 	rewardsCalculator *rewards.RewardsCalculator
-	
+
 	// queue is the channel for receiving calculation requests
 	queue chan *RewardsCalculationMessage
-	
+
 	// done is a channel for signaling shutdown of the queue
 	done chan struct{}
 }

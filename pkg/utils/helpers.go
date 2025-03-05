@@ -13,7 +13,7 @@ import (
 var (
 	// NullEthereumAddress is the null Ethereum address without the 0x prefix
 	NullEthereumAddress = "0000000000000000000000000000000000000000"
-	
+
 	// NullEthereumAddressHex is the null Ethereum address with the 0x prefix
 	NullEthereumAddressHex = fmt.Sprintf("0x%s", NullEthereumAddress)
 )

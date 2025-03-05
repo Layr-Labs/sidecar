@@ -17,35 +17,35 @@ import (
 // validation, and metadata handling.
 type SnapshotFile struct {
 	// Dir is the directory containing the snapshot file
-	Dir              string
+	Dir string
 	// SnapshotFileName is the name of the snapshot file
 	SnapshotFileName string
 	// CreatedTimestamp is the time when the snapshot was created
 	CreatedTimestamp time.Time
 	// Chain identifies the blockchain network for the snapshot
-	Chain            string
+	Chain string
 	// Version is the sidecar version used to create the snapshot
-	Version          string
+	Version string
 	// SchemaName is the database schema included in the snapshot
-	SchemaName       string
+	SchemaName string
 	// Kind specifies the type of snapshot (Slim, Full, Archive)
-	Kind             string
+	Kind string
 }
 
 // SnapshotMetadata contains metadata about a snapshot for serialization to JSON.
 type SnapshotMetadata struct {
 	// Version is the sidecar version used to create the snapshot
-	Version   string `json:"version"`
+	Version string `json:"version"`
 	// Chain identifies the blockchain network for the snapshot
-	Chain     string `json:"chain"`
+	Chain string `json:"chain"`
 	// Schema is the database schema included in the snapshot
-	Schema    string `json:"schema"`
+	Schema string `json:"schema"`
 	// Kind specifies the type of snapshot (Slim, Full, Archive)
-	Kind      string `json:"kind"`
+	Kind string `json:"kind"`
 	// Timestamp is the creation time of the snapshot in RFC3339 format
 	Timestamp string `json:"timestamp"`
 	// FileName is the name of the snapshot file
-	FileName  string `json:"fileName"`
+	FileName string `json:"fileName"`
 }
 
 // HashExt returns the file extension for hash files.

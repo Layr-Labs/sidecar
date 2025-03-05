@@ -20,9 +20,9 @@ type Fetcher struct {
 	// EthClient is used to communicate with Ethereum nodes
 	EthClient *ethereum.Client
 	// Logger is used for logging fetch operations
-	Logger    *zap.Logger
+	Logger *zap.Logger
 	// Config contains application configuration
-	Config    *config.Config
+	Config *config.Config
 }
 
 // NewFetcher creates a new Fetcher with the provided Ethereum client, configuration, and logger.
