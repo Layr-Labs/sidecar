@@ -116,7 +116,7 @@ func main() {
 
 	rcq := rewardsCalculatorQueue.NewRewardsCalculatorQueue(rc, l)
 
-	p := pipeline.NewPipeline(fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
+	p := pipeline.NewPipeline(fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
 	rps := proofs.NewRewardsProofsStore(rc, l)
 	pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 	rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)

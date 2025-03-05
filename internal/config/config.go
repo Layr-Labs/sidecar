@@ -118,7 +118,6 @@ type SidecarPrimaryConfig struct {
 }
 
 type SideloadConfig struct {
-	Enabled              bool
 	AbiSource            string
 	ContractAddress      string
 	ProxyContractAddress string
@@ -210,7 +209,6 @@ var (
 
 	SidecarPrimaryUrl = "sidecar-primary.url"
 
-	SideloadEnabled              = "sideload.enabled"
 	SideloadAbiSource            = "sideload.abi-source"
 	SideloadContractAddress      = "sideload.contract-address"
 	SideloadProxyContractAddress = "sideload.proxy-contract-address"
@@ -290,7 +288,6 @@ func NewConfig() *Config {
 		},
 
 		SideloadConfig: SideloadConfig{
-			Enabled:              viper.GetBool(normalizeFlagName(SideloadEnabled)),
 			AbiSource:            viper.GetString(normalizeFlagName(SideloadAbiSource)),
 			ContractAddress:      viper.GetString(normalizeFlagName(SideloadContractAddress)),
 			ProxyContractAddress: viper.GetString(normalizeFlagName(SideloadProxyContractAddress)),
