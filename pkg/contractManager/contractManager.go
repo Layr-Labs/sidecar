@@ -120,41 +120,6 @@ func (cm *ContractManager) HandleContractUpgrade(ctx context.Context, blockNumbe
 	return nil
 }
 
-func (cm *ContractManager) CreateContractWithAbi(
-	ctx context.Context,
-	blockNumber uint64,
-	address string,
-) error {
-	// Fetch ABIs
-	bytecodeHash, abi, err := cm.AbiFetcher.FetchContractDetails(ctx, address)
-	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to fetch contract details",
-			zap.Error(err),
-			zap.String("address", address),
-		)
-		return err
-	}
-
-	// Create contract
-	_, err = cm.ContractStore.CreateContract(
-		address,
-		abi,
-		true,
-		bytecodeHash,
-		"",
-		true,
-	)
-	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to create new contract with fetched ABI",
-			zap.Error(err),
-			zap.String("address", address),
-		)
-		return err
-	}
-
-	return nil
-}
-
 func (cm *ContractManager) CreateUpgradedProxyContract(
 	ctx context.Context,
 	blockNumber uint64,
