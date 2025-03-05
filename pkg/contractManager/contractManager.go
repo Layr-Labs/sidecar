@@ -213,6 +213,7 @@ func (cm *ContractManager) InitializeLoadingContract(
 		contractBytecodeHash,
 		"",
 		true,
+		"external",
 	)
 	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to create a contract for contractAddress",
@@ -238,6 +239,7 @@ func (cm *ContractManager) InitializeLoadingContract(
 		implementationBytecodeHash,
 		"",
 		true,
+		"external",
 	)
 	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to create a contract with implementationForAddress",

@@ -120,7 +120,14 @@ func (s *PostgresContractStore) FindOrCreateContract(
 	bytecodeHash string,
 	matchingContractAddress string,
 	checkedForAbi bool,
+	contractType ...string,
 ) (*contractStore.Contract, bool, error) {
+	// Default to 'core' if no contract type is provided
+	cType := "core"
+	if len(contractType) > 0 && contractType[0] != "" {
+		cType = contractType[0]
+	}
+
 	found := false
 	upsertedContract, err := helpers.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
 		contract := &contractStore.Contract{}
@@ -135,7 +142,7 @@ func (s *PostgresContractStore) FindOrCreateContract(
 			return contract, nil
 		}
 
-		contract, err := s.CreateContract(address, abiJson, verified, bytecodeHash, matchingContractAddress, checkedForAbi)
+		contract, err := s.CreateContract(address, abiJson, verified, bytecodeHash, matchingContractAddress, checkedForAbi, cType)
 		if err != nil {
 			s.Logger.Sugar().Errorw("Failed to create contract", zap.Error(err), zap.String("address", address))
 			return nil, err
@@ -302,7 +309,7 @@ func (s *PostgresContractStore) loadContractData() (*contractStore.CoreContracts
 	return data, nil
 }
 
-func (s *PostgresContractStore) InitializeContracts(contractsData *contractStore.CoreContractsData) error {
+func (s *PostgresContractStore) InitializeContracts(contractsData *contractStore.CoreContractsData, contractType string) error {
 	contracts := make([]*contractStore.Contract, 0)
 	res := s.Db.Find(&contracts)
 	if res.Error != nil {
@@ -317,6 +324,7 @@ func (s *PostgresContractStore) InitializeContracts(contractsData *contractStore
 			contract.BytecodeHash,
 			"",
 			true,
+			contractType,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create core contract: %w", err)
@@ -362,7 +370,7 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 		return fmt.Errorf("failed to load core contracts: %w", err)
 	}
 
-	if err := s.InitializeContracts(coreContracts); err != nil {
+	if err := s.InitializeContracts(coreContracts, "core"); err != nil {
 		return fmt.Errorf("failed to initialize core contracts: %w", err)
 	}
 	return nil
@@ -381,7 +389,7 @@ func (s *PostgresContractStore) InitializeExternalContracts(filename string) err
 		return fmt.Errorf("failed to decode external contracts data: %w", err)
 	}
 
-	if err := s.InitializeContracts(data); err != nil {
+	if err := s.InitializeContracts(data, "external"); err != nil {
 		return fmt.Errorf("failed to initialize external contracts: %w", err)
 	}
 
