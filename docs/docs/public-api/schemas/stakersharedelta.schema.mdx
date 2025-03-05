@@ -1,0 +1,33 @@
+---
+id: stakersharedelta
+title: "StakerShareDelta"
+description: ""
+sidebar_label: "StakerShareDelta"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"blockDate":"string","blockTime":"2024-07-29T15:51:28.071Z","shares":"string","staker":"string","strategy":"string","strategyIndex":0,"transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"StakerShareDelta"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"blockDate":{"type":"string"},"blockTime":{"type":"string","format":"date-time"},"shares":{"type":"string"},"staker":{"type":"string"},"strategy":{"type":"string"},"strategyIndex":{"type":"integer","format":"uint64"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["block_time","transaction_metadata"],"title":"StakerShareDelta"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

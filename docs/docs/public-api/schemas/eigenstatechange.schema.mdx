@@ -1,0 +1,33 @@
+---
+id: eigenstatechange
+title: "EigenStateChange"
+description: ""
+sidebar_label: "EigenStateChange"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"avsOperatorStateChange":{"avs":"string","operator":"string","registered":true,"transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}},"disabledDistributionRoot":{"rootIndex":0,"transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}},"operatorShareDelta":{"blockDate":"string","blockTime":"2024-07-29T15:51:28.071Z","operator":"string","shares":"string","staker":"string","strategy":"string","transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}},"rewardSubmission":{"amount":"string","avs":"string","duration":0,"endTimestamp":"2024-07-29T15:51:28.071Z","multiplier":"string","rewardHash":"string","rewardType":"string","startTimestamp":"2024-07-29T15:51:28.071Z","strategy":"string","strategyIndex":0,"token":"string","transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}},"stakerDelegationChange":{"delegated":true,"operator":"string","staker":"string","transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}},"stakerShareDelta":{"blockDate":"string","blockTime":"2024-07-29T15:51:28.071Z","shares":"string","staker":"string","strategy":"string","strategyIndex":0,"transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}},"submittedDistributionRoot":{"activatedAt":"2024-07-29T15:51:28.071Z","activatedAtUnit":"string","createdAtBlockNumber":0,"rewardsCalculationEnd":"2024-07-29T15:51:28.071Z","rewardsCalculationEndUnit":"string","root":"string","rootIndex":0,"transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"EigenStateChange"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"avsOperatorStateChange":{"type":"object","properties":{"avs":{"type":"string"},"operator":{"type":"string"},"registered":{"type":"boolean"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["transaction_metadata"],"title":"AvsOperatorStateChange"},"disabledDistributionRoot":{"type":"object","properties":{"rootIndex":{"type":"integer","format":"uint64"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["transaction_metadata"],"title":"DisabledDistributionRoot"},"operatorShareDelta":{"type":"object","properties":{"blockDate":{"type":"string"},"blockTime":{"type":"string","format":"date-time"},"operator":{"type":"string"},"shares":{"type":"string"},"staker":{"type":"string"},"strategy":{"type":"string"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["block_time","transaction_metadata"],"title":"OperatorShareDelta"},"rewardSubmission":{"type":"object","properties":{"amount":{"type":"string"},"avs":{"type":"string"},"duration":{"type":"integer","format":"uint64"},"endTimestamp":{"type":"string","format":"date-time"},"multiplier":{"type":"string"},"rewardHash":{"type":"string"},"rewardType":{"type":"string"},"startTimestamp":{"type":"string","format":"date-time"},"strategy":{"type":"string"},"strategyIndex":{"type":"integer","format":"uint64"},"token":{"type":"string"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["start_timestamp","end_timestamp","transaction_metadata"],"title":"RewardSubmission"},"stakerDelegationChange":{"type":"object","properties":{"delegated":{"type":"boolean"},"operator":{"type":"string"},"staker":{"type":"string"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["transaction_metadata"],"title":"StakerDelegationChange"},"stakerShareDelta":{"type":"object","properties":{"blockDate":{"type":"string"},"blockTime":{"type":"string","format":"date-time"},"shares":{"type":"string"},"staker":{"type":"string"},"strategy":{"type":"string"},"strategyIndex":{"type":"integer","format":"uint64"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["block_time","transaction_metadata"],"title":"StakerShareDelta"},"submittedDistributionRoot":{"type":"object","properties":{"activatedAt":{"type":"string","format":"date-time"},"activatedAtUnit":{"type":"string"},"createdAtBlockNumber":{"type":"integer","format":"uint64"},"rewardsCalculationEnd":{"type":"string","format":"date-time"},"rewardsCalculationEndUnit":{"type":"string"},"root":{"type":"string"},"rootIndex":{"type":"integer","format":"uint64"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["rewards_calculation_end","activated_at","transaction_metadata"],"title":"SubmittedDistributionRoot"}},"required":["avs_operator_state_change","operator_share_delta","reward_submission","staker_delegation_change","staker_share_delta","submitted_distribution_root","disabled_distribution_root"],"title":"EigenStateChange"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

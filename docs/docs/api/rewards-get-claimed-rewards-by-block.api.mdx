@@ -1,0 +1,71 @@
+---
+id: rewards-get-claimed-rewards-by-block
+title: "GetClaimedRewardsByBlock"
+description: "GetClaimedRewardsByBlock returns the claimed rewards for the provided block height"
+sidebar_label: "GetClaimedRewardsByBlock"
+hide_title: true
+hide_table_of_contents: true
+api: eJy1VEtP20AQ/ivWnlopjUNV9ZBTASGE1FYV0FNVoc16Yi+sd5d9JLiW/3tn1gs4gdBTc8l65pv3N9OzCrxw0gZpNFuycwinissWqkvYclf5k+5EGXFXOAjRaV+EBgoxIlCWIMXauCS3zmxkhYpVMmlA1k1gM2YsOE4BLioMkR3fHAqFBpY73kIA59nyV880fqBh8nrz5FVSvpaHBt8O7qN0gO6DizBjXjTQcrbsWegs2frgpK7ZMPwmsLdGe/Ck/7hY0N9uF66iEOD9OqriEYxBhNEBdCA4t1ZJkWoqbz3Z9C9jmtUtCMoU+4IdCHKMmLv2byBvTRzD7RUxG1vxPbYrcBO9xPxqlMwYTqTlaMoiyj5/IpNxaO5Vd5Wk9ypSPZfGvB4TuNMH7B0IaSUcSDaYO9CvzQJVMigS7RABNemHal4TA55ahsNDWjSGaFRD6hjNf8nKjCg3R2XqjS/7KV2GMnP2w6Mr4s/apKxyDmeyBv2Vd+CK4x8XxZXFotZ5yAjfIBtHdhzNF/MFSnY5c2paq5CzydhPjZ/2YxIBJx2MMGpWSC1UrLAhBVeq8OA2ErlXcF0V1C8/z8zjInU378LE1TXwFjHRKZQ3IVi/LMvtdjsHwijCzB+6PwhBekqVeLI2X/a02G1kNBDTn6N8u7h+4RkZqr2JTsDcuLrMRr4kLM3MGh9aride3lj0nRb2zxv2f+5Q5l+Ah1BatNVUdaquz0R6phoO/IjlRaOv5d712ecTUrPByslF36+4h59ODQOJ7yO4DuX43HAn+YrYhlcNl47eyOU1Vx7eaMa7y3ze3heHqshCrjvKnKtIX/i8g27/cg6/Ed8Ar2iZMY8RcowXz4aJ8YsTN0y37/yMpv0XxvEtkQ==
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetClaimedRewardsByBlock"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/blocks/{block_height}/claimed-rewards"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetClaimedRewardsByBlock returns the claimed rewards for the provided block height
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"block_height","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"rewards":{"type":"object","properties":{"amount":{"type":"string"},"blockNumber":{"type":"integer","format":"uint64"},"claimer":{"type":"string"},"distributionRoot":{"type":"string"},"earner":{"type":"string"},"recipient":{"type":"string"},"token":{"type":"string"}},"title":"ClaimedReward"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

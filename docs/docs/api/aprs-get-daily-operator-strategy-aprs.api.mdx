@@ -1,0 +1,71 @@
+---
+id: aprs-get-daily-operator-strategy-aprs
+title: "GetDailyOperatorStrategyAprs"
+description: "GetDailyOperatorStrategyAprs"
+sidebar_label: "GetDailyOperatorStrategyAprs"
+hide_title: true
+hide_table_of_contents: true
+api: eJy9VMtu2zAQ/BWCpxZwTbtHnWo0QWCgRYs6PRlBQEtriSlNMiRlRxX0792l5UdsASl6qA8WRQ73MTPallsHXkZlzbzgGZ85Hx7vIN5IpZtv6cj6RcQHlA0d8hF30ssNRMCXbNlygy940/bgR1kUHgIBlcF9J2OFaw/PtfKAOaKvYcRDXsFG8qzlsXF0P0SvTMm7bnQMWWDWfw7zQODgrAkQ6PzjZEKPAkLulaOGEb2o8xxrXdeaHcCYJLcmgokEl85plSd+xFOgO+11Trt6gjwSM55YiGqfURJdf4MaKH9Eq0T6IEU8qqhpa0AiPE8/BMmSJOKgSjBaNuCFK4KgusR2ypGh12y8oTtqXlkySQmpDVIk44dw4mCAINpLL3SioLgfErQlWbuk69qm7vpebqnML1Qmm32fs4WDXK178hG+RcPt65yOJ+MJv6z+s904jbZMl8P5Zba2nsUK2FkGFCHa3OoRUybXdYHEMqk1C+C3Cj3BpCkY8R7GvSNknhzRe/Ms1D3IDWJqr3G/itGFTIjdbjc+8T5+aX4jBG2jCESdf7o4Rb3QaUAOPGX5Or+/iozkmmBrn8PY+lL0l4IgLKnubIgbac6ivKHrKxqPZovwEoXTEr++ri+h7TVf7q2Nkkzx76g7rrOBKXCSngDpm0bnVVglRWrblQzw0+uuo+3nGjxafonLrfRKrsgZOGQKFWiN7ltLHeCq6OMny9/96EfEe4b5BpvpN6VpqAepa3rD5S9ohgYZTaT/mD8x1D0grgJZgE/9749mOK1cPLt0NZ5o7B2/07tbcsQfUc0K0A==
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetDailyOperatorStrategyAprs"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/aprs/v1/operators/{operator_address}/daily-aprs/{date}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetDailyOperatorStrategyAprs
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"operator_address","in":"path","required":true,"schema":{"type":"string"}},{"name":"date","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"aprs":{"type":"object","properties":{"apr":{"type":"string"},"strategy":{"type":"string"}},"title":"OperatorStrategyApr"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

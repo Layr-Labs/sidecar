@@ -1,0 +1,33 @@
+---
+id: listoperatorslashinghistoryresponse
+title: "ListOperatorSlashingHistoryResponse"
+description: ""
+sidebar_label: "ListOperatorSlashingHistoryResponse"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"slashingEvents":{"blockNumber":0,"description":"string","logIndex":0,"operator":"string","operatorSet":{"avs":"string","id":0},"strategies":{"strategy":"string","totalSharesSlashed":"string","wadSlashed":"string"},"transactionHash":"string"}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListOperatorSlashingHistoryResponse"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"slashingEvents":{"type":"object","properties":{"blockNumber":{"type":"integer","format":"uint64"},"description":{"type":"string"},"logIndex":{"type":"integer","format":"uint64"},"operator":{"type":"string"},"operatorSet":{"type":"object","properties":{"avs":{"type":"string"},"id":{"type":"integer","format":"uint64"}},"title":"SlashingEvent_OperatorSet"},"strategies":{"type":"object","properties":{"strategy":{"type":"string"},"totalSharesSlashed":{"type":"string"},"wadSlashed":{"type":"string"}},"title":"SlashingEvent_Strategy"},"transactionHash":{"type":"string"}},"required":["operatorSet"],"title":"SlashingEvent"}},"title":"ListOperatorSlashingHistoryResponse"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

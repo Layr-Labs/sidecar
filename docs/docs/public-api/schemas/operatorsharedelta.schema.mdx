@@ -1,0 +1,33 @@
+---
+id: operatorsharedelta
+title: "OperatorShareDelta"
+description: ""
+sidebar_label: "OperatorShareDelta"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"blockDate":"string","blockTime":"2024-07-29T15:51:28.071Z","operator":"string","shares":"string","staker":"string","strategy":"string","transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"OperatorShareDelta"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"blockDate":{"type":"string"},"blockTime":{"type":"string","format":"date-time"},"operator":{"type":"string"},"shares":{"type":"string"},"staker":{"type":"string"},"strategy":{"type":"string"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["block_time","transaction_metadata"],"title":"OperatorShareDelta"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

@@ -1,0 +1,73 @@
+---
+id: rewards-list-earner-lifetime-rewards
+title: "ListEarnerLifetimeRewards"
+description: "Lists the lifetime rewards for an earner"
+sidebar_label: "ListEarnerLifetimeRewards"
+hide_title: true
+hide_table_of_contents: true
+api: eJy9lE1P20AQhv/Kak+tlMaB3nJqVKEKiVYI6ImiamKPnYX17rIfCcHyf++MbYhDKPRULmzG73zszDPbyAJD7pWLyho5l2cqxCDiCoVWJUZVo/C4AV8EUVovwAgEb9D/Mr/MBcbkTRBA2hCFLUW0d8gGU3Qhoo2gBdQ2mSggz1OdNEQs5ERahx4452lBWS/6FL85+0kX/2zIPnwhDwceaozog5xfN9LQD/Lsq1kUhcfAKsWXcBBXdPZ4n5SndPPoE05kyFdYg5w3Mm4dO4folalk296wODhrAgb+fjyb8b/91lymPKckZdLiSUxJcmsimshycE6rvLtVdhvYpznMaZe3mEe+j+ceRNVnNPgQz6HC95WOVD9SvUQ/0ioqoiLLRNKUaqByZCLb52PZTjqPS/WI/6Ynh6iiZhUVpEx3Hw4zcPB+hf3AX+kzRWZAXpvALmk/8UUfo23HY7zetemm5T/ygop5eC6OJkmQrCxTVWFXG8Mwl9mgyNZHWQ9NyJo9etrsCflP/pk6ZUrb1TtUd6IqNGewRS8W56fi0mGuymHoJF9T2J6Wo+lsOiPLPkNfbe00Qdw5h7Fzt168NKMM1NZoc6snQplcp4JaJUBrEdCvFbHYLxp1MkwHEiHv+j4sxyjUFUJNmuQ12VcxujDPss1mM0XWaNZMH7aPJCFcle4QKe2XF1+p4UQ4Mvm7LN9Prw4iEw4m2ORznFpfZYNTyFjLY3M2xBrMKMpbq7/Xw2a3cv/ttRpojURf5jSobh+6GzcDXzsCCYIjbmPPGJ3mL9+oA8wI2hU1hKM0zRIC/vS6bdl8n9BvyU7HNXgFS4aQXr9CBT4T5SXogG+06MPFsD4fxd8uMhjBbLl40Il/0fEOtwcvbHtDDiuEgp8fKqTXLOhldHHkffAUtuPF/HbCFPwBPiFDbQ==
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListEarnerLifetimeRewards"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/earners/{earnerAddress}/lifetime-rewards"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Lists the lifetime rewards for an earner
+
+Returns a list of tokens and the total amount accumulated
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"earnerAddress","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"nextPage":{"type":"object","properties":{"pageNumber":{"type":"integer","format":"uint32"},"pageSize":{"type":"integer","format":"uint32"}},"title":"Pagination"},"rewards":{"type":"object","properties":{"amount":{"type":"string"},"token":{"type":"string"}},"title":"RewardAmount"}},"required":["nextPage"]}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

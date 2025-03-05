@@ -1,0 +1,71 @@
+---
+id: protocol-list-operator-strategy-queued-withdrawals
+title: "ListOperatorStrategyQueuedWithdrawals"
+description: "ListOperatorStrategyQueuedWithdrawals"
+sidebar_label: "ListOperatorStrategyQueuedWithdrawals"
+hide_title: true
+hide_table_of_contents: true
+api: eJy9VE1v2zAM/SuGThuQRckw7JDTiqEYCnRbt3TYoSgGRWZsNbKk6iOpZ/i/j3ScxEkKrMCA5RDL5CMpPj6zYdaBF1FZc5WzGbvxNlpp9a9rFeLXzmX9POIDivpbggT5TxXL3IuN0IGNmBNeVBDBBza7a5jBF0xj+8iLPPcQCKcMmp2IJZ49PCblAetFn2DEgiyhEmzWsFg7Cg/RK1Owth3tM4b+Dv+a8Z7AwVkTIJD/7WRCjxyC9MoRD4ieJymxyDLpbAfGItKaCCYSXDinlexo4w+BYprzmnbxADISR574iGpbcTPg769gUdm0LXnSyIgttJWrL6lagB/4Fd6xQMuILa2vBIayhLb37ygkRLE6Qh+IZlFFTaZ5hzkMGZ3dDxGioCHTDTuNMOTymLeXigYFU1qSWwFdyzTEGeO7xHw95TsFBd6ciKnlvRaQIt6c6KLlj129N5ujgsosbdd23+SlKsBcixp8dnFzlc0dSLXsB4rwNcp529F0PBlP2GmfH23lNIq+Cw7D4AxZz2IJ2aDCrq1RpozUKUfGM6F1FsCvFeosEybPaCBh3KtMyG7kvfQHqW5BVIhJXqO9jNGFGeebzWYMhNGEGT/VvxGCUlS608PSfjjx4ixRvUCqPlT5fHV7lhmZN8EmL2FsfcH7oMAJS4pwNsRKmEGWlyrgiM+9HCM8Re60wE+77e/S9OoYyA7nM8W/vULwPDtfOAeRkP98fTyjE9RziR1RsaZZiAA/vG5bMiPY12jH41p4JRakIlx3uQp0RikvMQGc9bVfGezV935Fvc6w+LP99kZhampR6ERveFxB/cxKpd34H8ufEtjeY0gJIqd9gkxsURe4N10cxJ8tSlrA+8//0yXp6A8Dd0pv
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListOperatorStrategyQueuedWithdrawals"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/protocol/v1/operators/{operatorAddress}/strategies/{strategyAddress}/queued-withdrawals"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+ListOperatorStrategyQueuedWithdrawals
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"operatorAddress","in":"path","required":true,"schema":{"type":"string"}},{"name":"strategyAddress","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"withdrawals":{"type":"object","properties":{"amount":{"type":"string"},"blockNumber":{"type":"integer","format":"uint64"},"staker":{"type":"string"}},"title":"StakerWithdrawal"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

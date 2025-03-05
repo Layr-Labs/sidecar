@@ -1,0 +1,73 @@
+---
+id: rewards-list-earner-historical-rewards
+title: "ListEarnerHistoricalRewards"
+description: "List historical rewards for a given earner address"
+sidebar_label: "ListEarnerHistoricalRewards"
+hide_title: true
+hide_table_of_contents: true
+api: eJzNVcFu2zAM/RVBpw3I4rS75bRgKLYC3VC03akrCsZmbLWypEpy0tTwv4+0jdpJura7LYdEoh7JJ/JRqWWGIfXKRWWNnMszFaIo6Mt6lYIWHjfgsyBW1gsQuVqjEQjeIG2zzGMIv81vc4Gx8iYQQrO/XYlo75EMqTURlFEmH51lqCPsREZICxEMuFDYKDKIKCfSOvTAtE4zInbRwW+Z4ElL4Pszy/6MfBx4KDGiD3J+XUtDG/LtCC86voRSfFMHsaC1x4dKeaQU0Vc4kSEtsAQ5r2XcOnYO0RN92TQ3DA7OmoCBz49nM/7Zrd9llaaUZFVx6TowJeEyoIkMB+c0cWZ4chfYpz7MaZd3mEa+j+cqRNVlNPgYzyHHt5GOUD+rcol+hFVEIifLRFLNSyA6siLb52PZTFqPS/WE78OTQ1RRM4oIKdPeh8P0XX2bIZS2MvHdwBcaQr3qFfNStwaC+zq53Tcsugzswqr9t2jt4SCi66FJNw1/yBNyVuNzaUhHJNHCsqpzbC/MUpzLpEck66Okk2xI6h3tNskwmp/8s+qVWdmWdc/xROVozmBLQ7o4PxWXDlO16kVH8DUF7tR6NJ1NZ2TZ1fBXWzpNQ9Q6h7FzO6yxQDHKQN2KNrV6IpRJdZW1s661COjXimZBgMkE1zNM+0mAtO1YP5yjUFcIJWEqr8lexOjCPEk2m80UGaMZM33cPhGExkXpVqIr+2XvlEpOE4Y8eUOWH6dXB5FJZSbYyqc4tT5PeqeQMJYb52yIJZhRlNcfn50q1sPQ/0+Pai/sSCJNnKYoXK62LHUvw0GopJQjrnUnRVrN9x/SF9RI6i6obhynrpcQ8JfXTcPmhwr9luy0XINXsGSt0iOdqcBrGocV6ICv1PHDRT9nH8XfrtIbwWyZPuiKd7S8x+3BH0FzQw4FQsavJBHpMAt6wF0ceR+82M14gr+dsFj+AJMkjpw=
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListEarnerHistoricalRewards"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/earners/{earnerAddress}/historical-rewards"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+List historical rewards for a given earner address
+
+Returns a list of tokens containing a list of delta rewards for each snapshot date
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"earnerAddress","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"nextPage":{"type":"object","properties":{"pageNumber":{"type":"integer","format":"uint32"},"pageSize":{"type":"integer","format":"uint32"}},"title":"Pagination"},"rewards":{"type":"object","properties":{"amounts":{"type":"object","properties":{"amount":{"type":"string"},"snapshot":{"type":"string"}},"title":"HistoricalReward_HistoricalRewardAmount"},"token":{"type":"string"}},"title":"HistoricalReward"}},"required":["nextPage"]}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

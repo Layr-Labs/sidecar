@@ -1,0 +1,72 @@
+---
+id: protocol-get-registered-avs-for-operator
+title: "GetRegisteredAvsForOperator"
+description: "GetRegisteredAvsForOperator returns the list of registered AVs for a given operator"
+sidebar_label: "GetRegisteredAvsForOperator"
+hide_title: true
+hide_table_of_contents: true
+api: eJzNVE1T2zAQ/SsandqZ1A49+tS0Qykz7ZQB2kthGCFvbIEiCa3skHr837vrOI0JlHNzibx6+/X2rTpZAupoQjLeyUKeQDqHymCCCOWixc8+fg8QVfJRREhNdChSDcISRPgl2XZgsfiJYkkwJSrTghN+9LtyH63X91/AVHUSBumCkyk7E55CxbVBiqcS4HDbIJSZnMmtOwFPS6rrLPrktbc3rxRITkFFtQK6Q1n86qSjD3LeVXKjyjICIgENNxtUqukc4aExFE0WKTYwk6hrWClZdDJtAvtjisZVsu+vGYzBOwTk+/fzOf89pfCi0ZqSLBsrdmBKor1L4BLDVQjW6KG3/A7Zp3ue09/egU7cUuTyk9lmVC0utk1svw8rHH4zmVTFDLDzQJukyomX2jOXFQxxuflC5jtI3h7lO6Iw7w456/P9qN9RFQOHSz/UYJLlIo5NBe6r2kAUi7NTcRFAm+XYKMFbmsqWoaNsns3J8pS3T34VLM1ucMap8yArVt0kw67smTBO26ak9oWyViDE1hD/QrlSMDuYjewrPbA/amIS6hLUijBNtGSvUwpY5Pl6vc6AMZYx2ePmN0FoRIZB3PmHg1tinaYKPO19lm+nl88iE7MOfRM1ZD5W+eiEOWN5dsFjWik3ifK65p+w2O2F9h/t8qjSBI8pD1bR8vUjK92ow4lUSSlHf/eftEjn4oUNPpAjCbwm4jhS190qhB/R9j2bHxqIG7LTsVXRqFsWKz0OpUE+00YslUV4hcg35+ML8Vb8q5nRqNyG61e24S863sPmpQeovyafGlQJcahlC1vQwxHSJMCzl6Kf7vHJMQvmD1DyCVE=
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetRegisteredAvsForOperator"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/protocol/v1/operators/{operator_address}/registered-avs"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetRegisteredAvsForOperator returns the list of registered AVs for a given operator
+BlockHeight is optional, otherwise latest is used.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"operator_address","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"avsAddresses":{"type":"string"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

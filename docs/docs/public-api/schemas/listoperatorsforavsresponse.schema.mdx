@@ -1,0 +1,33 @@
+---
+id: listoperatorsforavsresponse
+title: "ListOperatorsForAvsResponse"
+description: ""
+sidebar_label: "ListOperatorsForAvsResponse"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"operators":{"operator":"string","operatorSets":{"avs":"string","id":0,"magnitude":"string","strategy":"string","totalStaked":"string"}}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListOperatorsForAvsResponse"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"operators":{"type":"object","properties":{"operator":{"type":"string"},"operatorSets":{"type":"object","properties":{"avs":{"type":"string"},"id":{"type":"integer","format":"uint64"},"magnitude":{"type":"string"},"strategy":{"type":"string"},"totalStaked":{"type":"string"}},"title":"OperatorSet"}},"title":"Operator"}},"title":"ListOperatorsForAvsResponse"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

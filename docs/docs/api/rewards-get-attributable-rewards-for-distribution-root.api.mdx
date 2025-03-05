@@ -1,0 +1,71 @@
+---
+id: rewards-get-attributable-rewards-for-distribution-root
+title: "GetAttributableRewardsForDistributionRoot"
+description: "GetAttributableRewardsForDistributionRoot"
+sidebar_label: "GetAttributableRewardsForDistributionRoot"
+hide_title: true
+hide_table_of_contents: true
+api: eJyVVE1v2zAM/SuGThuQxMmOOa3Yui7ABgxpdiqKgrGZWK0sqZKc1DP830faburGXof6YMvk45f4yEoYiw6CNHqViqVY4xFc6u+uMFyE4OS2CLBV2Im/GfdV+lZMFmtjgpgICw5yDOi8WN5UQtMPeUp7wDvXIqUmhYWQ0dnhYyEdUtDgCpwIn2SYg1hWIpSWHbC53ou6vmWwt0Z79Kz/NJ/zJ0WfOGnZP6GviyRB73eFip7BFCQxOqAODAdrlUyaSuN7zzbVMKbZ3mPS1OT4XoJsI7q2/P8DITdFG+6siImAgx+VIziNblSVFypIyvof6rZzZlzZpvwdfPaGetOIR9Q+A4fj+XoN1mdmvEg6QcB9OaoM5gH1WINJJYNi0ZBzpG4ewsCeCXZqBtHiNQXew1nia2aY8HtsKUycXIq48x0fFjH0XE07+XRbTpnKcTVgd93Qe2ea+rpqLuUe9Q8o0UUXv1bRtcVE7joOEvxAE9NmvpjNZ3NxXs8Xk1tFc9UY+75xtDMuChlGvQhExGASoyaR1IkqUrraCJSKPLqDpNGIQKcR37yfdYMBSdPEbl57rjYIOWEKp0iehWD9Mo6Px+MMGaMYM3sq/xCEpkcyiCv/fKalltHAIQ/iS5Sfq83AM/FYe1O4BGfG7ePOyMeM5cZb40MOuuflPZ1+dacn7gV8CrFVQBup7vKpOha8MIxatKDXW0wg9XK46YiaGSXNvqpqCx5/O1XXLH4s0NF03NDxAE6yy2Zpkg8+EyN3oDwO0j4tMvFh3S3OjxEFHy2nE4IuuQRQBf/R8QHL0cVc35JRhpDyoqFkWtwFLVQbeh4GG5Q382mQri65W38BWjM5Sw==
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetAttributableRewardsForDistributionRoot"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/attributable-rewards-by-root/{distribution_root}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetAttributableRewardsForDistributionRoot
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"distribution_root","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"rewards":{"type":"object","properties":{"amount":{"type":"string"},"avs":{"type":"string"},"earner":{"type":"string"},"multiplier":{"type":"string"},"operator":{"type":"string"},"rewardHash":{"type":"string"},"rewardType":{"type":"string"},"shares":{"type":"string"},"snapshot":{"type":"string"},"strategy":{"type":"string"},"token":{"type":"string"}},"title":"AttributableReward"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

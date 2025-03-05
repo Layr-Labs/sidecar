@@ -1,0 +1,33 @@
+---
+id: transactionlog
+title: "TransactionLog"
+description: ""
+sidebar_label: "TransactionLog"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"address":"string","arguments":"string","blockNumber":0,"eventName":"string","logIndex":0,"outputData":"string","transactionHash":"string","transactionIndex":0}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"TransactionLog"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"address":{"type":"string"},"arguments":{"type":"string","format":"byte"},"blockNumber":{"type":"integer","format":"uint64"},"eventName":{"type":"string"},"logIndex":{"type":"integer","format":"uint64"},"outputData":{"type":"string","format":"byte"},"transactionHash":{"type":"string"},"transactionIndex":{"type":"integer","format":"uint64"}},"title":"TransactionLog"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

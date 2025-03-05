@@ -1,0 +1,71 @@
+---
+id: operator-sets-list-operators-for-strategy
+title: "ListOperatorsForStrategy"
+description: "ListOperatorsForStrategy"
+sidebar_label: "ListOperatorsForStrategy"
+hide_title: true
+hide_table_of_contents: true
+api: eJyNVMFu2zAM/RVDpw0I4nQYdshpRdENBTpsWLpTUQyszdhqZUmVaLeZ4X8f6TipkxjdcolMPZIi3yNb5TwGIO3sVa6W6nv/5cIKKf6+1pF2hviFjcRHLDZqpjwEqJAwRLW8bZXlD/aOA+A8zwPGyDht2eyBSj4HfKp1QE5DocaZilmJFahlq2jjB3dtC9V1dwKO3tmIUe4/LBbyl2PMgvbyWEav6izjJOvaJDswJ8mcJbQkcPDe6KyvLX2I4tOe5nT3D5iRVBSkE6S3Gd2u7P+HThQy219KP/8dCpo4GUXnI7PmAgsM7Lx2oQIuVdVs+/RRkBUUVlOd42ScHT+Tl+QIzIrgEfMpThigyeChRibtbOx/fAOF6OOwC0zuIZFvyIwlVjrRZYF9t0RIS5U2Z+k4ZDrUxV1M2yMNdukrlSLHteuLG558qQu017DBkJz/uEpWHjO9HjTD8Ib1vX3j2XwxX6jjl1+4yhuegt45jp0T5iahEpNRBuaaXObMLNE2M3XOfU3AmCRiaDRLOQGbJ9L2OB+EDFkv5GG6RqFuECrG1MGwvSTycZmmz8/PcxSMEcz8ZfOHIax2bXrVrN3no1tmiAcEZXBes3y7ujmJzC200dUhw7kLRTo4xVSwwrN3kSqwoyhvcHrQwr3OCF8o9QZ4YXRD+nbg+1Y1Z+polPZalsmZqeXp5nmlnQVX8gMlUNveQ8RfwXSdmJ9qDDwMt3xsIGi4F1HwOst1lDMLbw0m4smb90tGvfs5LLX3CeecrGUwgpXiGzC1fPHxETcTK7O7Y5cSIecJl6dsUee86jyN/E92m+zM/bR8vRRe/gLlJA0e
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListOperatorsForStrategy"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/v1/operatorSets/strategies/{strategyAddress}/operators"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+ListOperatorsForStrategy
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"strategyAddress","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"operators":{"type":"object","properties":{"operator":{"type":"string"},"operatorSets":{"type":"object","properties":{"avs":{"type":"string"},"id":{"type":"integer","format":"uint64"},"magnitude":{"type":"string"},"strategy":{"type":"string"},"totalStaked":{"type":"string"}},"title":"OperatorSet"}},"title":"Operator"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

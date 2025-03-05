@@ -1,0 +1,71 @@
+---
+id: aprs-get-daily-apr-for-earner-strategy
+title: "GetDailyAprForEarnerStrategy"
+description: "GetDailyAprForEarnerStrategy"
+sidebar_label: "GetDailyAprForEarnerStrategy"
+hide_title: true
+hide_table_of_contents: true
+api: eJy9VE1P20AQ/SvWnlopzYYecypqKUJqparQE0JosCfx0s3uMrMOuJb/e2cckwSChNRK5BLv7pvP92Y6ExMSZBfDWWXm5jgRX59i/gLOt3L4GukEKCCdZ0HhsjUTk4BghRmJzfyyM0EOYokD7BqqipBZYC7IbYJcyzfhXeMIJUKmBieGyxpXYOadyW1Sa87kwtL0/WTrkHcR/9dVJY7+2c2VgjnFwMj6/nE2078KuSSXtHOCPm/KUspeNL54BEuQMoaMISscUvKuHBptb1ltusOY8eYWy6wtJqUlu01ESPRSYsNvYjIslQiDbonBQ4tkU8VWjNiuj4yk/zTVV9gVZuuoUljikIm2a24e3dkNzWy7p3z3dqRLUrbdI3W9rTTSBzG2nZLQDyws4lCOy17rOdG8v2nexfGPs+I8YekWY6sEvpZom8SPprPpzDwv53NcJS9qHIx537hYRCpyjcVeBGlsjmX0k8KF0jeVdLIA7wtGWjthsIBQFdpono78QTnwNyppz9UFwkowDXm5r3NOPLf2/v5+uiNi+tD+EYiQ7BSklX969ioEii5Q9bKL8v3s4sCzCCJwbKjEaaSlHY3YKlZlkCLnFYQ9L68Q/aSNW3VlfMg2eZBZ6ccUulEElypEnWxR1WScdz3OD0Z/pwV93hvkrRz0fphKkWctmav3rrsBxl/k+16v7xqkVu7lcw3k4EbVIvumcqzfItEFeMaDQrZDZ979HIf8fSHxXixwvISg2a3BN3qSz9/YHu403ShvGH3btzeOO/DSXwmuRqiQhq5vno5ly6W8Z3Sw1nRdblfI6Ylq8y8YNDO3
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetDailyAprForEarnerStrategy"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/aprs/v1/earners/{earner_address}/strategies/{strategy}/daily-apr/{date}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetDailyAprForEarnerStrategy
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"earner_address","in":"path","required":true,"schema":{"type":"string"}},{"name":"strategy","in":"path","required":true,"schema":{"type":"string"}},{"name":"date","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"apr":{"type":"string"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

@@ -1,0 +1,33 @@
+---
+id: submitteddistributionroot
+title: "SubmittedDistributionRoot"
+description: ""
+sidebar_label: "SubmittedDistributionRoot"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"activatedAt":"2024-07-29T15:51:28.071Z","activatedAtUnit":"string","createdAtBlockNumber":0,"rewardsCalculationEnd":"2024-07-29T15:51:28.071Z","rewardsCalculationEndUnit":"string","root":"string","rootIndex":0,"transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"SubmittedDistributionRoot"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"activatedAt":{"type":"string","format":"date-time"},"activatedAtUnit":{"type":"string"},"createdAtBlockNumber":{"type":"integer","format":"uint64"},"rewardsCalculationEnd":{"type":"string","format":"date-time"},"rewardsCalculationEndUnit":{"type":"string"},"root":{"type":"string"},"rootIndex":{"type":"integer","format":"uint64"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["rewards_calculation_end","activated_at","transaction_metadata"],"title":"SubmittedDistributionRoot"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

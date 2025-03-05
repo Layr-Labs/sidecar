@@ -1,0 +1,33 @@
+---
+id: block
+title: "Block"
+description: ""
+sidebar_label: "Block"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"blockHash":"string","blockNumber":0,"blockTime":"2024-07-29T15:51:28.071Z","parentHash":"string","transactions":{"blockNumber":0,"contractAddress":"string","fromAddress":"string","logs":{"address":"string","arguments":"string","blockNumber":0,"eventName":"string","logIndex":0,"outputData":"string","transactionHash":"string","transactionIndex":0},"toAddress":"string","transactionHash":"string","transactionIndex":0}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Block"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"blockHash":{"type":"string"},"blockNumber":{"type":"integer","format":"uint64"},"blockTime":{"type":"string","format":"date-time"},"parentHash":{"type":"string"},"transactions":{"type":"object","properties":{"blockNumber":{"type":"integer","format":"uint64"},"contractAddress":{"type":"string"},"fromAddress":{"type":"string"},"logs":{"type":"object","properties":{"address":{"type":"string"},"arguments":{"type":"string","format":"byte"},"blockNumber":{"type":"integer","format":"uint64"},"eventName":{"type":"string"},"logIndex":{"type":"integer","format":"uint64"},"outputData":{"type":"string","format":"byte"},"transactionHash":{"type":"string"},"transactionIndex":{"type":"integer","format":"uint64"}},"title":"TransactionLog"},"toAddress":{"type":"string"},"transactionHash":{"type":"string"},"transactionIndex":{"type":"integer","format":"uint64"}},"title":"Transaction"}},"required":["block_time"],"title":"Block"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

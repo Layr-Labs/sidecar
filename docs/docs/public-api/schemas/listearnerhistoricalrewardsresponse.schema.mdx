@@ -1,0 +1,33 @@
+---
+id: listearnerhistoricalrewardsresponse
+title: "ListEarnerHistoricalRewardsResponse"
+description: ""
+sidebar_label: "ListEarnerHistoricalRewardsResponse"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"nextPage":{"pageNumber":0,"pageSize":0},"rewards":{"amounts":{"amount":"string","snapshot":"string"},"token":"string"}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListEarnerHistoricalRewardsResponse"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"nextPage":{"type":"object","properties":{"pageNumber":{"type":"integer","format":"uint32"},"pageSize":{"type":"integer","format":"uint32"}},"title":"Pagination"},"rewards":{"type":"object","properties":{"amounts":{"type":"object","properties":{"amount":{"type":"string"},"snapshot":{"type":"string"}},"title":"HistoricalReward_HistoricalRewardAmount"},"token":{"type":"string"}},"title":"HistoricalReward"}},"required":["nextPage"],"title":"ListEarnerHistoricalRewardsResponse"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

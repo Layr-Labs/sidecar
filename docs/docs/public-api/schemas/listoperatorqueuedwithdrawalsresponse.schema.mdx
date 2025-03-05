@@ -1,0 +1,33 @@
+---
+id: listoperatorqueuedwithdrawalsresponse
+title: "ListOperatorQueuedWithdrawalsResponse"
+description: ""
+sidebar_label: "ListOperatorQueuedWithdrawalsResponse"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"strategies":{"strategy":"string","withdrawals":{"amount":"string","blockNumber":0,"staker":"string"}}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListOperatorQueuedWithdrawalsResponse"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"strategies":{"type":"object","properties":{"strategy":{"type":"string"},"withdrawals":{"type":"object","properties":{"amount":{"type":"string"},"blockNumber":{"type":"integer","format":"uint64"},"staker":{"type":"string"}},"title":"StakerWithdrawal"}},"title":"QueueStakerStrategyWithdrawal"}},"title":"ListOperatorQueuedWithdrawalsResponse"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

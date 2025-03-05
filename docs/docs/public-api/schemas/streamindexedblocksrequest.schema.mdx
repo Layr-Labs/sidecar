@@ -1,0 +1,33 @@
+---
+id: streamindexedblocksrequest
+title: "StreamIndexedBlocksRequest"
+description: ""
+sidebar_label: "StreamIndexedBlocksRequest"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"filters":{"blockFilter":"string","stateChangeFilter":"string"},"includeStateChanges":true,"onlyBlocksWithData":true}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"StreamIndexedBlocksRequest"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"filters":{"type":"object","properties":{"blockFilter":{"type":"string"},"stateChangeFilter":{"type":"string"}},"required":["block_filter","state_change_filter"],"title":"StreamIndexedBlocksRequest_Filters"},"includeStateChanges":{"type":"boolean"},"onlyBlocksWithData":{"type":"boolean"}},"required":["filters"],"title":"StreamIndexedBlocksRequest"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

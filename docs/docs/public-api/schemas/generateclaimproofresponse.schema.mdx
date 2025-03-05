@@ -1,0 +1,33 @@
+---
+id: generateclaimproofresponse
+title: "GenerateClaimProofResponse"
+description: ""
+sidebar_label: "GenerateClaimProofResponse"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"proof":{"earnerIndex":0,"earnerLeaf":{"earner":"string","earnerTokenRoot":"string"},"earnerTreeProof":"string","root":"string","rootIndex":0,"tokenIndices":0,"tokenLeaves":{"cumulativeEarnings":"string","token":"string"},"tokenTreeProofs":"string"}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GenerateClaimProofResponse"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"proof":{"type":"object","properties":{"earnerIndex":{"type":"integer","format":"uint32"},"earnerLeaf":{"type":"object","properties":{"earner":{"type":"string"},"earnerTokenRoot":{"type":"string","format":"byte"}},"title":"EarnerLeaf"},"earnerTreeProof":{"type":"string","format":"byte"},"root":{"type":"string","format":"byte"},"rootIndex":{"type":"integer","format":"uint32"},"tokenIndices":{"type":"integer","format":"uint32"},"tokenLeaves":{"type":"object","properties":{"cumulativeEarnings":{"type":"string"},"token":{"type":"string"}},"title":"TokenLeaf"},"tokenTreeProofs":{"type":"string","format":"byte"}},"required":["earner_leaf"],"title":"Proof"}},"required":["proof"],"title":"GenerateClaimProofResponse"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

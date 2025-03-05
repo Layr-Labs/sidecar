@@ -1,0 +1,71 @@
+---
+id: protocol-list-operator-queued-withdrawals
+title: "ListOperatorQueuedWithdrawals"
+description: "ListOperatorQueuedWithdrawals"
+sidebar_label: "ListOperatorQueuedWithdrawals"
+hide_title: true
+hide_table_of_contents: true
+api: eJyNVE1v00AQ/SvWnkAKcYIQh5yoUIUqFSikiENVocl6Ym+z3t3uR9Jg+b8z4zip00QqPaTr2Tef7+00wjr0EJU1V4WYiRtvo5VW/7lWIX7vrqz/kTBh8VvFqvCwAR3ESDjwUGNEH8TsrhGGPsjd9h4XReExME4ZMjuIFZ09PiblkfJEn3AkgqywBjFrRNw6dg/RK1OKtr1ncHDWBAx8/34y4X8FBumV42oJPU9SUpJl0tkeTEmkNRFNZDg4p5XsmssfAvs0pznt4gFl5I48Vx/VLiOVAhHL/uu/sNsznYzEZjC2VyNBbdOu9pM4C23l6luqF+gH94qaLckyEkvrayBXkcj28QO7hAirI/RhviMRVdRsmneYZ26PLjvid4h53+MRsvsjOJSsAu6lE48g+o6pek1NpKTKsv5K7IbCepmJfB8wX0/zvbRC3rxQWZs/diHfbY5iKrO0Xe99M5eqRHMNW/TZxc1VNnco1bKXB8HXJOVdsdPxZDwRL1v4bGunSfCdcxg6ZzT6LFaYDTLsKx9lykidChp7BlpnAf1akWozMEXGrIRxr1mQHe/9QxqEukWoCZO8JnsVowuzPN9sNmNkjGbM+Gn7lyAkbKU7USztpxe3RBO9BeQ38pzl69XtSWQargk2eYlj68u8dwo5Y5lsZ0OswQyivEbu0RwPWoz4FHOngRZE29fQ9MQPlES8TOnnQD6dZ6dL5gz/JMGKKuVgTbOAgL+8bls2E9jTU72j4xq8ggWrg1ZYoQKfSYVLCoAndR8Wi3jzs19kbzNKfraf3ghmyy2ATvxFxxVuz6zJ9p5cKoSCXyuVskNd0HpzceB/ss94Tx6ezpdLJugfoaML4g==
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListOperatorQueuedWithdrawals"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/protocol/v1/operators/{operatorAddress}/queued-withdrawals"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+ListOperatorQueuedWithdrawals
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"operatorAddress","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"strategies":{"type":"object","properties":{"strategy":{"type":"string"},"withdrawals":{"type":"object","properties":{"amount":{"type":"string"},"blockNumber":{"type":"integer","format":"uint64"},"staker":{"type":"string"}},"title":"StakerWithdrawal"}},"title":"QueueStakerStrategyWithdrawal"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

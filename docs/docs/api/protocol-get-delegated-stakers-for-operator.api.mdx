@@ -1,0 +1,72 @@
+---
+id: protocol-get-delegated-stakers-for-operator
+title: "GetDelegatedStakersForOperator"
+description: "GetDelegatedStakersForOperator returns the list of stakers that have delegated to an operator."
+sidebar_label: "GetDelegatedStakersForOperator"
+hide_title: true
+hide_table_of_contents: true
+api: eJzNVE1T2zAQ/SsandqZ1A70llNpSykz/WBKe6IMo9gbW6BIQlonBI//e3dlBwyh0GNziSy9/Xr7dltZQiyC9qidlTN5BPgRDFQKoTxFdQUhfnLhu4eg0AURAJtgo8AahNERhVuI2MPoTqGo1QpEufUg0AllhRvMs9/2vXHF1WfQVY1CR3rhuMpMhCOXYa0j+SXLmF6bCGUmJ7K3J+BxSSmeBIeucObi+VzJzqugloB0L2dnrbT0QfbbbC5UWQaIkYCaS/cKazoHuG50AIqEoYGJjEUNSyVnrcSNZ/uIQdtKdt05g6N3NkLk9/3plP8eEnraFAUFWTRGbMEUpHAWwSLDlfdGF6m8/DKyTbsb080voUAuKXD6qPuIFm7wRFXwMtIT6luznEMYYTUlUQEztXBhqSgd2dDd233ZTZLFqb6Ff8OTAWo0jKKEtE31sJteHQc91X0uj3kcc36Warrg4PK84x85VhU3kCtKjZdEPLW1dqyGClKx3LuZzLeQfLWXb/sc8/Zxy7v8TqJvBvkmFSxcym8o5FBXYL+oDQRxcHIsTj0UejG0iuArsup7vJdNsyndPOz8B7f0htSXjOPYWBB9aYRGEbaZT4S2hWlKokYoY0SEsNKkIJojGidiLmaDflSR9DOoeuTqJ6glYZpg6L5G9HGW5+v1OgPGGMZkN5tbgpDItEmNXbh3j16JeNIlsF7vo3w9/rnjmci10TWhgMyFKh+MYs5Ybp93EZfKjry8OLgPiGzvp+X/XE+DnpGEm3ujdNJ94qgdhDnSLulm726luaS72RMbaVefJPqamGRnbTtXEX4F03V8fd1A2NA9HVcqaDVn9dK+K3XkM03JQpkIz9D66scwgK/F3+oZLpXdcAnKNPxFxyvYPLVTu3OyqUGVvHAolx52QLvQ48jBzvLrxrN9dMgK+gM/wldv
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetDelegatedStakersForOperator"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/protocol/v1/operators/{operator_address}/delegated-stakers"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetDelegatedStakersForOperator returns the list of stakers that have delegated to an operator.
+BlockHeight is optional, otherwise latest is used.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"operator_address","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"nextPage":{"type":"object","properties":{"pageNumber":{"type":"integer","format":"uint32"},"pageSize":{"type":"integer","format":"uint32"}},"title":"Pagination"},"stakerAddresses":{"type":"string"}},"required":["next_page"]}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

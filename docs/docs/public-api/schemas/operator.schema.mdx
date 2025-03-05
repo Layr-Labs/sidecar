@@ -1,0 +1,33 @@
+---
+id: operator
+title: "Operator"
+description: ""
+sidebar_label: "Operator"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"operator":"string","operatorSets":{"avs":"string","id":0,"magnitude":"string","strategy":"string","totalStaked":"string"}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Operator"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"operator":{"type":"string"},"operatorSets":{"type":"object","properties":{"avs":{"type":"string"},"id":{"type":"integer","format":"uint64"},"magnitude":{"type":"string"},"strategy":{"type":"string"},"totalStaked":{"type":"string"}},"title":"OperatorSet"}},"title":"Operator"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

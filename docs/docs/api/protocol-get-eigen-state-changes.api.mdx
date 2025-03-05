@@ -1,0 +1,63 @@
+---
+id: protocol-get-eigen-state-changes
+title: "GetEigenStateChanges"
+description: "GetEigenStateChanges"
+sidebar_label: "GetEigenStateChanges"
+hide_title: true
+hide_table_of_contents: true
+api: eJztWM1u2zgQfhVB58RKFos95LTZJGgDbLdF7Z6CQqDJscSGIlWScuI1/O47Q0m27EixGmDRg5tLZM3/zDczFNexKcEyL42+F/FV/Mkab7hR6TvwdzIDPfXMw03OdAYuPostuNJoh89X6/i3iwv6J8BxK0vSgRqmFefg3KJSUcuMctxoD9oTOytLJXkwmXxzJLOOHc+hYPTkVyWgFjP/BtyjYGnJQS9ri7xx5CgjW7qPITBjOxGMkuswOW+lzuLNWZMlY3uJFjLpPFgQHfLcGAVME91bph3jFPEH8EwwPyLUuTL88T3ILPcdZolpzMAi98LYgiEprvDdH7+THWWyey3geSx/x6/3zOU9sRGT9IpezXqC2ITgv1cyhP7QVZgWLdPXnY7r/qqgFiEdmysQt5JMzytS8dkYfzxPFrneGvVpV+N2KOcdvE9zZuEW1Ogc3WJZe5skUGey6KF20oE+wrknrmNN58iz/mZ1nj3CgBQmBWuw6iWeDDKCz2lI89lRmHx8CYWg7olZMa3mhXRO1lP8yGgtTKV9b+KHpq6o6tU0NlGgBSEM61+U42FWVMpL3EkDkKkjHUh8S56F1/1YtP4NTr0K1Jb4Yygyj6BPG/ehGAH3dTUCYvZ+H2uGz4ew344b7AzIAlrHnjVELTF0anh9+g2PuJOp5rFaTfvrss3eT91t/8P6ettUOBW0/NDOmx4ChNJLTe/9W86oZGlJnX7ds/+GENIR+qJl/+LkFmqOvyi6f6pivgecVzNcLy53wxSvVGiQOy3Gu9crPuio3c/TPuEXYPsA2yQ45bsMp7iu4g4yUubHgHkQuIcm8RyWtmsndfSFltZf3PFuHaVhcqUitEULg9TtNmI7wFKxnbw7LQ1pX8e2s1LR8TANmNl9GvYQO0EeXlZgbOEPOVjmKLiyudogqf0ri4G7DsxlbuhSJIOAKOaxqnHS6kmWlwmQ2HnI1DnfCkq9MKH+Xd/+Ziuw0fWn+2haApeL5goE2Zdg6xN0fDm5mFzEh+7dmKJU4CEIu65whDiMfA5Rx0Lr3lkkNVeVQOhFTKnIgV1KDi5iWkSETDdp7mUQOuStZsWBszNgBfJUVuH73PvSXSXJ09PTJIStiGfyvPqXjlEFkyp0yML8eUClXkLDdA+0s/LhfvZCMyJMO1NZDhNjs6QRcgnxUiFL43zBdEfLQOH20rdtQw/PPikVk+F0FUyvm6J2wIHluKSAegqLuMnRBWJfr+fMwRerNht6/b0Cizv5AR+XzEqCK/1CMzkwQSP5YR0/woquQDiHkuC0ZKoit15ch22+dqD37o5i/w9X5uu8
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetEigenStateChanges"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/protocol/v1/eigen-state-changes"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetEigenStateChanges
+
+<ParamsDetails
+  parameters={undefined}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"changes":{"type":"object","properties":{"avsOperatorStateChange":{"type":"object","properties":{"avs":{"type":"string"},"operator":{"type":"string"},"registered":{"type":"boolean"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["transaction_metadata"],"title":"AvsOperatorStateChange"},"disabledDistributionRoot":{"type":"object","properties":{"rootIndex":{"type":"integer","format":"uint64"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["transaction_metadata"],"title":"DisabledDistributionRoot"},"operatorShareDelta":{"type":"object","properties":{"blockDate":{"type":"string"},"blockTime":{"type":"string","format":"date-time"},"operator":{"type":"string"},"shares":{"type":"string"},"staker":{"type":"string"},"strategy":{"type":"string"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["block_time","transaction_metadata"],"title":"OperatorShareDelta"},"rewardSubmission":{"type":"object","properties":{"amount":{"type":"string"},"avs":{"type":"string"},"duration":{"type":"integer","format":"uint64"},"endTimestamp":{"type":"string","format":"date-time"},"multiplier":{"type":"string"},"rewardHash":{"type":"string"},"rewardType":{"type":"string"},"startTimestamp":{"type":"string","format":"date-time"},"strategy":{"type":"string"},"strategyIndex":{"type":"integer","format":"uint64"},"token":{"type":"string"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["start_timestamp","end_timestamp","transaction_metadata"],"title":"RewardSubmission"},"stakerDelegationChange":{"type":"object","properties":{"delegated":{"type":"boolean"},"operator":{"type":"string"},"staker":{"type":"string"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["transaction_metadata"],"title":"StakerDelegationChange"},"stakerShareDelta":{"type":"object","properties":{"blockDate":{"type":"string"},"blockTime":{"type":"string","format":"date-time"},"shares":{"type":"string"},"staker":{"type":"string"},"strategy":{"type":"string"},"strategyIndex":{"type":"integer","format":"uint64"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["block_time","transaction_metadata"],"title":"StakerShareDelta"},"submittedDistributionRoot":{"type":"object","properties":{"activatedAt":{"type":"string","format":"date-time"},"activatedAtUnit":{"type":"string"},"createdAtBlockNumber":{"type":"integer","format":"uint64"},"rewardsCalculationEnd":{"type":"string","format":"date-time"},"rewardsCalculationEndUnit":{"type":"string"},"root":{"type":"string"},"rootIndex":{"type":"integer","format":"uint64"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["rewards_calculation_end","activated_at","transaction_metadata"],"title":"SubmittedDistributionRoot"}},"required":["avs_operator_state_change","operator_share_delta","reward_submission","staker_delegation_change","staker_share_delta","submitted_distribution_root","disabled_distribution_root"],"title":"EigenStateChange"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

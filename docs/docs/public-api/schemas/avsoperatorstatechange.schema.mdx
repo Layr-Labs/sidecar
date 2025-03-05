@@ -1,0 +1,33 @@
+---
+id: avsoperatorstatechange
+title: "AvsOperatorStateChange"
+description: ""
+sidebar_label: "AvsOperatorStateChange"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"avs":"string","operator":"string","registered":true,"transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"AvsOperatorStateChange"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"avs":{"type":"string"},"operator":{"type":"string"},"registered":{"type":"boolean"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["transaction_metadata"],"title":"AvsOperatorStateChange"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

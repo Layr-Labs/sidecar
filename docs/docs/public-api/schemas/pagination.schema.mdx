@@ -1,0 +1,33 @@
+---
+id: pagination
+title: "Pagination"
+description: ""
+sidebar_label: "Pagination"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"pageNumber":0,"pageSize":0}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Pagination"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"pageNumber":{"type":"integer","format":"uint32"},"pageSize":{"type":"integer","format":"uint32"}},"title":"Pagination"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

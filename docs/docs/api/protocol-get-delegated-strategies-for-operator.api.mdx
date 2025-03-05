@@ -1,0 +1,71 @@
+---
+id: protocol-get-delegated-strategies-for-operator
+title: "GetDelegatedStrategiesForOperator"
+description: "GetDelegatedStrategiesForOperator returns strategies an Operator has delegated"
+sidebar_label: "GetDelegatedStrategiesForOperator"
+hide_title: true
+hide_table_of_contents: true
+api: eJytVMlu2zAQ/RWCpxZwLadHnWq0aWCgRYMmPRVBQFNjiSlNMhzKjiro3zsjy44cu8uhuojLm+3NG7ayANTRhGS8k7m8gvQBLJQqQXGTIv1KA/jRxy8BaOejiJDq6FDg4VYoJw7XlUJR7D3IifT9BTlfFOT+Ovrktbf3f41DpkFFtYYEEWX+vZWONuTCD4B7VRQREAloOPOgUkXrCI+1iRQ6T7GGiURdwVrJvJWpCWxPeRtXyq67YzAG7xCQ79/OZvw75uOm1pqCrGor9mAKor1L4BLDVQjW6L7C7AHZpj2N6ZcPoBOXFDn9ZHYRBwqb+a6S3eHLNPtvIpMqmQb20DMoKX0ip/JMawm9c2Ygl9kekm0usj1bmLUvieuyQ5/ePDezp3Pl+0xMspzKpSnBfVINRDG/XoibANqshpoJvqEG7ci6mM6mMzo5pvC9XwdLbeyNcWwsViSYVIEYRdgnPxHGaVsXRIJQ1gqEuDG6F1shmCOcDo1Qum/EII+Rq1tQa8LU0dJ5lVLAPMu22+0UGGMZM31qfhKEumUYxJW/e3FL3FODgRv/HOXz4vbEM/Hr0NdRw9THMhuMMGMsdzB4TGvlRl7+ZQiOuGyflff/J3UQXoKnlAWraKi6ocR2kNZIfdT2i8N0k7xonZ+ZzLMKI+VWxAX7a9ulQvgWbdfx8WMNsaFzWm5UNGrJ+qPRLwzymqS+UhbhD6y8+jrM/2vxu5KGQ+UarkLZmne0/AHNueeluyObClQBsc9lB5vTsxDSyMHJO9CNB/TqkjXwC0dJ6+8=
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetDelegatedStrategiesForOperator"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/protocol/v1/operators/{operator_address}/delegated-strategies"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetDelegatedStrategiesForOperator returns strategies an Operator has delegated
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"operator_address","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"strategyAddresses":{"type":"string"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

@@ -1,0 +1,73 @@
+---
+id: rewards-generate-rewards
+title: "GenerateRewards"
+description: "GenerateRewards generates rewards for the given cutoff_date."
+sidebar_label: "GenerateRewards"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdVUtz0zAQ/isan1M75ZgTBQqTGRg6bRkOaaezsdexWlkykhw3ePLf2ZWVd4AbB3JI4t1v39+u+6RAl1vZeGl0Mkk+oUYLHm+xA1s4sYjPTtgoKY0VvkKxkEvUIm+9KcungiDpg56WBHON0cV36avo4wN4ENIJb1scBdMB41B0Uikhda7aAqNmCEL+YCQMiWwnHT5oVjpZYA52sMohrwYbxgpvxJzNf7ToPBZCUUI2TUaJaTh/Km5aUHkxpaejMgkXTd+ZYpVM+vAoLZJNSDvJjfaoPaugaZTMg8/s2XHX+sRRMjXwP79qkAKZ+TPmnvw2ljPwEh1rh3ZRR3AP67yVepGsOYlzzduDzo1RCJqxHUj/0dj3pm4UHvjbgsJn49UNGbwZj/nncOp3bZ6jc2WrtrNJ/lXN1PaW+3yuxkiHv8eA2rRDpif+ESzN+qzKaWhcZc7befOC+oyGVdIr3LIpGXq84ctsm/Vj7L+HhTuQj5IafWWYkI1xoRrwFT1lEZItL7PN5l3YLUe587c7nl6/As/+uMebTH9Pp4HSJwRiMaUrdWlC3bHKa0mpfIYVWnF1MxV3DeayjGSgIEu0bmDRZTpOxyQ55NbGfzB2+8bbU7IXgcbqTW7UKJ4FKkQArbtDu5TEUQG6EDwRl0aGQh7mp6E+SvYeoSZMaxXJK+8bN8myrutSZIxiTPq6+kkQorFkEFf+9khLDSHmI2/ELsqX6f2JZ6Kjdqa1OabGLrJo5DLGMgt40jXoPS+nR+igc/1uAf+/sxyXyuOrzxoFMqx7aGgfl2G3L8SxS/o6WQjao4rXh6B9PweH36xar1lM4Syd8Rn9XYKVMGcizx4pRIVQ8DWY9ckLrgI9Q48v7jkhhquWEzs5eOvRxuKKbmXj/4jd3/Cbr3dMlnl8sdSmYBsLHS8ofU+S8JZi63DKgqxPFOhFCwvGDj758wvacLdZ
+sidebar_class_name: "post api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GenerateRewards"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/rewards/v1/generate-rewards"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GenerateRewards generates rewards for the given cutoff_date.
+If respondWithRewardsData is true, the response will include the rewards data, otherwise
+the sidecar will cache the data to be requested later.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={undefined}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={{"required":true,"content":{"application/json":{"schema":{"type":"object","properties":{"cutoffDate":{"type":"string"},"respondWithRewardsData":{"type":"boolean"},"waitForComplete":{"type":"boolean"}}}}}}}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"cutoffDate":{"type":"string"},"queued":{"type":"boolean"},"rewards":{"type":"object","properties":{"amount":{"type":"string"},"earner":{"type":"string"},"snapshot":{"type":"string"},"token":{"type":"string"}},"title":"Reward"}},"required":["rewards"]}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

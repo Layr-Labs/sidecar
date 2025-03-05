@@ -1,0 +1,33 @@
+---
+id: listearnerhistoricalrewardsrequest
+title: "ListEarnerHistoricalRewardsRequest"
+description: ""
+sidebar_label: "ListEarnerHistoricalRewardsRequest"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"earnerAddress":"string","endBlockHeight":0,"pagination":{"pageNumber":0,"pageSize":0},"startBlockHeight":0,"tokens":"string"}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListEarnerHistoricalRewardsRequest"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"earnerAddress":{"type":"string"},"endBlockHeight":{"type":"integer","format":"uint64"},"pagination":{"type":"object","properties":{"pageNumber":{"type":"integer","format":"uint32"},"pageSize":{"type":"integer","format":"uint32"}},"title":"Pagination"},"startBlockHeight":{"type":"integer","format":"uint64"},"tokens":{"type":"string"}},"required":["startBlockHeight","endBlockHeight","pagination"],"title":"ListEarnerHistoricalRewardsRequest"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

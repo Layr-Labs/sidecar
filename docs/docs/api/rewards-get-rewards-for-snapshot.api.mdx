@@ -1,0 +1,72 @@
+---
+id: rewards-get-rewards-for-snapshot
+title: "GetRewardsForSnapshot"
+description: "GetRewardsForSnapshot returns the rewards for the provided snapshot."
+sidebar_label: "GetRewardsForSnapshot"
+hide_title: true
+hide_table_of_contents: true
+api: eJzNVE1v2zAM/SuCThsQ2OmOOa0Y2qLABgz9OG3FwMp0rFaRVElO6hn+7yMdJXHbdLsul8jio0i+96ReVhhV0D5pZ+VCXmC6wg2EKp67cG3Bx8YlETC1wUaRGqT1GBa1C+O3D26tK6xEzOjip72NWLdG6Fp0rhVLtBggEWSaD7YSG7BJJCdqTKrh6EoYAoZCzqTznERdXVbUV27q19H+CO0hwAopNcrFj15a+qCseABons5Damgd8KnVAencFFqcyaioMshFL1Pnx7wUtF3KYbhjcPTORowc/zSf899Lzq5bpTBGnngHpiLK2YQ2MRy8N1qNw5QPkXP6tzXd/QOqcZTAoye9rZjp+jcQVq7dlns1xEwiBFLgaGjP0LFgco9oj9FCIZ0M7nWhrfFH+7BkBfZtE4EkS+NYwyVulSINFrLMiHJ9sl/2u26GUbDajbVzpTNNPvoKHQZx+v1SXHtUus6sEnxN0m/lOCnmxZx2Xor0xa28IYOMyXGavHfypAJRm5xyZia0VaataGwBxoiIYa1J7NG9zEosstSgRg6z8SZH3SCsCNMGQ/tNSj4uynKz2RTIGMOY4rn7TRDyg2YQT/75VZSoJQshW+tQ5dvlzZuTyRI2ujYoLFxYljkploxlgbyLaQV2csp7V+oFf/3Bz//RG5F9mfA5ld4A3fEh89Fnnx2cSBY5Ge/+7nOx9z6ZtCFaGN339xDxNphh4O2nFkNH+7RcQ9Bwz1ak96XSkdfk6hpMxL+Q9eEqPzYfxXsN502wHTcJpuUvWj5iN33DhjvCNggVX2XqYRs+pbfHp0nim8dmmN7BizO2wR/LNxaK
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetRewardsForSnapshot"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/rewards/{snapshot}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetRewardsForSnapshot returns the rewards for the provided snapshot.
+Useful if you generated the rewards and want to fetch them later.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"snapshot","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"rewards":{"type":"object","properties":{"amount":{"type":"string"},"earner":{"type":"string"},"snapshot":{"type":"string"},"token":{"type":"string"}},"title":"Reward"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

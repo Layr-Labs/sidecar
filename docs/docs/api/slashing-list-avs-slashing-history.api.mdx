@@ -1,0 +1,71 @@
+---
+id: slashing-list-avs-slashing-history
+title: "ListAvsSlashingHistory"
+description: "ListAvsSlashingHistory"
+sidebar_label: "ListAvsSlashingHistory"
+hide_title: true
+hide_table_of_contents: true
+api: eJyNVdtum0AQ/RW0T61EjVNVfeCpVhQ1ltKL6vTJiqIxjGGTZZfsLjgu4t87g7GDY6zEL97LmTNndi40wpRowUuj56mIxUKBy6XO7m+k87Pa7ffXtDV2K0JRgoUCPVon4mUjNG3IDmo3S1OLzhFEajopwee0tvhUSYvE7W2FoXBJjgWIuBF+W7Kl85b4RdveMdiVRjt0fP95OuW/FF1iZckKWV+VJORkXalgDyYnidEetWc4lKWSSRdQ9ODYpjn1aVYPmHgOxnL4Xu48uj7Yq5rI3Nv4lTLJ48+qWKEdgCVpyegkFGtjCyBVoqKzr19EGx5Hc/IGoVAmm+sUn9/Lt8uesaNk+8sF+reDoQyOksj0fVoI6qVXOCii7h3vfw1UEIiYgUh6r28kZIfdjgrzxoNa5EB10DnEdBS2gfT89VnRi71nRljQDhLO2TVhxmle6nx59O53ZzyQUfeja8i4lQ7VxybHRX+2F6kPc8Ntm2H3eNxysYjqi2hPFlFaXdS8tGd7uPqUH3ikXpsurF7plcxQ38AWbTD7PQ8WJSZy3XcVwWtq/p2yi8l0MhWv9V6aolQ0IjpjNzQOqGwCn2Mw8EAp9yYxKgykTlSVkrQAlAoc2lpSsweg04Af3E36VqdcsNp+9AyobhEKwlRW0XnufeniKNpsNhNkjGLM5Hn7jyA0D6TqCnptvr265TYkxzxaXrz8mN+eMFOetTOVTXBibBb1Ri5iLGe2NM4XoAcsZzM5Phc8PvuoVEADte2dN32Wl6K+ILtD0YTcwDx846NRfJJsKq6cZDFB06zA4V+r2paPnyqk+3hJyxqshBWXAk34VDpeU5mtQTk80XoYvuLDn74JPgbkejSG/hA0B12DqnhHy0fcHn9F2jtC5wgpz1ZSsQPMaPqXfmB6Mu75M3Joi+9XnIj/CglnKA==
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListAvsSlashingHistory"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/v1/slashing/avss/{avsAddress}/slashing-history"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+ListAvsSlashingHistory
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"avsAddress","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"slashingEvents":{"type":"object","properties":{"blockNumber":{"type":"integer","format":"uint64"},"description":{"type":"string"},"logIndex":{"type":"integer","format":"uint64"},"operator":{"type":"string"},"operatorSet":{"type":"object","properties":{"avs":{"type":"string"},"id":{"type":"integer","format":"uint64"}},"title":"SlashingEvent_OperatorSet"},"strategies":{"type":"object","properties":{"strategy":{"type":"string"},"totalSharesSlashed":{"type":"string"},"wadSlashed":{"type":"string"}},"title":"SlashingEvent_Strategy"},"transactionHash":{"type":"string"}},"required":["operatorSet"],"title":"SlashingEvent"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

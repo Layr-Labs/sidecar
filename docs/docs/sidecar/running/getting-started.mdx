@@ -1,0 +1,71 @@
+---
+title: Getting started
+description: How to deploy an EigenLayer Sidecar
+sidebar_position: 1
+---
+
+
+### Current versions
+
+* Mainnet: Sidecar ([v2.0.0](https://github.com/Layr-Labs/sidecar/releases/tag/v2.0.0))
+* Testnet: Sidecar ([v3.0.0-rc.1](https://github.com/Layr-Labs/sidecar/releases/tag/v3.0.0-rc.1))
+* Preprod: Sidecar ([v3.0.0-rc.1](https://github.com/Layr-Labs/sidecar/releases/tag/v3.0.0-rc.1))
+
+### Runtime dependencies
+
+* MacOS or Linux (arm64 or amd64)
+* PostgreSQL >= 15.x
+* Access to an Ethereum archive node (execution client)
+
+## Installation
+
+
+### 1. Download the Sidecar binary
+
+```bash
+VERSION="v2.4.0"
+curl -s -L "https://github.com/Layr-Labs/sidecar/releases/download/${VERSION}/sidecar-darwin-amd64-${VERSION}.tar.gz" | tar xvz -C /usr/local/bin
+```
+
+### 2. Create a database for your sidecar
+
+Assuming that you have PostgreSQL installed locally, or access to a remote PostgreSQL instance, you can create a database for your sidecar:
+
+```bash
+psql --host <host> --port 5432 --user <username> --password
+
+CREATE DATABASE sidecar;
+```
+
+Please see the ["Advanced PostgreSQL Config"](advanced-postgres) for more information on setting up your PostgreSQL database.
+
+#### Using a snapshot
+
+If you are launching a Sidecar for Holesky, you will need to use a snapshot to intialize your database. Detailed directions can be found on the ["restore from snapshot"](snapshots) page.
+
+```bash
+curl -LO https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump
+
+sidecar restore-snapshot \                                                                                                                                                                                                                                                         (sm-fixManifest✱)
+	--ethereum.rpc-url="<rpc url>" \
+	--chain="mainnet" \
+	--database.host="<hostname>" \
+	--database.port="5432" \
+	--database.user="<username>" \
+	--database.password="<password>" \
+	--database.db_name="<database name>" \
+	--kind="full"
+```
+
+### 3. Launch your Sidecar
+
+```bash
+/usr/local/bin/sidecar
+	--ethereum.rpc-url="http://<your-ethereum-rpc-url>" \
+	--chain="mainnet" \
+	--database.host="<postgres host>" \
+	--database.port="5432" \
+	--database.user="<postgres user>" \
+	--database.password="<postgres password>" \
+	--database.db_name="sidecar"
+```

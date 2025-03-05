@@ -1,0 +1,72 @@
+---
+id: rewards-get-attributable-rewards-for-snapshot
+title: "GetAttributableRewardsForSnapshot"
+description: "GetAttributableRewardsForSnapshot returns the attributable rewards for the provided snapshot."
+sidebar_label: "GetAttributableRewardsForSnapshot"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdVE1v2zAM/SuCTxuQxemOOa0Yuq7ABgxtduqKgbGZWI0iqSKdNDP830fZTuI2brvzfLBl8lH8emSV5EhZ0J61s8k0uUQ+Zw56XjLMDV7jFkJOX1y4seCpcKwCchksKS5QQQ8qigarFi40Sh/cRueYK+pMx7/srNBiCSts7bNyXRpgvTlaw9qVluVrczUPCKsGuVa521oFWXBEynkMwC7QSMGG5E0s/7jUKGfkLBklLURyusolqy6N329mJ5YeAqyRMVAyva0SKz9yAx0BOtbJAxdyDvhQ6oDig0OJo4QyiRWSaZXwzjd24s0uk7q+i2DyzhJS1H+cTOLnafVvyixDokVp1B4sTjJnGS1HOHhvdNYklt5TtKlOfbr5PWZNKiGWgXXrsavw28C2BQNJjBIp96AcIVgMgyrpMGuJ+gX1vpeDyjbkr0DFK+pZIx5QUwEBh+M9tHNQ2bJpN6hkt0I71GBRaTZRdEoxUTePYGAZeXVohtBCyFa4yNIltvwTZk2TtEOkm7O0P2Yf9vJqn0PdcHLhmqC6EC70Eu032GFQ5z+u1I3HTC864gh8I+xuGXc2nownInnKw89u7Y3MQGNMfePDdPc8CHvYZc6MlLaZKXOphwJjFGHYaOFzM8uxXDTu2AxZU/lutnpXzRDWgimDEXnB7GmaptvtdowRYyJm/Lj7IxChvI6gmPmnZ1qps0wJxuk5evl+NTu5WchnyZUhw7ELy7QzojRiY7e8I16D7d3yLxvkSS2r4/j+N8u1oz7jI6fegCzEuqts1dH3SHAh25m8higs4ulhEGUQCql2NK2qORD+DKauo/ihxCCzeCvHDQQdb2g2c64pnmVyFmAIX6n7u+tuTb9XL0XfCcHuYsRgyvgnxxXu+tu/vhNsgZDHbSYxtOpz2dqee4Yna7ruz/nlRWTXX8plpsg=
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetAttributableRewardsForSnapshot"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/attributable-rewards/{snapshot}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetAttributableRewardsForSnapshot returns the attributable rewards for the provided snapshot.
+This takes the cumulative rewards amounts and breaks them down across operators, avss, strategies, etc
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"snapshot","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"rewards":{"type":"object","properties":{"amount":{"type":"string"},"avs":{"type":"string"},"earner":{"type":"string"},"multiplier":{"type":"string"},"operator":{"type":"string"},"rewardHash":{"type":"string"},"rewardType":{"type":"string"},"shares":{"type":"string"},"snapshot":{"type":"string"},"strategy":{"type":"string"},"token":{"type":"string"}},"title":"AttributableReward"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

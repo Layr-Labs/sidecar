@@ -1,0 +1,33 @@
+---
+id: getdelegatedstakersforoperatorrequest
+title: "GetDelegatedStakersForOperatorRequest"
+description: ""
+sidebar_label: "GetDelegatedStakersForOperatorRequest"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"blockHeight":0,"operatorAddress":"string","pagination":{"pageNumber":0,"pageSize":0}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetDelegatedStakersForOperatorRequest"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"operatorAddress":{"type":"string"},"pagination":{"type":"object","properties":{"pageNumber":{"type":"integer","format":"uint32"},"pageSize":{"type":"integer","format":"uint32"}},"title":"Pagination"}},"required":["block_height","pagination"],"title":"GetDelegatedStakersForOperatorRequest"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            
