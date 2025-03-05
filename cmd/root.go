@@ -68,6 +68,7 @@ func init() {
 	rootCmd.AddCommand(restoreSnapshotCmd)
 	rootCmd.AddCommand(rpcCmd)
 	rootCmd.AddCommand(loadContractCmd)
+	rootCmd.AddCommand(batchLoadContractsCmd)
 
 	// bind any subcommand flags
 	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "(deprecated, use --output) Path to save the snapshot file")
@@ -89,6 +90,8 @@ func init() {
 	loadContractCmd.PersistentFlags().String(config.LoadContractImplementationForAddress, "", "Implementation contract address for the contract")
 	loadContractCmd.PersistentFlags().String(config.LoadContractImplementationAbi, "", "ABI for the implementation")
 	loadContractCmd.PersistentFlags().Uint64(config.LoadContractBlockNumber, uint64(0), "Block number for proxy contract deployment")
+
+	batchLoadContractsCmd.PersistentFlags().String(config.BatchLoadContractsJsonFile, "", "Path to the JSON file containing the contracts to load")
 
 	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		key := config.KebabToSnakeCase(f.Name)
