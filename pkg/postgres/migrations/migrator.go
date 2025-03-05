@@ -6,6 +6,7 @@ import (
 	_202501241111_addIndexesForRpcFunctions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241111_addIndexesForRpcFunctions"
 	_202502100846_goldTableRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502100846_goldTableRewardHashIndex"
 	_202502211539_hydrateClaimedRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502211539_hydrateClaimedRewards"
+	_202503042014_stakerOperatorIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503042014_stakerOperatorIndex"
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -172,6 +173,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202501241111_addIndexesForRpcFunctions.Migration{},
 		&_202502100846_goldTableRewardHashIndex.Migration{},
 		&_202502211539_hydrateClaimedRewards.Migration{},
+		&_202503042014_stakerOperatorIndex.Migration{},
 	}
 
 	for _, migration := range migrations {
