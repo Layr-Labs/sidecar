@@ -14,11 +14,6 @@ type Migration struct {
 
 func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
-		`DO $$ BEGIN
-			CREATE TYPE contract_type AS ENUM ('core', 'sideload');
-		EXCEPTION
-			WHEN duplicate_object THEN null;
-		END $$;`,
 		`CREATE TABLE IF NOT EXISTS blocks (
 			number bigint NOT NULL PRIMARY KEY,
 			hash varchar(255) NOT NULL,
@@ -66,7 +61,6 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			matching_contract_address character varying(255) DEFAULT NULL::character varying,
 			checked_for_proxy boolean DEFAULT false NOT NULL,
 			checked_for_abi boolean,
-			contract_type contract_type DEFAULT 'core',
     		created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
 			updated_at timestamp without time zone,
 			deleted_at timestamp without time zone,
