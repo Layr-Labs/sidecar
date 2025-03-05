@@ -160,8 +160,26 @@ func (sf *SnapshotFile) GenerateAndSaveSnapshotHash() error {
 	return nil
 }
 
-// ValidateSignature verifies the signature of the snapshot file using the provided public key.
-// This is a placeholder implementation that always returns nil.
+// ValidateSignature verifies the cryptographic signature of the snapshot file using the provided public key.
+// It reads the signature from the signature file and validates it against the snapshot file content.
+//
+// Parameters:
+//   - publicKey: A string containing the PGP public key in armored format used to verify the signature.
+//
+// Returns:
+//   - *openpgp.Entity: The entity (signer) that created the signature if validation is successful.
+//   - error: An error if the signature validation fails for any reason, including:
+//     * Invalid public key format
+//     * Missing signature file
+//     * Missing snapshot file
+//     * Invalid or tampered signature
+//     * Signature created with a different key
+//
+// The method performs the following steps:
+// 1. Parses the provided public key
+// 2. Opens the signature file
+// 3. Opens the original snapshot file
+// 4. Verifies that the signature matches the file content and was created with the corresponding private key
 func (sf *SnapshotFile) ValidateSignature(publicKey string) (*openpgp.Entity, error) {
 	publicKeyReader := strings.NewReader(publicKey)
 
