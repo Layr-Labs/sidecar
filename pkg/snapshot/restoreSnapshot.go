@@ -300,10 +300,11 @@ func (ss *SnapshotService) RestoreFromSnapshot(cfg *RestoreSnapshotConfig) error
 	}
 	if cfg.VerifySnapshotSignature {
 		ss.logger.Sugar().Infow("validating snapshot signature")
-		if err := snapshotFile.ValidateSignature(cfg.SnapshotPublicKey); err != nil {
+		signer, err := snapshotFile.ValidateSignature(cfg.SnapshotPublicKey)
+		if err != nil {
 			return errors.Wrap(err, "error validating snapshot signature")
 		}
-		ss.logger.Sugar().Infow("snapshot signature validated")
+		ss.logger.Sugar().Infow("snapshot signature validated, signed by", zap.Any("signer", signer.Identities))
 	}
 
 	res, err := ss.performRestore(snapshotFile, cfg)
