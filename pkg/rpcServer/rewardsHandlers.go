@@ -472,3 +472,20 @@ func (rpc *RpcServer) GetRewardsByAvsForDistributionRoot(ctx context.Context, re
 		Rewards: rewardsResponse,
 	}, nil
 }
+
+// ListEarnerLifetimeRewards returns the lifetime rewards for an earner, which is a list of:
+// - token address
+// - total earned
+func (s *RpcServer) ListEarnerLifetimeRewards(ctx context.Context, request *rewardsV1.ListEarnerLifetimeRewardsRequest) (*rewardsV1.ListEarnerLifetimeRewardsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "not implemented")
+}
+
+// ListEarnerHistoricalRewards returns the historical rewards for an earner for a start/end block range and token list, returning
+// a list of:
+//   - token address
+//     for each token:
+//   - amount
+//   - snapshot
+func (s *RpcServer) ListEarnerHistoricalRewards(ctx context.Context, request *rewardsV1.ListEarnerHistoricalRewardsRequest) (*rewardsV1.ListEarnerHistoricalRewardsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "not implemented")
+}
