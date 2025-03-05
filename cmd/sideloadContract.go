@@ -3,39 +3,21 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/metrics/prometheus"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
+	"github.com/Layr-Labs/sidecar/pkg/abiSource/etherscan"
+	"github.com/Layr-Labs/sidecar/pkg/abiSource/ipfs"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
-	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
-	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
+	etherscanClient "github.com/Layr-Labs/sidecar/pkg/clients/etherscan"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
-	"github.com/Layr-Labs/sidecar/pkg/eigenState"
-	"github.com/Layr-Labs/sidecar/pkg/eventBus"
-	"github.com/Layr-Labs/sidecar/pkg/fetcher"
-	"github.com/Layr-Labs/sidecar/pkg/indexer"
-	"github.com/Layr-Labs/sidecar/pkg/metaState"
-	"github.com/Layr-Labs/sidecar/pkg/metaState/metaStateManager"
-	"github.com/Layr-Labs/sidecar/pkg/pipeline"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
-	"github.com/Layr-Labs/sidecar/pkg/proofs"
-	"github.com/Layr-Labs/sidecar/pkg/rewards"
-	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
-	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
-	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
-	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
-	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
-	"github.com/Layr-Labs/sidecar/pkg/shutdown"
-	"github.com/Layr-Labs/sidecar/pkg/sidecar"
-	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
 	"net/http"
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
-	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -57,8 +39,6 @@ var sideloadContractCmd = &cobra.Command{
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
 
-		eb := eventBus.NewEventBus(l)
-
 		metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 		if err != nil {
 			return fmt.Errorf("failed to setup metrics sink: %w", err)
@@ -71,7 +51,20 @@ var sideloadContractCmd = &cobra.Command{
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
-		af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg, []abiSource.AbiSource{})
+		abiSource := []abiSource.AbiSource{}
+		httpClient := &http.Client{Timeout: 5 * time.Second}
+		if cfg.SideloadConfig.AbiSource == "ipfs" {
+			ipfsSource := ipfs.NewIpfs(httpClient, l, cfg)
+			abiSource = append(abiSource, ipfsSource)
+		} else if cfg.SideloadConfig.AbiSource == "etherscan" {
+			ec := etherscanClient.NewEtherscanClient(httpClient, l, cfg)
+			etherscanSource := etherscan.NewEtherscan(ec, l)
+			abiSource = append(abiSource, etherscanSource)
+		} else {
+			return fmt.Errorf("abi source %s not supported", cfg.SideloadConfig.AbiSource)
+		}
+
+		af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg, abiSource)
 
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
@@ -91,95 +84,27 @@ var sideloadContractCmd = &cobra.Command{
 		}
 
 		contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-		// if err := contractStore.InitializeCoreContracts(); err != nil {
-		// 	return fmt.Errorf("failed to initialize core contracts: %w", err)
-		// }
 
 		cm := contractManager.NewContractManager(contractStore, client, af, sink, l)
 
-		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
+		blockNumber := cfg.SideloadConfig.BlockNumber
+		contractAddress := cfg.SideloadConfig.ContractAddress
+		proxyContractAddress := cfg.SideloadConfig.ProxyContractAddress
+
+		err = cm.CreateContractWithAbi(ctx, blockNumber, contractAddress)
 		if err != nil {
-			return fmt.Errorf("failed to create postgres block store: %w", err)
+			return fmt.Errorf("failed to create the contractAddress in contracts: %w", err)
 		}
-
-		sm := stateManager.NewEigenStateManager(l, grm)
-		if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
-			return fmt.Errorf("failed to load eigen state models: %w", err)
-		}
-
-		msm := metaStateManager.NewMetaStateManager(grm, l, cfg)
-		if err := metaState.LoadMetaStateModels(msm, grm, l, cfg); err != nil {
-			return fmt.Errorf("failed to load meta state models: %w", err)
-		}
-
-		fetchr := fetcher.NewFetcher(client, cfg, l)
-
-		cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, cfg.EthereumRpcConfig.ContractCallBatchSize, l)
-
-		idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
-
-		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
-
-		rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, sog, sink, l)
+		err = cm.CreateContractWithAbi(ctx, blockNumber, proxyContractAddress)
 		if err != nil {
-			return fmt.Errorf("failed to create rewards calculator: %w", err)
+			return fmt.Errorf("failed to create the proxyContractAddress in contracts: %w", err)
 		}
 
-		rcq := rewardsCalculatorQueue.NewRewardsCalculatorQueue(rc, l)
-
-		rps := proofs.NewRewardsProofsStore(rc, l)
-
-		pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
-		rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
-
-		go rcq.Process()
-
-		p := pipeline.NewPipeline(fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, sink, eb, l)
-
-		scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)
+		_, err = contractStore.CreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
 		if err != nil {
-			return fmt.Errorf("failed to create sidecar client: %w", err)
+			return fmt.Errorf("failed to create a proxy contract: %w", err)
 		}
 
-		// Create new sidecar instance
-		sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
-			GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
-		}, cfg, mds, p, sm, msm, rc, rcq, rps, l, client)
-
-		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
-			GrpcPort: cfg.RpcConfig.GrpcPort,
-			HttpPort: cfg.RpcConfig.HttpPort,
-		}, mds, rc, rcq, eb, rps, pds, rds, scc, sink, l, cfg)
-
-		// RPC channel to notify the RPC server to shutdown gracefully
-		rpcChannel := make(chan bool)
-		if err := rpc.Start(ctx, rpcChannel); err != nil {
-			return fmt.Errorf("failed to start RPC server: %w", err)
-		}
-
-		promChan := make(chan bool)
-		if cfg.PrometheusConfig.Enabled {
-			pServer := prometheus.NewPrometheusServer(&prometheus.PrometheusServerConfig{
-				Port: cfg.PrometheusConfig.Port,
-			}, l)
-			if err := pServer.Start(promChan); err != nil {
-				return fmt.Errorf("failed to start prometheus server: %w", err)
-			}
-		}
-
-		// Start the sidecar main process in a goroutine so that we can listen for a shutdown signal
-		go sidecar.Start(ctx)
-
-		l.Sugar().Info("Started side-loading a contract to Sidecar")
-
-		gracefulShutdown := shutdown.CreateGracefulShutdownChannel()
-
-		done := make(chan bool)
-		shutdown.ListenForShutdown(gracefulShutdown, done, func() {
-			l.Sugar().Info("Shutting down...")
-			rpcChannel <- true
-			sidecar.ShutdownChan <- true
-		}, time.Second*5, l)
 		return nil
 	},
 }

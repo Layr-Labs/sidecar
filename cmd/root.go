@@ -84,9 +84,13 @@ func init() {
 
 	rpcCmd.PersistentFlags().String(config.SidecarPrimaryUrl, "", `RPC url of the "primary" Sidecar instance in an HA environment`)
 
+	sideloadContractCmd.PersistentFlags().Bool(config.SideloadEnabled, false, "Enable contract side-loading")
+	sideloadContractCmd.PersistentFlags().String(config.SideloadAbiSource, "", "ABI source for the contract (etherscan, ipfs)")
 	sideloadContractCmd.PersistentFlags().String(config.SideloadContractAddress, "", "Contract address to side-load")
 	sideloadContractCmd.PersistentFlags().String(config.IpfsUrl, "", "IPFS gateway URL")
 	sideloadContractCmd.PersistentFlags().String(config.EtherscanApiKey, "", "Etherscan API key")
+	sideloadContractCmd.PersistentFlags().String(config.SideloadProxyContractAddress, "", "Proxy contract address for the contract")
+	sideloadContractCmd.PersistentFlags().Uint64(config.SideloadBlockNumber, uint64(0), "Block number for proxy contract deployment")
 
 	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		key := config.KebabToSnakeCase(f.Name)

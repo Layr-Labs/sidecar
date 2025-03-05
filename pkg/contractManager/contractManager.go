@@ -120,10 +120,48 @@ func (cm *ContractManager) HandleContractUpgrade(ctx context.Context, blockNumbe
 	return nil
 }
 
+<<<<<<< HEAD
 // CreateUpgradedProxyContract creates a new proxy contract relationship in the database.
 // It creates entries for both the proxy contract and the implementation contract,
 // fetching the ABI for the implementation contract.
 // If the proxy contract already exists, it returns without error.
+=======
+func (cm *ContractManager) CreateContractWithAbi(
+	ctx context.Context,
+	blockNumber uint64,
+	address string,
+) error {
+	// Fetch ABIs
+	bytecodeHash, abi, err := cm.AbiFetcher.FetchContractDetails(ctx, address)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to fetch contract details",
+			zap.Error(err),
+			zap.String("address", address),
+		)
+		return err
+	}
+
+	// Create contract
+	_, err = cm.ContractStore.CreateContract(
+		address,
+		abi,
+		true,
+		bytecodeHash,
+		"",
+		true,
+	)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to create new contract with fetched ABI",
+			zap.Error(err),
+			zap.String("address", address),
+		)
+		return err
+	}
+
+	return nil
+}
+
+>>>>>>> 92f7039 (modify sideloadContract to work)
 func (cm *ContractManager) CreateUpgradedProxyContract(
 	ctx context.Context,
 	blockNumber uint64,
@@ -151,32 +189,14 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 		return err
 	}
 
-	// Fetch ABIs
-	bytecodeHash, abi, err := cm.AbiFetcher.FetchContractDetails(ctx, proxyContractAddress)
+	err = cm.CreateContractWithAbi(ctx, blockNumber, proxyContractAddress)
 	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to fetch metadata from proxy contract",
+		cm.Logger.Sugar().Errorw("Failed to create contract with ABI",
 			zap.Error(err),
 			zap.String("proxyContractAddress", proxyContractAddress),
 		)
-		return err
 	}
 
-	// Create contract
-	_, err = cm.ContractStore.CreateContract(
-		proxyContractAddress,
-		abi,
-		true,
-		bytecodeHash,
-		"",
-		true,
-	)
-	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to create new contract for proxy contract",
-			zap.Error(err),
-			zap.String("proxyContractAddress", proxyContractAddress),
-		)
-		return err
-	}
 	cm.Logger.Sugar().Debugf("Created new contract for proxy contract", zap.String("proxyContractAddress", proxyContractAddress))
 
 	return nil

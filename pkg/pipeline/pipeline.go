@@ -236,7 +236,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				return err
 			}
 
-			if log.EventName == "Upgraded" {
+			if p.globalConfig.SideloadConfig.Enabled && log.EventName == "Upgraded" {
 				p.contractManager.HandleContractUpgrade(ctx, blockNumber, log)
 			}
 		}
