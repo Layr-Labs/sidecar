@@ -14,6 +14,10 @@ import (
 	"regexp"
 )
 
+// getAbi unmarshals a JSON ABI string into an abi.ABI struct.
+// It handles certain common unmarshaling errors that can be safely ignored,
+// such as "only single receive is allowed" and "only single fallback is allowed".
+// Returns the parsed ABI and any error encountered during parsing.
 func (idx *Indexer) getAbi(json string) (*abi.ABI, error) {
 	a := &abi.ABI{}
 
@@ -44,6 +48,10 @@ func (idx *Indexer) getAbi(json string) (*abi.ABI, error) {
 	return a, nil
 }
 
+// ParseTransactionLogs processes a transaction and its receipt to extract and decode logs.
+// It creates a ParsedTransaction containing decoded logs for events emitted by interesting contracts.
+// Returns the parsed transaction with its logs, or nil if the transaction doesn't interact with any contracts.
+// Returns an IndexError if contract retrieval, ABI parsing, or log decoding fails.
 func (idx *Indexer) ParseTransactionLogs(
 	transaction *ethereum.EthereumTransaction,
 	receipt *ethereum.EthereumTransactionReceipt,
@@ -145,10 +153,11 @@ func (idx *Indexer) ParseTransactionLogs(
 	return parsedTransaction, nil
 }
 
-// DecodeLogWithAbi determines if the provided contract ABI matches that of the log
-// For example, if the target contract performs a token transfer, that token may emit an
-// event that will be captured in the list of logs. That ABI however is different and will
-// need to be loaded in order to decode the log.
+// DecodeLogWithAbi decodes a log using the appropriate ABI.
+// If the log address matches the transaction's target contract, it uses the provided ABI.
+// Otherwise, it attempts to find the contract at the log address and use its ABI.
+// This handles cases where a contract interacts with another contract that emits events.
+// Returns the decoded log and any error encountered during decoding.
 func (idx *Indexer) DecodeLogWithAbi(
 	a *abi.ABI,
 	txReceipt *ethereum.EthereumTransactionReceipt,
@@ -198,7 +207,10 @@ func (idx *Indexer) DecodeLogWithAbi(
 	}
 }
 
-// DecodeLog will decode a log line using the provided abi.
+// DecodeLog decodes a log using the provided ABI.
+// It extracts the event name, arguments, and output data from the log.
+// Returns the decoded log with structured event data and any error encountered during decoding.
+// If no ABI is provided, returns an error.
 func (idx *Indexer) DecodeLog(a *abi.ABI, lg *ethereum.EthereumEventLog) (*parser.DecodedLog, error) {
 	idx.Logger.Sugar().Debugw(fmt.Sprintf("Decoding log with txHash: '%s' address: '%s'", lg.TransactionHash.Value(), lg.Address.Value()))
 	logAddress := common.HexToAddress(lg.Address.Value())
@@ -276,6 +288,10 @@ func (idx *Indexer) DecodeLog(a *abi.ABI, lg *ethereum.EthereumEventLog) (*parse
 	return decodedLog, nil
 }
 
+// ParseLogValueForType converts an Ethereum log value to an appropriate Go type
+// based on the ABI argument type.
+// It handles integer, boolean, address, string, and byte types.
+// Returns the converted value and any error encountered during conversion.
 func ParseLogValueForType(argument abi.Argument, value string) (interface{}, error) {
 	valueBytes, _ := hexutil.Decode(value)
 	switch argument.Type.T {
@@ -295,10 +311,15 @@ func ParseLogValueForType(argument abi.Argument, value string) (interface{}, err
 	}
 }
 
+// errBadBool is returned when a boolean value in an Ethereum log is improperly encoded.
 var (
 	errBadBool = errors.New("abi: improperly encoded boolean value")
 )
 
+// readBool converts a 32-byte word to a boolean value.
+// Valid encodings have all bytes except the last one set to zero,
+// and the last byte set to either 0 (false) or 1 (true).
+// Returns the boolean value and an error if the encoding is invalid.
 func readBool(word []byte) (bool, error) {
 	for _, b := range word[:31] {
 		if b != 0 {

@@ -12,19 +12,39 @@ import (
 	"go.uber.org/zap"
 )
 
+// RewardsProofsStore manages the generation and caching of Merkle proofs
+// for rewards distributions. It provides functionality to generate proofs
+// that can be used by earners to claim their rewards.
 type RewardsProofsStore struct {
+	// rewardsCalculator is used to calculate and merkelize rewards
 	rewardsCalculator *rewards.RewardsCalculator
-	logger            *zap.Logger
-	rewardsData       map[string]*ProofData
+	// logger for logging operations and errors
+	logger *zap.Logger
+	// rewardsData caches proof data by snapshot date to avoid recalculation
+	rewardsData map[string]*ProofData
 }
 
+// ProofData contains all the Merkle trees and distribution data needed
+// to generate proofs for a specific snapshot date.
 type ProofData struct {
+	// SnapshotDate is the date of the rewards snapshot
 	SnapshotDate string
-	AccountTree  *merkletree.MerkleTree
-	TokenTree    map[gethcommon.Address]*merkletree.MerkleTree
+	// AccountTree is the Merkle tree of all accounts in the distribution
+	AccountTree *merkletree.MerkleTree
+	// TokenTree maps token addresses to their respective Merkle trees
+	TokenTree map[gethcommon.Address]*merkletree.MerkleTree
+	// Distribution contains the complete rewards distribution data
 	Distribution *distribution.Distribution
 }
 
+// NewRewardsProofsStore creates a new RewardsProofsStore instance.
+//
+// Parameters:
+//   - rc: RewardsCalculator for generating rewards data
+//   - l: Logger for logging operations
+//
+// Returns:
+//   - *RewardsProofsStore: A new RewardsProofsStore instance
 func NewRewardsProofsStore(
 	rc *rewards.RewardsCalculator,
 	l *zap.Logger,
@@ -36,6 +56,16 @@ func NewRewardsProofsStore(
 	}
 }
 
+// getRewardsDataForSnapshot retrieves or generates proof data for a specific snapshot date.
+// If the data is already cached, it returns the cached version; otherwise, it generates
+// new proof data and caches it for future use.
+//
+// Parameters:
+//   - snapshot: The date of the rewards snapshot
+//
+// Returns:
+//   - *ProofData: The proof data for the specified snapshot
+//   - error: Any error encountered during data retrieval or generation
 func (rps *RewardsProofsStore) getRewardsDataForSnapshot(snapshot string) (*ProofData, error) {
 	data, ok := rps.rewardsData[snapshot]
 	if !ok {
@@ -59,6 +89,18 @@ func (rps *RewardsProofsStore) getRewardsDataForSnapshot(snapshot string) (*Proo
 	return data, nil
 }
 
+// GenerateRewardsClaimProof generates a Merkle proof for an earner to claim rewards
+// for specific tokens from a distribution root.
+//
+// Parameters:
+//   - earnerAddress: The Ethereum address of the earner claiming rewards
+//   - tokenAddresses: List of token addresses for which to generate proofs
+//   - rootIndex: The index of the distribution root
+//
+// Returns:
+//   - []byte: The Merkle root of the account tree
+//   - *rewardsCoordinator.IRewardsCoordinatorRewardsMerkleClaim: The claim data with proofs
+//   - error: Any error encountered during proof generation
 func (rps *RewardsProofsStore) GenerateRewardsClaimProof(earnerAddress string, tokenAddresses []string, rootIndex int64) (
 	[]byte,
 	*rewardsCoordinator.IRewardsCoordinatorRewardsMerkleClaim,

@@ -56,18 +56,37 @@ import (
 	"gorm.io/gorm"
 )
 
+// Migration interface defines the contract for database migrations.
+// Each migration must implement the Up method to apply changes and GetName to identify itself.
 type Migration interface {
+	// Up applies the migration to the database
 	Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error
+	// GetName returns the unique name of the migration
 	GetName() string
 }
 
+// Migrator handles the execution and tracking of database migrations.
 type Migrator struct {
-	Db           *sql.DB
-	GDb          *gorm.DB
-	Logger       *zap.Logger
+	// Db is the raw SQL database connection
+	Db *sql.DB
+	// GDb is the GORM database connection
+	GDb *gorm.DB
+	// Logger for logging migration operations
+	Logger *zap.Logger
+	// globalConfig contains application configuration
 	globalConfig *config.Config
 }
 
+// NewMigrator creates a new Migrator instance and initializes the migrations table.
+//
+// Parameters:
+//   - db: SQL database connection
+//   - gDb: GORM database connection
+//   - l: Logger for logging migration operations
+//   - cfg: Global application configuration
+//
+// Returns:
+//   - *Migrator: A new Migrator instance
 func NewMigrator(db *sql.DB, gDb *gorm.DB, l *zap.Logger, cfg *config.Config) *Migrator {
 	err := initializeMigrationTable(gDb)
 	if err != nil {
@@ -81,6 +100,14 @@ func NewMigrator(db *sql.DB, gDb *gorm.DB, l *zap.Logger, cfg *config.Config) *M
 	}
 }
 
+// initializeMigrationTable creates the migrations table if it doesn't exist.
+// This table tracks which migrations have been applied to the database.
+//
+// Parameters:
+//   - db: GORM database connection
+//
+// Returns:
+//   - error: Any error encountered during table creation
 func initializeMigrationTable(db *gorm.DB) error {
 	query := `
 		create table if not exists migrations (
@@ -92,6 +119,11 @@ func initializeMigrationTable(db *gorm.DB) error {
 	return result.Error
 }
 
+// MigrateAll runs all available migrations in sequence.
+// If any migration fails, the function will panic.
+//
+// Returns:
+//   - error: Any error encountered during migration
 func (m *Migrator) MigrateAll() error {
 	migrations := []Migration{
 		&_202409061249_bootstrapDb.Migration{},
@@ -151,6 +183,13 @@ func (m *Migrator) MigrateAll() error {
 	return nil
 }
 
+// Migrate runs a single migration if it hasn't been applied yet.
+//
+// Parameters:
+//   - migration: The migration to apply
+//
+// Returns:
+//   - error: Any error encountered during migration
 func (m *Migrator) Migrate(migration Migration) error {
 	name := migration.GetName()
 
@@ -187,8 +226,12 @@ func (m *Migrator) Migrate(migration Migration) error {
 	return nil
 }
 
+// Migrations represents a record of a migration that has been applied to the database.
 type Migrations struct {
-	Name      string    `gorm:"primaryKey"`
+	// Name is the unique identifier of the migration
+	Name string `gorm:"primaryKey"`
+	// CreatedAt is the timestamp when the migration was applied
 	CreatedAt time.Time `gorm:"default:current_timestamp;type:timestamp with time zone"`
+	// UpdatedAt is the timestamp when the migration was last updated
 	UpdatedAt time.Time `gorm:"default:null;type:timestamp with time zone"`
 }

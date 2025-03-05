@@ -12,53 +12,80 @@ import (
 	"time"
 )
 
+// SnapshotFile represents a database snapshot file and its associated metadata.
+// It provides methods for managing snapshot files, including hash generation,
+// validation, and metadata handling.
 type SnapshotFile struct {
-	Dir              string
+	// Dir is the directory containing the snapshot file
+	Dir string
+	// SnapshotFileName is the name of the snapshot file
 	SnapshotFileName string
+	// CreatedTimestamp is the time when the snapshot was created
 	CreatedTimestamp time.Time
-	Chain            string
-	Version          string
-	SchemaName       string
-	Kind             string
+	// Chain identifies the blockchain network for the snapshot
+	Chain string
+	// Version is the sidecar version used to create the snapshot
+	Version string
+	// SchemaName is the database schema included in the snapshot
+	SchemaName string
+	// Kind specifies the type of snapshot (Slim, Full, Archive)
+	Kind string
 }
 
+// SnapshotMetadata contains metadata about a snapshot for serialization to JSON.
 type SnapshotMetadata struct {
-	Version   string `json:"version"`
-	Chain     string `json:"chain"`
-	Schema    string `json:"schema"`
-	Kind      string `json:"kind"`
+	// Version is the sidecar version used to create the snapshot
+	Version string `json:"version"`
+	// Chain identifies the blockchain network for the snapshot
+	Chain string `json:"chain"`
+	// Schema is the database schema included in the snapshot
+	Schema string `json:"schema"`
+	// Kind specifies the type of snapshot (Slim, Full, Archive)
+	Kind string `json:"kind"`
+	// Timestamp is the creation time of the snapshot in RFC3339 format
 	Timestamp string `json:"timestamp"`
-	FileName  string `json:"fileName"`
+	// FileName is the name of the snapshot file
+	FileName string `json:"fileName"`
 }
 
+// HashExt returns the file extension for hash files.
 func (sf *SnapshotFile) HashExt() string {
 	return "sha256"
 }
 
+// SignatureExt returns the file extension for signature files.
 func (sf *SnapshotFile) SignatureExt() string {
 	return "asc"
 }
 
+// HashFileName returns the filename for the snapshot's hash file.
 func (sf *SnapshotFile) HashFileName() string {
 	return fmt.Sprintf("%s.%s", sf.SnapshotFileName, sf.HashExt())
 }
 
+// SignatureFileName returns the filename for the snapshot's signature file.
 func (sf *SnapshotFile) SignatureFileName() string {
 	return fmt.Sprintf("%s.%s", sf.SnapshotFileName, sf.SignatureExt())
 }
 
+// FullPath returns the absolute path to the snapshot file.
 func (sf *SnapshotFile) FullPath() string {
 	return fmt.Sprintf("%s/%s", sf.Dir, sf.SnapshotFileName)
 }
 
+// HashFilePath returns the absolute path to the snapshot's hash file.
 func (sf *SnapshotFile) HashFilePath() string {
 	return fmt.Sprintf("%s/%s", sf.Dir, sf.HashFileName())
 }
 
+// SignatureFilePath returns the absolute path to the snapshot's signature file.
 func (sf *SnapshotFile) SignatureFilePath() string {
 	return fmt.Sprintf("%s/%s", sf.Dir, sf.SignatureFileName())
 }
 
+// ValidateHash verifies the integrity of the snapshot file by comparing
+// its computed hash with the hash stored in the hash file.
+// It returns an error if the hashes don't match or if any operation fails.
 func (sf *SnapshotFile) ValidateHash() error {
 	hashFile, err := os.ReadFile(sf.HashFilePath())
 	if err != nil {
@@ -80,6 +107,9 @@ func (sf *SnapshotFile) ValidateHash() error {
 	return nil
 }
 
+// GenerateSnapshotHash computes the SHA-256 hash of the snapshot file.
+// It processes the file in 1MB chunks to handle large files efficiently.
+// Returns the hexadecimal representation of the hash and any error encountered.
 func (sf *SnapshotFile) GenerateSnapshotHash() (string, error) {
 	dumpFile, err := os.Open(sf.FullPath())
 	if err != nil {
@@ -107,6 +137,9 @@ func (sf *SnapshotFile) GenerateSnapshotHash() (string, error) {
 	return sum, nil
 }
 
+// GenerateAndSaveSnapshotHash computes the SHA-256 hash of the snapshot file
+// and saves it to a hash file. The hash file contains the hash and the snapshot filename.
+// Returns an error if any operation fails.
 func (sf *SnapshotFile) GenerateAndSaveSnapshotHash() error {
 	sum, err := sf.GenerateSnapshotHash()
 	if err != nil {
@@ -126,24 +159,32 @@ func (sf *SnapshotFile) GenerateAndSaveSnapshotHash() error {
 	return nil
 }
 
+// ValidateSignature verifies the signature of the snapshot file using the provided public key.
+// This is a placeholder implementation that always returns nil.
 func (sf *SnapshotFile) ValidateSignature(publicKey string) error {
 	return nil
 }
 
+// ClearFiles removes the snapshot file, hash file, and signature file.
+// It ignores any errors that occur during removal.
 func (sf *SnapshotFile) ClearFiles() {
 	_ = os.Remove(sf.FullPath())
 	_ = os.Remove(sf.HashFilePath())
 	_ = os.Remove(sf.SignatureFilePath())
 }
 
+// MetadataFileName returns the filename for the snapshot's metadata file.
 func (sf *SnapshotFile) MetadataFileName() string {
 	return "metadata.json"
 }
 
+// MetadataFilePath returns the absolute path to the snapshot's metadata file.
 func (sf *SnapshotFile) MetadataFilePath() string {
 	return fmt.Sprintf("%s/%s", sf.Dir, sf.MetadataFileName())
 }
 
+// GetMetadata creates and returns a SnapshotMetadata struct containing
+// the snapshot's metadata information.
 func (sf *SnapshotFile) GetMetadata() *SnapshotMetadata {
 	return &SnapshotMetadata{
 		Version:   sf.Version,
@@ -155,6 +196,9 @@ func (sf *SnapshotFile) GetMetadata() *SnapshotMetadata {
 	}
 }
 
+// GenerateAndSaveMetadata creates a metadata file containing information about the snapshot.
+// The metadata is saved as a JSON file in the snapshot directory.
+// Returns an error if any operation fails.
 func (sf *SnapshotFile) GenerateAndSaveMetadata() error {
 	metadataFilePath := sf.MetadataFilePath()
 
@@ -175,6 +219,8 @@ func (sf *SnapshotFile) GenerateAndSaveMetadata() error {
 	return nil
 }
 
+// newSnapshotFile creates a new SnapshotFile instance from an existing snapshot file path.
+// It extracts the directory and filename from the provided path.
 func newSnapshotFile(snapshotFileName string) *SnapshotFile {
 	name := filepath.Base(snapshotFileName)
 	dir := filepath.Dir(snapshotFileName)
@@ -185,6 +231,8 @@ func newSnapshotFile(snapshotFileName string) *SnapshotFile {
 	}
 }
 
+// newSnapshotDumpFile creates a new SnapshotFile instance for a snapshot to be created.
+// It generates a filename based on the provided parameters and the current timestamp.
 func newSnapshotDumpFile(destPath string, chain string, version string, schemaName string, kind Kind) *SnapshotFile {
 	// generate date YYYYMMDDhhmmss
 	now := time.Now()

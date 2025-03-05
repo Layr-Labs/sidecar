@@ -1,3 +1,6 @@
+// Package fetcher provides functionality for retrieving blocks and transaction data
+// from Ethereum nodes. It handles batch requests, retries, and parallel processing
+// to efficiently fetch blockchain data.
 package fetcher
 
 import (
@@ -11,12 +14,18 @@ import (
 	"time"
 )
 
+// Fetcher is responsible for retrieving blockchain data from Ethereum nodes.
+// It provides methods for fetching blocks and transaction receipts.
 type Fetcher struct {
+	// EthClient is used to communicate with Ethereum nodes
 	EthClient *ethereum.Client
-	Logger    *zap.Logger
-	Config    *config.Config
+	// Logger is used for logging fetch operations
+	Logger *zap.Logger
+	// Config contains application configuration
+	Config *config.Config
 }
 
+// NewFetcher creates a new Fetcher with the provided Ethereum client, configuration, and logger.
 func NewFetcher(ethClient *ethereum.Client, cfg *config.Config, l *zap.Logger) *Fetcher {
 	return &Fetcher{
 		EthClient: ethClient,
@@ -25,12 +34,17 @@ func NewFetcher(ethClient *ethereum.Client, cfg *config.Config, l *zap.Logger) *
 	}
 }
 
+// FetchedBlock represents a block and its associated transaction receipts.
+// It combines the block data with detailed information about each transaction.
 type FetchedBlock struct {
+	// Block contains the basic block information
 	Block *ethereum.EthereumBlock
-	// map[transactionHash] => transactionReceipt
+	// TxReceipts maps transaction hashes to their receipts
 	TxReceipts map[string]*ethereum.EthereumTransactionReceipt
 }
 
+// FetchBlock retrieves a single block and its transaction receipts by block number.
+// It returns a FetchedBlock containing the block and receipt data.
 func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedBlock, error) {
 	block, err := f.EthClient.GetBlockByNumber(ctx, blockNumber)
 	if err != nil {
@@ -50,6 +64,9 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 	}, nil
 }
 
+// FetchReceiptsForBlock retrieves transaction receipts for all transactions in a block.
+// It uses batch requests to efficiently fetch multiple receipts at once.
+// Returns a map of transaction hashes to their receipts.
 func (f *Fetcher) FetchReceiptsForBlock(ctx context.Context, block *ethereum.EthereumBlock) (map[string]*ethereum.EthereumTransactionReceipt, error) {
 	blockNumber := block.Number.Value()
 
@@ -99,10 +116,15 @@ func (f *Fetcher) FetchReceiptsForBlock(ctx context.Context, block *ethereum.Eth
 	return receipts, nil
 }
 
+// IsInterestingAddress checks if a contract address is in the list of interesting addresses
+// defined in the configuration. This is used to filter which contracts to process.
 func (f *Fetcher) IsInterestingAddress(contractAddress string) bool {
 	return slices.Contains(f.Config.GetInterestingAddressForConfigEnv(), contractAddress)
 }
 
+// FetchBlocksWithRetries attempts to fetch a range of blocks with exponential backoff retries.
+// It will retry failed requests with increasing delays before giving up.
+// Returns an array of FetchedBlock objects for the requested range.
 func (f *Fetcher) FetchBlocksWithRetries(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64) ([]*FetchedBlock, error) {
 	retries := []int{1, 2, 4, 8, 16, 32, 64}
 	var e error
@@ -135,6 +157,9 @@ func (f *Fetcher) FetchBlocksWithRetries(ctx context.Context, startBlockInclusiv
 	return nil, e
 }
 
+// FetchBlocks retrieves a range of blocks and their transaction receipts.
+// It uses batch requests to fetch blocks and parallel processing to fetch receipts.
+// Returns an array of FetchedBlock objects sorted by block number.
 func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64) ([]*FetchedBlock, error) {
 	blockNumbers := make([]uint64, 0)
 	for i := startBlockInclusive; i <= endBlockInclusive; i++ {

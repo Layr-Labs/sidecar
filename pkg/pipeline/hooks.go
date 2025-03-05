@@ -6,6 +6,16 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 )
 
+// HandleBlockProcessedHook publishes a BlockProcessed event to the event bus when a block
+// has been fully processed by the pipeline. This allows other components to react to
+// completed block processing.
+//
+// Parameters:
+//   - block: The processed block data
+//   - transactions: The transactions contained in the block
+//   - logs: Transaction logs associated with the block
+//   - stateRoot: The state root after applying the block
+//   - committedState: Map of committed state changes resulting from this block
 func (p *Pipeline) HandleBlockProcessedHook(
 	block *storage.Block,
 	transactions []*storage.Transaction,

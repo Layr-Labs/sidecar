@@ -23,6 +23,10 @@ import (
 	"go.uber.org/zap"
 )
 
+// Pipeline orchestrates the entire data processing workflow, coordinating between
+// fetching blockchain data, indexing it, managing state, calculating rewards,
+// and storing results. It serves as the central component that ties together
+// all the different subsystems.
 type Pipeline struct {
 	Fetcher           *fetcher.Fetcher
 	Indexer           *indexer.Indexer
@@ -37,6 +41,23 @@ type Pipeline struct {
 	eventBus          eventBusTypes.IEventBus
 }
 
+// NewPipeline creates and initializes a new Pipeline instance with all required dependencies.
+//
+// Parameters:
+//   - f: Fetcher for retrieving blockchain data
+//   - i: Indexer for processing and storing blockchain data
+//   - bs: BlockStore for persistent storage of block data
+//   - sm: EigenStateManager for managing blockchain state
+//   - msm: MetaStateManager for managing metadata state
+//   - rc: RewardsCalculator for computing rewards
+//   - rcq: RewardsCalculatorQueue for scheduling reward calculations
+//   - gc: Global configuration
+//   - ms: Metrics sink for reporting metrics
+//   - eb: Event bus for publishing events
+//   - l: Logger for logging
+//
+// Returns:
+//   - *Pipeline: A fully initialized Pipeline instance
 func NewPipeline(
 	f *fetcher.Fetcher,
 	i *indexer.Indexer,
@@ -65,6 +86,17 @@ func NewPipeline(
 	}
 }
 
+// RunForFetchedBlock processes a block that has already been fetched from the blockchain.
+// This method handles the core processing logic, including indexing the block, parsing
+// transactions and logs, updating state, validating rewards, and generating state roots.
+//
+// Parameters:
+//   - ctx: Context for propagating cancellation and timeouts
+//   - block: The pre-fetched block to process
+//   - isBackfill: Whether this processing is part of a historical backfill operation
+//
+// Returns:
+//   - error: Any error encountered during processing
 func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.FetchedBlock, isBackfill bool) error {
 	blockNumber := block.Block.Number.Value()
 
@@ -384,6 +416,17 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	return nil
 }
 
+// RunForBlock fetches and processes a single block by its block number. This method
+// handles both the fetching and processing steps, coordinating the entire pipeline
+// workflow for a specific block.
+//
+// Parameters:
+//   - ctx: Context for propagating cancellation and timeouts
+//   - blockNumber: The number of the block to fetch and process
+//   - isBackfill: Whether this processing is part of a historical backfill operation
+//
+// Returns:
+//   - error: Any error encountered during fetching or processing
 func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64, isBackfill bool) error {
 	p.Logger.Sugar().Debugw("Running pipeline for block", zap.Uint64("blockNumber", blockNumber))
 
@@ -401,6 +444,18 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64, isBackfi
 	return p.RunForFetchedBlock(ctx, block, isBackfill)
 }
 
+// RunForBlockBatch fetches and processes a range of blocks from startBlock to endBlock (inclusive).
+// This method is useful for processing multiple blocks in a single operation, such as during
+// backfilling or catching up after downtime.
+//
+// Parameters:
+//   - ctx: Context for propagating cancellation and timeouts
+//   - startBlock: The first block number in the range to process
+//   - endBlock: The last block number in the range to process
+//   - isBackfill: Whether this processing is part of a historical backfill operation
+//
+// Returns:
+//   - error: Any error encountered during fetching or processing
 func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endBlock uint64, isBackfill bool) error {
 	p.Logger.Sugar().Debugw("Running pipeline for block batch",
 		zap.Uint64("startBlock", startBlock),
