@@ -54,6 +54,7 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 			VerifySnapshotSignature: cfg.RestoreSnapshotConfig.VerifySignature,
 			ManifestUrl:             cfg.RestoreSnapshotConfig.ManifestUrl,
 			Kind:                    snapshot.Kind(cfg.RestoreSnapshotConfig.Kind),
+			SnapshotPublicKey:       config.PublicGpgKey,
 		})
 		sink.Flush()
 

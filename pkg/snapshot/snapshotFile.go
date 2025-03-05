@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"golang.org/x/crypto/openpgp"
 	"io"
 	"os"
 	"path/filepath"
@@ -161,8 +162,32 @@ func (sf *SnapshotFile) GenerateAndSaveSnapshotHash() error {
 
 // ValidateSignature verifies the signature of the snapshot file using the provided public key.
 // This is a placeholder implementation that always returns nil.
-func (sf *SnapshotFile) ValidateSignature(publicKey string) error {
-	return nil
+func (sf *SnapshotFile) ValidateSignature(publicKey string) (*openpgp.Entity, error) {
+	publicKeyReader := strings.NewReader(publicKey)
+
+	keyRing, err := openpgp.ReadArmoredKeyRing(publicKeyReader)
+	if err != nil {
+		return nil, fmt.Errorf("error reading armored key ring: %w", err)
+	}
+
+	signagureFile, err := os.Open(sf.SignatureFilePath())
+	if err != nil {
+		return nil, fmt.Errorf("error opening signature file: %w", err)
+	}
+	defer signagureFile.Close()
+
+	originalFile, err := os.Open(sf.FullPath())
+	if err != nil {
+		return nil, fmt.Errorf("error opening snapshot file: %w", err)
+	}
+	defer originalFile.Close()
+
+	signer, err := openpgp.CheckArmoredDetachedSignature(keyRing, originalFile, signagureFile)
+	if err != nil {
+		return nil, fmt.Errorf("error checking signature: %w", err)
+	}
+
+	return signer, nil
 }
 
 // ClearFiles removes the snapshot file, hash file, and signature file.
