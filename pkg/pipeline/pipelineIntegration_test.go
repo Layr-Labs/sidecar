@@ -133,7 +133,7 @@ func Test_PipelineIntegration(t *testing.T) {
 
 		p := NewPipeline(fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
-		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true, false)
+		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)
 
 		query := `select * from avs_operator_state_changes where block_number = @blockNumber`
@@ -162,7 +162,7 @@ func Test_PipelineIntegration(t *testing.T) {
 
 		p := NewPipeline(fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
-		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true, false)
+		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)
 
 		query := `select * from avs_operator_state_changes where block_number = @blockNumber`
