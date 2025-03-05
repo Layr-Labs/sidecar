@@ -16,6 +16,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
@@ -45,6 +46,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	*fetcher.Fetcher,
 	*indexer.Indexer,
 	storage.BlockStore,
+	contractStore.ContractStore,
 	*contractManager.ContractManager,
 	*stateManager.EigenStateManager,
 	*metaStateManager.MetaStateManager,
@@ -121,7 +123,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	eb := eventBus.NewEventBus(l)
 
-	return fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbname
+	return fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbname
 
 }
 
@@ -129,10 +131,10 @@ func Test_PipelineIntegration(t *testing.T) {
 
 	t.Run("Should index a block, transaction with logs using native batched ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
-		fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
+		fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
+		p := NewPipeline(fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
 		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)
@@ -158,10 +160,10 @@ func Test_PipelineIntegration(t *testing.T) {
 	})
 	t.Run("Should index a block, transaction with logs using chunked ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultChunkedCallEthereumClientConfig()
-		fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
+		fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
+		p := NewPipeline(fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
 		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)

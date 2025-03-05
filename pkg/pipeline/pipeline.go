@@ -11,6 +11,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
@@ -33,6 +34,7 @@ type Pipeline struct {
 	Fetcher           *fetcher.Fetcher
 	Indexer           *indexer.Indexer
 	BlockStore        storage.BlockStore
+	contractStore     contractStore.ContractStore
 	contractManager   *contractManager.ContractManager
 	Logger            *zap.Logger
 	stateManager      *stateManager.EigenStateManager
@@ -65,6 +67,7 @@ func NewPipeline(
 	f *fetcher.Fetcher,
 	i *indexer.Indexer,
 	bs storage.BlockStore,
+	cs contractStore.ContractStore,
 	cm *contractManager.ContractManager,
 	sm *stateManager.EigenStateManager,
 	msm *metaStateManager.MetaStateManager,
@@ -79,6 +82,7 @@ func NewPipeline(
 		Fetcher:           f,
 		Indexer:           i,
 		Logger:            l,
+		contractStore:     cs,
 		contractManager:   cm,
 		stateManager:      sm,
 		metaStateManager:  msm,
@@ -237,7 +241,13 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				return err
 			}
 
-			if p.globalConfig.SideloadConfig.Enabled && log.EventName == "Upgraded" {
+			contract, err := p.contractStore.GetContractForAddress(log.Address)
+			if err != nil {
+				p.Logger.Sugar().Errorw("Failed to get contract for address", zap.String("address", log.Address), zap.Error(err))
+				return err
+			}
+			
+			if contract.ContractType == "sideload" && log.EventName == "Upgraded" {
 				if err := p.contractManager.HandleContractUpgrade(ctx, blockNumber, log); err != nil {
 					p.Logger.Sugar().Errorw("Failed to handle contract upgrade",
 						zap.Uint64("blockNumber", blockNumber),

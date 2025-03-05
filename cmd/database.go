@@ -119,7 +119,7 @@ var runDatabaseCmd = &cobra.Command{
 
 		rcq := rewardsCalculatorQueue.NewRewardsCalculatorQueue(rc, l)
 
-		_ = pipeline.NewPipeline(fetchr, idxr, mds, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
+		_ = pipeline.NewPipeline(fetchr, idxr, mds, contractStore,cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
 		l.Sugar().Infow("Done")
 	},

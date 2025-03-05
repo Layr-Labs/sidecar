@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
-	"strings"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
@@ -83,10 +84,18 @@ func (s *PostgresContractStore) CreateContract(
 	bytecodeHash string,
 	matchingContractAddress string,
 	checkedForAbi bool,
+	contractType ...string,
 ) (*contractStore.Contract, error) {
+	// Default to 'core' if no contract type is provided
+	cType := "core"
+	if len(contractType) > 0 && contractType[0] != "" {
+		cType = contractType[0]
+	}
+
 	contract := &contractStore.Contract{
 		ContractAddress:         strings.ToLower(address),
 		ContractAbi:             abiJson,
+		ContractType:            cType,
 		Verified:                verified,
 		BytecodeHash:            bytecodeHash,
 		MatchingContractAddress: matchingContractAddress,
@@ -203,6 +212,7 @@ func (s *PostgresContractStore) GetContractWithProxyContract(address string, atB
 	query := `select
 		c.contract_address as base_address,
 		c.contract_abi as base_abi,
+		c.contract_type as contract_type,
 		pcc.contract_address as base_proxy_address,
 		pcc.contract_abi as base_proxy_abi,
 		pcclike.contract_address as base_proxy_like_address,
