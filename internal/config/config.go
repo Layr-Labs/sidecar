@@ -116,6 +116,18 @@ type SidecarPrimaryConfig struct {
 	IsPrimary bool
 }
 
+type LoadContractConfig struct {
+	ContractAddress          string
+	ContractAbi              string
+	ImplementationForAddress string
+	ImplementationAbi        string
+	BlockNumber              uint64
+}
+
+type BatchLoadContractsConfig struct {
+	JsonFile string
+}
+
 type IpfsConfig struct {
 	Url string
 }
@@ -125,19 +137,21 @@ type EtherscanConfig struct {
 }
 
 type Config struct {
-	Debug                 bool
-	EthereumRpcConfig     EthereumRpcConfig
-	DatabaseConfig        DatabaseConfig
-	CreateSnapshotConfig  CreateSnapshotConfig
-	RestoreSnapshotConfig RestoreSnapshotConfig
-	RpcConfig             RpcConfig
-	Chain                 Chain
-	Rewards               RewardsConfig
-	DataDogConfig         DataDogConfig
-	PrometheusConfig      PrometheusConfig
-	SidecarPrimaryConfig  SidecarPrimaryConfig
-	IpfsConfig            IpfsConfig
-	EtherscanConfig       EtherscanConfig
+	Debug                    bool
+	EthereumRpcConfig        EthereumRpcConfig
+	DatabaseConfig           DatabaseConfig
+	CreateSnapshotConfig     CreateSnapshotConfig
+	RestoreSnapshotConfig    RestoreSnapshotConfig
+	RpcConfig                RpcConfig
+	Chain                    Chain
+	Rewards                  RewardsConfig
+	DataDogConfig            DataDogConfig
+	PrometheusConfig         PrometheusConfig
+	SidecarPrimaryConfig     SidecarPrimaryConfig
+	LoadContractConfig       LoadContractConfig
+	BatchLoadContractsConfig BatchLoadContractsConfig
+	IpfsConfig               IpfsConfig
+	EtherscanConfig          EtherscanConfig
 }
 
 func StringWithDefault(value, defaultValue string) string {
@@ -198,6 +212,14 @@ var (
 	PrometheusPort    = "prometheus.port"
 
 	SidecarPrimaryUrl = "sidecar-primary.url"
+
+	LoadContractAddress                  = "load-contract.contract-address"
+	LoadContractAbi                      = "load-contract.contract-abi"
+	LoadContractImplementationForAddress = "load-contract.implementation-for-address"
+	LoadContractImplementationAbi        = "load-contract.implementation-abi"
+	LoadContractBlockNumber              = "load-contract.block-number"
+
+	BatchLoadContractsJsonFile = "batch-load-contracts.json-file"
 
 	IpfsUrl = "ipfs.url"
 
@@ -269,6 +291,18 @@ func NewConfig() *Config {
 
 		SidecarPrimaryConfig: SidecarPrimaryConfig{
 			Url: viper.GetString(normalizeFlagName(SidecarPrimaryUrl)),
+		},
+
+		LoadContractConfig: LoadContractConfig{
+			ContractAddress:          viper.GetString(normalizeFlagName(LoadContractAddress)),
+			ContractAbi:              viper.GetString(normalizeFlagName(LoadContractAbi)),
+			ImplementationForAddress: viper.GetString(normalizeFlagName(LoadContractImplementationForAddress)),
+			ImplementationAbi:        viper.GetString(normalizeFlagName(LoadContractImplementationAbi)),
+			BlockNumber:              viper.GetUint64(normalizeFlagName(LoadContractBlockNumber)),
+		},
+
+		BatchLoadContractsConfig: BatchLoadContractsConfig{
+			JsonFile: viper.GetString(normalizeFlagName(BatchLoadContractsJsonFile)),
 		},
 
 		IpfsConfig: IpfsConfig{

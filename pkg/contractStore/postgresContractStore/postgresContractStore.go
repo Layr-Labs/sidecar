@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
-	"strings"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
@@ -83,10 +85,18 @@ func (s *PostgresContractStore) CreateContract(
 	bytecodeHash string,
 	matchingContractAddress string,
 	checkedForAbi bool,
+	contractType ...string,
 ) (*contractStore.Contract, error) {
+	// Default to 'core' if no contract type is provided
+	cType := "core"
+	if len(contractType) > 0 && contractType[0] != "" {
+		cType = contractType[0]
+	}
+
 	contract := &contractStore.Contract{
 		ContractAddress:         strings.ToLower(address),
 		ContractAbi:             abiJson,
+		ContractType:            cType,
 		Verified:                verified,
 		BytecodeHash:            bytecodeHash,
 		MatchingContractAddress: matchingContractAddress,
@@ -110,7 +120,14 @@ func (s *PostgresContractStore) FindOrCreateContract(
 	bytecodeHash string,
 	matchingContractAddress string,
 	checkedForAbi bool,
+	contractType ...string,
 ) (*contractStore.Contract, bool, error) {
+	// Default to 'core' if no contract type is provided
+	cType := "core"
+	if len(contractType) > 0 && contractType[0] != "" {
+		cType = contractType[0]
+	}
+
 	found := false
 	upsertedContract, err := helpers.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
 		contract := &contractStore.Contract{}
@@ -125,7 +142,7 @@ func (s *PostgresContractStore) FindOrCreateContract(
 			return contract, nil
 		}
 
-		contract, err := s.CreateContract(address, abiJson, verified, bytecodeHash, matchingContractAddress, checkedForAbi)
+		contract, err := s.CreateContract(address, abiJson, verified, bytecodeHash, matchingContractAddress, checkedForAbi, cType)
 		if err != nil {
 			s.Logger.Sugar().Errorw("Failed to create contract", zap.Error(err), zap.String("address", address))
 			return nil, err
@@ -203,6 +220,7 @@ func (s *PostgresContractStore) GetContractWithProxyContract(address string, atB
 	query := `select
 		c.contract_address as base_address,
 		c.contract_abi as base_abi,
+		c.contract_type as contract_type,
 		pcc.contract_address as base_proxy_address,
 		pcc.contract_abi as base_proxy_abi,
 		pcclike.contract_address as base_proxy_like_address,
@@ -275,35 +293,30 @@ func (s *PostgresContractStore) loadContractData() (*contractStore.CoreContracts
 	case config.Chain_Preprod:
 		filename = "preprod.json"
 	default:
-		return nil, fmt.Errorf("Unknown environment.")
+		return nil, fmt.Errorf("unknown environment")
 	}
 	jsonData, err := contractStore.CoreContracts.ReadFile(fmt.Sprintf("coreContracts/%s", filename))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open core contracts file: %w", err)
+		return nil, fmt.Errorf("failed to open core contracts file: %w", err)
 	}
 
 	// read entire file and marshal it into a CoreContractsData struct
 	data := &contractStore.CoreContractsData{}
 	err = json.Unmarshal(jsonData, &data)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to decode core contracts data: %w", err)
+		return nil, fmt.Errorf("failed to decode core contracts data: %w", err)
 	}
 	return data, nil
 }
 
-func (s *PostgresContractStore) InitializeCoreContracts() error {
-	coreContracts, err := s.loadContractData()
-	if err != nil {
-		return fmt.Errorf("Failed to load core contracts: %w", err)
-	}
-
+func (s *PostgresContractStore) InitializeContracts(contractsData *contractStore.CoreContractsData, contractType string) error {
 	contracts := make([]*contractStore.Contract, 0)
 	res := s.Db.Find(&contracts)
 	if res.Error != nil {
-		return fmt.Errorf("Failed to fetch contracts: %w", res.Error)
+		return fmt.Errorf("failed to fetch contracts: %w", res.Error)
 	}
 
-	for _, contract := range coreContracts.CoreContracts {
+	for _, contract := range contractsData.CoreContracts {
 		_, found, err := s.FindOrCreateContract(
 			contract.ContractAddress,
 			contract.ContractAbi,
@@ -311,9 +324,10 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 			contract.BytecodeHash,
 			"",
 			true,
+			contractType,
 		)
 		if err != nil {
-			return fmt.Errorf("Failed to create core contract: %w", err)
+			return fmt.Errorf("failed to create core contract: %w", err)
 		}
 		if found {
 			s.Logger.Sugar().Debugw("Contract already exists", zap.String("contractAddress", contract.ContractAddress))
@@ -322,18 +336,18 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 
 		_, err = s.SetContractCheckedForProxy(contract.ContractAddress)
 		if err != nil {
-			return fmt.Errorf("Failed to create core contract: %w", err)
+			return fmt.Errorf("failed to create core contract: %w", err)
 		}
 		s.Logger.Sugar().Debugw("Created core contract", zap.String("contractAddress", contract.ContractAddress))
 	}
-	for _, proxy := range coreContracts.ProxyContracts {
+	for _, proxy := range contractsData.ProxyContracts {
 		_, found, err := s.FindOrCreateProxyContract(
 			uint64(proxy.BlockNumber),
 			proxy.ContractAddress,
 			proxy.ProxyContractAddress,
 		)
 		if err != nil {
-			return fmt.Errorf("Failed to create core proxy contract: %w", err)
+			return fmt.Errorf("failed to create core proxy contract: %w", err)
 		}
 		if found {
 			s.Logger.Sugar().Debugw("Proxy contract already exists",
@@ -347,5 +361,37 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 			zap.String("proxyContractAddress", proxy.ContractAddress),
 		)
 	}
+	return nil
+}
+
+func (s *PostgresContractStore) InitializeCoreContracts() error {
+	coreContracts, err := s.loadContractData()
+	if err != nil {
+		return fmt.Errorf("failed to load core contracts: %w", err)
+	}
+
+	if err := s.InitializeContracts(coreContracts, "core"); err != nil {
+		return fmt.Errorf("failed to initialize core contracts: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresContractStore) InitializeExternalContracts(filename string) error {
+	jsonData, err := os.ReadFile(filename)
+	if err != nil {
+		return fmt.Errorf("failed to open external contracts file: %w", err)
+	}
+
+	// read entire file and marshal it into a CoreContractsData struct
+	data := &contractStore.CoreContractsData{}
+	err = json.Unmarshal(jsonData, &data)
+	if err != nil {
+		return fmt.Errorf("failed to decode external contracts data: %w", err)
+	}
+
+	if err := s.InitializeContracts(data, "external"); err != nil {
+		return fmt.Errorf("failed to initialize external contracts: %w", err)
+	}
+
 	return nil
 }

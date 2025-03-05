@@ -35,14 +35,26 @@ func NewAbiFetcher(
 	}
 }
 
-func (af *AbiFetcher) FetchContractDetails(ctx context.Context, address string) (string, string, error) {
+func (af *AbiFetcher) FetchContractBytecode(ctx context.Context, address string) (string, error) {
 	bytecode, err := af.ethereumClient.GetCode(ctx, address)
 	if err != nil {
 		af.logger.Sugar().Errorw("Failed to get the contract bytecode",
 			zap.Error(err),
 			zap.String("address", address),
 		)
-		return "", "", err
+		return "", err
+	}
+	return bytecode, nil
+}
+
+func (af *AbiFetcher) FetchContractBytecodeHash(ctx context.Context, address string) (string, error) {
+	bytecode, err := af.FetchContractBytecode(ctx, address)
+	if err != nil {
+		af.logger.Sugar().Errorw("Failed to get the contract bytecode",
+			zap.Error(err),
+			zap.String("address", address),
+		)
+		return "", err
 	}
 
 	bytecodeHash := ethereum.HashBytecode(bytecode)
@@ -50,6 +62,18 @@ func (af *AbiFetcher) FetchContractDetails(ctx context.Context, address string) 
 		zap.String("address", address),
 		zap.String("bytecodeHash", bytecodeHash),
 	)
+	return bytecodeHash, nil
+}
+
+func (af *AbiFetcher) FetchContractAbi(ctx context.Context, address string) (string, error) {
+	bytecode, err := af.FetchContractBytecode(ctx, address)
+	if err != nil {
+		af.logger.Sugar().Errorw("Failed to get the contract bytecode",
+			zap.Error(err),
+			zap.String("address", address),
+		)
+		return "", err
+	}
 
 	// fetch ABI in order of AbiSource implementations
 	for _, source := range af.abiSources {
@@ -58,8 +82,8 @@ func (af *AbiFetcher) FetchContractDetails(ctx context.Context, address string) 
 			af.logger.Sugar().Infow("Successfully fetched ABI",
 				zap.String("address", address),
 			)
-			return bytecodeHash, abi, nil
+			return abi, nil
 		}
 	}
-	return "", "", fmt.Errorf("failed to fetch ABI for contract %s", address)
+	return "", fmt.Errorf("failed to fetch ABI for contract %s", address)
 }

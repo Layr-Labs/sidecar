@@ -120,10 +120,6 @@ func (cm *ContractManager) HandleContractUpgrade(ctx context.Context, blockNumbe
 	return nil
 }
 
-// CreateUpgradedProxyContract creates a new proxy contract relationship in the database.
-// It creates entries for both the proxy contract and the implementation contract,
-// fetching the ABI for the implementation contract.
-// If the proxy contract already exists, it returns without error.
 func (cm *ContractManager) CreateUpgradedProxyContract(
 	ctx context.Context,
 	blockNumber uint64,
@@ -151,12 +147,22 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 		return err
 	}
 
-	// Fetch ABIs
-	bytecodeHash, abi, err := cm.AbiFetcher.FetchContractDetails(ctx, proxyContractAddress)
+	// Fetch bytecode hash
+	bytecodeHash, err := cm.AbiFetcher.FetchContractBytecodeHash(ctx, proxyContractAddress)
 	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to fetch metadata from proxy contract",
+		cm.Logger.Sugar().Errorw("Failed to fetch contract details",
 			zap.Error(err),
-			zap.String("proxyContractAddress", proxyContractAddress),
+			zap.String("address", proxyContractAddress),
+		)
+		return err
+	}
+
+	// Fetch ABI
+	abi, err := cm.AbiFetcher.FetchContractAbi(ctx, proxyContractAddress)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to fetch contract details",
+			zap.Error(err),
+			zap.String("address", proxyContractAddress),
 		)
 		return err
 	}
@@ -171,13 +177,88 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 		true,
 	)
 	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to create new contract for proxy contract",
+		cm.Logger.Sugar().Errorw("Failed to create new contract with fetched ABI",
 			zap.Error(err),
-			zap.String("proxyContractAddress", proxyContractAddress),
+			zap.String("address", proxyContractAddress),
 		)
 		return err
 	}
+
 	cm.Logger.Sugar().Debugf("Created new contract for proxy contract", zap.String("proxyContractAddress", proxyContractAddress))
 
+	return nil
+}
+
+func (cm *ContractManager) InitializeLoadingContract(
+	ctx context.Context,
+	blockNumber uint64,
+	contractAddress string,
+	contractAbi string,
+	implementationForAddress string,
+	implementationAbi string,
+) error {
+	// create a contract for contractAddress
+	contractBytecodeHash, err := cm.AbiFetcher.FetchContractBytecodeHash(ctx, contractAddress)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to fetch contract details",
+			zap.Error(err),
+			zap.String("address", contractAddress),
+		)
+		return err
+	}
+	_, err = cm.ContractStore.CreateContract(
+		contractAddress,
+		contractAbi,
+		true,
+		contractBytecodeHash,
+		"",
+		true,
+		"external",
+	)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to create a contract for contractAddress",
+			zap.Error(err),
+			zap.String("address", contractAddress),
+		)
+		return err
+	}
+
+	// create a contract for implementationForAddress
+	implementationBytecodeHash, err := cm.AbiFetcher.FetchContractBytecodeHash(ctx, implementationForAddress)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to fetch contract details",
+			zap.Error(err),
+			zap.String("address", contractAddress),
+		)
+		return err
+	}
+	_, err = cm.ContractStore.CreateContract(
+		implementationForAddress,
+		implementationAbi,
+		true,
+		implementationBytecodeHash,
+		"",
+		true,
+		"external",
+	)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to create a contract with implementationForAddress",
+			zap.Error(err),
+			zap.String("address", implementationForAddress),
+		)
+		return err
+	}
+
+	// create a proxy contract
+	_, err = cm.ContractStore.CreateProxyContract(blockNumber, contractAddress, implementationForAddress)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to create proxy contract",
+			zap.Error(err),
+			zap.Uint64("blockNumber", blockNumber),
+			zap.String("contractAddress", contractAddress),
+			zap.String("implementationForAddress", implementationForAddress),
+		)
+		return err
+	}
 	return nil
 }

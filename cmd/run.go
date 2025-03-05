@@ -140,7 +140,7 @@ var runCmd = &cobra.Command{
 
 		go rcq.Process()
 
-		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sink, eb, l)
+		p := pipeline.NewPipeline(fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, sink, eb, l)
 
 		scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)
 		if err != nil {

@@ -13,20 +13,23 @@ var CoreContracts embed.FS
 type ContractStore interface {
 	GetContractForAddress(address string) (*Contract, error)
 	GetProxyContractForAddress(blockNumber uint64, address string) (*ProxyContract, error)
-	CreateContract(address string, abiJson string, verified bool, bytecodeHash string, matchingContractAddress string, checkedForAbi bool) (*Contract, error)
-	FindOrCreateContract(address string, abiJson string, verified bool, bytecodeHash string, matchingContractAddress string, checkedForAbi bool) (*Contract, bool, error)
+	CreateContract(address string, abiJson string, verified bool, bytecodeHash string, matchingContractAddress string, checkedForAbi bool, contractType ...string) (*Contract, error)
+	FindOrCreateContract(address string, abiJson string, verified bool, bytecodeHash string, matchingContractAddress string, checkedForAbi bool, contractType ...string) (*Contract, bool, error)
 	CreateProxyContract(blockNumber uint64, contractAddress string, proxyContractAddress string) (*ProxyContract, error)
 	FindOrCreateProxyContract(blockNumber uint64, contractAddress string, proxyContractAddress string) (*ProxyContract, bool, error)
 	GetContractWithProxyContract(address string, atBlockNumber uint64) (*ContractsTree, error)
 	SetContractCheckedForProxy(address string) (*Contract, error)
 
+	InitializeContracts(contractsData *CoreContractsData, contractType string) error
 	InitializeCoreContracts() error
+	InitializeExternalContracts(filename string) error
 }
 
 // Tables.
 type Contract struct {
 	ContractAddress         string
 	ContractAbi             string
+	ContractType            string
 	MatchingContractAddress string
 	Verified                bool
 	BytecodeHash            string
