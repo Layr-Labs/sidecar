@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
@@ -285,7 +286,7 @@ func (s *PostgresContractStore) loadContractData() (*contractStore.CoreContracts
 	case config.Chain_Preprod:
 		filename = "preprod.json"
 	default:
-		return nil, fmt.Errorf("unknown environment.")
+		return nil, fmt.Errorf("unknown environment")
 	}
 	jsonData, err := contractStore.CoreContracts.ReadFile(fmt.Sprintf("coreContracts/%s", filename))
 	if err != nil {
@@ -368,7 +369,7 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 }
 
 func (s *PostgresContractStore) InitializeExternalContracts(filename string) error {
-	jsonData, err := contractStore.CoreContracts.ReadFile(filename)
+	jsonData, err := os.ReadFile(filename)
 	if err != nil {
 		return fmt.Errorf("failed to open external contracts file: %w", err)
 	}

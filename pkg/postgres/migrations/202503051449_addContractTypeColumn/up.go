@@ -13,8 +13,12 @@ type Migration struct {
 
 func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
-		`CREATE TYPE contract_type AS ENUM ('core', 'external');`,
-		`ALTER TABLE contracts ADD COLUMN contract_type contract_type DEFAULT 'core';`,
+		`DO $$ BEGIN
+			CREATE TYPE contract_type AS ENUM ('core', 'external');
+		EXCEPTION
+			WHEN duplicate_object THEN null;
+		END $$;`,
+		`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS contract_type contract_type DEFAULT 'core';`,
 	}
 
 	for _, query := range queries {
