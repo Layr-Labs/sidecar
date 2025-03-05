@@ -10,6 +10,11 @@ import (
 	"strings"
 )
 
+// ProcessRestakedStrategiesForBlock processes and indexes all restaked strategies
+// for operators at the specified block number.
+// It fetches the relevant block data and processes strategies for all configured
+// AVS directory addresses appropriate for the current chain.
+// Returns an error if block retrieval or strategy processing fails.
 func (idx *Indexer) ProcessRestakedStrategiesForBlock(ctx context.Context, blockNumber uint64) error {
 	idx.Logger.Sugar().Info(fmt.Sprintf("Processing restaked strategies for block: %v", blockNumber))
 
@@ -41,6 +46,10 @@ func (idx *Indexer) ProcessRestakedStrategiesForBlock(ctx context.Context, block
 	return nil
 }
 
+// ProcessRestakedStrategiesForBlockAndAvsDirectory processes and indexes restaked strategies
+// for a specific block and AVS directory address.
+// It retrieves active AVS operators from the block and indexes their restaked strategies.
+// Returns an error if operator retrieval or strategy processing fails.
 func (idx *Indexer) ProcessRestakedStrategiesForBlockAndAvsDirectory(ctx context.Context, block *storage.Block, avsDirectoryAddress string) error {
 	idx.Logger.Sugar().Infow("Using avs directory address", zap.String("avsDirectoryAddress", avsDirectoryAddress))
 
@@ -57,6 +66,10 @@ func (idx *Indexer) ProcessRestakedStrategiesForBlockAndAvsDirectory(ctx context
 	return idx.getAndInsertRestakedStrategies(ctx, avsOperators, avsDirectoryAddress, block)
 }
 
+// getAndInsertRestakedStrategies retrieves the restaked strategies for a list of AVS operators
+// at the specified block and inserts them into storage.
+// It calls the contract to get strategy information and formats it for storage.
+// Returns an error if strategy retrieval or database insertion fails.
 func (idx *Indexer) getAndInsertRestakedStrategies(
 	ctx context.Context,
 	avsOperators []*storage.ActiveAvsOperator,
@@ -121,6 +134,10 @@ func (idx *Indexer) getAndInsertRestakedStrategies(
 	return nil
 }
 
+// ReprocessAllOperatorRestakedStrategies reprocesses restaked strategies for all blocks
+// from the configured start block up to the latest finalized block.
+// It processes strategies at regular intervals (every 3600 blocks).
+// Returns an error if processing fails for any block.
 func (idx *Indexer) ReprocessAllOperatorRestakedStrategies(ctx context.Context) error {
 	idx.Logger.Sugar().Info("Reprocessing all operator restaked strategies")
 

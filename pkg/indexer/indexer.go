@@ -18,44 +18,73 @@ import (
 	"go.uber.org/zap"
 )
 
+// Indexer processes and stores blockchain data, filtering for interesting transactions and events.
 type Indexer struct {
-	Logger          *zap.Logger
-	MetadataStore   storage.BlockStore
-	ContractStore   contractStore.ContractStore
+	// Logger provides structured logging capabilities
+	Logger *zap.Logger
+	// MetadataStore persists block metadata information
+	MetadataStore storage.BlockStore
+	// ContractStore manages contract metadata and ABIs
+	ContractStore contractStore.ContractStore
+	// ContractManager handles contract deployment and tracking
 	ContractManager *contractManager.ContractManager
-	Fetcher         *fetcher.Fetcher
-	EthereumClient  *ethereum.Client
-	Config          *config.Config
-	ContractCaller  contractCaller.IContractCaller
-	db              *gorm.DB
+	// Fetcher retrieves blockchain data from the node
+	Fetcher *fetcher.Fetcher
+	// EthereumClient provides access to the Ethereum node
+	EthereumClient *ethereum.Client
+	// Config contains application configuration settings
+	Config *config.Config
+	// ContractCaller executes read-only contract calls
+	ContractCaller contractCaller.IContractCaller
+	// db is the database connection for persisting data
+	db *gorm.DB
 }
 
+// IndexErrorType identifies different categories of indexing errors
 type IndexErrorType int
 
+// Error type constants for indexing operations
 const (
-	IndexError_ReceiptNotFound          IndexErrorType = 1
+	// IndexError_ReceiptNotFound indicates a transaction receipt could not be retrieved
+	IndexError_ReceiptNotFound IndexErrorType = 1
+	// IndexError_FailedToParseTransaction indicates a failure to parse transaction data
 	IndexError_FailedToParseTransaction IndexErrorType = 2
-	IndexError_FailedToCombineAbis      IndexErrorType = 3
-	IndexError_FailedToFindContract     IndexErrorType = 4
-	IndexError_FailedToParseAbi         IndexErrorType = 5
-	IndexError_EmptyAbi                 IndexErrorType = 6
-	IndexError_FailedToDecodeLog        IndexErrorType = 7
+	// IndexError_FailedToCombineAbis indicates a failure to combine multiple ABIs
+	IndexError_FailedToCombineAbis IndexErrorType = 3
+	// IndexError_FailedToFindContract indicates a contract could not be found in the store
+	IndexError_FailedToFindContract IndexErrorType = 4
+	// IndexError_FailedToParseAbi indicates a failure to parse an ABI definition
+	IndexError_FailedToParseAbi IndexErrorType = 5
+	// IndexError_EmptyAbi indicates an empty or missing ABI
+	IndexError_EmptyAbi IndexErrorType = 6
+	// IndexError_FailedToDecodeLog indicates a failure to decode a transaction log
+	IndexError_FailedToDecodeLog IndexErrorType = 7
 )
 
+// IndexError represents a structured error during the indexing process
 type IndexError struct {
-	Type            IndexErrorType
-	Err             error
-	BlockNumber     uint64
+	// Type categorizes the error
+	Type IndexErrorType
+	// Err contains the underlying error
+	Err error
+	// BlockNumber is the block where the error occurred
+	BlockNumber uint64
+	// TransactionHash is the hash of the transaction where the error occurred
 	TransactionHash string
-	LogIndex        uint64
-	Metadata        map[string]interface{}
-	Message         string
+	// LogIndex is the index of the log where the error occurred
+	LogIndex uint64
+	// Metadata contains additional contextual information about the error
+	Metadata map[string]interface{}
+	// Message provides a human-readable description of the error
+	Message string
 }
 
+// Error returns the error message for IndexError
 func (e *IndexError) Error() string {
 	return fmt.Sprintf("IndexError: %s", e.Err.Error())
 }
 
+// NewIndexError creates a new IndexError with the specified type and underlying error
 func NewIndexError(t IndexErrorType, err error) *IndexError {
 	return &IndexError{
 		Type:     t,
@@ -64,25 +93,31 @@ func NewIndexError(t IndexErrorType, err error) *IndexError {
 	}
 }
 
+// WithBlockNumber adds the block number to the error and returns the error for chaining
 func (e *IndexError) WithBlockNumber(blockNumber uint64) *IndexError {
 	e.BlockNumber = blockNumber
 	return e
 }
 
+// WithTransactionHash adds the transaction hash to the error and returns the error for chaining
 func (e *IndexError) WithTransactionHash(txHash string) *IndexError {
 	e.TransactionHash = txHash
 	return e
 }
 
+// WithLogIndex adds the log index to the error and returns the error for chaining
 func (e *IndexError) WithLogIndex(logIndex uint64) *IndexError {
 	e.LogIndex = logIndex
 	return e
 }
 
+// WithMetadata adds additional context data to the error and returns the error for chaining
 func (e *IndexError) WithMetadata(key string, value interface{}) *IndexError {
 	e.Metadata[key] = value
 	return e
 }
+
+// WithMessage adds a human-readable message to the error and returns the error for chaining
 func (e *IndexError) WithMessage(message string) *IndexError {
 	e.Message = message
 	return e
@@ -112,6 +147,9 @@ func NewIndexer(
 	}
 }
 
+// ParseInterestingTransactionsAndLogs processes a block's transactions and logs,
+// extracting only those relevant to monitored contracts.
+// Returns parsed transactions and any indexing errors encountered.
 func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fetchedBlock *fetcher.FetchedBlock) ([]*parser.ParsedTransaction, *IndexError) {
 	parsedTransactions := make([]*parser.ParsedTransaction, 0)
 	for i, tx := range fetchedBlock.Block.Transactions {
@@ -156,6 +194,9 @@ func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fet
 	return parsedTransactions, nil
 }
 
+// IndexFetchedBlock stores a fetched block in the metadata store.
+// Returns the stored block, a boolean indicating if the block was already indexed,
+// and any error encountered during the process.
 func (idx *Indexer) IndexFetchedBlock(fetchedBlock *fetcher.FetchedBlock) (*storage.Block, bool, error) {
 	blockNumber := fetchedBlock.Block.Number.Value()
 	blockHash := fetchedBlock.Block.Hash.Value()
@@ -188,6 +229,8 @@ func (idx *Indexer) IndexFetchedBlock(fetchedBlock *fetcher.FetchedBlock) (*stor
 	return insertedBlock, false, nil
 }
 
+// IsInterestingAddress determines if an address is included in the configured
+// list of interesting addresses to monitor.
 func (idx *Indexer) IsInterestingAddress(addr string) bool {
 	if addr == "" {
 		return false
@@ -195,6 +238,8 @@ func (idx *Indexer) IsInterestingAddress(addr string) bool {
 	return slices.Contains(idx.Config.GetInterestingAddressForConfigEnv(), strings.ToLower(addr))
 }
 
+// IsInterestingTransaction determines if a transaction interacts with or creates
+// a monitored contract.
 func (idx *Indexer) IsInterestingTransaction(txn *ethereum.EthereumTransaction, receipt *ethereum.EthereumTransactionReceipt) bool {
 	address := txn.To.Value()
 	contractAddress := receipt.ContractAddress.Value()
@@ -206,6 +251,8 @@ func (idx *Indexer) IsInterestingTransaction(txn *ethereum.EthereumTransaction, 
 	return false
 }
 
+// FilterInterestingTransactions extracts transactions from a block that
+// interact with monitored contracts.
 func (idx *Indexer) FilterInterestingTransactions(
 	block *storage.Block,
 	fetchedBlock *fetcher.FetchedBlock,
@@ -242,6 +289,8 @@ func (idx *Indexer) FilterInterestingTransactions(
 	return interestingTransactions
 }
 
+// IndexTransaction stores a transaction in the metadata store.
+// Returns the stored transaction and any error encountered.
 func (idx *Indexer) IndexTransaction(
 	block *storage.Block,
 	tx *ethereum.EthereumTransaction,
@@ -258,6 +307,8 @@ func (idx *Indexer) IndexTransaction(
 	)
 }
 
+// IndexLog stores a decoded transaction log in the metadata store.
+// Returns the stored log and any error encountered.
 func (idx *Indexer) IndexLog(
 	ctx context.Context,
 	blockNumber uint64,

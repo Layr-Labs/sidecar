@@ -2,6 +2,10 @@ package rewardsCalculatorQueue
 
 import "fmt"
 
+// Process starts the main processing loop for the rewards calculator queue.
+// This method should be run in a separate goroutine. It continuously listens
+// for messages on the queue and processes them until the queue is closed.
+// The loop exits when the done channel is closed.
 func (rcq *RewardsCalculatorQueue) Process() {
 	for {
 		select {
@@ -26,6 +30,15 @@ func (rcq *RewardsCalculatorQueue) Process() {
 	}
 }
 
+// processMessage handles a single rewards calculation message based on its calculation type.
+// It dispatches the appropriate calculation method from the rewards calculator and
+// returns a response containing the result or any error that occurred.
+//
+// Parameters:
+//   - msg: The calculation message to process
+//
+// Returns:
+//   - *RewardsCalculatorResponse: The calculation response containing results or error
 func (rcq *RewardsCalculatorQueue) processMessage(msg *RewardsCalculationMessage) *RewardsCalculatorResponse {
 	response := &RewardsCalculatorResponse{}
 	cutoffDate := msg.Data.CutoffDate

@@ -6,7 +6,16 @@ import (
 	"go.uber.org/zap"
 )
 
-// NewRewardsCalculatorQueue creates a new RewardsCalculatorQueue
+// NewRewardsCalculatorQueue creates a new RewardsCalculatorQueue instance.
+// It initializes the internal channels and returns a queue ready for processing
+// rewards calculation requests.
+//
+// Parameters:
+//   - rc: The rewards calculator that will perform the actual calculations
+//   - logger: Logger for recording operations and errors
+//
+// Returns:
+//   - *RewardsCalculatorQueue: A new queue instance ready for use
 func NewRewardsCalculatorQueue(rc *rewards.RewardsCalculator, logger *zap.Logger) *RewardsCalculatorQueue {
 	queue := &RewardsCalculatorQueue{
 		logger:            logger,
@@ -18,13 +27,28 @@ func NewRewardsCalculatorQueue(rc *rewards.RewardsCalculator, logger *zap.Logger
 	return queue
 }
 
-// Enqueue adds a new message to the queue and returns immediately
+// Enqueue adds a new message to the queue and returns immediately without waiting
+// for the calculation to complete. This is useful for fire-and-forget operations
+// or when using a custom response channel.
+//
+// Parameters:
+//   - payload: The calculation message to enqueue
 func (rcq *RewardsCalculatorQueue) Enqueue(payload *RewardsCalculationMessage) {
 	rcq.logger.Sugar().Infow("Enqueueing rewards calculation message", "data", payload.Data)
 	rcq.queue <- payload
 }
 
-// EnqueueAndWait adds a new message to the queue and waits for a response or returns if the context is done
+// EnqueueAndWait adds a new message to the queue and waits for the calculation to complete
+// or for the context to be canceled. This is a blocking operation that returns the
+// calculation result or an error.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeouts
+//   - data: The calculation data to process
+//
+// Returns:
+//   - *RewardsCalculatorResponseData: The calculation result, if successful
+//   - error: Any error that occurred during calculation or if the context was canceled
 func (rcq *RewardsCalculatorQueue) EnqueueAndWait(ctx context.Context, data RewardsCalculationData) (*RewardsCalculatorResponseData, error) {
 	responseChan := make(chan *RewardsCalculatorResponse, 1)
 
@@ -46,6 +70,8 @@ func (rcq *RewardsCalculatorQueue) EnqueueAndWait(ctx context.Context, data Rewa
 	}
 }
 
+// Close signals the queue to stop processing messages and releases resources.
+// This should be called when the queue is no longer needed to prevent goroutine leaks.
 func (rcq *RewardsCalculatorQueue) Close() {
 	rcq.logger.Sugar().Infow("Closing rewards calculation queue")
 	close(rcq.done)
