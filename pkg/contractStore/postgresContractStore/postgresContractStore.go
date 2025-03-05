@@ -285,35 +285,30 @@ func (s *PostgresContractStore) loadContractData() (*contractStore.CoreContracts
 	case config.Chain_Preprod:
 		filename = "preprod.json"
 	default:
-		return nil, fmt.Errorf("Unknown environment.")
+		return nil, fmt.Errorf("unknown environment.")
 	}
 	jsonData, err := contractStore.CoreContracts.ReadFile(fmt.Sprintf("coreContracts/%s", filename))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open core contracts file: %w", err)
+		return nil, fmt.Errorf("failed to open core contracts file: %w", err)
 	}
 
 	// read entire file and marshal it into a CoreContractsData struct
 	data := &contractStore.CoreContractsData{}
 	err = json.Unmarshal(jsonData, &data)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to decode core contracts data: %w", err)
+		return nil, fmt.Errorf("failed to decode core contracts data: %w", err)
 	}
 	return data, nil
 }
 
-func (s *PostgresContractStore) InitializeCoreContracts() error {
-	coreContracts, err := s.loadContractData()
-	if err != nil {
-		return fmt.Errorf("Failed to load core contracts: %w", err)
-	}
-
+func (s *PostgresContractStore) InitializeContracts(contractsData *contractStore.CoreContractsData) error {
 	contracts := make([]*contractStore.Contract, 0)
 	res := s.Db.Find(&contracts)
 	if res.Error != nil {
-		return fmt.Errorf("Failed to fetch contracts: %w", res.Error)
+		return fmt.Errorf("failed to fetch contracts: %w", res.Error)
 	}
 
-	for _, contract := range coreContracts.CoreContracts {
+	for _, contract := range contractsData.CoreContracts {
 		_, found, err := s.FindOrCreateContract(
 			contract.ContractAddress,
 			contract.ContractAbi,
@@ -323,7 +318,7 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 			true,
 		)
 		if err != nil {
-			return fmt.Errorf("Failed to create core contract: %w", err)
+			return fmt.Errorf("failed to create core contract: %w", err)
 		}
 		if found {
 			s.Logger.Sugar().Debugw("Contract already exists", zap.String("contractAddress", contract.ContractAddress))
@@ -332,18 +327,18 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 
 		_, err = s.SetContractCheckedForProxy(contract.ContractAddress)
 		if err != nil {
-			return fmt.Errorf("Failed to create core contract: %w", err)
+			return fmt.Errorf("failed to create core contract: %w", err)
 		}
 		s.Logger.Sugar().Debugw("Created core contract", zap.String("contractAddress", contract.ContractAddress))
 	}
-	for _, proxy := range coreContracts.ProxyContracts {
+	for _, proxy := range contractsData.ProxyContracts {
 		_, found, err := s.FindOrCreateProxyContract(
 			uint64(proxy.BlockNumber),
 			proxy.ContractAddress,
 			proxy.ProxyContractAddress,
 		)
 		if err != nil {
-			return fmt.Errorf("Failed to create core proxy contract: %w", err)
+			return fmt.Errorf("failed to create core proxy contract: %w", err)
 		}
 		if found {
 			s.Logger.Sugar().Debugw("Proxy contract already exists",
@@ -357,5 +352,37 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 			zap.String("proxyContractAddress", proxy.ContractAddress),
 		)
 	}
+	return nil
+}
+
+func (s *PostgresContractStore) InitializeCoreContracts() error {
+	coreContracts, err := s.loadContractData()
+	if err != nil {
+		return fmt.Errorf("failed to load core contracts: %w", err)
+	}
+
+	if err := s.InitializeContracts(coreContracts); err != nil {
+		return fmt.Errorf("failed to initialize core contracts: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresContractStore) InitializeExternalContracts(filename string) error {
+	jsonData, err := contractStore.CoreContracts.ReadFile(filename)
+	if err != nil {
+		return fmt.Errorf("failed to open external contracts file: %w", err)
+	}
+
+	// read entire file and marshal it into a CoreContractsData struct
+	data := &contractStore.CoreContractsData{}
+	err = json.Unmarshal(jsonData, &data)
+	if err != nil {
+		return fmt.Errorf("failed to decode external contracts data: %w", err)
+	}
+
+	if err := s.InitializeContracts(data); err != nil {
+		return fmt.Errorf("failed to initialize external contracts: %w", err)
+	}
+
 	return nil
 }
