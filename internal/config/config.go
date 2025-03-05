@@ -117,7 +117,11 @@ type SidecarPrimaryConfig struct {
 }
 
 type SideloadConfig struct {
-	ContractAddress string
+	Enabled              bool
+	AbiSource            string
+	ContractAddress      string
+	ProxyContractAddress string
+	BlockNumber          uint64
 }
 
 type IpfsConfig struct {
@@ -204,7 +208,11 @@ var (
 
 	SidecarPrimaryUrl = "sidecar-primary.url"
 
-	SideloadContractAddress = "sideload.contract-address"
+	SideloadEnabled              = "sideload.enabled"
+	SideloadAbiSource            = "sideload.abi-source"
+	SideloadContractAddress      = "sideload.contract-address"
+	SideloadProxyContractAddress = "sideload.proxy-contract-address"
+	SideloadBlockNumber          = "sideload.block-number"
 
 	IpfsUrl = "ipfs.url"
 
@@ -279,7 +287,11 @@ func NewConfig() *Config {
 		},
 
 		SideloadConfig: SideloadConfig{
-			ContractAddress: viper.GetString(normalizeFlagName(SideloadContractAddress)),
+			Enabled:              viper.GetBool(normalizeFlagName(SideloadEnabled)),
+			AbiSource:            viper.GetString(normalizeFlagName(SideloadAbiSource)),
+			ContractAddress:      viper.GetString(normalizeFlagName(SideloadContractAddress)),
+			ProxyContractAddress: viper.GetString(normalizeFlagName(SideloadProxyContractAddress)),
+			BlockNumber:          viper.GetUint64(normalizeFlagName(SideloadBlockNumber)),
 		},
 
 		IpfsConfig: IpfsConfig{
