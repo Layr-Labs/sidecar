@@ -247,7 +247,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				return err
 			}
 
-			if contract.ContractType == "external" && log.EventName == "Upgraded" {
+			if contract != nil && contract.ContractType == "external" && log.EventName == "Upgraded" {
 				if err := p.contractManager.HandleContractUpgrade(ctx, blockNumber, log); err != nil {
 					p.Logger.Sugar().Errorw("Failed to handle contract upgrade",
 						zap.Uint64("blockNumber", blockNumber),
