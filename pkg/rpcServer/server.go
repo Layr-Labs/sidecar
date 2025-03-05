@@ -22,6 +22,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
+	"github.com/Layr-Labs/sidecar/pkg/service/slashingDataService"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -59,6 +60,7 @@ type RpcServer struct {
 	rewardsProofs       *proofs.RewardsProofsStore
 	protocolDataService *protocolDataService.ProtocolDataService
 	rewardsDataService  *rewardsDataService.RewardsDataService
+	slashingDataService *slashingDataService.SlashingDataService
 	globalConfig        *config.Config
 	sidecarClient       *sidecarClient.SidecarClient
 	metricsSink         *metrics.MetricsSink
@@ -75,6 +77,7 @@ func NewRpcServer(
 	rp *proofs.RewardsProofsStore,
 	pds *protocolDataService.ProtocolDataService,
 	rds *rewardsDataService.RewardsDataService,
+	sds *slashingDataService.SlashingDataService,
 	scc *sidecarClient.SidecarClient,
 	ms *metrics.MetricsSink,
 	l *zap.Logger,
@@ -91,6 +94,7 @@ func NewRpcServer(
 		rewardsProofs:       rp,
 		protocolDataService: pds,
 		rewardsDataService:  rds,
+		slashingDataService: sds,
 		Logger:              l,
 		globalConfig:        cfg,
 		sidecarClient:       scc,
@@ -128,6 +132,12 @@ func (s *RpcServer) registerHandlers(ctx context.Context, grpcServer *grpc.Serve
 	eventsV1.RegisterEventsServer(grpcServer, s)
 	if err := eventsV1.RegisterEventsHandlerServer(ctx, mux, s); err != nil {
 		s.Logger.Sugar().Errorw("Failed to register Events server", zap.Error(err))
+		return err
+	}
+
+	slashingV1.RegisterSlashingServer(grpcServer, s)
+	if err := slashingV1.RegisterSlashingHandlerServer(ctx, mux, s); err != nil {
+		s.Logger.Sugar().Errorw("Failed to register Slashing server", zap.Error(err))
 		return err
 	}
 
