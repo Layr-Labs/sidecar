@@ -1,0 +1,33 @@
+---
+id: liststakerstrategiesresponse
+title: "ListStakerStrategiesResponse"
+description: ""
+sidebar_label: "ListStakerStrategiesResponse"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"stakerStrategies":{"stakedAmount":"string","strategy":{"rewardedTokens":"string","strategy":"string","totalStake":"string"}}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListStakerStrategiesResponse"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"stakerStrategies":{"type":"object","properties":{"stakedAmount":{"type":"string"},"strategy":{"type":"object","properties":{"rewardedTokens":{"type":"string"},"strategy":{"type":"string"},"totalStake":{"type":"string"}},"title":"Strategy"}},"required":["strategy"],"title":"StakerStrategy"}},"title":"ListStakerStrategiesResponse"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

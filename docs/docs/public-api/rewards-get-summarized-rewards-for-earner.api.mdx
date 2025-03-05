@@ -1,0 +1,75 @@
+---
+id: rewards-get-summarized-rewards-for-earner
+title: "GetSummarizedRewardsForEarner"
+description: "GetSummarizedRewardsForEarner returns the summarized rewards for the given earner address, including:"
+sidebar_label: "GetSummarizedRewardsForEarner"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVM1O4zAQfhUrp0UqTdljT8uBRUi7EgL2tIvQNJk2hsQ2ttMSorz7ztiGprTAPsByKM7MN7/fzPRZia6w0nipVTbPztFft00DVj5jeYUbsKX7ru0ZWIVWWPStVU74CoV7hZE44MRS26BayTUqgdEGytKicxMhVVG3pVSr+R91LLz2UNPvA5K/AC33xFB48iS+uHbh0Au9TEAKAl6ARfIprNbeRUkFa87LGnAuoFDa6AS4PFFiDd3RNkxRg2zGcYMAFjXFjIKUwRuDo2ySaYM2eL0oqW2pU3cfto+sDFho0KN12fx3nyn6IOvYqbvUKYJJpsKAr+ht8bGVFimKty1OMldU2EA27zPfGbZ23lJTs2G4ZbAzWjl0rP86m/G/XYKv26KgIMu2Fi9gClJo5VF5hoMxtSxCafm9Y5t+P6Ze3GPhuSDLjfAyRkyD8Dkw9vVAEZTKCwfva7kZB3RxOA6qwkAd6hmppOdY2Za3yFZkjyDhj3CwYtJea6RuE5OVZvpXGEpkwuZZnhD5+iSPzLq836V4yLfbc/zikGlf6pBkSulMrlD9gI626LJdECvi9PJCXBss5DJRRFZrChC5PZnOpjOS7DI+MnVj09d1HYUhlrwudD0RPBEgFXVJaFV3wgQv9IAwP5KXBFVptFTeTdMIEa2cfxrrkd8bhIYwra1JXnlv3DzPN5vNFBlTM2b61D0ThOZMMoh78e2NlligHJBHdhvl58XNnmcaNeV0awucarvKk5HLGctcGu18A2rk5bPF3Wlpv92X/wfzXw9m2jyPTz43JFZMZ6CtT5uz3S0a6pMsLbTlz/neiTywQLSRFRHLjvp+AQ5/2XoYWPzYou1ITs81GcXrQve3lI7ftMJLqB1+QPOXq3SGj8R7tSQhqI7zh7rlL3o+YLd/44dbsqgQSpouziSCTmm3jB+Z7x3jYXx2zs94nP8CygjA4A==
+sidebar_class_name: "get api-method"
+info_path: docs/public-api/eigenlayer-public-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetSummarizedRewardsForEarner"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/earners/{earner_address}/summarized-rewards"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetSummarizedRewardsForEarner returns the summarized rewards for the given earner address, including:
+- total tokens earned
+- total tokens active (subset of earned that are in roots that have surpassed their activation delay)
+- total claimed
+- total claimable (total active - total claimed)
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"earner_address","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"rewards":{"type":"object","properties":{"active":{"type":"string"},"claimable":{"type":"string"},"claimed":{"type":"string"},"earned":{"type":"string"},"token":{"type":"string"}},"title":"SummarizedEarnerReward"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

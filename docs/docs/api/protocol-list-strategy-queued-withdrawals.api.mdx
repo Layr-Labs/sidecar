@@ -1,0 +1,71 @@
+---
+id: protocol-list-strategy-queued-withdrawals
+title: "ListStrategyQueuedWithdrawals"
+description: "ListStrategyQueuedWithdrawals"
+sidebar_label: "ListStrategyQueuedWithdrawals"
+hide_title: true
+hide_table_of_contents: true
+api: eJyFVE1r20AQ/StiTy2ollNKDz41lFACaUnrlB5KCOPVWNpktbvZDzuq0H/vjKw4sh2IL17Nvvl8b6cT1qGHqKy5LMVCXHsbrbT67kqFuIx0g1X7M2HC8o+KdelhCzqIXDjw0GBEH8TibycMfZB7GD3Oy9JjYJwyZHYQazp7fEzKI+WJPmEugqyxAbHoRGzd6K5MJfr+lsHBWRMw8P3H+Zz/SgzSK8fVEnqZpKQk66SzZzAlkdZENJHh4JxWcmiuuA/s053mtKt7lJE78jyKqHYZt5Nu3wRDY9Mu5VEjuVhpKx9+pGaFfnKvqMaKLLlYW98AuYpEts+f2CVEeDhA78eSi6iiZtNywLxQQpfDjxBQMSVc4cCkoFkezu0taonW2rIYKhxaZfIWongOWGzOipFnar/ojjjvi8ch5oftQVBl1nZoaWzgQlVorqBFn51fX2ZLh1KtR7IIviFh7ao9m81nc3Hcw1fbOE3yG5zD1DmjiWaxxmyS4bn0PFNG6lTSNDPQOgvoN4o0lIEpMx52mI0KAjnQOcp6EuoGoSFM8prsdYwuLIpiu93OkDGaMbOn9h9BSGZKD1yv7ZejW+KJlIms2Jcs3y9vTiKTykywyUucWV8Vo1MoGMtsOxtiA2YS5S12D+a4l1jEp1g4DfRc+7GGbmR+IiXi5Uzk4oV9+licvvlXBEAirKlUjtZ1Kwj42+u+ZzOBfUt2Om7AK1ixPGijlCrwmXS4pgB4Uvj+nYt3v8a98j6j5K82NBrBtNwD6MRfdHzA9pWt1d+SS41Q8iukUnaoc9o2Lk78T9YLr6394/l2wQz9B2xx4wg=
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListStrategyQueuedWithdrawals"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/protocol/v1/strategies/{strategyAddress}/queued-withdrawals"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+ListStrategyQueuedWithdrawals
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"strategyAddress","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"withdrawals":{"type":"object","properties":{"amount":{"type":"string"},"blockNumber":{"type":"integer","format":"uint64"},"staker":{"type":"string"}},"title":"StakerWithdrawal"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

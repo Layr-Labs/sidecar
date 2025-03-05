@@ -1,0 +1,71 @@
+---
+id: rewards-get-available-rewards-tokens
+title: "GetAvailableRewardsTokens"
+description: "GetAvailableRewardsTokens returns the available rewards tokens for the given earner address"
+sidebar_label: "GetAvailableRewardsTokens"
+hide_title: true
+hide_table_of_contents: true
+api: eJy1VE1v2zAM/SuCThuQxsmOPi0YiiLABgxtdhqKgrEZW60iqZLsNDP830faapM0S2/zxTL9+PX4qE6WGAqvXFTWyFzeYFy0oDSsNd7iDnwZVvYJTRAeY+PpHWsU8Aoh64ARcQRtrB8AlWrRCARv0AsoS48hyIm0Dj1wpmVJuVL8h4s5ycOBhy1G9EHmvztp6IM8x8APh8CKa3cQazp7fG6UR8oQfYMTGYoatyDzTsa9Y+8QvTKV7Pt7BgdnTcDA/7/MZvw6ZeSuKQpKsmm0eAVTksKaiCYyHJzTqhjayh4D+3TnOe36EYvIDXkmIaox40jbv2obnomMUHHnMvEsqWSio7bMX4VDQO46l1lCZO08G+kJWXfKU5+9ze0qoa/iK9HKbOxQh4qaC7lWFZrvsKf5LX4uxZ3DQm1SmwRvKf7Iz3w6m87IcsraN7t1muY2OIdj5zeNHGUgUqItrJ4IZQrdlESBAK1FQN8qYl+AKQUzFKaJeygG7pMejkKtELaEabwmex2jC3mW7Xa7KTJGM2b6sv9DEBqQYhB3/vXdX2KeZoo860OWH8vVWWQapgm28QVOra+y5BQyxvL8nA1xC+YoykdqP+GwO4jsP69l0l7El5g5DbRMfeqzS/I6CJBGP2fyRonRKT9bxosqI/HWxAeH67o1BPzldd+z+blBvyc7HVvwip2HfS9V4DOpfQM64AcMfbpNa/9ZXOooGcHsuQvQDX/R8Qn353dKf08eNUKJfqhkBC3oLnDxyP1s+fvjDb25ZhX8BaXV5XI=
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetAvailableRewardsTokens"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/earners/{earner_address}/available-rewards-tokens"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetAvailableRewardsTokens returns the available rewards tokens for the given earner address
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"earner_address","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"tokens":{"type":"string"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

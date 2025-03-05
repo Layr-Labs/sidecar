@@ -97,3 +97,20 @@ ci-test: build test
 
 test-rewards:
 	TEST_REWARDS=true TESTING=true ${GO} test ./pkg/rewards -v -p 1
+
+.PHONY: docs/deps
+docs/deps:
+	cd docs && yarn install
+
+.PHONY: docs/update-apis
+docs/update-apis:
+	curl -s -L https://raw.githubusercontent.com/Layr-Labs/protocol-apis/refs/heads/master/gen/openapi/api.public.swagger.json > docs/openapi/api.public.json
+	curl -s -L https://raw.githubusercontent.com/Layr-Labs/protocol-apis/refs/heads/master/gen/openapi/api.swagger.json > docs/openapi/api.json
+	cd docs && yarn docusaurus clean-api-docs all && yarn docusaurus gen-api-docs all
+
+docs/dev: docs/deps docs/update-apis
+	cd docs && yarn start
+
+.PHONY: docs
+docs/build: docs/deps docs/update-apis
+	cd docs && SKIP_HTML_MINIFICATION=true yarn build

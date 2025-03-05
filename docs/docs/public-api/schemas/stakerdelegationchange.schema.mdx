@@ -1,0 +1,33 @@
+---
+id: stakerdelegationchange
+title: "StakerDelegationChange"
+description: ""
+sidebar_label: "StakerDelegationChange"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"delegated":true,"operator":"string","staker":"string","transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"StakerDelegationChange"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"delegated":{"type":"boolean"},"operator":{"type":"string"},"staker":{"type":"string"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["transaction_metadata"],"title":"StakerDelegationChange"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

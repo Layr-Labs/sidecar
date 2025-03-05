@@ -1,0 +1,33 @@
+---
+id: generaterewardsresponse
+title: "GenerateRewardsResponse"
+description: ""
+sidebar_label: "GenerateRewardsResponse"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"cutoffDate":"string","queued":true,"rewards":{"amount":"string","earner":"string","snapshot":"string","token":"string"}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GenerateRewardsResponse"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"cutoffDate":{"type":"string"},"queued":{"type":"boolean"},"rewards":{"type":"object","properties":{"amount":{"type":"string"},"earner":{"type":"string"},"snapshot":{"type":"string"},"token":{"type":"string"}},"title":"Reward"}},"required":["rewards"],"title":"GenerateRewardsResponse"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

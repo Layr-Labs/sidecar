@@ -1,0 +1,33 @@
+---
+id: generateclaimproofrequest
+title: "GenerateClaimProofRequest"
+description: ""
+sidebar_label: "GenerateClaimProofRequest"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"earnerAddress":"string","rootIndex":{"value":0},"tokens":"string"}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GenerateClaimProofRequest"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"earnerAddress":{"type":"string"},"rootIndex":{"type":"object","properties":{"value":{"type":"integer","format":"int64"}},"title":"Int64Value"},"tokens":{"type":"string"}},"required":["root_index"],"title":"GenerateClaimProofRequest"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

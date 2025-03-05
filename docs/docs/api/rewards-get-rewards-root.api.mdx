@@ -1,0 +1,71 @@
+---
+id: rewards-get-rewards-root
+title: "GetRewardsRoot"
+description: "GetRewardsRoot returns the posted on-chain root for the give block height"
+sidebar_label: "GetRewardsRoot"
+hide_title: true
+hide_table_of_contents: true
+api: eJytVd1P2zAQ/1csP21Saco07aFPYwxBpW2a+HhCqHKca2Jw7GA7LV2U/313TqAJhY1J60tj3+9+931ueAZeOlUFZQ2f81MI57ARLvPn1gbmINTOeBYKYJX1ATJmzYEshDLMEWBlXRTmag0s1VbesQJUXgQ+4bYCJ4h3kSFzT7scW0BYJZwoIYDzfH7dcIMHhEeu5ROXIucqEQr8dnBfKwdIGlwNE+5lAaXg84aHbUW6Pjhlct62NwT2lTUePMk/zGb0Nw75opYSvF/Vmj2C0Yi0JoAJBBdVpZWMkSS3nnSafZs2vQUZw3EUd1CdRTcI9a9gIYNaC0zyUdiPZsIx16VACc8QcxAU5qmdDJWujHpBETExmWddLndyhRHm4IbMNd59+kgq0kFH+oV0f9Rlisg36mbKi1RTgZ7wqbUahCGptvnCZPDwVrY+hcdCy1rHKpyY7O35eVH91Uy5caHGgn9yOzhhPBXHmjPhi5fac9jK14+OLuXO0yVgpIMSL9EG9nRQQRPRV0VUaU3Q2GGvUcaoblr6obbI/UBIhDh+haUhzaGbSJyzOU96RLI+TGIH+aQZjmX7CDhw3SQrs7Ixzt6/E5WD+Sa24NjRzwW7qECqVT9JCF/jyHcjeDidTWd4Mx7MY1tWGhdDVPZD5ae1M7CAoxSstHrClJG6zjDFTGjNPLi1wgFnwmSMKuCn/XhjWsnbfuEMqC5BlIipncb7IoTKz5Nks9lMgTCaMNOH7S+E4A5QOnbCyn5+JqVWR8O0TnZWvi8u95hxBRhvaydhal2e9Eo+ISwVjBZvKcyAZW+HjhLX7JbXf93nffsGeAhJpVGFQoyhNH3L7JoKq3vI+8VDp/mzfT7qHOzAAp0h/aZJhYcrp9uWru9rcFu8x8+1cIq2SnwkdhtmJbSHPyTg3Xk/D+/ZayH0l8JsyW2hazrh5x1snz9E7Q3iCxAZLUP0o4Mc4QNShYHy3ovRDofs9ITq+htNKptl
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetRewardsRoot"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/blocks/{block_height}/rewards-root"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetRewardsRoot returns the posted on-chain root for the give block height
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"block_height","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"rewardsRoot":{"type":"object","properties":{"activatedAt":{"type":"string","format":"date-time"},"activatedAtUnit":{"type":"string"},"blockHeight":{"type":"integer","format":"uint64"},"createdAtBlockNumber":{"type":"integer","format":"uint64"},"disabled":{"type":"boolean"},"logIndex":{"type":"integer","format":"uint64"},"rewardsCalculationEnd":{"type":"string","format":"date-time"},"rewardsCalculationEndUnit":{"type":"string"},"root":{"type":"string"},"rootIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"required":["rewards_calculation_end","activated_at"],"title":"DistributionRoot"}},"required":["rewards_root"]}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

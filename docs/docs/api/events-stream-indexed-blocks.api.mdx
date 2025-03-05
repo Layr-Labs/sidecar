@@ -1,0 +1,71 @@
+---
+id: events-stream-indexed-blocks
+title: "StreamIndexedBlocks"
+description: "StreamIndexedBlocks"
+sidebar_label: "StreamIndexedBlocks"
+hide_title: true
+hide_table_of_contents: true
+api: eJztWUtv4zYQ/iuGzo6dLIoecmpeiwbY3SziLHoIAoEWxxY3lKiSlBPX8H/vDOkH7VC2bLRdYNMcHJmcGc7jmxlqPEtUBZpZocpbnpwnNxMorUkHVgMrbksOr8AvpcqeTdJNNPxZg7GXik+T85n7KjQgm9U1dJNMlRa5aYtVlRSZE9v/blRJaybLoWD0ZKcV4Flq+B0yi3IrTUpYAYZ2R0Ja0GY/4ZD0+uioA2JjtSjHybyLT8zCVc7KMTRSzbuBGY9eZOo1SBYS0syJWK4+dRMrrCQhES/dexelHxdGoHxRZrLmMFhrE9o2VEoCK4lQlXLqpfwhbH7NLIvRbWm89NbTfO63TKVK44/4cHpK/ziYTIuKgkFK11kGxoxq2VkSJ/9Y7Jz/WpL9zkwejZvb/VIXw42ICVRw7KIyUrpgqGpS49qvv6xYHkQBbwUG9BwjcGKJClkqptHgRiWsZqVhGXmhLRQPU5k8rvGAC84xDiaqxEirYte+VOMWyrEdEpge1wWl/E7HDacWjowMUEH5wmKR8Qa49GkrTdW2qu1WajTrGwSxTaAPUGW+rgIPawGflBepdgXtv1aqoci5PAiKmas8DphvalQTribmzjUPpYPi1oovarRaCItuahgLg5WOTIgVz8Bjn8EyvgmRnXUIxDi3bRF4KGL3RzsetZUR29ELBKbFkiiI40U8KiiFC8OGEvi1oKOHNYm4V8ru95NGqmOtft/RuG7yeYD3QY6t6Bpkax9h/YuX0yPa4M6kM6RZPFnxavTceO9CiTCe7qtsPzcygirb3QuTu7dQcOJemOaDelgIY4S/ie0prYWqSxt1fFPV5bW//rdu6CUnhGH8i6o9zIpaWoH3ygbIeEsb26HffnDLcSxqe4RSO4G63DwMReoZyveNexcMh3sfDYeYje/7kuF+G/arcoOZAWOH1rZ3De45mm4Nu6tfc4l7N9HcF6tBPC4r7/3Q3vYvtK/jqsJ7QctBPW+wDRByLyW9tcfcUemkCWX6RaT/NSEkYPpWinjjzDR4isvD33594zJXTGa1dAlyU/L26kXZGxXVm37a3PgfsDHALhycZmsPp9iukgAZKbNtwNwI3O0j8R6WLttOGg4Yk3U7Sl3lSrlLiyUMUrPuiMsClvJV5V1LWWxtylhlVsoDDVOHmfWrYWQzMPJGjKHceql0FrTLULD55c7B35LgsByLaRCBw2BFFq1aq2mvN3rux6mW0YDt0U+xDPlia5ganZMjQHJF0/RKGecGZtHgpO+l9CdnfeP4ToRnPBkuOWneer+est+84o1Juo4XTMU35t7rEhIZdwe+jU6h/dw+NnemHcc1Us6tIQI+sSnozsXX286ggkyMFsNiVGGCGnrHnPVOe6fJtruuFJljwTGbkLmDge3YHDrBCYgeqzIlux2vPFrSYVJ2DOiJyMB0WMk7FHDTW0ywMUFJ29KNG0NlH9DbSFNrieu5tZU57/dfXl56QDSSaHqv07/oslowIR3kRuq3rV2qWHgwTczXp3y+fXgjGVFfGlXrDHpKj/sLJtMnWoIV4aJgZSAlDqQN763AbeHV9ivJhLvCupNnC4ytkIqxOHOYiOEMYZwTMpF8NhsyA9+0nM9pGZGn8eLziI8TpgXVBPqGx+TAOEHqcZY8w9TF0v1icOLeyohc1qTcm18P5t0lx0WWQWV30j4FyfP1bkCeHS5+bSoUJx7NXqgi4ud54irmakLv1maJRGzXjN4NEi+T/v4Gq2Z13g==
+sidebar_class_name: "post api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"StreamIndexedBlocks"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/events/v1/stream-indexed-blocks"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+StreamIndexedBlocks
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={undefined}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={{"required":true,"content":{"application/json":{"schema":{"type":"object","properties":{"filters":{"type":"object","properties":{"blockFilter":{"type":"string"},"stateChangeFilter":{"type":"string"}},"required":["block_filter","state_change_filter"],"title":"StreamIndexedBlocksRequest_Filters"},"includeStateChanges":{"type":"boolean"},"onlyBlocksWithData":{"type":"boolean"}},"required":["filters"]}}}}}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"block":{"type":"object","properties":{"blockHash":{"type":"string"},"blockNumber":{"type":"integer","format":"uint64"},"blockTime":{"type":"string","format":"date-time"},"parentHash":{"type":"string"},"transactions":{"type":"object","properties":{"blockNumber":{"type":"integer","format":"uint64"},"contractAddress":{"type":"string"},"fromAddress":{"type":"string"},"logs":{"type":"object","properties":{"address":{"type":"string"},"arguments":{"type":"string","format":"byte"},"blockNumber":{"type":"integer","format":"uint64"},"eventName":{"type":"string"},"logIndex":{"type":"integer","format":"uint64"},"outputData":{"type":"string","format":"byte"},"transactionHash":{"type":"string"},"transactionIndex":{"type":"integer","format":"uint64"}},"title":"TransactionLog"},"toAddress":{"type":"string"},"transactionHash":{"type":"string"},"transactionIndex":{"type":"integer","format":"uint64"}},"title":"Transaction"}},"required":["block_time"],"title":"Block"},"changes":{"type":"object","properties":{"avsOperatorStateChange":{"type":"object","properties":{"avs":{"type":"string"},"operator":{"type":"string"},"registered":{"type":"boolean"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["transaction_metadata"],"title":"AvsOperatorStateChange"},"disabledDistributionRoot":{"type":"object","properties":{"rootIndex":{"type":"integer","format":"uint64"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["transaction_metadata"],"title":"DisabledDistributionRoot"},"operatorShareDelta":{"type":"object","properties":{"blockDate":{"type":"string"},"blockTime":{"type":"string","format":"date-time"},"operator":{"type":"string"},"shares":{"type":"string"},"staker":{"type":"string"},"strategy":{"type":"string"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["block_time","transaction_metadata"],"title":"OperatorShareDelta"},"rewardSubmission":{"type":"object","properties":{"amount":{"type":"string"},"avs":{"type":"string"},"duration":{"type":"integer","format":"uint64"},"endTimestamp":{"type":"string","format":"date-time"},"multiplier":{"type":"string"},"rewardHash":{"type":"string"},"rewardType":{"type":"string"},"startTimestamp":{"type":"string","format":"date-time"},"strategy":{"type":"string"},"strategyIndex":{"type":"integer","format":"uint64"},"token":{"type":"string"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["start_timestamp","end_timestamp","transaction_metadata"],"title":"RewardSubmission"},"stakerDelegationChange":{"type":"object","properties":{"delegated":{"type":"boolean"},"operator":{"type":"string"},"staker":{"type":"string"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["transaction_metadata"],"title":"StakerDelegationChange"},"stakerShareDelta":{"type":"object","properties":{"blockDate":{"type":"string"},"blockTime":{"type":"string","format":"date-time"},"shares":{"type":"string"},"staker":{"type":"string"},"strategy":{"type":"string"},"strategyIndex":{"type":"integer","format":"uint64"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["block_time","transaction_metadata"],"title":"StakerShareDelta"},"submittedDistributionRoot":{"type":"object","properties":{"activatedAt":{"type":"string","format":"date-time"},"activatedAtUnit":{"type":"string"},"createdAtBlockNumber":{"type":"integer","format":"uint64"},"rewardsCalculationEnd":{"type":"string","format":"date-time"},"rewardsCalculationEndUnit":{"type":"string"},"root":{"type":"string"},"rootIndex":{"type":"integer","format":"uint64"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["rewards_calculation_end","activated_at","transaction_metadata"],"title":"SubmittedDistributionRoot"}},"required":["avs_operator_state_change","operator_share_delta","reward_submission","staker_delegation_change","staker_share_delta","submitted_distribution_root","disabled_distribution_root"],"title":"EigenStateChange"},"stateRoot":{"type":"object","properties":{"ethBlockHash":{"type":"string"},"ethBlockNumber":{"type":"integer","format":"uint64"},"stateRoot":{"type":"string"}},"title":"StateRoot"}},"required":["block","state_root"]}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

@@ -1,0 +1,63 @@
+---
+id: rewards-list-distribution-roots
+title: "ListDistributionRoots"
+description: "ListDistributionRoots"
+sidebar_label: "ListDistributionRoots"
+hide_title: true
+hide_table_of_contents: true
+api: eJyVVMtu2zAQ/BWBZ0eyi6IHn5qmQWMgLYo8TkFgrKi1xIQiGZLyo4L/vbuykiiOjaYCDMnkzOxwH2yFdeghKmtmhZiKK1yBL8L8UoX4nX5e5Q1vXlkbgxgJj8FZEzCIaSs+jcf8KjBIrxzDSOG6kRJDWDQ6eQYTT1oT0USGg3NayS5k9hCY04ogK6yBv+LGIanY/AFlJKLzbDCqXcTinaV/UkBGtYSIxWkcgFnGlAReWF8D7YiCMCdR1Si2oyHp1qgDRMLk2srHC1RlNdxXdM4S/VC5obUvn5kiPe5EvzH3V1PnhPwgl44OucZigM+t1QiGd7UtZ6bA9UfV/K7OZ6Blo7tanJvi4/k5SD+aKU+VOrrxX7ajBxO4ONZcQKgOiHbmnhrlOVN3z0bn8tXpHOmkgxLPKcY9SauoWWi/60myewgBZRhoMult6x8bmhpjZXm6Suz6EyI5F1mvky0n2bCvT3xPU2ZhuxP2zs5VieYSNuiT09+z5NqhVIt+kgi+RB92PibpOB2LfXdntnYaI3bkMCQnlOkkVpgMItAQRSutHiXKSN0UlNwEtE4C+qWiAU/AFAnnPqT9eFNC2a2Bes/sDUJNmMZrWq9idGGaZavVKkXGaMak680fgtAdoHTXAwv7dW+Xm5wC83XyGuXn7OadMg2/CbbxElPry6wnhYyxXEZnQ6zBDFSO1e1N/l46LeI6Zk6D6gavi932NX3tDSrHRIzEgbpS11TkgMFtm0PAW6+3W15+atBvaJ0+l+AVTzv/oyAVQsE3xV0rHpEg4pTuWMe9tATdsKl3l+r2ftB3P8756H8BaqMSyg==
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListDistributionRoots"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/distribution-roots"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+ListDistributionRoots
+
+<ParamsDetails
+  parameters={undefined}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"distributionRoots":{"type":"object","properties":{"activatedAt":{"type":"string","format":"date-time"},"activatedAtUnit":{"type":"string"},"blockHeight":{"type":"integer","format":"uint64"},"createdAtBlockNumber":{"type":"integer","format":"uint64"},"disabled":{"type":"boolean"},"logIndex":{"type":"integer","format":"uint64"},"rewardsCalculationEnd":{"type":"string","format":"date-time"},"rewardsCalculationEndUnit":{"type":"string"},"root":{"type":"string"},"rootIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"required":["rewards_calculation_end","activated_at"],"title":"DistributionRoot"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

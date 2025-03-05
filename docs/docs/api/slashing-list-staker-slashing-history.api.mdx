@@ -1,0 +1,71 @@
+---
+id: slashing-list-staker-slashing-history
+title: "ListStakerSlashingHistory"
+description: "ListStakerSlashingHistory"
+sidebar_label: "ListStakerSlashingHistory"
+hide_title: true
+hide_table_of_contents: true
+api: eJyNVUtv2zAM/iuGThuQxekw7ODTiqJYA3QPLN0pKArGZmy1iuRKstPM8H8faTupU7ttcolMffxIiq9KmBwteGn0PBGRWChwmdTp3bV0fuHhAe1edEUSY3diInKwsEGP1oloWQlNH6TqGvR5klh0jlBSkzAHn9HZ4mMhLZIFbwucCBdnuAERVcLv8lbZkglR17cMdrnRDh3ff57N+C9BF1uZs5/sZRHHZGRdqGAPJiOx0R61ZzjkuZJxE1Z471inGto0q3uMPcdj+RG8bC26o6gvS6J0J2j18e/DV8rEDz+LzQptDywpgJQkE7E2dgPEIwqSff0i6snxEwwebiKUSec6wadT+drEGztKtr9c4AnBQOlGSWRymi8E9dIr7NVf84x3v3peEIiYgUg6q+9lscHuRh3zxoNaZEDF0xjEZBS2heT161edXuwtM8KCdhBzzq4IM07z3BzLo3e/fcVC+xRcpO/zHZdln3FY5aTc/AgEqetrs+JxB741Hmg0ZIaHSYpNXngERCIsz8I9X9i678LqaGjUB8Cn7MAm9do0cXaOX8oU9TXs0Abnv+fBIsdYrrteJ3hJtK2LZ9PZdCZeOn5hNrmi2dUou75yQHUZ+AyDngWqKW9ioyaB1LEqEnItAKUCh7aUNIIC0EnAGXDTbgBRstnbbib2qG4QNoQprCJ55n3uojDcbrdTZIxizPRp948gNKWkajpmbb69uOU+J8M88J6t/JjfDJipkLQzhY1xamwadkouZCynODfOb0D3WN5K6fjs8fjkw1wBTfq6s1916V6K8oz0DgW0r1heDNHLTTHIOpVbRv4xTVWtwOFfq+qaxY8F0n20pGMJVsKKa4J2UCIdn6nq1qAcDjw+7Abx4U/XHh8DMj0aSScEzaGXoAr+ouMD7gZ7rr4lhQwh4W4kR1rMOe2n3Pe0BwuJF92hUb5fclL+Aw12pOs=
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListStakerSlashingHistory"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/v1/slashing/stakers/{stakerAddress}/slashing-history"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+ListStakerSlashingHistory
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"stakerAddress","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"stakerSlashingEvents":{"type":"object","properties":{"slashingEvent":{"type":"object","properties":{"blockNumber":{"type":"integer","format":"uint64"},"description":{"type":"string"},"logIndex":{"type":"integer","format":"uint64"},"operator":{"type":"string"},"operatorSet":{"type":"object","properties":{"avs":{"type":"string"},"id":{"type":"integer","format":"uint64"}},"title":"SlashingEvent_OperatorSet"},"strategies":{"type":"object","properties":{"strategy":{"type":"string"},"totalSharesSlashed":{"type":"string"},"wadSlashed":{"type":"string"}},"title":"SlashingEvent_Strategy"},"transactionHash":{"type":"string"}},"required":["operatorSet"],"title":"SlashingEvent"},"staker":{"type":"string"}},"required":["slashingEvent"],"title":"StakerSlashingEvent"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

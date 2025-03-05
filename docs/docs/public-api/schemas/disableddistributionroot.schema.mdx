@@ -1,0 +1,33 @@
+---
+id: disableddistributionroot
+title: "DisabledDistributionRoot"
+description: ""
+sidebar_label: "DisabledDistributionRoot"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"rootIndex":0,"transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"DisabledDistributionRoot"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"rootIndex":{"type":"integer","format":"uint64"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["transaction_metadata"],"title":"DisabledDistributionRoot"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

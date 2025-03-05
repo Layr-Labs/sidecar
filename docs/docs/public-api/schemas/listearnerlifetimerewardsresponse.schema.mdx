@@ -1,0 +1,33 @@
+---
+id: listearnerlifetimerewardsresponse
+title: "ListEarnerLifetimeRewardsResponse"
+description: ""
+sidebar_label: "ListEarnerLifetimeRewardsResponse"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"nextPage":{"pageNumber":0,"pageSize":0},"rewards":{"amount":"string","token":"string"}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListEarnerLifetimeRewardsResponse"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"nextPage":{"type":"object","properties":{"pageNumber":{"type":"integer","format":"uint32"},"pageSize":{"type":"integer","format":"uint32"}},"title":"Pagination"},"rewards":{"type":"object","properties":{"amount":{"type":"string"},"token":{"type":"string"}},"title":"RewardAmount"}},"required":["nextPage"],"title":"ListEarnerLifetimeRewardsResponse"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

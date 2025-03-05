@@ -1,0 +1,72 @@
+---
+id: rewards-get-claimable-rewards
+title: "GetClaimableRewards"
+description: "GetClaimableRewards returns the claimable rewards for the given earner address."
+sidebar_label: "GetClaimableRewards"
+hide_title: true
+hide_table_of_contents: true
+api: eJzNVMFu2zAM/RXBpw3I7HTHnFYURVFgA4a2O21FwdhMrFaWVEpOmhn+95G2kiZN1l2XS2TyUSQfn9hlFYaStI/a2WyWXWG8MKAbmBu8wTVQFRRhbMkGFWtU5dbJ1tG7cDR4lnqFViGQRVJQVYQh5L/sXa05Ep4wxbdEaKOCMjJeRfeEfPMQVSmwlQrtPBJ7Ge4imDEhVnk2yZxHAqnzuuJKU3UPJypmrAeCBiNSyGY/u8zyB8eM1T2k6himpWcPseYz4XOrCfnuSC1OslDW2EA267K48RIdImm7zPr+XsDBOxswiP/zdCp/h0zetmXJSRatUVswJymdjdy/wMF7o8uhoeIxSEx3nNPNH7GM0hBJ+1GPGRP5/wZC49ox3ZsmJomMk65gwYfanY4bZnaKFnbpaHA3GzYNP7bDUuawK5sJ5OHUTua4xKFqmcEsKxKiWJ0VY32h6A6n1hc7DX6i3by1XbihplTBpV6i/Qob1uL592t167HUi8Q2w1d88Tims3yaT9lyOLwL13jD8hmCw37wTu97GZjy6EpnJkrb0rQV06HAGBWQVppFMAhb2Ap5kgALXKpNsty76g6hYUxLhu11jD7MimK9XucoGCOY/GXzmyGsEy0g6fzLGy9TztJCkdxrlm/Xd0c3s1RscC2VmDtaFikoFIKVwXkXYgN275bTz+2Ave5V5f/1Pkn6jfgSC89mK7wN/HRJj6+KZcmcZds3I5+zo11yLEuWec0Eyj1dN4eAP8j0vZifW6QN2/m4AtISNeypSgc587tYgAn4DrEfbtK6+qj+1koygt1I+WBa+eLjE26Od2F/zxE1QiUrgSsZQee8w3zcCz9aWv3+W766FNn8AX33OVU=
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetClaimableRewards"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/earners/{earner_address}/claimable-rewards"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetClaimableRewards returns the claimable rewards for the given earner address.
+This takes the current active tokens earned and subtracts total claimed.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"earner_address","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"rewards":{"type":"object","properties":{"amount":{"type":"string"},"earner":{"type":"string"},"snapshot":{"type":"string"},"token":{"type":"string"}},"title":"Reward"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

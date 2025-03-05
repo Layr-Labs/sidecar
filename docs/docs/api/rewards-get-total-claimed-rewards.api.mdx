@@ -1,0 +1,72 @@
+---
+id: rewards-get-total-claimed-rewards
+title: "GetTotalClaimedRewards"
+description: "GetTotalClaimedRewards returns the total claimed rewards for the given earner address, summed up to and including"
+sidebar_label: "GetTotalClaimedRewards"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdVE1v2zAM/SuCTxuQ2umOOa0oii7ABgxtd9qKQpEYW60sqfpImhn+7yNtpUmadLsvl8jio8hHPrIrJAThlYvKmmJWXEO8s5HrS81VC/IG1tzLwDzE5E1gsQEWyc7ECEDLiFhaP1hrtQLDgHsDnnEpPYQwYSG1BE4OvRk3kikjdJLK1L8MeTlvV0oiYqGtePoCqm5iyeZLxvdvmArMtipGkJMhWGtDxAwEGLQZCS/bFwiZAsiymBTWgedEby6RYGb0cJoowh33vIUIPhSzn11h8APdRkIPmRDCFFXL8djg2cNzUh7w+egTTIogGmh5MeuKuHHkHaJHqkXf3xM4OGsCBLJ/mk7p77AHt0kIDLJMmm3BGERYE5EnwblzWomBU/UYyKc7jmkXjyAiEfJUgajGiLlf/wby1qYx3BsSk1yMk6Zon8CcYo4mFTVdHZcdzcMPMbymsr9mifXCXjSWOlfDkCSVfFZUGVGtzqsxnVB1h03qq0GpZ1mpZ/61xcos7ZBjzuhK1WC+8g0q9uL7nN06EGqZC4zwFT4+dua8nJZTvDns16VtnUbFDM5h3/l1KvYiYJWjFVZPdjPAuNYsgF8p7PswHlS9UOauczG0IStx76k74C1iktd438Towqyq1ut1CYTRhClfNr8RgtJQBCLmn99YseyoJiCV7aJ8m98dvYzqMMEmL6C0vq6yU6gIS81zOI0tN3uvvDtkBwXsdtr+H/dPnoQIL7FymLWhig+V7bKad3pHsZ0X2wGjz9nR4jktahyUBpOht7puwQP88Lrv6fo5gd/gPR5X3Cu+IMnjYpMq0Bkna8l1gL/05MNN3m8f2Xt08iU3G6LAdaIvPD7B5nh59vfo0QCXtEMwkxF0gUvPxT33oy3X72+D6ysS3R99Ul/X
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetTotalClaimedRewards"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/earners/{earner_address}/total-claimed-rewards"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetTotalClaimedRewards returns the total claimed rewards for the given earner address, summed up to and including
+the provided blockHeight. If a blockHeight is omitted, the most recent indexed block is used.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"earner_address","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"rewards":{"type":"object","properties":{"amount":{"type":"string"},"earner":{"type":"string"},"token":{"type":"string"}},"title":"TotalClaimedReward"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

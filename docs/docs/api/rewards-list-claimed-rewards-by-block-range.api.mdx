@@ -1,0 +1,72 @@
+---
+id: rewards-list-claimed-rewards-by-block-range
+title: "ListClaimedRewardsByBlockRange"
+description: "ListClaimedRewardsByBlockRange returns the claimed rewards for the given earner address and block range,"
+sidebar_label: "ListClaimedRewardsByBlockRange"
+hide_title: true
+hide_table_of_contents: true
+api: eJzNVN9P2zAQ/lcsP21S15Rp2kOfBghNSGyayva0IeQml8Tg2MZ2WrIo//vuHAMpLfC6vtQ5f/fD3313PS/A507aII3mS34hfThVQjZQrGArXOFPuhNl8tuV0BUwB6F12rNQA8tHGNoijpXGRXslN6AZCKfBMVEUDrxnQhdsTXGYo0CzP1rqXLUescyU0c8H4UIEwiO4BlnVwfMZNxacoCLPCywz1Xb9ernoZoUTDQRwni9/91zjB7qPxV2n4hAm6e1WhBrPDu5a6QDTBNfCjPu8hkbwZc9DZ8nbByd1xYfhisDeGu3B0/3HxYL+dhm9bPMck5StYg9gTJIbHUAHggtrlczj27IbTz79fk6zvoE80IMcMRHkmDFx/zZQNKYd0z17xIxHpr+3zRrc5F5ifRVaZhz72gh05S3aPn8il7H17mC4QtJ53dJ7VsYczjk24OCVg1xaCS8UG8wt6EO9wCsZFJl29IA38YfXoiINPFKGzUNh1IbkVEFkjPq/5FlCZJujbKzTZ/2uYoYsif/DQzSSUGliYamMM1mBvhAdDsHxj3N2afFdZeozwjcYdhTI0XwxX6BlVzanprEKhRud/dT5cdAmGbDZweRGzVgcqwI5YUIp5sFtJMovjhVR5udJfCKPBKeBmIT6CaJBTOsU2usQrF9m2Xa7nQNhFGHm991fhKBCpYpSKc2XZ7dIOIoaSOxPWb6d/9yLjCLV3rQuh7lxVZacfEZYaps1PjRCT6K8OfM7RPZPo/b/Lrck5gD3IbOYWRN/kac+qfJJtyidI/4wQfS53Ntmz8WJUq+RRorS92vh4ZdTw0DmuxZch3Y8boSTYk3SxT2JQ0xnnI1SKA+vcPpuldble/bSQ5JR6I6KF6qlLzzeQre/i4cr9KhBFLQesJIRdIw71IaJ+97SHKbz/PWMxPMPCaJouw==
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListClaimedRewardsByBlockRange"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/earners/{earner_address}/claimed-rewards"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+ListClaimedRewardsByBlockRange returns the claimed rewards for the given earner address and block range,
+inclusive of the start and end block heights
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"earner_address","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"rewards":{"type":"object","properties":{"amount":{"type":"string"},"blockNumber":{"type":"integer","format":"uint64"},"claimer":{"type":"string"},"distributionRoot":{"type":"string"},"earner":{"type":"string"},"recipient":{"type":"string"},"token":{"type":"string"}},"title":"ClaimedReward"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

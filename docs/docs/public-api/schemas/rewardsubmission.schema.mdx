@@ -1,0 +1,33 @@
+---
+id: rewardsubmission
+title: "RewardSubmission"
+description: ""
+sidebar_label: "RewardSubmission"
+hide_title: true
+hide_table_of_contents: true
+schema: true
+sample: {"amount":"string","avs":"string","duration":0,"endTimestamp":"2024-07-29T15:51:28.071Z","multiplier":"string","rewardHash":"string","rewardType":"string","startTimestamp":"2024-07-29T15:51:28.071Z","strategy":"string","strategyIndex":0,"token":"string","transactionMetadata":{"blockHeight":0,"logIndex":0,"transactionHash":"string"}}
+custom_edit_url: null
+---
+
+import Schema from "@theme/Schema";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"RewardSubmission"}
+>
+</Heading>
+
+
+
+
+
+<Schema
+  schema={{"type":"object","properties":{"amount":{"type":"string"},"avs":{"type":"string"},"duration":{"type":"integer","format":"uint64"},"endTimestamp":{"type":"string","format":"date-time"},"multiplier":{"type":"string"},"rewardHash":{"type":"string"},"rewardType":{"type":"string"},"startTimestamp":{"type":"string","format":"date-time"},"strategy":{"type":"string"},"strategyIndex":{"type":"integer","format":"uint64"},"token":{"type":"string"},"transactionMetadata":{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"logIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"title":"TransactionMetadata"}},"required":["start_timestamp","end_timestamp","transaction_metadata"],"title":"RewardSubmission"}}
+  schemaType={"response"}
+>
+  
+</Schema>
+            

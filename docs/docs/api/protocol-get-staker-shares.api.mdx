@@ -1,0 +1,72 @@
+---
+id: protocol-get-staker-shares
+title: "GetStakerShares"
+description: "GetStakerShares returns the shares of a staker, and optionally, the operator operator they've delegated to and"
+sidebar_label: "GetStakerShares"
+hide_title: true
+hide_table_of_contents: true
+api: eJzNVMFu2zAM/RVBl21AYKc7+rRgKIoCG1As3S5dUTA2Y6tVJFWSk3qG/32k7bRO3W3X5RJZek8U+R7ZygJD7pWLyhqZyQuM6wgP6NcVeAzCY6y9CSJWKMKwZbcCROhBCwGmELYng9bNosdZhx6i9S8L2m3e7VEUqLGEiIWIlqk/DeNXP9anvAo4cKlCRE/Yg4pVIhdyOKdQlwW99MrbaHOr7149mYAOPOyQyEFmN6009EGE4cl3UBSEYpjihB3EitYeH2tFwWQWfY0LGfIKdyCzVsbGDWyvTCm77pbBwVkTKBadf1wu+e+0jOs6zynIttbiCKYguTURTWQ4OKdV3meT3gfmtPOYdnOPeeSEPOce1RBx0OHfONiH1ZDsCfqYybGg1o+oNzGzYJOjSGwsm7eqNK3ozXOg5+JTEaOKmikT7YjX/+gQStaOE+pFZgIpWllWvsQ+VxYuk+kRku7P0kHikLanWndpOFpDma3t3ztGP1clmi/QoBerq0uxdpir7SgMwfd026DoWbJMlrRzqvNnu3OanNaTw5QstoPvxSTC8akLoUyu64JKJahtREC/V+SXvpu4kiEZ3QJ575bRwZOrrhF2hKm9pv0qRheyND0cDgkyRjMmeWp+EYQspRjEmX96dUqVJhciu/MlytfL69nNJKAJtvY5JtaX6UgKKWNZL2dD3IGZ3DLvypPKtS/N8F/PnNHXEZ9i6jTQyOjG2rSjAycmJb+cycU4aDjlbDZzRiOSnSsqGbPbdgMBv3vddbz9WKOnjrqh5R68gg3blIZYoQKvyf9b0AH/Us7338bO+yD+lMC4CabhN4Ou+YuWD9jMB2V3S4wKoUDfv2QArWjAuTihzyZaN+3Zi3M2ym/ESUIY
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetStakerShares"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/protocol/v1/stakers/{staker_address}/shares"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetStakerShares returns the shares of a staker, and optionally, the operator operator they've delegated to and
+the AVS the operator has registered with.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"staker_address","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"shares":{"type":"object","properties":{"avsAddresses":{"type":"string"},"operatorAddress":{"type":"string"},"shares":{"type":"string"},"strategy":{"type":"string"}},"required":["operator_address"],"title":"StakerShare"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

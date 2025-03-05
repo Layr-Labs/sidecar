@@ -1,0 +1,72 @@
+---
+id: rewards-generate-claim-proof
+title: "GenerateClaimProof"
+description: "GenerateClaimProof generates a proof for the given earner address and tokens for claiming"
+sidebar_label: "GenerateClaimProof"
+hide_title: true
+hide_table_of_contents: true
+api: eJzNVk1v2zAM/SuGz2mcdsMOOa0riiFAhwVttktWFIrNOGplSZPkfMzwfx8pObWTuFsL7LAeUod6pMjHRzpVnIFNDdeOKxmP488gwTAHV4LxYmqUWkZ5Y7IRi7S3LJWJ3AqinK9BRsAMAiKWZQYsgmQWOfUE0npcSoG4zH/IxshyxqV1PsAtbJjJ7JVSJuOSOWXiQaw0XYfpTDJMqIE8nCaGUAM/S7Duk8p28bjyX7kBdHOmhEGcKulAOjpiWgue+rDJo6VSq9imKygYPbmdBrxLLR4hdRgXy8QkHAdLp6HAy1BfB26dwcLiGvNQyk1kBtu/B1szUUIHxjHFHKhuZKtgLpg+vI9rjOu4EwSakOW79ySrJ7InkXrQoWDus3rgPq37ug6nVitpQyYXoxH9O+z/XZmmWOWyFNEeHP8zIr16Xsv3MZ89RJVoe3dBlASXG2CvDt/bx3A0I35vkbxTTOfyxc7BQZOu2xzaUAZgelT1S6GCjF4NfBM/XjLowVOwb/LBctYHLi+QmpZFKVAVayAaMO3+QfEx+5W7p3HWXLt8xj+T2BOzryHdGQhteBAU7769JPTkGBz06WeF7mZUBI5R2EDkXoBbKdpKWlnPAXMr/JY0kGR9nvh9d6abBUUTctsuqestK7SAnqXS1nPQ22ZbjDpT32GTy6XylOwVyHFX37AdbuNpucAxjS6nk+hOQ8qXzcziBWswNgz7+XA0HKHlcAV0XG3X9Xntd67BOp1KlRhEtCJwsWNmkZJiF2kfBR+YXyh8ISACmWmF+rLDZqew1OtdsuIo/RmwAjGlEWhfOaftOEk2m80QCCMIM9zufiEEFw8XXspL9fHoFCnCHIB2WHvLl8nsJDIqWVpVmhSGyuRJ42QTwpIUqN0Fk50ova+jAx6rdmv+D2/VZmwcbF2i0VsSO56FqpFxq3TUyDl1qCNlFP+KNI+oqlowC9+MqGsyo7gNvn3n+LhmhrMFSXF+j9FXwDJatPMqfgKExFeBkLMZ5TLYi/v0lVIP9h6XKB7t/ojtjuX06x01d9H8HihURj6GbWiu8HMc+98X5O13ibdVsWAyL1lO2BCT/n4DxDYuvw==
+sidebar_class_name: "post api-method"
+info_path: docs/public-api/eigenlayer-public-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GenerateClaimProof"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/rewards/v1/claim-proof"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GenerateClaimProof generates a proof for the given earner address and tokens for claiming
+tokens against the RewardsCoordinator
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={undefined}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={{"required":true,"content":{"application/json":{"schema":{"type":"object","properties":{"earnerAddress":{"type":"string"},"rootIndex":{"type":"object","properties":{"value":{"type":"integer","format":"int64"}},"title":"Int64Value"},"tokens":{"type":"string"}},"required":["root_index"]}}}}}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"proof":{"type":"object","properties":{"earnerIndex":{"type":"integer","format":"uint32"},"earnerLeaf":{"type":"object","properties":{"earner":{"type":"string"},"earnerTokenRoot":{"type":"string","format":"byte"}},"title":"EarnerLeaf"},"earnerTreeProof":{"type":"string","format":"byte"},"root":{"type":"string","format":"byte"},"rootIndex":{"type":"integer","format":"uint32"},"tokenIndices":{"type":"integer","format":"uint32"},"tokenLeaves":{"type":"object","properties":{"cumulativeEarnings":{"type":"string"},"token":{"type":"string"}},"title":"TokenLeaf"},"tokenTreeProofs":{"type":"string","format":"byte"}},"required":["earner_leaf"],"title":"Proof"}},"required":["proof"]}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

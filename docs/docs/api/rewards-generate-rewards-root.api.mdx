@@ -1,0 +1,72 @@
+---
+id: rewards-generate-rewards-root
+title: "GenerateRewardsRoot"
+description: "GenerateRewardsRoot generates a rewards root for the given snapshot."
+sidebar_label: "GenerateRewardsRoot"
+hide_title: true
+hide_table_of_contents: true
+api: eJzNVE1v2zAM/SuCzqmd7pjTuq4YCmxYkXanrhgUmbbVyZJGyUkzI/99pGI36ddOOywHx5YeyafHJw6ygqjRhGS8kwv5CRygSrCEjcIqLr1PohnXolAC9+sCeaP2KFILojFrcCI6FWLrU/HdLSH16AjvBCASytQZOEW3ag3CUYYVUOCUv3pM+JhKzqQPvEnsLiviN/L68QpPwiL86iGmD77aysWQPw0CxSXsYSa1dwlc4i0VgjU65y3vIx99kFG30Cl+S9sAVMyv7kFz3oDMIhmIvKv75Ov6I1U/wsaExjVyl3/MJAbv4j7g3XzOf0+Vvu61hhjr3ooJLP8ZxVHoc2X1haveoDqbYFm9N45CqKQaSno7oeXdTHaQWs/9CD7m6iq19FWOkHJ9Wk5dPRnXTnDfIz7K8tCniwfVBQvPdT0iaVztMzuTGCcvDKX+rLaA4uzqUlwH0KYehaL8a8C4V/i0mBdzWnmq+7nneglycDwOfrTfUQWSNXnt7UwYp21fESehrBURcG00XwlXCdYtFmP3lM5aOtU9I3sDqiNMj5bW25RCXJTlZrMpgDGWMcXD9jdBqMWGQXzy9892SRByBbBbDlW+XN68yEx2cNH3qKHw2JRjUCwZy13lznXKHWV5/U49UW84GPQ/HBWjfxM8pDJYZRyrlVUZRoceTExGOaXH6y4lh7dsbMIPw0pF+IZ2t+Nl8i3SbLml17VCo1Zsyds7qtOCqgDpY5A/YZuNlpU6uWFWDLc9s3txrXezKeKMJkJIf8Ue372rr9fc9tU47TpfcQyqDU9Cei5kHp8cvR8KvDZIq1zTq4ax+5z8+wMMgCE8
+sidebar_class_name: "post api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GenerateRewardsRoot"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/rewards/v1/generate-rewards-root"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GenerateRewardsRoot generates a rewards root for the given snapshot.
+Returns an error if the rewards have not been generated for the snapshot.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={undefined}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={{"required":true,"content":{"application/json":{"schema":{"type":"object","properties":{"cutoffDate":{"type":"string"}}}}}}}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"rewardsCalcEndDate":{"type":"string"},"rewardsRoot":{"type":"string"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

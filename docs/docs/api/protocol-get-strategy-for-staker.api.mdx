@@ -1,0 +1,71 @@
+---
+id: protocol-get-strategy-for-staker
+title: "GetStrategyForStaker"
+description: "GetStrategyForStaker"
+sidebar_label: "GetStrategyForStaker"
+hide_title: true
+hide_table_of_contents: true
+api: eJy9VFGL2zAM/ivBTxuEpN1jnlbG7ShscKzdUynDl6iJr47ts532upD/PilJ26S5YweD9aWO9UmfJX1SzbQBy73QapmxhD1Y7XWq5a978CuPBshPX7Vdeb4Hy0JmuOUleLCOJZuaKfxAL9eaF1lmwTlECYWXhvsCzxaeK2EBg3tbQchcWkDJWVIzfzKdsxUqZ00TDuJ1zP8acUtgZ7Ry4Mj+aTajvwxcaoWhpBG9qtIUSXaVDM5gJEm18qA8wbkxUqRtjeInRz71lFM/PkHqqUKWKupFx9hV5lzJd+KzRamrjvsmo/BSmr+HsnDkNoNsrfeg3HuDXY1eey7bxr/aLOaFl3R1SY4ur73ZXKNvh+BRPaYuI/O2oR9685z0Rgm26qSI4ya+IVeUaqFJ1zm0BSIBJSw+x4kP87ijdHE9EnET96/HYpJppMemFeROt3XpE7sTOahv/AQ2WDwsg5WBVOx61SD8gBTdS+fRLJqx2/d/0aWROFetsxs6BzttA19AMGA4vz8MhEpllWFLAi5l4MAeBIo54CoLqGMu6qXM01ZO/XwNQq2Bl4iprMT7wnvjkjg+Ho8REEYSJno5/UYI6l0QiDL/fGPFHuGIAI3OleX7cj2JjAJVTlc2hUjbPO6dXExY6rTRzpdcDaK80dlR+S7y9PDiYyM5roump677rg/Ug+2Ys7AXG22X5HaBXZvfWcfrCNVX4DspZl0/cgc/rWwaun6uwOI0bfB44FbwR9IG7slMODqjEndcOpg8/7Jt2Icf/Th8DJD61bT6S65OlAmXFX3hcQ+nyS6mpfpfyceVarboUgDPsGdUhw61wIVr/MB/smFpc19m9/6OtPEHcu1TvQ==
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetStrategyForStaker"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/protocol/v1/stakers/{stakerAddress}/strategies/{strategyAddress}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetStrategyForStaker
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"stakerAddress","in":"path","required":true,"schema":{"type":"string"}},{"name":"strategyAddress","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"stakerStrategy":{"type":"object","properties":{"stakedAmount":{"type":"string"},"strategy":{"type":"object","properties":{"rewardedTokens":{"type":"string"},"strategy":{"type":"string"},"totalStake":{"type":"string"}},"title":"Strategy"}},"required":["strategy"],"title":"StakerStrategy"}},"required":["stakerStrategy"]}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

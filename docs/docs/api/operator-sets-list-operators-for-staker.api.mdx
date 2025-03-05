@@ -1,0 +1,71 @@
+---
+id: operator-sets-list-operators-for-staker
+title: "ListOperatorsForStaker"
+description: "ListOperatorsForStaker"
+sidebar_label: "ListOperatorsForStaker"
+hide_title: true
+hide_table_of_contents: true
+api: eJyNVE1v2zAM/SuGThsQxOkw7JDTiqIbCnTYsHanoBgYm7HVypIqykkzw/99pOOkTuJiyyUy9fj5ntgo5zFA1M7e5GquvndfLtxhpN+3muLeQF/YGOEJg5ooDwEqjBhIzReNsvzBvtRdX+Z5QCJGactGD7Hkc8DnWgfkFDHUOFGUlViBmjcqbv3OOWhbqLZ9EDB5ZwlJ7j/MZvKXI2VBeymU0Xd1lnGSVW2SPZiTZM5GtFHg4L3RWddX+kji05zndMtHzKL0E2QKUe8yun3L/w8daWRyuJRZ/jsUrGk0is4HZs0NFh0FKxcq4FZVzbZPHwVZQWF1rHMcjcMnYOft6GV0EUxHbz7GCQN0NHisj1E7G7sf30Ah6jieApN7TOSbEmN5lU4UWWA3K5HRXKXri3QYMN1pjtLmSHxt+sqh6HDluq76Wq91gfYWthiSyx83yZ3HTK96sTB8zfF2xV1MZ9OZOi35ylXesPg7Zxo6J0xKEktMBhmY5OgyZyaJtpmpcx5oAsYkhGGtWcMJ2DyRedO0VzBknYL7RzUIdY9QMaYOhu1ljJ7mabrZbKYoGCOY6cv2D0NY5tp0clm5zye3TA2/DJQX85rl2839WWQeoSVXhwynLhRp70SpYIVg7yhWYAdR3iTzaIAHeUV8iak3wHui7ZM3PdELtb5QJy9o0i8YOc1Pd80r3yyxkiuTGE2zBMJfwbStmJ9rDCz/BR/XEDQsRQ28vnJNcmaxrcAQnpV7WCvq3c9+jb1POOdoG70R7FakBKaWLz4+4fZsRbYP7FAi5DwkKWSHueTV5uPA+2yXyY48vI+v10LHX++hBEM=
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListOperatorsForStaker"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/v1/operatorSets/stakers/{stakerAddress}/operators"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+ListOperatorsForStaker
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"stakerAddress","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"operators":{"type":"object","properties":{"operator":{"type":"string"},"operatorSets":{"type":"object","properties":{"avs":{"type":"string"},"id":{"type":"integer","format":"uint64"},"magnitude":{"type":"string"},"strategy":{"type":"string"},"totalStaked":{"type":"string"}},"title":"OperatorSet"}},"title":"Operator"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

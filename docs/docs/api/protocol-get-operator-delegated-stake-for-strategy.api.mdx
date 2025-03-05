@@ -1,0 +1,71 @@
+---
+id: protocol-get-operator-delegated-stake-for-strategy
+title: "GetOperatorDelegatedStakeForStrategy"
+description: "GetOperatorDelegatedStakeForStrategy returns the amount of delegated stake for a given strategy for an operator"
+sidebar_label: "GetOperatorDelegatedStakeForStrategy"
+hide_title: true
+hide_table_of_contents: true
+api: eJzFVE1vEzEQ/SuWTyCFOOWYExUtVSUQFSknVFXT3cmuW8d2be+2YbX/nZn9aLdJQJWQIJfYs2++3jxPI3OMWdA+aWflUp5h+uoxQHLhBA0WkDBfJbjDTy6sEtmx2IqAqQo2ilSigI2rbBJuLfIRLyI7iLULAkSha7RkGVw7oxVuyCFnsj9S9vOc8l8El1zmzPVrCiFvDwE2mDBEufzRSEsXijKGv4Y8DxgjATV35yGVdA54X+mAlC+FCmcyZiVuQC4bmbae/alcbQvZtrOnkGMHfx3yisHROxsx8vf3iwX/vRzDqsoySrKujBjBlCRzNqFNDAfvjc463tRtZJ9mP6e7ucUsMUuBGUm6zwh1PO6b6O87FVLxJYSDn/rfTCYomG+O201LUlM0hdLxCAvsUjIvS6lGiKqP1DiWqJrdCbVqIJhqVM0u2a16Ete7Tlwd+2vXlaiT4RpPdYH2M2wxiOOLc7HymOn1QBHBa5JIz+3RfDFfkOUl4x/dxhsSUuccp86dZlnqkwxjVzOhbWaqnNgRYIyIGGpNkyON54LJi/NhbpB1cxvUNAl1ibAhTBUM2cuUfFwq9fDwMEfGGMbMH7c/CULD1Qzizj/sfKWhkB6QdfKc5cv55V5kIt5GV4UM5y4UanCKirE8Wu9i2oCdRHnlS3xBZ/Os1f+wUgbVJnxMyhugd9oONDSDLifSJWkcPa0h0iadlwf2x7M8GXBgG+wqlJ5ESVxyrqa5gYjfg2lbNt9XGLZkp2MNQcMN65eWV64jn+kNrcFE/AOlb74N6+at+F27gxEsz6YGU/GNjne4PbQgedP9w/x7/LVX5FMi5Bg6LnrYMW1BnyYB9tZeO908Z6es4V963mli
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetOperatorDelegatedStakeForStrategy"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/protocol/v1/operators/{operator_address}/strategies/{strategy_address}/delegated-stake"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetOperatorDelegatedStakeForStrategy returns the amount of delegated stake for a given strategy for an operator
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"operator_address","in":"path","required":true,"schema":{"type":"string"}},{"name":"strategy_address","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"avsAddresses":{"type":"string"},"shares":{"type":"string"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

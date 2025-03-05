@@ -1,0 +1,71 @@
+---
+id: slashing-list-avs-operator-set-slashing-history
+title: "ListAvsOperatorSetSlashingHistory"
+description: "ListAvsOperatorSetSlashingHistory"
+sidebar_label: "ListAvsOperatorSetSlashingHistory"
+hide_title: true
+hide_table_of_contents: true
+api: eJy9VUtv2zAM/iuGThvgxukw7ODTgqFYA3QPLN0pKArFZmK1iuSKstPM8H8f6TiO3aRosMNyiSx+fOojWQmbg5NeWTNNRSxmWmKmzOr+RqGflPijkVo3A78XXZPEuq0IRS6dXIMHhyKeV8LQB5mQJU7S1AEiQZShm1z6jM4OngrlgNx4V0AoMMlgLUVcCb/NWRO9I/uirsPOmD34p/j+1d4dgzG3BgFZ/mE85r8UMHEq5+Q59SJJKOhloYM9mJwk1ngwnuEyz7VKmlpFD8g61bFPu3iAxHNxHMfu1c4jtsW7KskYvo1faJs8fi/WC3A9sKJYVnQTiqV1a0lRiYLuPn0UdTjM5qgGodB2NTUpPJ9rb1/6k8Z67/J2MsSIk0ZUel4sBPXKa+jxs6njfY+dbI8sSzLSen3jQXbY7cnAvPVSzzJJPGgcQnoStpHp6+JXg57tPTPCSYMy4Te7JsxpMweezwd1v3vFAyk1PxLLFbdmxz5WGZL+nDanFs8sD4cVNHXk7otFVF5Ge7sRvTBG1aHz62gf6AWCJ9Ggj+tO8SLrvCiztE3+bUpXagXmRm7BBZOf02CWQ6KWbfsRvKSps0vhcjQejcXLxL7Yda5pNjXK2FcOiF+BzyDoeSBueJtYHQbKJLpIKbRAah0guFLRVAikSQN+GRy1M4EejaNtx1TP1C3INWEKp+k+8z7HOIo2m80IGKMZM3re/iEIDQ6lG+Yv7ecXUu5Xcswz6ODl2/T2yDIV1qAtXAIj61ZRq4QRY5kCuUW/lqZn5ZwnPz1LPDz7KNeShnDdxlG1dJiL8pL0OqKF3PS8AOLBOhiwgqUv5/sRMYixGaXAHqpqIRF+O13XfP1UAMnjOR1L6ZRcMG1oDaUK+UyEXUqNcJRMN9HFu19tZ70PyPXJJNtLabgqpdQFf9HxEbbDVcc76z96HtatviOFDGTK24JKsMNMaJ/lvqd9tMB4MXbd/fWKGfMX/s/RQg==
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListAvsOperatorSetSlashingHistory"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/v1/slashing/avss/{avsAddress}/operator-sets/{operatorSetId}/slashing-history"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+ListAvsOperatorSetSlashingHistory
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"avsAddress","in":"path","required":true,"schema":{"type":"string"}},{"name":"operatorSetId","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"slashingEvents":{"type":"object","properties":{"blockNumber":{"type":"integer","format":"uint64"},"description":{"type":"string"},"logIndex":{"type":"integer","format":"uint64"},"operator":{"type":"string"},"operatorSet":{"type":"object","properties":{"avs":{"type":"string"},"id":{"type":"integer","format":"uint64"}},"title":"SlashingEvent_OperatorSet"},"strategies":{"type":"object","properties":{"strategy":{"type":"string"},"totalSharesSlashed":{"type":"string"},"wadSlashed":{"type":"string"}},"title":"SlashingEvent_Strategy"},"transactionHash":{"type":"string"}},"required":["operatorSet"],"title":"SlashingEvent"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

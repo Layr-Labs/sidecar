@@ -1,0 +1,492 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
+
+@font-face {
+	font-family: 'ABC Repro';
+	src: url('/font/ABCReproVariable.woff2') format('woff2');
+	font-weight: normal;
+	font-style: normal;
+}
+
+
+.menu__link--active {
+	font-weight: 600;
+}
+
+.header--github-link {
+	width: 32px;
+	height: 32px;
+	padding: 6px;
+	margin-right: 4px;
+	border-radius: 50%;
+	transition: background var(--ifm-transition-fast);
+}
+
+.header--github-link:hover {
+	background: var(--ifm-color-emphasis-200);
+}
+
+.header--github-link:before {
+	content: "";
+	height: 100%;
+	display: block;
+	background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'/%3E%3C/svg%3E")
+	no-repeat;
+}
+
+html[data-theme="dark"] .header--github-link:before {
+	background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='white' d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'/%3E%3C/svg%3E")
+	no-repeat;
+}
+
+/* You can override the default Infima variables here. */
+:root {
+	--ifm-menu-color-active: #648fe4;
+	--ifm-color-primary: #346ddb;
+	--ifm-color-primary-dark: #29784c;
+	--ifm-color-primary-darker: #277148;
+	--ifm-color-primary-darkest: #205d3b;
+	--ifm-color-primary-light: #33925d;
+	--ifm-color-primary-lighter: #359962;
+	--ifm-color-primary-lightest: #3cad6e;
+	--ifm-code-font-size: 95%;
+	--docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+	--ifm-font-family-base: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu,
+	Cantarell, Noto Sans, sans-serif, BlinkMacSystemFont, "Segoe UI", Helvetica,
+	Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+	--ifm-font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas,
+	"Liberation Mono", "Courier New", monospace;
+	--ifm-font-size-base: 100%;
+	--ifm-font-weight-light: 200;
+	--ifm-font-weight-normal: 300;
+	--ifm-font-weight-semibold: 400;
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme="dark"] {
+	--ifm-color-primary: #648fe4;
+	--ifm-color-primary-dark: #21af90;
+	--ifm-color-primary-darker: #1fa588;
+	--ifm-color-primary-darkest: #1a8870;
+	--ifm-color-primary-light: #29d5b0;
+	--ifm-color-primary-lighter: #32d8b4;
+	--ifm-color-primary-lightest: #4fddbf;
+	--docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .card {
+	background-color: rgba(44, 46, 57, 0.2);
+	color: #ffffff;
+	box-shadow: 0 8px 15px 2px rgba(35, 37, 46, 0.2);
+}
+
+[data-theme="dark"] .card__header h3 {
+	color:  #648fe4;
+}
+
+[data-theme="dark"] .link-body-container {
+	color: white;
+}
+
+.cards__container {
+	margin: 3em 0;
+}
+
+
+
+
+.card {
+	padding: 1rem;
+	margin-top: 0rem;
+	animation: fadeInUp 400ms backwards;
+	animation-delay: 150ms;
+	transition-property: all;
+	transition-duration: 200ms;
+	align-items: start;
+	height: 100%;
+	box-shadow: 0 8px 15px 2px rgba(86, 91, 115, 0.2);
+}
+
+.card a {
+	text-decoration: none;
+}
+
+.card:hover {
+	transform: translate(0px, -5px);
+}
+
+.landing-tagline {
+	color: #1A0C6D;
+}
+
+[data-theme="dark"] .landing-tagline {
+	color:  white;
+}
+
+
+
+[data-theme="dark"] .docs-landing {
+	border-color: white;
+}
+
+.docs-landing-link:hover {
+	text-decoration: none;
+}
+
+.docs-landing-link:hover h3 {
+	text-decoration: underline;
+}
+
+
+
+
+
+.button1 {
+	background-color: #0056b3; /* Darker blue */
+	color: #FFFFFF; /* White text */
+	border: none;
+	border-radius: 3px; /* Slightly rounded corners */
+	padding: 10px 20px;
+	font-size: 16px;
+	font-weight:600;
+	cursor: pointer;
+	transition: background-color 0.3s ease, box-shadow 0.3s ease; /* Smooth transition for hover effects */
+}
+
+.button1:hover {
+	background-color: #007BFF; /* Blue background */
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow on hover */
+	font-weight: 600;
+}
+
+.button1-container {
+	display: flex;
+	gap: 5px; /* Adjust the gap as needed */
+}
+
+.button1-container-heading {
+	margin-top: 25px;
+}
+
+
+
+
+.link-body-header {
+	padding-left: 20px;
+	padding-right: 20px;
+
+	color: var(--Content-Text-Headline, #000);
+	/* Content/Card/Label */
+	font-family: "ABC Repro";
+	font-size: 20px;
+	font-style: normal;
+	font-weight: 500;
+	line-height: 24px; /* 120% */
+}
+
+
+
+.link-body-container {
+	padding-left: 20px;
+	padding-right: 20px;
+	padding-top: 10px;
+	color: var(--Content-Text-Body, #7C7B89);
+	/* Content/Card/Body */
+	font-family: "DM Sans";
+	font-size: 15px;
+	font-style: normal;
+	font-weight: 400;
+	line-height: 20px; /* 153.846% */
+}
+
+[data-theme="dark"] .link-body-header {
+	color: white;
+}
+
+[data-theme="dark"] .link-body-container {
+	color: white;
+}
+
+
+.link-body-icon{
+	padding-left: 20px;
+	padding-right: 20px;
+	padding-bottom: 10px;
+}
+
+.link-body-header h3 {
+	color: var(--Content-Text-Headline, #000);
+	font-family: "ABC Repro";
+}
+
+[data-theme="dark"] .link-body-header h3 {
+	color: white;
+}
+
+.navbar__title{
+	font-family: "ABC Repro";
+	color: var(--Brand-Prim, #1A0C6D);
+	/* NavBar/Logo Text */
+	font-family: "ABC Repro";
+	font-size: 16px;
+	font-style: normal;
+	font-weight: 600 !important;
+	line-height: 100%; /* 14px */
+}
+
+[data-theme="dark"] .navbar__title{
+	color: white;
+}
+
+.navbar__link{
+	color: var(--NavBar-Text-Color, #313131);
+	text-align: center;
+	/* NavBar/Label Text */
+	font-family: "ABC Repro";
+	font-size: 16px;
+	font-style: normal;
+	font-weight: 500;
+	line-height: 24px; /* 171.429% */
+	letter-spacing: -0.32px;
+}
+
+[data-theme="dark"] .navbar__link{
+	color: white;
+}
+
+.navbar__link--active{
+	border-bottom: 2px solid var(--NavBar-Selected-Stroke, #04020F);
+}
+
+[data-theme="dark"] .navbar__link--active{
+	border-bottom: 2px solid white;
+}
+
+.footer__title{
+	align-self: stretch;
+	color: var(--Footer-Text-Sec, rgba(255, 255, 255, 0.40));
+	/* Footer/Header */
+	font-family: "ABC Repro";
+	font-size: 10px;
+	font-style: normal;
+	font-weight: 500;
+	line-height: 140%; /* 14px */
+	letter-spacing: 0.4px;
+	text-transform: uppercase;
+}
+
+.footer__item{
+	color: var(--Footer-Text-Prim, #FFF);
+	/* Footer/Body-Content */
+	font-family: "ABC Repro" ;
+	font-size: 14px;
+	font-style: normal;
+	font-weight: 500;
+	line-height: 140%; /* 19.6px */
+}
+
+.grid-container {
+	width: 100%;
+	max-width: 1200px;
+	margin: 0 20px;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(300px, 1fr));
+	grid-auto-rows: minmax(180px, auto);
+	gap: 32px 50px;
+	padding: 20px;
+}
+
+.grid-item {
+	background-color: #f0f0f0;
+	padding-top: 35px;
+	padding-bottom: 20px;
+	padding-left: 20px;
+	padding-right: 20px;
+	border-radius: 8px;
+	min-width: 0;
+}
+
+[data-theme="dark"] .grid-item {
+	background-color: #1a1a1a;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 1024px) {
+	.grid-container {
+		grid-template-columns: repeat(2, minmax(300px, 1fr));
+	}
+}
+
+@media (max-width: 680px) {
+	.grid-container {
+		grid-template-columns: minmax(300px, 1fr);
+		margin: 0 10px;
+	}
+}
+
+.landing-link-container{
+	border: 1px solid var(--Content-Card-Stroke, #F3F3F3);
+	background: var(--Content-Card-Bg-fill, #FFF);
+	/* Card Shadow */
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] .landing-link-container {
+	border-color: white;
+}
+
+.landing-tagline{
+	font-family: "DM Sans";
+	margin-left: 40px;
+	margin-bottom: 40px;
+	margin-top: 10px;
+	font-size: 32px;
+	font-style: normal;
+	font-weight: 500;
+	line-height: 110%;
+	letter-spacing: -0.64px;
+	color: #000000;
+}
+
+[data-theme="dark"] .landing-tagline{
+	color: white;
+}
+
+:root{
+	font-family: "DM Sans";
+}
+
+.markdown{
+	color: var(--Content-Text-Body, #494952);
+
+	/* Content/Body */
+	font-family: "DM Sans";
+	font-size: 16px;
+	font-style: normal;
+	font-weight: 400;
+	line-height: 150%; /* 24px */
+}
+
+[data-theme="dark"] .markdown{
+	color: white;
+}
+
+.theme-doc-markdown.markdown h1,
+.theme-doc-markdown.markdown h2,
+.theme-doc-markdown.markdown h3,
+.theme-doc-markdown.markdown h4,
+.theme-doc-markdown.markdown h5,
+.theme-doc-markdown.markdown h6 {
+	color: var(--Content-Text-Headline, #000);
+	/* Content/Headline */
+	font-family: "DM Sans";
+}
+
+[data-theme="dark"] .theme-doc-markdown.markdown h1,
+[data-theme="dark"] .theme-doc-markdown.markdown h2,
+[data-theme="dark"] .theme-doc-markdown.markdown h3,
+[data-theme="dark"] .theme-doc-markdown.markdown h4,
+[data-theme="dark"] .theme-doc-markdown.markdown h5,
+[data-theme="dark"] .theme-doc-markdown.markdown h6 {
+	color: white;
+}
+
+.menu__link{
+	color: var(--Side-Nav-Text-Prim, #000);
+	/* Side Nav/Label-Selected */
+	font-family: "DM Sans";
+	font-size: 16px;
+	font-style: normal;
+	line-height: 20px; /* 125% */
+}
+
+[data-theme="dark"] .menu__link{
+	color: white;
+}
+
+.menu__link--active{
+	font-weight: 600;
+}
+
+[data-theme="dark"] .menu__link--active{
+	color:rgb(100, 143, 228);
+}
+
+
+
+/* You can override the default Infima variables here. */
+:root {
+  --ifm-color-primary: #2e8555;
+  --ifm-color-primary-dark: #29784c;
+  --ifm-color-primary-darker: #277148;
+  --ifm-color-primary-darkest: #205d3b;
+  --ifm-color-primary-light: #33925d;
+  --ifm-color-primary-lighter: #359962;
+  --ifm-color-primary-lightest: #3cad6e;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: #25c2a0;
+  --ifm-color-primary-dark: #21af90;
+  --ifm-color-primary-darker: #1fa588;
+  --ifm-color-primary-darkest: #1a8870;
+  --ifm-color-primary-light: #29d5b0;
+  --ifm-color-primary-lighter: #32d8b4;
+  --ifm-color-primary-lightest: #4fddbf;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Sidebar Method labels */
+.api-method>.menu__link {
+  align-items: center;
+  justify-content: start;
+}
+
+.api-method>.menu__link::before {
+  width: 50px;
+  height: 20px;
+  font-size: 12px;
+  line-height: 20px;
+  text-transform: uppercase;
+  font-weight: 600;
+  border-radius: 0.25rem;
+  border: 1px solid;
+  margin-right: var(--ifm-spacing-horizontal);
+  text-align: center;
+  flex-shrink: 0;
+  border-color: transparent;
+  color: white;
+}
+
+.get>.menu__link::before {
+  content: "get";
+  background-color: var(--ifm-color-primary);
+}
+
+.put>.menu__link::before {
+  content: "put";
+  background-color: var(--openapi-code-blue);
+}
+
+.post>.menu__link::before {
+  content: "post";
+  background-color: var(--openapi-code-green);
+}
+
+.delete>.menu__link::before {
+  content: "del";
+  background-color: var(--openapi-code-red);
+}
+
+.patch>.menu__link::before {
+  content: "patch";
+  background-color: var(--openapi-code-orange);
+}

@@ -1,0 +1,63 @@
+---
+id: rewards-list-distribution-roots
+title: "ListDistributionRoots"
+description: "ListDistributionRoots"
+sidebar_label: "ListDistributionRoots"
+hide_title: true
+hide_table_of_contents: true
+api: eJyVVMlu2zAQ/RWBZ0eyi6IHn5qmRmMgLYIspyAwKGosMaFIhqS8VPC/d0ZWasYL6howTJPvvXmchS0zFhwP0uhpwcbsDpbcFX52I334jl8n84YO74wJng2YA2+N9uDZuGWfhkP6KcALJy3BUOG+EQK8nzcqeQcjTxgdQAeCc2uVFF3I7MUTp2VeVFBzWoW1BVQx+QuIgETryGCQ24jFgaV/UrgIcsEDFJchApOMLhE8N67meMIKxFwEWQPbDGLSo5ZHiIjJlRGv1yDLKj6XeM8SXKzc4N6Xz0QRDrai34j7q6lzRJ7JxavzXEER4XNjFHBNp8qUU13A6lw1t63zFVeiUV0tJro4Pz9H6Scz5bBSJw/+y3ZwXHsqjtHX3FdHRDtzb410lKmnd6MzsXM6A7xpVOIZxnhGaRkUCe13PUp2H0Tw0keaRPrY+qeGpoZQGZquErr+5AGds6zXyRajLO7rC9fTpJ6b7oa9s4ksQd/wNbjktslxhpLL22lyb0HIeT9QyFqA81s7o3SYDtm+yYjqY2qC6U5CBUkUBicpGGHUIKH55VJjihOj1TqxnQoueDftEjszwbxag6XyaT/wmGLyr3m9Z/8BeI2Yxincr0Kwfpxly+UyBcIowqSr9W+E4KsgVdcVc/N175TaXgqgB2YX5ef04UAZnwPtTeMEpMaVWU/yGWGpsNb4UHMdqZyq5IdU/u29AKuQWYX5IU9d7Lav8q5bsDIjNmBHKo19VKEDArdtzj08OrXZ0PZbA26N+7hccCdp/ukfBqmAF/R2PLXsFRDCLrEOlrprwVVDpg6e2c1z1Ik/JnT1P3zvGd8=
+sidebar_class_name: "get api-method"
+info_path: docs/public-api/eigenlayer-public-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"ListDistributionRoots"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/distribution-roots"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+ListDistributionRoots
+
+<ParamsDetails
+  parameters={undefined}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"distributionRoots":{"type":"object","properties":{"activatedAt":{"type":"string","format":"date-time"},"activatedAtUnit":{"type":"string"},"blockHeight":{"type":"integer","format":"uint64"},"createdAtBlockNumber":{"type":"integer","format":"uint64"},"disabled":{"type":"boolean"},"logIndex":{"type":"integer","format":"uint64"},"rewardsCalculationEnd":{"type":"string","format":"date-time"},"rewardsCalculationEndUnit":{"type":"string"},"root":{"type":"string"},"rootIndex":{"type":"integer","format":"uint64"},"transactionHash":{"type":"string"}},"required":["rewards_calculation_end","activated_at"],"title":"DistributionRoot"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

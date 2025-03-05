@@ -1,0 +1,71 @@
+---
+id: rewards-get-rewards-by-avs-for-distribution-root
+title: "GetRewardsByAvsForDistributionRoot"
+description: "GetRewardsByAvsForDistributionRoot"
+sidebar_label: "GetRewardsByAvsForDistributionRoot"
+hide_title: true
+hide_table_of_contents: true
+api: eJyNVMFu2zAM/RVDpw1I4mTHnNZtXRdgA4Y0Ow1FwdhMrFaRVFFO4hn+95G2m6ZJsNUXS+SjSPE9sVbOY4ConZ3laqrmuIOQ0/0Nxn75qbra0lcXvmiKQS9Lgc6di2qgPATYYMRAavq7VpY3fERg5722Oe4Zoi1bPMSC1wGfSh2Q08RQ4kBRVuAG1LRWsfISKQnsWjXNnYDJO0tI4v8wHssvR8qC9lIBo2/LLEOiVWmSZzAnyZyNaKPAwXujs/Zu6QNJTH2e0y0fMGsvE6QTUXcZQ3f5/wNh48ou3cklBgq2dNGOECyGi64u7Teg4h/uRWu+4CYLngp3uZroHtFeaja7dDRiYqI70tnafuyCtZB76Acz85qFNwmFRVI4kdcaO92wHqYq7Q9Nt5OUezXst8NlNRQNpfWLkppWSivX1t9Xe63XaL9DhSG5+jlLbj1metXzzfAty7IrcTIaj8bqtPDPbuMNi7cNpuPgZOVCEgtMjjIw6dFlzgwSbTNT5ty6BIxJCMNWswwTsHkinaVRL0LIWh76R3F01AJhw5gyGLYXMXqapulutxuhYIxgRvvqD0NYqVpAcvOPJ17mhsWNIvqXLD9mi7OTWayWXBkyHLmwTvsgSgUrDHtHcQP26JQ3UfqqmQdRRdzH1BvgZ9/0hdQ93S8aYm4mqn0ep5SzdXo0PlhsBVcnsXW9BMJfwTSNmJ9KDBXbebmFoGEpiuARlGuSNUttBYbwrMzDdFDv5v00ep9w1ovl90awlZQMppQdLx+xej3mmjtGFwi5vGquogNc8Xjy8Sj0bB7JnDs8jZtr4eMvhVfwVw==
+sidebar_class_name: "get api-method"
+info_path: docs/api/eigenlayer-api-specification
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"GetRewardsByAvsForDistributionRoot"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/rewards/v1/avs-rewards-by-root/{root_index}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+GetRewardsByAvsForDistributionRoot
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+  children={"Request"}
+>
+</Heading>
+
+<ParamsDetails
+  parameters={[{"name":"root_index","in":"path","required":true,"schema":{"type":"string"}}]}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Successful response","content":{"application/json":{"schema":{"type":"object","properties":{"rewards":{"type":"object","properties":{"amount":{"type":"string"},"avs":{"type":"string"},"earner":{"type":"string"},"rewardHash":{"type":"string"},"rewardType":{"type":"string"},"snapshot":{"type":"string"},"token":{"type":"string"}},"title":"AvsReward"}}}}}}}}
+>
+  
+</StatusCodes>
+
+
+      
