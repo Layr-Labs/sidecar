@@ -351,5 +351,11 @@ func (so *SlashedOperatorModel) ListForBlockRange(startBlockNumber uint64, endBl
 }
 
 func (so *SlashedOperatorModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
-	return true, nil
+	forks, err := so.globalConfig.GetRewardsSqlForkDates()
+	if err != nil {
+		so.logger.Sugar().Errorw("Failed to get rewards sql fork dates", zap.Error(err))
+		return false, err
+	}
+
+	return blockHeight >= forks[config.RewardsFork_Brazos].BlockNumber, nil
 }
