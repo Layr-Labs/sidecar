@@ -50,7 +50,7 @@ func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 		}
 
 		// Get the latest safe block from the Ethereum node
-		latestTip, err := s.EthereumClient.GetLatestSafeBlock(ctx)
+		latestTip, err := s.EthereumClient.GetLatestBlock(ctx)
 		if err != nil {
 			s.Logger.Sugar().Fatalw("Failed to get latest tip", zap.Error(err))
 			return errors.New("Failed to get latest tip")
@@ -204,7 +204,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 
 	for retryCount < 3 {
 		// Get the latest safe block as a starting point
-		latestSafe, err := s.EthereumClient.GetLatestSafeBlock(ctx)
+		latestSafe, err := s.EthereumClient.GetLatestBlock(ctx)
 		if err != nil {
 			s.Logger.Sugar().Fatalw("Failed to get current tip", zap.Error(err))
 		}
@@ -255,7 +255,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 				s.Logger.Sugar().Infow("Indexing complete, shutting down tip listener")
 				return
 			}
-			latestTip, err := s.EthereumClient.GetLatestSafeBlock(ctx)
+			latestTip, err := s.EthereumClient.GetLatestBlock(ctx)
 			if err != nil {
 				s.Logger.Sugar().Errorw("Failed to get latest tip", zap.Error(err))
 				continue
