@@ -318,5 +318,11 @@ func (em *EncumberedMagnitudeModel) ListForBlockRange(startBlockNumber uint64, e
 }
 
 func (em *EncumberedMagnitudeModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
-	return true, nil
+	forks, err := em.globalConfig.GetRewardsSqlForkDates()
+	if err != nil {
+		em.logger.Sugar().Errorw("Failed to get rewards sql fork dates", zap.Error(err))
+		return false, err
+	}
+
+	return blockHeight >= forks[config.RewardsFork_Brazos].BlockNumber, nil
 }
