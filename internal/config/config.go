@@ -54,6 +54,7 @@ type EthereumRpcConfig struct {
 	NativeBatchCallSize   int  // Number of calls to put in a single eth_call request
 	ChunkedBatchCallSize  int  // Number of calls to make in parallel
 	UseGetBlockReceipts   bool // Use eth_getBlockReceipts instead of fetching receipts for each tx individually. Requires geth, erigon or other compatible client.
+	BlockType             string
 }
 
 type DatabaseConfig struct {
@@ -193,6 +194,7 @@ var (
 	EthereumRpcNativeBatchCallSize   = "ethereum.native_batch_call_size"
 	EthereumRpcChunkedBatchCallSize  = "ethereum.chunked_batch_call_size"
 	EthereumUseGetBlockReceipts      = "ethereum.use-get-block-receipts"
+	EthereumLatestBlockType          = "ethereum.latest-block-type"
 
 	DataDogStatsdEnabled    = "datadog.statsd.enabled"
 	DataDogStatsdUrl        = "datadog.statsd.url"
@@ -220,6 +222,7 @@ func NewConfig() *Config {
 			NativeBatchCallSize:   viper.GetInt(normalizeFlagName(EthereumRpcNativeBatchCallSize)),
 			ChunkedBatchCallSize:  viper.GetInt(normalizeFlagName(EthereumRpcChunkedBatchCallSize)),
 			UseGetBlockReceipts:   viper.GetBool(normalizeFlagName(EthereumUseGetBlockReceipts)),
+			BlockType:             viper.GetString(normalizeFlagName(EthereumLatestBlockType)),
 		},
 
 		DatabaseConfig: DatabaseConfig{
