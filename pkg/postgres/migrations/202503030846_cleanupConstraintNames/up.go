@@ -29,10 +29,8 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 		formatRenameQuery("operator_set_operator_registrations", "operator_set_operator_registr_transaction_hash_log_index_bl_key"),
 		formatRenameQuery("operator_set_splits", "operator_set_splits_transaction_hash_log_index_block_number_key"),
 		formatRenameQuery("operator_set_strategy_registrations", "operator_set_strategy_registr_transaction_hash_log_index_bl_key"),
-		`alter table operator_shares add constraint uniq_operator_shares unique(operator, strategy, transaction_hash, log_index, block_number)`,
 		formatRenameQuery("reward_submissions", "uniq_reward_submission"),
 		formatRenameQuery("staker_delegation_changes", "uniq_staker_delegation_change"),
-		`alter table staker_shares add constraint uniq_staker_shares unique(staker, strategy, transaction_hash, log_index, block_number)`,
 		formatRenameQuery("submitted_distribution_roots", "uniq_submitted_distribution_root"),
 	}
 
