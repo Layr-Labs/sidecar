@@ -64,8 +64,10 @@ func NewOperatorSetSplitModel(
 	return model, nil
 }
 
+const OperatorSetSplitModelName = "OperatorSetSplitModel"
+
 func (oss *OperatorSetSplitModel) GetModelName() string {
-	return "OperatorSetSplitModel"
+	return OperatorSetSplitModelName
 }
 
 type operatorSetSplitOutputData struct {
