@@ -169,11 +169,11 @@ func (sf *SnapshotFile) GenerateAndSaveSnapshotHash() error {
 // Returns:
 //   - *openpgp.Entity: The entity (signer) that created the signature if validation is successful.
 //   - error: An error if the signature validation fails for any reason, including:
-//     * Invalid public key format
-//     * Missing signature file
-//     * Missing snapshot file
-//     * Invalid or tampered signature
-//     * Signature created with a different key
+//   - Invalid public key format
+//   - Missing signature file
+//   - Missing snapshot file
+//   - Invalid or tampered signature
+//   - Signature created with a different key
 //
 // The method performs the following steps:
 // 1. Parses the provided public key
