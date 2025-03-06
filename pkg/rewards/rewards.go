@@ -715,20 +715,6 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 	return nil
 }
 
-func (rc *RewardsCalculator) generateAndInsertFromQuery(
-	tableName string,
-	query string,
-	variables []interface{},
-) error {
-	return rewardsUtils.GenerateAndInsertFromQuery(
-		rc.grm,
-		tableName,
-		query,
-		variables,
-		rc.logger,
-	)
-}
-
 func (rc *RewardsCalculator) FindClaimableDistributionRoot(rootIndex int64) (*types.SubmittedDistributionRoot, error) {
 	query := `
 		select
