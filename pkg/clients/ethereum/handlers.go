@@ -116,6 +116,15 @@ func GetSafeBlockRequest(id uint) *RPCRequest {
 	}
 }
 
+func GetLatestBlockRequest(id uint) *RPCRequest {
+	return &RPCRequest{
+		JSONRPC: jsonRPCVersion,
+		Method:  RPCMethod_getBlockByNumber.RequestMethod.Name,
+		Params:  []interface{}{"latest", true},
+		ID:      id,
+	}
+}
+
 func GetTransactionByHashRequest(txHash string, id uint) *RPCRequest {
 	return &RPCRequest{
 		JSONRPC: jsonRPCVersion,
