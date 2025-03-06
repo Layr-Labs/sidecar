@@ -243,7 +243,12 @@ func (idx *Indexer) IsInterestingAddress(addr string) bool {
 	if addr == "" {
 		return false
 	}
-	return slices.Contains(idx.Config.GetInterestingAddressForConfigEnv(), strings.ToLower(addr))
+	isExternalInteresting := false
+	contract, _ := idx.ContractStore.GetContractForAddress(addr)
+	if contract != nil && contract.ContractType == "external" {
+		isExternalInteresting = true
+	}
+	return slices.Contains(idx.Config.GetInterestingAddressForConfigEnv(), strings.ToLower(addr)) || isExternalInteresting
 }
 
 // IsInterestingTransaction determines if a transaction interacts with or creates
