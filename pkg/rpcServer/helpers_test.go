@@ -1,7 +1,7 @@
 package rpcServer
 
 import (
-	logger2 "github.com/Layr-Labs/sidecar/internal/logger"
+	"github.com/Layr-Labs/sidecar/internal/logger"
 	"testing"
 	"time"
 
@@ -20,7 +20,7 @@ import (
 func Test_Helpers(t *testing.T) {
 	t.Run("Parse Committed Changes", func(t *testing.T) {
 		// Create a new RpcServer instance for testing
-		logger, err := logger2.NewLogger(&logger2.LoggerConfig{Debug: false})
+		logger, err := logger.NewLogger(&logger.LoggerConfig{Debug: false})
 		assert.Nil(t, err)
 
 		rpc := &RpcServer{
