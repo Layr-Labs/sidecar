@@ -9,6 +9,7 @@ import (
 	protocolV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/protocol"
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
 	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/sidecar"
+	slashingV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/slashing"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
@@ -116,6 +117,12 @@ func (s *RpcServer) registerHandlers(ctx context.Context, grpcServer *grpc.Serve
 	eventsV1.RegisterEventsServer(grpcServer, s)
 	if err := eventsV1.RegisterEventsHandlerServer(ctx, mux, s); err != nil {
 		s.Logger.Sugar().Errorw("Failed to register Events server", zap.Error(err))
+		return err
+	}
+
+	slashingV1.RegisterSlashingServer(grpcServer, s)
+	if err := slashingV1.RegisterSlashingHandlerServer(ctx, mux, s); err != nil {
+		s.Logger.Sugar().Errorw("Failed to register Slashing server", zap.Error(err))
 		return err
 	}
 
