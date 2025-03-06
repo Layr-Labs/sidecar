@@ -106,6 +106,8 @@ func convertOperatorSharesToStateChange(change interface{}) *v1EigenState.Operat
 	return &v1EigenState.OperatorShareDelta{
 		Operator: typedChange.Operator,
 		Shares:   typedChange.Shares,
+		Strategy: typedChange.Strategy,
+		Staker:   typedChange.Staker,
 		TransactionMetadata: &v1EigenState.TransactionMetadata{
 			TransactionHash: typedChange.TransactionHash,
 			LogIndex:        typedChange.LogIndex,
