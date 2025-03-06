@@ -3,6 +3,8 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
+	_202503061009_pectraPrune "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503061009_pectraPrune"
+	_202503061223_renameConstraint "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503061223_renameConstraint"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -198,6 +200,8 @@ func (m *Migrator) MigrateAll() error {
 		&_202502051830_addOperatorSetIdToStakerOperator.Migration{},
 		&_202503030846_cleanupConstraintNames.Migration{},
 		&_202502252204_slashingModels.Migration{},
+		&_202503061009_pectraPrune.Migration{},
+		&_202503061223_renameConstraint.Migration{},
 	}
 
 	for _, migration := range migrations {
