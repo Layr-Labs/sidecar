@@ -3,10 +3,9 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
-	"time"
-
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	_202409061249_bootstrapDb "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061249_bootstrapDb"
@@ -69,6 +68,8 @@ import (
 	_202503030846_cleanupConstraintNames "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503030846_cleanupConstraintNames"
 	_202503042014_stakerOperatorIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503042014_stakerOperatorIndex"
 	_202503051449_addContractTypeColumn "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503051449_addContractTypeColumn"
+	_202503061009_pectraPrune "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503061009_pectraPrune"
+	_202503061223_renameConstraint "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503061223_renameConstraint"
 )
 
 // Migration interface defines the contract for database migrations.
@@ -201,6 +202,8 @@ func (m *Migrator) MigrateAll() error {
 		&_202502051830_addOperatorSetIdToStakerOperator.Migration{},
 		&_202503030846_cleanupConstraintNames.Migration{},
 		&_202502252204_slashingModels.Migration{},
+		&_202503061009_pectraPrune.Migration{},
+		&_202503061223_renameConstraint.Migration{},
 	}
 
 	for _, migration := range migrations {

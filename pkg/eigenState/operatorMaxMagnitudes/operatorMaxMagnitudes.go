@@ -318,5 +318,11 @@ func (omm *OperatorMaxMagnitudeModel) ListForBlockRange(startBlockNumber uint64,
 }
 
 func (omm *OperatorMaxMagnitudeModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
-	return true, nil
+	forks, err := omm.globalConfig.GetRewardsSqlForkDates()
+	if err != nil {
+		omm.logger.Sugar().Errorw("Failed to get rewards sql fork dates", zap.Error(err))
+		return false, err
+	}
+
+	return blockHeight >= forks[config.RewardsFork_Brazos].BlockNumber, nil
 }
