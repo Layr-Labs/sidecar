@@ -431,8 +431,8 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 3293200,
 			},
 			RewardsFork_Brazos: Fork{
-				Date:        "2025-03-05",
-				BlockNumber: 3449300,
+				Date:        "2025-03-06",
+				BlockNumber: 3455600,
 			},
 		}, nil
 	case Chain_Holesky:
@@ -457,8 +457,8 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 3327000,
 			},
 			RewardsFork_Brazos: Fork{
-				Date:        "2025-03-05",
-				BlockNumber: 3449300,
+				Date:        "2025-03-06",
+				BlockNumber: 3455600,
 			},
 		}, nil
 	case Chain_Mainnet:
