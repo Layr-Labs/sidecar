@@ -80,6 +80,7 @@ func lsDir(path string) ([]os.DirEntry, error) {
 }
 
 func Test_SnapshotService(t *testing.T) {
+	projectRoot := tests.GetProjectRoot()
 
 	t.Run("Should create new snapshot service", func(t *testing.T) {
 		l, err := logger.NewLogger(&logger.LoggerConfig{Debug: false})
@@ -303,6 +304,29 @@ func Test_SnapshotService(t *testing.T) {
 			t.Cleanup(func() {
 				_ = os.RemoveAll(snapshotFile.Dir)
 			})
+		})
+	})
+
+	t.Run("GPG verification", func(t *testing.T) {
+		t.Run("Should validate a snapshot file signature", func(t *testing.T) {
+			fakeSnapshotFile := fmt.Sprintf("%s/internal/tests/gpg/fake_snapshot.dump", projectRoot)
+
+			snapshotFile := newSnapshotFile(fakeSnapshotFile)
+
+			signers, err := snapshotFile.ValidateSignature(config.PublicGpgKey)
+			assert.Nil(t, err)
+			fmt.Printf("signers: %+v\n", signers)
+			assert.NotNil(t, signers)
+		})
+		t.Run("Should fail to validate a snapshot file signature", func(t *testing.T) {
+			fakeSnapshotFile := fmt.Sprintf("%s/internal/tests/gpg/fake_invalid_snapshot.dump", projectRoot)
+
+			snapshotFile := newSnapshotFile(fakeSnapshotFile)
+
+			signers, err := snapshotFile.ValidateSignature(config.PublicGpgKey)
+			assert.NotNil(t, err)
+			fmt.Printf("error: %+v\n", err)
+			assert.Nil(t, signers)
 		})
 	})
 }
