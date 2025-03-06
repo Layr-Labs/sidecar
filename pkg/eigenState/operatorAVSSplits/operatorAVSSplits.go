@@ -63,8 +63,10 @@ func NewOperatorAVSSplitModel(
 	return model, nil
 }
 
+const OperatorAVSSplitModelName = "OperatorAVSSplitModel"
+
 func (oas *OperatorAVSSplitModel) GetModelName() string {
-	return "OperatorAVSSplitModel"
+	return OperatorAVSSplitModelName
 }
 
 type operatorAVSSplitOutputData struct {
