@@ -2,6 +2,7 @@ package slashingDataService
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperators"
@@ -56,16 +57,6 @@ type Strategy struct {
 	TotalSharesSlashed string
 }
 
-func buildSlashingEventGroupingKey(se *slashedOperators.SlashedOperator) string {
-	return fmt.Sprintf("%016x-%s-%s-%016x-%016x",
-		se.OperatorSetId,
-		se.Avs,
-		se.TransactionHash,
-		se.LogIndex,
-		se.BlockNumber,
-	)
-}
-
 func (sds *SlashingDataService) listSlashingEvents(ctx context.Context) ([]*SlashingEvent, error) {
 	query := `
 		select
@@ -85,7 +76,7 @@ func (sds *SlashingDataService) listSlashingEvents(ctx context.Context) ([]*Slas
 
 	mappedSlashingEvents := make(map[string]*SlashingEvent)
 	for _, se := range slashingEvents {
-		key := buildSlashingEventGroupingKey(se)
+		key := buildStakerSlashingEventGroupingKey(se)
 		event, ok := mappedSlashingEvents[key]
 		if !ok {
 			event = &SlashingEvent{
@@ -116,6 +107,29 @@ func (sds *SlashingDataService) listSlashingEvents(ctx context.Context) ([]*Slas
 
 }
 
+type SlashedStakerRow struct {
+	Operator        string
+	Strategy        string
+	WadSlashed      string
+	Description     string
+	TransactionHash string
+	OperatorSetId   uint64
+	Avs             string
+	BlockNumber     uint64
+	SlashedShares   string
+	LogIndex        uint64
+}
+
+func buildStakerSlashingEventGroupingKey(se *SlashedStakerRow) string {
+	return fmt.Sprintf("%016x-%s-%s-%016x-%016x",
+		se.OperatorSetId,
+		se.Avs,
+		se.TransactionHash,
+		se.LogIndex,
+		se.BlockNumber,
+	)
+}
+
 func (sds *SlashingDataService) ListStakerSlashingHistory(
 	ctx context.Context,
 	stakerAddress string,
@@ -127,72 +141,131 @@ func (sds *SlashingDataService) ListStakerSlashingHistory(
 	}
 
 	query := `
-		with windowed_staker_operators as (
-			with staker_delegations_with_block_info as (
-				select
-					sdc.staker,
-					case when sdc.delegated = false then '0x0000000000000000000000000000000000000000' else sdc.operator end as operator,
-					sdc.log_index,
-					sdc.block_number
-				from staker_delegation_changes as sdc
-				where
-					staker = @stakerAddress
-					and block_number <= @blockHeight
-			),
-			ranked_delegations as (
-				SELECT
-					*,
-					ROW_NUMBER() OVER (PARTITION BY staker, block_number ORDER BY block_number DESC, log_index DESC) AS rn
-				FROM staker_delegations_with_block_info
-			),
-			snapshotted_records as (
-				SELECT
-				 staker,
-				 operator,
-				 block_number
-				from ranked_delegations
-				where rn = 1
-			),
-			staker_delegation_windows as (
-			 SELECT
-				 staker, operator, block_number as start_block,
-				 CASE
-					 WHEN LEAD(block_number) OVER (PARTITION BY staker ORDER BY block_number) is null THEN @blockHeight
-					 ELSE LEAD(block_number - 1) OVER (PARTITION BY staker ORDER BY block_number)
-					 END AS end_block
-			 FROM snapshotted_records
-			),
-			cleaned_records as (
-				SELECT * FROM staker_delegation_windows
-				WHERE start_block < end_block
-			)
-			select * from cleaned_records
-			where operator != '0x0000000000000000000000000000000000000000'
+	with windowed_staker_operators as (
+		with staker_delegations_with_block_info as (
+			select
+				sdc.staker,
+				case when sdc.delegated = false then '0x0000000000000000000000000000000000000000' else sdc.operator end as operator,
+				sdc.log_index,
+				sdc.block_number
+			from staker_delegation_changes as sdc
+			where
+				staker = @stakerAddress
+				and block_number <= @blockHeight
+		),
+		ranked_delegations as (
+			SELECT
+				*,
+				ROW_NUMBER() OVER (PARTITION BY staker, block_number ORDER BY block_number DESC, log_index DESC) AS rn
+			FROM staker_delegations_with_block_info
+		),
+		snapshotted_records as (
+			SELECT
+			 staker,
+			 operator,
+			 block_number
+			from ranked_delegations
+			where rn = 1
+		),
+		staker_delegation_windows as (
+		 SELECT
+			 staker, operator, block_number as start_block,
+			 CASE
+				 WHEN LEAD(block_number) OVER (PARTITION BY staker ORDER BY block_number) is null THEN @blockHeight
+				 ELSE LEAD(block_number - 1) OVER (PARTITION BY staker ORDER BY block_number)
+				 END AS end_block
+		 FROM snapshotted_records
+		),
+		cleaned_records as (
+			SELECT * FROM staker_delegation_windows
+			WHERE start_block < end_block
 		)
+		select * from cleaned_records
+		where operator != '0x0000000000000000000000000000000000000000'
+	),
+	windowed_staker_strategies as (
+		WITH ranked_staker_records as (
+			SELECT
+				*,
+				ROW_NUMBER() OVER (PARTITION BY staker, strategy, block_number ORDER BY block_number DESC, log_index DESC) AS rn
+			FROM staker_shares
+			where
+				staker = @stakerAddress
+				and block_number <= @blockHeight
+		),
+		snapshotted_records as (
+		 SELECT *
+		 from ranked_staker_records
+		 where rn = 1
+		),
+		staker_share_windows as (
+			SELECT
+				staker,
+				strategy,
+				shares,
+				block_number as start_block,
+				CASE
+					WHEN LEAD(block_number) OVER (PARTITION BY staker, strategy ORDER BY block_number) is null THEN @blockHeight
+					ELSE LEAD(block_number - 1) OVER (PARTITION BY staker, strategy ORDER BY block_number)
+				END AS end_block
+			FROM snapshotted_records
+		),
+		cleaned_records as (
+			SELECT * FROM staker_share_windows
+			WHERE start_block < end_block
+		)
+		select * from cleaned_records
+	)
+	select
+		soo.operator,
+		soo.strategy,
+		soo.wad_slashed,
+		soo.description,
+		soo.transaction_hash,
+		soo.log_index,
+		soo.operator_set_id,
+		soo.avs,
+		soo.block_number,
+		ssd.shares as slashed_shares
+	from windowed_staker_operators as wso
+	left join (
 		select
-			so.operator,
-			so.strategy,
-			so.wad_slashed,
-			so.description
-		from windowed_staker_operators as wso
-		left join slashed_operators as so on (
-			so.operator = wso.operator
-			and so.block_number >= wso.start_block
-			and so.block_number <= wso.end_block
+			so.*
+		from slashed_operators as so
+		left join windowed_staker_strategies as wss on (
+			so.strategy = wss.strategy
+			and so.block_number >= wss.start_block
+			and so.block_number <= wss.end_block
 		)
-		where so.operator is not null
-		order by so.block_number desc
+		where wss.strategy is not null
+	) as soo on (
+		soo.operator = wso.operator
+		and soo.block_number >= wso.start_block
+		and soo.block_number <= wso.end_block
+	)
+	left join staker_share_deltas as ssd on (
+		ssd.staker = wso.staker
+		and ssd.transaction_hash = soo.transaction_hash
+		and ssd.log_index = soo.log_index
+		and ssd.strategy = soo.strategy
+		and ssd.strategy_index = 0
+	)
+	where soo.operator is not null
+	order by soo.block_number desc
 	`
 
-	var slashingEvents []*slashedOperators.SlashedOperator
-	res := sds.db.Raw(query).Scan(&slashingEvents)
+	var slashingEvents []*SlashedStakerRow
+	res := sds.db.Raw(query,
+		sql.Named("stakerAddress", stakerAddress),
+		sql.Named("blockHeight", blockHeight),
+	).Scan(&slashingEvents)
 	if res.Error != nil {
 		return nil, errors.Wrapf(res.Error, "listSlashingEvents: failed to list slashing events")
 	}
 
 	mappedSlashingEvents := make(map[string]*SlashingEvent)
 	for _, se := range slashingEvents {
-		key := buildSlashingEventGroupingKey(se)
+		key := buildStakerSlashingEventGroupingKey(se)
 		event, ok := mappedSlashingEvents[key]
 		if !ok {
 			event = &SlashingEvent{
@@ -210,8 +283,9 @@ func (sds *SlashingDataService) ListStakerSlashingHistory(
 			mappedSlashingEvents[key] = event
 		}
 		event.Strategies = append(event.Strategies, &Strategy{
-			Strategy:   se.Strategy,
-			WadSlashed: se.WadSlashed,
+			Strategy:           se.Strategy,
+			WadSlashed:         se.WadSlashed,
+			TotalSharesSlashed: se.SlashedShares,
 		})
 	}
 	// return just the values

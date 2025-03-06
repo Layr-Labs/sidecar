@@ -429,7 +429,7 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 			},
 			RewardsFork_Brazos: Fork{
 				Date:        "2025-03-06",
-				BlockNumber: 3455600,
+				BlockNumber: 3449069,
 			},
 		}, nil
 	case Chain_Mainnet:
