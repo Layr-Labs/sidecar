@@ -75,7 +75,7 @@ func Test_OperatorPISplit(t *testing.T) {
 	}
 
 	t.Run("Test each event type", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		model, err := NewOperatorPISplitModel(esm, grm, l, cfg)
 
@@ -114,7 +114,7 @@ func Test_OperatorPISplit(t *testing.T) {
 			assert.Equal(t, uint64(6545), split.NewOperatorPISplitBips)
 			assert.Equal(t, uint64(1000), split.OldOperatorPISplitBips)
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			splits := make([]*OperatorPISplit, 0)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/parser"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -76,7 +77,7 @@ func (idx *Indexer) ParseTransactionLogs(
 	// the log address would be different than the transaction address
 	var a *abi.ABI
 	if idx.IsInterestingAddress(contractAddress.Value()) {
-		contract, err := idx.ContractManager.GetContractWithProxy(contractAddress.Value(), transaction.BlockNumber.Value())
+		foundContracts, err := idx.ContractManager.GetContractWithImplementations(contractAddress.Value())
 		if err != nil {
 			idx.Logger.Sugar().Errorw(fmt.Sprintf("Failed to get contract for address %s", contractAddress), zap.Error(err))
 			return nil, NewIndexError(IndexError_FailedToFindContract, err).
@@ -87,7 +88,7 @@ func (idx *Indexer) ParseTransactionLogs(
 		}
 
 		// if the contract is interesting but not found, throw an error to stop processing
-		if contract == nil {
+		if len(foundContracts) == 0 {
 			idx.Logger.Sugar().Errorw("No contract found for address", zap.String("hash", transaction.Hash.Value()))
 			return nil, NewIndexError(IndexError_FailedToFindContract, err).
 				WithMessage("No contract found for address").
@@ -96,7 +97,15 @@ func (idx *Indexer) ParseTransactionLogs(
 				WithMetadata("contractAddress", contractAddress.Value())
 		}
 
-		contractAbi := contract.CombineAbis()
+		contractAbi, err := contractStore.CombineAbis(foundContracts)
+		if err != nil {
+			idx.Logger.Sugar().Errorw("Failed to combine ABIs", zap.Error(err))
+			return nil, NewIndexError(IndexError_FailedToCombineAbis, err).
+				WithMessage("Failed to combine ABIs").
+				WithBlockNumber(transaction.BlockNumber.Value()).
+				WithTransactionHash(transaction.Hash.Value()).
+				WithMetadata("contractAddress", contractAddress.Value())
+		}
 
 		// If the ABI is empty, return an error
 		if contractAbi == "" {
@@ -132,7 +141,14 @@ func (idx *Indexer) ParseTransactionLogs(
 		decodedLog, err := idx.DecodeLogWithAbi(a, receipt, lg)
 		if err != nil {
 			msg := fmt.Sprintf("Error decoding log - index: '%d' - '%s'", i, transaction.Hash.Value())
-			idx.Logger.Sugar().Debugw(msg, zap.Error(err))
+			idx.Logger.Sugar().Errorw(msg,
+				zap.String("logAddress", lg.Address.Value()),
+				zap.String("logData", lg.Data.Value()),
+				zap.Uint64("blockNumber", transaction.BlockNumber.Value()),
+				zap.String("transactionHash", transaction.Hash.Value()),
+				zap.Uint64("logIndex", lg.LogIndex.Value()),
+				zap.Error(err),
+			)
 			return nil, NewIndexError(IndexError_FailedToDecodeLog, err).
 				WithMessage(msg).
 				WithBlockNumber(transaction.BlockNumber.Value()).
@@ -173,16 +189,16 @@ func (idx *Indexer) DecodeLogWithAbi(
 	} else {
 		idx.Logger.Sugar().Debugw("Log address does not match contract address", zap.String("logAddress", logAddress.String()), zap.String("contractAddress", txReceipt.GetTargetAddress().Value()))
 		// Find/create the log address and attempt to determine if it is a proxy address
-		foundContract, err := idx.ContractManager.GetContractWithProxy(logAddress.String(), txReceipt.BlockNumber.Value())
+		foundContracts, err := idx.ContractManager.GetContractWithImplementations(logAddress.String())
 		if err != nil {
 			return idx.DecodeLog(nil, lg)
 		}
-		if foundContract == nil {
-			idx.Logger.Sugar().Debugw("No contract found for address", zap.String("address", logAddress.String()))
+		if len(foundContracts) == 0 {
+			idx.Logger.Sugar().Errorw("No contract found for address", zap.String("address", logAddress.String()))
 			return idx.DecodeLog(nil, lg)
 		}
 
-		contractAbi := foundContract.CombineAbis()
+		contractAbi, err := contractStore.CombineAbis(foundContracts)
 		if err != nil {
 			idx.Logger.Sugar().Errorw("Failed to combine ABIs", zap.Error(err), zap.String("contractAddress", logAddress.String()))
 			return idx.DecodeLog(nil, lg)
@@ -236,7 +252,13 @@ func (idx *Indexer) DecodeLog(a *abi.ABI, lg *ethereum.EthereumEventLog) (*parse
 
 	event, err := a.EventByID(topicHash)
 	if err != nil {
-		idx.Logger.Sugar().Debugw(fmt.Sprintf("Failed to find event by ID '%s'", topicHash))
+		idx.Logger.Sugar().Errorw(fmt.Sprintf("Failed to find event by ID '%s'", topicHash),
+			zap.Error(err),
+			zap.String("address", logAddress.String()),
+			zap.Uint64("logIndex", lg.LogIndex.Value()),
+			zap.String("transactionHash", lg.TransactionHash.Value()),
+			zap.Uint64("blockNumber", lg.BlockNumber.Value()),
+		)
 		return decodedLog, err
 	}
 

@@ -13,7 +13,9 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/precommitProcessors"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
@@ -81,11 +83,18 @@ var runOperatorRestakedStrategiesCmd = &cobra.Command{
 			log.Fatalln(err)
 		}
 
-		sm := stateManager.NewEigenStateManager(l, grm)
+		smig, err := stateMigrator.NewStateMigrator(grm, cfg, l)
+		if err != nil {
+			l.Sugar().Fatalw("Failed to create state migrator", zap.Error(err))
+		}
+
+		sm := stateManager.NewEigenStateManager(smig, l, grm)
 
 		if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
 			l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
 		}
+
+		precommitProcessors.LoadPrecommitProcessors(sm, grm, l)
 
 		fetchr := fetcher.NewFetcher(client, cfg, l)
 

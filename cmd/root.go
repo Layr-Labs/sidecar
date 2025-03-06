@@ -33,6 +33,7 @@ func init() {
 	rootCmd.PersistentFlags().Bool(config.EthereumRpcUseNativeBatchCall, true, `Use the native eth_call method for batch calls`)
 	rootCmd.PersistentFlags().Int(config.EthereumRpcNativeBatchCallSize, 500, `The number of calls to batch together when using the native eth_call method`)
 	rootCmd.PersistentFlags().Int(config.EthereumRpcChunkedBatchCallSize, 10, `The number of calls to make in parallel when using the chunked batch call method`)
+	rootCmd.PersistentFlags().String(config.EthereumLatestBlockType, "safe", `The type of latest block to use (safe, latest)`)
 
 	rootCmd.PersistentFlags().String(config.DatabaseHost, "localhost", `PostgreSQL host`)
 	rootCmd.PersistentFlags().Int(config.DatabasePort, 5432, `PostgreSQL port`)

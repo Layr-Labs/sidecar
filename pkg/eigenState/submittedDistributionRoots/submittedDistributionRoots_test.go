@@ -56,7 +56,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	esm := stateManager.NewEigenStateManager(l, grm)
+	esm := stateManager.NewEigenStateManager(nil, l, grm)
 	model, err := NewSubmittedDistributionRootsModel(esm, grm, l, cfg)
 
 	insertedRoots := make([]*types.SubmittedDistributionRoot, 0)
@@ -105,7 +105,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 		assert.Equal(t, blockNumber, typedChange.CreatedAtBlockNumber)
 		assert.Equal(t, uint64(100), typedChange.BlockNumber)
 
-		err = model.CommitFinalState(blockNumber)
+		err = model.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `SELECT * FROM submitted_distribution_roots WHERE block_number = ?`
@@ -167,7 +167,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 		assert.Equal(t, blockNumber, typedChange.CreatedAtBlockNumber)
 		assert.Equal(t, uint64(101), typedChange.BlockNumber)
 
-		err = model.CommitFinalState(blockNumber)
+		err = model.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `SELECT * FROM submitted_distribution_roots WHERE block_number = ?`
