@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	_202501241111_addIndexesForRpcFunctions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241111_addIndexesForRpcFunctions"
-	_202502100846_goldTableRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502100846_goldTableRewardHashIndex"
-	_202502211539_hydrateClaimedRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502211539_hydrateClaimedRewards"
-	_202503030846_cleanupConstraintNames "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503030846_cleanupConstraintNames"
-	_202503042014_stakerOperatorIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503042014_stakerOperatorIndex"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	_202409061249_bootstrapDb "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061249_bootstrapDb"
@@ -55,6 +52,7 @@ import (
 	_202501061422_defaultOperatorSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061422_defaultOperatorSplits"
 	_202501071401_defaultOperatorSplitSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501071401_defaultOperatorSplitSnapshots"
 	_202501151039_rewardsClaimed "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501151039_rewardsClaimed"
+	_202501241111_addIndexesForRpcFunctions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241111_addIndexesForRpcFunctions"
 	_202501241322_operatorDirectedOperatorSetRewardSubmissions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241322_operatorDirectedOperatorSetRewardSubmissions"
 	_202501241533_operatorSetSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241533_operatorSetSplits"
 	_202501271727_operatorSetOperatorRegistrations "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501271727_operatorSetOperatorRegistrations"
@@ -64,10 +62,13 @@ import (
 	_202501301505_operatorSetStrategyRegistrationSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501301505_operatorSetStrategyRegistrationSnapshots"
 	_202501301945_operatorDirectedOperatorSetRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501301945_operatorDirectedOperatorSetRewards"
 	_202502051830_addOperatorSetIdToStakerOperator "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502051830_addOperatorSetIdToStakerOperator"
+	_202502100846_goldTableRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502100846_goldTableRewardHashIndex"
 	_202502180836_snapshotUniqueConstraints "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502180836_snapshotUniqueConstraints"
+	_202502211539_hydrateClaimedRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502211539_hydrateClaimedRewards"
+	_202502252204_slashingModels "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502252204_slashingModels"
+	_202503030846_cleanupConstraintNames "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503030846_cleanupConstraintNames"
+	_202503042014_stakerOperatorIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503042014_stakerOperatorIndex"
 	_202503051449_addContractTypeColumn "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503051449_addContractTypeColumn"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // Migration interface defines the contract for database migrations.
@@ -199,6 +200,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202501301945_operatorDirectedOperatorSetRewards.Migration{},
 		&_202502051830_addOperatorSetIdToStakerOperator.Migration{},
 		&_202503030846_cleanupConstraintNames.Migration{},
+		&_202502252204_slashingModels.Migration{},
 	}
 
 	for _, migration := range migrations {
