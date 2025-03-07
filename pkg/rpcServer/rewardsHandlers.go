@@ -239,6 +239,29 @@ func (rpc *RpcServer) GetRewardsForSnapshot(ctx context.Context, req *rewardsV1.
 	}, nil
 }
 
+func (rpc *RpcServer) GetRewardsForDistributionRoot(ctx context.Context, req *rewardsV1.GetRewardsForDistributionRootRequest) (*rewardsV1.GetRewardsForDistributionRootResponse, error) {
+	rootIndex := req.GetRootIndex()
+
+	snapshotRewards, err := rpc.rewardsDataService.GetRewardsForDistributionRoot(ctx, rootIndex)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	rewardsRes := make([]*rewardsV1.Reward, 0, len(snapshotRewards))
+
+	for _, reward := range snapshotRewards {
+		rewardsRes = append(rewardsRes, &rewardsV1.Reward{
+			Earner:   reward.Earner,
+			Amount:   reward.CumulativeAmount,
+			Snapshot: reward.Snapshot,
+			Token:    reward.Token,
+		})
+	}
+
+	return &rewardsV1.GetRewardsForDistributionRootResponse{
+		Rewards: rewardsRes,
+	}, nil
+}
+
 func (rpc *RpcServer) GetAttributableRewardsForSnapshot(ctx context.Context, req *rewardsV1.GetAttributableRewardsForSnapshotRequest) (*rewardsV1.GetAttributableRewardsForSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAttributableRewardsForSnapshot not implemented")
 }

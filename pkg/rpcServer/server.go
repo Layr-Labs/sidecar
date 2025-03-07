@@ -9,6 +9,7 @@ import (
 	protocolV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/protocol"
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
 	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/sidecar"
+	slashingV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/slashing"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
@@ -42,6 +43,9 @@ type RpcServerConfig struct {
 }
 
 type RpcServer struct {
+	rewardsV1.UnimplementedRewardsServer
+	slashingV1.UnimplementedSlashingServer
+	protocolV1.UnimplementedProtocolServer
 	Logger              *zap.Logger
 	rpcConfig           *RpcServerConfig
 	blockStore          storage.BlockStore
