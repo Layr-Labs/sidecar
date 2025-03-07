@@ -119,7 +119,8 @@ staker_splits AS (
     LEFT JOIN default_operator_split_snapshots dos ON (snr.snapshot = dos.snapshot)
 ),
 
--- Step 8: Dedupe the staker splits across operators and strategies
+-- Step 8: Dedupe the staker splits across across strategies for each (operator, reward hash, snapshot)
+-- Since the above result is a flattened operator-directed reward submission across strategies.
 distinct_staker_splits AS (
     SELECT *
     FROM (
