@@ -12,6 +12,7 @@ There are two ways to access the rewards data from the Sidecar:
 
 * Through your terminal or a bash script with `curl` and `grpcurl`
 * Using the gRPC or HTTP clients published in the [protocol-apis](https://github.com/Layr-Labs/protocol-apis) Go package.
+  * See the `examples` directory for how to use both
 
 ## Listing Distribution Roots
 
@@ -40,5 +41,21 @@ curl -s http://localhost:7101/rewards/v1/distribution-roots
 ## Fetching Rewards Data
 
 ```bash
+# grpcurl
+grpcurl -plaintext --max-msg-sz 2147483647 -d '{ "rootIndex": 217 }' localhost:7100 eigenlayer.sidecar.v1.rewards.Rewards/GetRewardsForDistributionRoot > rewardsData.json
 
+# curl
+curl -s http://localhost:7101/rewards/v1/distribution-roots/217/rewards > rewardsData.json
+
+{
+  "rewards": [
+    {
+      "earner": "0xe44ce641a7cf6d52c06c278694313b08c2b181c0",
+      "token": "0x3b78576f7d6837500ba3de27a60c7f594934027e",
+      "amount": "130212752259281570",
+      "snapshot": "2025-02-22T00:00:00Z"
+    },
+    // ...
+  ]
+}
 ```
