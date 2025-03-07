@@ -14,10 +14,10 @@ const config: Config = {
 	favicon: 'img/eigenlayer-logo.png',
 
 	// Set the production url of your site here
-	url: 'https://layr-labs.github.io',
+	url: 'https://sidecar-docs.eigenlayer.xyz',
 	// Set the /<baseUrl>/ pathname under which your site is served
 	// For GitHub pages deployment, it is often '/<projectName>/'
-	baseUrl: '/sidecar/',
+	baseUrl: '/',
 
 	// GitHub pages deployment config.
 	// If you aren't using GitHub pages, you don't need these.
