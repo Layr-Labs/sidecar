@@ -6,7 +6,7 @@ A core responsibility of the Sidecar is facilitating the calculations of [reward
 
 ## Getting started
 
-Please see our ["Getting Started"](https://layr-labs.github.io/sidecar/running/getting-started) guide for detailed instructions on how to deploy an EigenLayer Sidecar.
+Please see our ["Getting Started"](https://sidecar-docs.eigenlayer.xyz/docs/sidecar/running/getting-started) guide for detailed instructions on how to deploy an EigenLayer Sidecar.
 
 # Current versions
 
