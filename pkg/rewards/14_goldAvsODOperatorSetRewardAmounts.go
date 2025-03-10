@@ -1,6 +1,9 @@
 package rewards
 
 import (
+	"database/sql"
+
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
@@ -74,6 +77,7 @@ registered_operators AS (
         ap.reward_submission_date
     FROM {{.activeODRewardsTable}} ap
     WHERE ap.num_registered_snapshots != 0
+      AND ap.reward_submission_date >= @coloradoHardforkDate
 ),
 
 -- Step 5: For each reward/snapshot/operator_set, check if any strategies are registered
@@ -159,7 +163,7 @@ combined_refund_amounts AS (
 SELECT * FROM combined_refund_amounts
 `
 
-func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate string, forks config.ForkMap) error {
 	rewardsV2_1Enabled, err := rc.globalConfig.IsRewardsV2_1EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.1 is enabled", "error", err)
@@ -176,6 +180,7 @@ func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(sn
 	rc.logger.Sugar().Infow("Generating Avs OD operator set reward amounts",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
+		zap.String("coloradoHardforkDate", forks[config.RewardsFork_Colorado].Date),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_14_goldAvsODOperatorSetRewardAmountsQuery, map[string]interface{}{
@@ -187,7 +192,7 @@ func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(sn
 		return err
 	}
 
-	res := rc.grm.Exec(query)
+	res := rc.grm.Exec(query, sql.Named("coloradoHardforkDate", forks[config.RewardsFork_Colorado].Date))
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_avs_od_operator_set_reward_amounts", "error", res.Error)
 		return res.Error
