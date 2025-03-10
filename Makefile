@@ -65,7 +65,7 @@ yamlfmt:
 
 .PHONY: fmt
 fmt:
-	gofmt -l .
+	gofmt -w .
 
 .PHONY: fmtcheck
 fmtcheck:

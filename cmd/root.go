@@ -77,7 +77,7 @@ func init() {
 	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInput, "", "Path to the snapshot file")
 	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotManifestUrl, "https://sidecar.eigenlayer.xyz/snapshots/manifest.json", "URL to the snapshot manifest file")
 	restoreSnapshotCmd.PersistentFlags().Bool(config.SnapshotVerifyHash, true, "Verify the hash of the snapshot file")
-	restoreSnapshotCmd.PersistentFlags().Bool(config.SnapshotVerifySignature, false, "Verify the signature of the snapshot file")
+	restoreSnapshotCmd.PersistentFlags().Bool(config.SnapshotVerifySignature, true, "Verify the signature of the snapshot file")
 	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotKind, "full", "The kind of snapshot to restore (slim, full, or archive)")
 
 	rpcCmd.PersistentFlags().String(config.SidecarPrimaryUrl, "", `RPC url of the "primary" Sidecar instance in an HA environment`)
