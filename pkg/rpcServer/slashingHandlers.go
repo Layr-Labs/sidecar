@@ -55,15 +55,62 @@ func (s *RpcServer) ListStakerSlashingHistory(ctx context.Context, request *slas
 
 // ListOperatorSlashingHistory returns the slashing history for a given operator
 func (s *RpcServer) ListOperatorSlashingHistory(ctx context.Context, request *slashingV1.ListOperatorSlashingHistoryRequest) (*slashingV1.ListOperatorSlashingHistoryResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	operatorAddress := request.GetOperatorAddress()
+	if operatorAddress == "" {
+		return nil, status.Error(codes.InvalidArgument, "operator is required")
+	}
+
+	blockHeight := uint64(0)
+	history, err := s.slashingDataService.ListOperatorSlashingHistory(ctx, operatorAddress, blockHeight)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &slashingV1.ListOperatorSlashingHistoryResponse{
+		SlashingEvents: utils.Map(history, func(slashingEvent *slashingDataService.SlashingEvent, i uint64) *slashingV1.SlashingEvent {
+			return convertSlashingEventToProtoSlashingEvent(slashingEvent)
+		}),
+	}, nil
 }
 
 // ListAvsSlashingHistory returns the slashing history for a given AVS
 func (s *RpcServer) ListAvsSlashingHistory(ctx context.Context, request *slashingV1.ListAvsSlashingHistoryRequest) (*slashingV1.ListAvsSlashingHistoryResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	avsAddress := request.GetAvsAddress()
+	if avsAddress == "" {
+		return nil, status.Error(codes.InvalidArgument, "avs is required")
+	}
+
+	blockHeight := uint64(0)
+	history, err := s.slashingDataService.ListAvsSlashingHistory(ctx, avsAddress, blockHeight)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &slashingV1.ListAvsSlashingHistoryResponse{
+		SlashingEvents: utils.Map(history, func(slashingEvent *slashingDataService.SlashingEvent, i uint64) *slashingV1.SlashingEvent {
+			return convertSlashingEventToProtoSlashingEvent(slashingEvent)
+		}),
+	}, nil
 }
 
 // ListAvsOperatorSetSlashingHistory returns the slashing history for a given AVS operator set
 func (s *RpcServer) ListAvsOperatorSetSlashingHistory(ctx context.Context, request *slashingV1.ListAvsOperatorSetSlashingHistoryRequest) (*slashingV1.ListAvsOperatorSetSlashingHistoryResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	avsAddress := request.GetAvsAddress()
+	if avsAddress == "" {
+		return nil, status.Error(codes.InvalidArgument, "avs is required")
+	}
+
+	operatorSetId := request.GetOperatorSetId()
+
+	blockHeight := uint64(0)
+	history, err := s.slashingDataService.ListAvsOperatorSetSlashingHistory(ctx, avsAddress, operatorSetId, blockHeight)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &slashingV1.ListAvsOperatorSetSlashingHistoryResponse{
+		SlashingEvents: utils.Map(history, func(slashingEvent *slashingDataService.SlashingEvent, i uint64) *slashingV1.SlashingEvent {
+			return convertSlashingEventToProtoSlashingEvent(slashingEvent)
+		}),
+	}, nil
 }

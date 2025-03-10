@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperators"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"github.com/Layr-Labs/sidecar/pkg/service/baseDataService"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -38,6 +40,7 @@ type SlashingEvent struct {
 	LogIndex        uint64
 	Strategies      []*Strategy
 	OperatorSet     *OperatorSet
+	SlashedShares   string
 }
 
 type StakerSlashingEvent struct {
@@ -56,27 +59,132 @@ type Strategy struct {
 	TotalSharesSlashed string
 }
 
-/*
-func (sds *SlashingDataService) listSlashingEvents(ctx context.Context) ([]*SlashingEvent, error) {
+const (
+	HistoryFilter_Operator = iota
+	HistoryFilter_Avs
+	HistoryFilter_AvsOperatorSet
+
+	HistoryFilter_OperatorKey    string = "operator"
+	HistoryFilter_AvsKey         string = "avs"
+	HistoryFilter_OperatorSetKey string = "operatorSet"
+)
+
+type SlashingHistoryFilter struct {
+	FilterType   int
+	FilterValues map[string]interface{}
+}
+
+func buildSlashingEventGroupingKey(se *SlashingEventRow) string {
+	return fmt.Sprintf("%016x-%s-%s-%016x-%016x",
+		se.OperatorSetId,
+		se.Avs,
+		se.TransactionHash,
+		se.LogIndex,
+		se.BlockNumber,
+	)
+}
+
+type SlashingEventRow struct {
+	slashedOperators.SlashedOperator
+	SlashedShares string
+}
+
+func (sds *SlashingDataService) listSlashingEvents(ctx context.Context, filter *SlashingHistoryFilter, blockHeight uint64) ([]*SlashingEvent, error) {
+	blockHeight, err := sds.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
+	if err != nil {
+		return nil, errors.Wrapf(err, "listSlashingEvents: failed to get current block height")
+	}
+
 	query := `
 		select
 			so.operator,
 			so.strategy,
 			so.wad_slashed,
-			so.description
+			so.description,
+			so.operator_set_id,
+			so.avs,
+			so.block_number,
+			so.transaction_hash,
+			so.log_index
+		{{- .additionalSelect }}
 		from slashed_operators as so
-		order by so.block_number desc
+		{{- .joinQuery }}
+		where
+		    so.block_height <= @blockHeight
 	`
 
-	var slashingEvents []*slashedOperators.SlashedOperator
-	res := sds.db.Raw(query).Scan(&slashingEvents)
+	templateArgs := map[string]interface{}{
+		"additionalSelect": "",
+		"joinQuery":        "",
+	}
+	args := []interface{}{
+		sql.Named("blockHeight", blockHeight),
+	}
+	if filter != nil {
+		switch filter.FilterType {
+		case HistoryFilter_Operator:
+			joinQuery := `
+				left join slashed_operator_shares as sos on (
+					sos.transaction_hash = so.transaction_hash
+					and sos.block_number = so.block_number
+					and sos.operator = so.operator
+					and sos.strategy = so.strategy
+				)
+			`
+			query = fmt.Sprintf("%s and so.operator = @operatorAddress", query)
+			args = append(args, sql.Named("operatorAddress", filter.FilterValues[HistoryFilter_OperatorKey]))
+			templateArgs["additionalSelect"] = ", sos.shares as slashed_shares"
+			templateArgs["joinQuery"] = joinQuery
+		case HistoryFilter_Avs:
+			joinQuery := `
+				left join slashed_operator_shares as sos on (
+					sos.transaction_hash = so.transaction_hash
+					and sos.block_number = so.block_number
+					and sos.operator = so.operator
+					and sos.strategy = so.strategy
+				)
+			`
+			query = fmt.Sprintf("%s and so.avs = @avsAddress", query)
+			args = append(args, sql.Named("avsAddress", filter.FilterValues[HistoryFilter_AvsKey]))
+			templateArgs["additionalSelect"] = ", sos.shares as slashed_shares"
+			templateArgs["joinQuery"] = joinQuery
+		case HistoryFilter_AvsOperatorSet:
+			joinQuery := `
+				left join slashed_operator_shares as sos on (
+					sos.transaction_hash = so.transaction_hash
+					and sos.block_number = so.block_number
+					and sos.operator = so.operator
+					and sos.strategy = so.strategy
+				)
+			`
+
+			query = fmt.Sprintf("%s and so.avs = @avsAddress and so.operator_set_id = @operatorSetId", query)
+			args = append(args, sql.Named("avsAddress", filter.FilterValues[HistoryFilter_AvsKey]))
+			args = append(args, sql.Named("operatorSetId", filter.FilterValues[HistoryFilter_OperatorSetKey]))
+			templateArgs["additionalSelect"] = ", sos.shares as slashed_shares"
+			templateArgs["joinQuery"] = joinQuery
+		default:
+			sds.logger.Sugar().Infow("listSlashingEvents: invalid filter type", zap.Int("filterType", filter.FilterType))
+		}
+	}
+
+	query = fmt.Sprintf("%s order by so.block_number desc", query)
+
+	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, templateArgs)
+	if err != nil {
+		sds.logger.Sugar().Errorw("listSlashingEvents: failed to render query", zap.Error(err))
+		return nil, err
+	}
+
+	var slashingEvents []*SlashingEventRow
+	res := sds.db.Raw(renderedQuery, args).Scan(&slashingEvents)
 	if res.Error != nil {
 		return nil, errors.Wrapf(res.Error, "listSlashingEvents: failed to list slashing events")
 	}
 
 	mappedSlashingEvents := make(map[string]*SlashingEvent)
 	for _, se := range slashingEvents {
-		key := buildStakerSlashingEventGroupingKey(se)
+		key := buildSlashingEventGroupingKey(se)
 		event, ok := mappedSlashingEvents[key]
 		if !ok {
 			event = &SlashingEvent{
@@ -94,8 +202,9 @@ func (sds *SlashingDataService) listSlashingEvents(ctx context.Context) ([]*Slas
 			mappedSlashingEvents[key] = event
 		}
 		event.Strategies = append(event.Strategies, &Strategy{
-			Strategy:   se.Strategy,
-			WadSlashed: se.WadSlashed,
+			Strategy:           se.Strategy,
+			WadSlashed:         se.WadSlashed,
+			TotalSharesSlashed: se.SlashedShares,
 		})
 	}
 	// return just the values
@@ -104,9 +213,7 @@ func (sds *SlashingDataService) listSlashingEvents(ctx context.Context) ([]*Slas
 		slashingEventsList = append(slashingEventsList, event)
 	}
 	return slashingEventsList, nil
-	return nil, nil
 }
-*/
 
 type SlashedStakerRow struct {
 	Operator        string
@@ -297,14 +404,26 @@ func (sds *SlashingDataService) ListStakerSlashingHistory(
 	return slashingEventsList, nil
 }
 
-func (sds *SlashingDataService) ListOperatorSlashingHistory(ctx context.Context, operator string) (interface{}, error) {
-	return nil, nil
+func (sds *SlashingDataService) ListOperatorSlashingHistory(ctx context.Context, operator string, blockHeight uint64) ([]*SlashingEvent, error) {
+	return sds.listSlashingEvents(ctx, &SlashingHistoryFilter{
+		FilterType:   HistoryFilter_Operator,
+		FilterValues: map[string]interface{}{HistoryFilter_OperatorKey: operator},
+	}, blockHeight)
 }
 
-func (sds *SlashingDataService) ListAvsSlashingHistory(ctx context.Context, avs string) (interface{}, error) {
-	return nil, nil
+func (sds *SlashingDataService) ListAvsSlashingHistory(ctx context.Context, avs string, blockHeight uint64) ([]*SlashingEvent, error) {
+	return sds.listSlashingEvents(ctx, &SlashingHistoryFilter{
+		FilterType:   HistoryFilter_Avs,
+		FilterValues: map[string]interface{}{HistoryFilter_AvsKey: avs},
+	}, blockHeight)
 }
 
-func (sds *SlashingDataService) ListAvsOperatorSetSlashingHistory(ctx context.Context, avs string, operatorSet string) (interface{}, error) {
-	return nil, nil
+func (sds *SlashingDataService) ListAvsOperatorSetSlashingHistory(ctx context.Context, avs string, operatorSetId uint64, blockHeight uint64) ([]*SlashingEvent, error) {
+	return sds.listSlashingEvents(ctx, &SlashingHistoryFilter{
+		FilterType: HistoryFilter_AvsOperatorSet,
+		FilterValues: map[string]interface{}{
+			HistoryFilter_AvsKey:         avs,
+			HistoryFilter_OperatorSetKey: operatorSetId,
+		},
+	}, blockHeight)
 }
