@@ -243,7 +243,7 @@ func Test_RewardsV2_1(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_14_avs_od_operator_set_rewards\n")
-			err = rc.GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate)
+			err = rc.GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate, forks)
 			assert.Nil(t, err)
 			if rewardsV2_1Enabled {
 				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_14_AvsODOperatorSetRewardAmounts])
