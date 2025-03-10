@@ -67,6 +67,10 @@ type PrecommitDelegatedStaker struct {
 	LogIndex         uint64
 }
 
+const (
+	NativeEthStrategy = "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0"
+)
+
 func NewSlotID(transactionHash string, logIndex uint64, staker string, strategy string, strategyIndex uint64) types.SlotID {
 	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%s_%016x", staker, strategy, strategyIndex))
 }
@@ -209,7 +213,7 @@ func (ss *StakerSharesModel) handlePodSharesUpdatedEvent(log *storage.Transactio
 
 	return &StakerShareDeltas{
 		Staker:           staker,
-		Strategy:         "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0",
+		Strategy:         NativeEthStrategy,
 		Shares:           sharesDelta.String(),
 		StrategyIndex:    uint64(0),
 		LogIndex:         log.LogIndex,
@@ -531,7 +535,7 @@ func (ss *StakerSharesModel) handleBeaconChainSlashingFactorDecreasedEvent(log *
 	return &SlashDiff{
 		SlashedEntity:    outputData.Staker,
 		BeaconChain:      true,
-		Strategy:         "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0",
+		Strategy:         NativeEthStrategy,
 		WadSlashed:       wadSlashed,
 		TransactionHash:  log.TransactionHash,
 		LogIndex:         log.LogIndex,

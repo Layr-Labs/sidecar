@@ -443,7 +443,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		assert.Equal(t, "32000000000000000000", typedChange.ShareDeltas[0].Shares)
 		assert.Equal(t, strings.ToLower("0x049ea11d337f185b1aa910d98e8fbd991f0fba7b"), typedChange.ShareDeltas[0].Staker)
-		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", typedChange.ShareDeltas[0].Strategy)
+		assert.Equal(t, NativeEthStrategy, typedChange.ShareDeltas[0].Strategy)
 
 		err = sharesModel.CommitFinalState(transaction.BlockNumber, false)
 		assert.Nil(t, err)
@@ -488,7 +488,7 @@ func Test_StakerSharesState(t *testing.T) {
 		shareDiff := diffs.ShareDeltas[0]
 		assert.Equal(t, "-5000000000000000", shareDiff.Shares)
 		assert.Equal(t, strings.ToLower("0x8e4662c95c2206fa22b408426f2b457672674963"), shareDiff.Staker)
-		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", shareDiff.Strategy)
+		assert.Equal(t, NativeEthStrategy, shareDiff.Strategy)
 
 		preparedState, err := sharesModel.prepareState(blockNumber)
 		assert.Nil(t, err)
@@ -1123,7 +1123,7 @@ func Test_StakerSharesState(t *testing.T) {
 		// Process a deposit of beacon chain ETH
 		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400,
 			"0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d",
-			"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", // Beacon chain strategy address
+			NativeEthStrategy, // Beacon chain strategy address
 			big.NewInt(1e18))
 		assert.Nil(t, err)
 
@@ -1140,7 +1140,7 @@ func Test_StakerSharesState(t *testing.T) {
 		slashDiff := diffs.SlashDiffs[0]
 		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", slashDiff.SlashedEntity)
 		assert.True(t, slashDiff.BeaconChain)
-		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", slashDiff.Strategy)
+		assert.Equal(t, NativeEthStrategy, slashDiff.Strategy)
 		assert.Equal(t, "100000000000000000", slashDiff.WadSlashed.String())
 
 		err = sharesModel.CommitFinalState(blockNumber, false)
@@ -1160,12 +1160,12 @@ func Test_StakerSharesState(t *testing.T) {
 
 		// First record should be the deposit
 		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
+		assert.Equal(t, NativeEthStrategy, results[0].Strategy)
 		assert.Equal(t, "1000000000000000000", results[0].Shares)
 
 		// Second record should be the slash
 		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[1].Staker)
-		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[1].Strategy)
+		assert.Equal(t, NativeEthStrategy, results[1].Strategy)
 		assert.Equal(t, "-100000000000000000", results[1].Shares)
 
 		teardown(grm)
@@ -1186,7 +1186,7 @@ func Test_StakerSharesState(t *testing.T) {
 		// Process a deposit of beacon chain ETH
 		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400,
 			"0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d",
-			"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", // Beacon chain strategy address
+			NativeEthStrategy, // Beacon chain strategy address
 			big.NewInt(1e18))
 		assert.Nil(t, err)
 
@@ -1226,7 +1226,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		// First record should be the slash
 		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
+		assert.Equal(t, NativeEthStrategy, results[0].Strategy)
 		assert.Equal(t, "-100000000000000000", results[0].Shares)
 
 		teardown(grm)
@@ -1256,7 +1256,7 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 300, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0xbde83df53bc7d159700e966ad5d21e8b7c619459")
 		assert.Nil(t, err)
 
-		_, err = processDeposit(stakerShares, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", big.NewInt(1e18))
+		_, err = processDeposit(stakerShares, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", NativeEthStrategy, big.NewInt(1e18))
 		assert.Nil(t, err)
 
 		err = delegationModel.CommitFinalState(blockNumber, false)
@@ -1274,7 +1274,7 @@ func Test_StakerSharesState(t *testing.T) {
 		err = stakerShares.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		_, err = processSlashing(stakerShares, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0"}, []*big.Int{big.NewInt(5e17)})
+		_, err = processSlashing(stakerShares, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{NativeEthStrategy}, []*big.Int{big.NewInt(5e17)})
 		assert.Nil(t, err)
 
 		_, err = processBeaconChainSlashing(stakerShares, cfg.GetContractsMapForChain().EigenpodManager, blockNumber, 600, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", 1e18, 5e17)
@@ -1295,11 +1295,11 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, 2, len(results))
 
 		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
+		assert.Equal(t, NativeEthStrategy, results[0].Strategy)
 		assert.Equal(t, "-500000000000000000", results[0].Shares)
 
 		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[1].Staker)
-		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[1].Strategy)
+		assert.Equal(t, NativeEthStrategy, results[1].Strategy)
 		assert.Equal(t, "-250000000000000000", results[1].Shares)
 
 		teardown(grm)
@@ -1329,7 +1329,7 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 300, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0xbde83df53bc7d159700e966ad5d21e8b7c619459")
 		assert.Nil(t, err)
 
-		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", big.NewInt(1e18))
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", NativeEthStrategy, big.NewInt(1e18))
 		assert.Nil(t, err)
 
 		err = delegationModel.CommitFinalState(blockNumber, false)
@@ -1347,7 +1347,7 @@ func Test_StakerSharesState(t *testing.T) {
 		err = sharesModel.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		_, err = processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0"}, []*big.Int{big.NewInt(5e17)})
+		_, err = processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, blockNumber, 500, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", []string{NativeEthStrategy}, []*big.Int{big.NewInt(5e17)})
 		assert.Nil(t, err)
 
 		err = sharesModel.CommitFinalState(blockNumber, false)
@@ -1378,7 +1378,7 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, 1, len(results))
 
 		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
+		assert.Equal(t, NativeEthStrategy, results[0].Strategy)
 		assert.Equal(t, "-250000000000000000", results[0].Shares)
 
 		teardown(grm)
@@ -1399,7 +1399,7 @@ func Test_StakerSharesState(t *testing.T) {
 		// Process a deposit of beacon chain ETH
 		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400,
 			"0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d",
-			"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", // Beacon chain strategy address
+			NativeEthStrategy, // Beacon chain strategy address
 			big.NewInt(1e18))
 		assert.Nil(t, err)
 
@@ -1435,7 +1435,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		// First record should be the slash
 		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", results[0].Staker)
-		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", results[0].Strategy)
+		assert.Equal(t, NativeEthStrategy, results[0].Strategy)
 		assert.Equal(t, "-1000000000000000000", results[0].Shares)
 
 		teardown(grm)
@@ -1456,7 +1456,7 @@ func Test_StakerSharesState(t *testing.T) {
 		// Process a deposit of beacon chain ETH
 		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400,
 			"0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", // Staker
-			"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", // Beacon chain strategy address
+			NativeEthStrategy, // Beacon chain strategy address
 			big.NewInt(0))
 		assert.Nil(t, err)
 
