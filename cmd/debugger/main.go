@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/pkg/service/slashingDataService"
 	"net/http"
 	"time"
 
@@ -128,6 +129,7 @@ func main() {
 	rps := proofs.NewRewardsProofsStore(rc, l)
 	pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 	rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
+	sds := slashingDataService.NewSlashingDataService(grm, l, cfg)
 
 	scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)
 	if err != nil {
@@ -142,7 +144,7 @@ func main() {
 	rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 		GrpcPort: cfg.RpcConfig.GrpcPort,
 		HttpPort: cfg.RpcConfig.HttpPort,
-	}, mds, rc, rcq, eb, rps, pds, rds, scc, sdc, l, cfg)
+	}, mds, rc, rcq, eb, rps, pds, rds, sds, scc, sdc, l, cfg)
 
 	// RPC channel to notify the RPC server to shutdown gracefully
 	rpcChannel := make(chan bool)

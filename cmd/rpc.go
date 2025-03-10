@@ -18,6 +18,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
+	"github.com/Layr-Labs/sidecar/pkg/service/slashingDataService"
 	"github.com/Layr-Labs/sidecar/pkg/shutdown"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
 	"log"
@@ -110,6 +111,7 @@ var rpcCmd = &cobra.Command{
 
 		pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 		rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
+		sds := slashingDataService.NewSlashingDataService(grm, l, cfg)
 
 		go rcq.Process()
 
@@ -118,10 +120,11 @@ var rpcCmd = &cobra.Command{
 			l.Sugar().Fatalw("Failed to create sidecar client", zap.Error(err))
 		}
 
+
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
 			HttpPort: cfg.RpcConfig.HttpPort,
-		}, mds, rc, rcq, eb, rps, pds, rds, scc, sink, l, cfg)
+		}, mds, rc, rcq, eb, rps, pds, rds, sds, scc, sink, l, cfg)
 
 		// RPC channel to notify the RPC server to shutdown gracefully
 		rpcChannel := make(chan bool)

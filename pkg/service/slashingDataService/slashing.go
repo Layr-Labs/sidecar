@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperators"
 	"github.com/Layr-Labs/sidecar/pkg/service/baseDataService"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -57,6 +56,7 @@ type Strategy struct {
 	TotalSharesSlashed string
 }
 
+/*
 func (sds *SlashingDataService) listSlashingEvents(ctx context.Context) ([]*SlashingEvent, error) {
 	query := `
 		select
@@ -104,8 +104,9 @@ func (sds *SlashingDataService) listSlashingEvents(ctx context.Context) ([]*Slas
 		slashingEventsList = append(slashingEventsList, event)
 	}
 	return slashingEventsList, nil
-
+	return nil, nil
 }
+*/
 
 type SlashedStakerRow struct {
 	Operator        string
@@ -134,7 +135,7 @@ func (sds *SlashingDataService) ListStakerSlashingHistory(
 	ctx context.Context,
 	stakerAddress string,
 	blockHeight uint64,
-) (interface{}, error) {
+) ([]*SlashingEvent, error) {
 	blockHeight, err := sds.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
 		return nil, errors.Wrapf(err, "listStakerSlashingHistory: failed to get current block height")
@@ -297,13 +298,13 @@ func (sds *SlashingDataService) ListStakerSlashingHistory(
 }
 
 func (sds *SlashingDataService) ListOperatorSlashingHistory(ctx context.Context, operator string) (interface{}, error) {
-
+	return nil, nil
 }
 
 func (sds *SlashingDataService) ListAvsSlashingHistory(ctx context.Context, avs string) (interface{}, error) {
-
+	return nil, nil
 }
 
 func (sds *SlashingDataService) ListAvsOperatorSetSlashingHistory(ctx context.Context, avs string, operatorSet string) (interface{}, error) {
-
+	return nil, nil
 }
