@@ -3,12 +3,13 @@ package rewards
 import (
 	"errors"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/internal/metrics"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -386,7 +387,7 @@ func Test_Rewards(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_14_avs_od_operator_set_rewards\n")
-			err = rc.GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate)
+			err = rc.GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate, forks)
 			assert.Nil(t, err)
 			if rewardsV2_1Enabled {
 				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_14_AvsODOperatorSetRewardAmounts])
