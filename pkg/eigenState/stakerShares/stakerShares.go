@@ -41,6 +41,10 @@ type SlashDiff struct {
 	BlockTime        time.Time
 	BlockDate        string
 	BlockNumber      uint64
+	// for a while, we werent lower-casing all addresses. These values exist for state root
+	// backwards compatibility
+	OriginalSlashedEntity string `gorm:"-"`
+	OriginalStrategy      string `gorm:"-"`
 }
 
 // Table staker_share_deltas
@@ -56,6 +60,11 @@ type StakerShareDeltas struct {
 	BlockDate            string
 	BlockNumber          uint64
 	WithdrawalRootString string `gorm:"-"`
+
+	// for a while, we werent lower-casing all addresses. These values exist for state root
+	// backwards compatibility
+	OriginalStaker   string `gorm:"-"`
+	OriginalStrategy string `gorm:"-"`
 }
 
 type PrecommitDelegatedStaker struct {
@@ -165,14 +174,16 @@ func (ss *StakerSharesModel) handleStakerDepositEvent(log *storage.TransactionLo
 	}
 
 	return &StakerShareDeltas{
-		Staker:           stakerAddress,
-		Strategy:         outputData.Strategy,
+		Staker:           strings.ToLower(stakerAddress),
+		Strategy:         strings.ToLower(outputData.Strategy),
 		Shares:           shares.String(),
 		StrategyIndex:    uint64(0),
 		LogIndex:         log.LogIndex,
 		TransactionHash:  log.TransactionHash,
 		TransactionIndex: log.TransactionIndex,
 		BlockNumber:      log.BlockNumber,
+		OriginalStaker:   stakerAddress,
+		OriginalStrategy: outputData.Strategy,
 	}, nil
 }
 
@@ -212,14 +223,16 @@ func (ss *StakerSharesModel) handlePodSharesUpdatedEvent(log *storage.Transactio
 	}
 
 	return &StakerShareDeltas{
-		Staker:           staker,
-		Strategy:         NativeEthStrategy,
+		Staker:           strings.ToLower(staker),
+		Strategy:         strings.ToLower(NativeEthStrategy),
 		Shares:           sharesDelta.String(),
 		StrategyIndex:    uint64(0),
 		LogIndex:         log.LogIndex,
 		TransactionHash:  log.TransactionHash,
 		TransactionIndex: log.TransactionIndex,
 		BlockNumber:      log.BlockNumber,
+		OriginalStaker:   staker,
+		OriginalStrategy: NativeEthStrategy,
 	}, nil
 }
 
@@ -247,14 +260,16 @@ func (ss *StakerSharesModel) handleM1StakerWithdrawals(log *storage.TransactionL
 	}
 
 	return &StakerShareDeltas{
-		Staker:           stakerAddress,
-		Strategy:         outputData.Strategy,
+		Staker:           strings.ToLower(stakerAddress),
+		Strategy:         strings.ToLower(outputData.Strategy),
 		Shares:           shares.Mul(shares, big.NewInt(-1)).String(),
 		StrategyIndex:    uint64(0),
 		LogIndex:         log.LogIndex,
 		TransactionHash:  log.TransactionHash,
 		TransactionIndex: log.TransactionIndex,
 		BlockNumber:      log.BlockNumber,
+		OriginalStaker:   stakerAddress,
+		OriginalStrategy: outputData.Strategy,
 	}, nil
 }
 
@@ -378,8 +393,8 @@ func (ss *StakerSharesModel) handleM2QueuedWithdrawal(log *storage.TransactionLo
 			return nil, fmt.Errorf("Failed to convert shares to big.Int: %s", outputData.Withdrawal.Shares[i])
 		}
 		r := &StakerShareDeltas{
-			Staker:               outputData.Withdrawal.Staker,
-			Strategy:             strategy,
+			Staker:               strings.ToLower(outputData.Withdrawal.Staker),
+			Strategy:             strings.ToLower(strategy),
 			Shares:               shares.Mul(shares, big.NewInt(-1)).String(),
 			StrategyIndex:        uint64(i),
 			LogIndex:             log.LogIndex,
@@ -387,6 +402,8 @@ func (ss *StakerSharesModel) handleM2QueuedWithdrawal(log *storage.TransactionLo
 			BlockNumber:          log.BlockNumber,
 			WithdrawalRootString: outputData.WithdrawalRootString,
 			TransactionIndex:     log.TransactionIndex,
+			OriginalStaker:       outputData.Withdrawal.Staker,
+			OriginalStrategy:     strategy,
 		}
 		records = append(records, r)
 	}
@@ -435,8 +452,8 @@ func (ss *StakerSharesModel) handleSlashingWithdrawalQueued(log *storage.Transac
 			return nil, fmt.Errorf("Failed to convert shares to big.Int: %s", outputData.SharesToWithdraw[i])
 		}
 		r := &StakerShareDeltas{
-			Staker:               outputData.Withdrawal.Staker,
-			Strategy:             strategy,
+			Staker:               strings.ToLower(outputData.Withdrawal.Staker),
+			Strategy:             strings.ToLower(strategy),
 			Shares:               shares.Mul(shares, big.NewInt(-1)).String(),
 			StrategyIndex:        uint64(i),
 			LogIndex:             log.LogIndex,
@@ -444,6 +461,8 @@ func (ss *StakerSharesModel) handleSlashingWithdrawalQueued(log *storage.Transac
 			BlockNumber:          log.BlockNumber,
 			WithdrawalRootString: outputData.WithdrawalRootString,
 			TransactionIndex:     log.TransactionIndex,
+			OriginalStaker:       outputData.Withdrawal.Staker,
+			OriginalStrategy:     strategy,
 		}
 		records = append(records, r)
 	}
@@ -483,14 +502,16 @@ func (ss *StakerSharesModel) handleOperatorSlashedEvent(log *storage.Transaction
 			return nil, fmt.Errorf("Failed to convert wadSlashed to big.Int: %s", outputData.WadSlashed[i])
 		}
 		stateDiffs = append(stateDiffs, &SlashDiff{
-			SlashedEntity:    outputData.Operator,
-			BeaconChain:      false,
-			Strategy:         strategy,
-			WadSlashed:       wadSlashed,
-			TransactionHash:  log.TransactionHash,
-			LogIndex:         log.LogIndex,
-			BlockNumber:      log.BlockNumber,
-			TransactionIndex: log.TransactionIndex,
+			SlashedEntity:         strings.ToLower(outputData.Operator),
+			BeaconChain:           false,
+			Strategy:              strings.ToLower(strategy),
+			WadSlashed:            wadSlashed,
+			TransactionHash:       log.TransactionHash,
+			LogIndex:              log.LogIndex,
+			BlockNumber:           log.BlockNumber,
+			TransactionIndex:      log.TransactionIndex,
+			OriginalSlashedEntity: outputData.Operator,
+			OriginalStrategy:      strategy,
 		})
 	}
 
@@ -533,14 +554,16 @@ func (ss *StakerSharesModel) handleBeaconChainSlashingFactorDecreasedEvent(log *
 	wadSlashed = wadSlashed.Sub(big.NewInt(1e18), wadSlashed)
 
 	return &SlashDiff{
-		SlashedEntity:    outputData.Staker,
-		BeaconChain:      true,
-		Strategy:         NativeEthStrategy,
-		WadSlashed:       wadSlashed,
-		TransactionHash:  log.TransactionHash,
-		LogIndex:         log.LogIndex,
-		BlockNumber:      log.BlockNumber,
-		TransactionIndex: log.TransactionIndex,
+		SlashedEntity:         strings.ToLower(outputData.Staker),
+		BeaconChain:           true,
+		Strategy:              strings.ToLower(NativeEthStrategy),
+		WadSlashed:            wadSlashed,
+		TransactionHash:       log.TransactionHash,
+		LogIndex:              log.LogIndex,
+		BlockNumber:           log.BlockNumber,
+		TransactionIndex:      log.TransactionIndex,
+		OriginalSlashedEntity: outputData.Staker,
+		OriginalStrategy:      NativeEthStrategy,
 	}, nil
 }
 
@@ -756,7 +779,7 @@ func (ss *StakerSharesModel) GetDelegatedStakerSharesInPrecommitState(slashDiff 
 	delegatedStakers := make([]string, 0)
 	for _, staker := range precommitStakers {
 		if staker.Delegated {
-			delegatedStakers = append(delegatedStakers, staker.Staker)
+			delegatedStakers = append(delegatedStakers, strings.ToLower(staker.Staker))
 		}
 	}
 
@@ -1130,14 +1153,16 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 			// slash the shares and create a new slash delta record
 			sharesSlashed := new(big.Int).Div(new(big.Int).Mul(shares, slash.WadSlashed), big.NewInt(-1e18))
 			records = append(records, &StakerShareDeltas{
-				Staker:           stakerShare.Staker,
-				Strategy:         slash.Strategy,
+				Staker:           strings.ToLower(stakerShare.Staker),
+				Strategy:         strings.ToLower(slash.Strategy),
 				Shares:           sharesSlashed.String(),
 				StrategyIndex:    0,
 				LogIndex:         slash.LogIndex,
 				TransactionHash:  slash.TransactionHash,
 				BlockNumber:      slash.BlockNumber,
 				TransactionIndex: slash.TransactionIndex,
+				OriginalStaker:   stakerShare.Staker,
+				OriginalStrategy: slash.Strategy,
 			})
 
 			// update the net deltas with the slashed shares to keep a running in-memory total
@@ -1238,11 +1263,32 @@ func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) ([]byte, erro
 	return fullTree.Root(), nil
 }
 
+func (ss *StakerSharesModel) formatSlotId(
+	blockNumber uint64,
+	diff *StakerShareDeltas,
+) (types.SlotID, error) {
+	forks, err := ss.globalConfig.GetRewardsSqlForkDates()
+	if err != nil {
+		return "", err
+	}
+	if ss.globalConfig.ChainIsOneOf(config.Chain_Holesky, config.Chain_Preprod) && blockNumber < forks[config.RewardsFork_Colorado].BlockNumber {
+		// pre EL21-02 fix
+		return NewSlotID(diff.TransactionHash, diff.LogIndex, diff.OriginalStaker, diff.OriginalStrategy, diff.StrategyIndex), nil
+	}
+
+	return NewSlotID(diff.TransactionHash, diff.LogIndex, diff.Staker, diff.Strategy, diff.StrategyIndex), nil
+}
+
 func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerShareDeltas) []*base.MerkleTreeInput {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, diff := range diffs {
+		slotId, err := ss.formatSlotId(diff.BlockNumber, diff)
+		if err != nil {
+			ss.logger.Sugar().Errorw("Failed to format slot ID", zap.Error(err))
+			return nil
+		}
 		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: NewSlotID(diff.TransactionHash, diff.LogIndex, diff.Staker, diff.Strategy, diff.StrategyIndex),
+			SlotID: slotId,
 			Value:  []byte(diff.Shares),
 		})
 	}
