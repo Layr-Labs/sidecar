@@ -87,7 +87,7 @@ func (sm *StateMigrator) initialize() error {
 func (sm *StateMigrator) getMigrationsForBlock(blockNumber uint64) ([]types.IStateMigration, error) {
 	blockMigrations := sm.migrations.GetMigrationsForBlock(blockNumber)
 	if len(blockMigrations) == 0 {
-		sm.logger.Sugar().Debugw("No migrations found for block", blockNumber)
+		sm.logger.Sugar().Debugw("No migrations found for block", zap.Uint64("blockNumber", blockNumber))
 		return nil, nil
 	}
 	return blockMigrations, nil
@@ -105,7 +105,7 @@ func (sm *StateMigrator) RunMigrationsForBlock(blockNumber uint64) ([]byte, map[
 	}
 
 	if migrations == nil {
-		sm.logger.Sugar().Debugw("No migrations found for block", blockNumber)
+		sm.logger.Sugar().Debugw("No migrations found for block", zap.Uint64("blockNumber", blockNumber))
 		return nil, nil, nil
 	}
 
@@ -171,6 +171,7 @@ func (sm *StateMigrator) encodeMigrationLeavesForBlock(blockNumber uint64, leave
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Error(err),
 		)
+		return nil, err
 	}
 	return tree.Root(), nil
 }
