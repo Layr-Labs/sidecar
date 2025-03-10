@@ -1014,6 +1014,15 @@ func orderSlashes(slashes []*SlashDiff) []*SlashDiff {
 	return orderedSlashes
 }
 
+func sortShareDeltas(shareDeltas []*StakerShareDeltas) {
+	slices.SortFunc(shareDeltas, func(a, b *StakerShareDeltas) int {
+		if a.TransactionIndex == b.TransactionIndex {
+			return int(a.LogIndex - b.LogIndex)
+		}
+		return int(a.TransactionIndex - b.TransactionIndex)
+	})
+}
+
 // prepareState compiles shareDeltas and applies any slashing conditions to them, generating new
 // delta records to represent shares that were slashed.
 func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDeltas, error) {
@@ -1023,6 +1032,9 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 		ss.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
 		return nil, errors.New(msg)
 	}
+
+	// ensure deltas are sorted by transactionIndex asc, logIndex asc
+	sortShareDeltas(shareDeltas)
 
 	slashes, ok := ss.SlashingAccumulator[blockNumber]
 	if !ok {
