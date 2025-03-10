@@ -39,6 +39,20 @@ var (
 			return block, nil
 		},
 	}
+	RPCMethod_getBlockReceipts = &RequestResponseHandler[[]*EthereumTransactionReceipt]{
+		RequestMethod: &RequestMethod{
+			Name:    "eth_getBlockReceipts",
+			Timeout: time.Second * 5,
+		},
+		ResponseParser: func(res json.RawMessage) ([]*EthereumTransactionReceipt, error) {
+			receipts := []*EthereumTransactionReceipt{}
+
+			if err := json.Unmarshal(res, &receipts); err != nil {
+				return nil, err
+			}
+			return receipts, nil
+		},
+	}
 	RPCMethod_getTransactionByHash = &RequestResponseHandler[*EthereumTransaction]{
 		RequestMethod: &RequestMethod{
 			Name:    "eth_getTransactionByHash",
@@ -117,6 +131,16 @@ func GetBlockByNumberRequest(blockNumber uint64, id uint) *RPCRequest {
 		JSONRPC: jsonRPCVersion,
 		Method:  RPCMethod_getBlockByNumber.RequestMethod.Name,
 		Params:  []interface{}{hexBlockNumber, true},
+		ID:      id,
+	}
+}
+
+func GetBlockReceiptsRequest(blockNumber uint64, id uint) *RPCRequest {
+	hexBlockNumber := hexutil.EncodeUint64(blockNumber)
+	return &RPCRequest{
+		JSONRPC: jsonRPCVersion,
+		Method:  RPCMethod_getBlockReceipts.RequestMethod.Name,
+		Params:  []interface{}{hexBlockNumber},
 		ID:      id,
 	}
 }

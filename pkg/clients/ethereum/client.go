@@ -212,6 +212,24 @@ func (c *Client) GetBlockByNumber(ctx context.Context, blockNumber uint64) (*Eth
 	return ethBlock, nil
 }
 
+func (c *Client) GetBlockReceipts(ctx context.Context, blockNumber uint64) ([]*EthereumTransactionReceipt, error) {
+	rpcRequest := GetBlockReceiptsRequest(blockNumber, 1)
+
+	res, err := c.Call(ctx, rpcRequest)
+	if err != nil {
+		return nil, err
+	}
+	receipts, err := RPCMethod_getBlockReceipts.ResponseParser(res.Result)
+	if err != nil {
+		c.Logger.Sugar().Errorw("failed to parse block receipts",
+			zap.Error(err),
+			zap.Any("raw response", res.Result),
+		)
+		return nil, err
+	}
+	return receipts, nil
+}
+
 func (c *Client) GetTransactionByHash(ctx context.Context, txHash string) (*EthereumTransaction, error) {
 	rpcRequest := GetTransactionByHashRequest(txHash, 1)
 
