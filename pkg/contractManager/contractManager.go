@@ -150,7 +150,7 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 	// Fetch bytecode hash
 	bytecodeHash, err := cm.AbiFetcher.FetchContractBytecodeHash(ctx, proxyContractAddress)
 	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to fetch contract details",
+		cm.Logger.Sugar().Errorw("Failed to fetch contract bytecode hash",
 			zap.Error(err),
 			zap.String("address", proxyContractAddress),
 		)
@@ -160,7 +160,7 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 	// Fetch ABI
 	abi, err := cm.AbiFetcher.FetchContractAbi(ctx, proxyContractAddress)
 	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to fetch contract details",
+		cm.Logger.Sugar().Errorw("Failed to fetch contract abi",
 			zap.Error(err),
 			zap.String("address", proxyContractAddress),
 		)

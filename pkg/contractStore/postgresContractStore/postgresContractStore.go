@@ -163,8 +163,8 @@ func (s *PostgresContractStore) CreateProxyContract(
 ) (*contractStore.ProxyContract, error) {
 	proxyContract := &contractStore.ProxyContract{
 		BlockNumber:          int64(blockNumber),
-		ContractAddress:      contractAddress,
-		ProxyContractAddress: proxyContractAddress,
+		ContractAddress:      strings.ToLower(contractAddress),
+		ProxyContractAddress: strings.ToLower(proxyContractAddress),
 	}
 
 	result := s.Db.Model(&contractStore.ProxyContract{}).Clauses(clause.Returning{}).Create(&proxyContract)

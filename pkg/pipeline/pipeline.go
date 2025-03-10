@@ -241,7 +241,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				return err
 			}
 
-			contract, err := p.contractStore.GetContractForAddress(log.Address)
+			contract, err := p.contractStore.GetContractForAddress(strings.ToLower(log.Address))
 			if err != nil {
 				p.Logger.Sugar().Errorw("Failed to get contract for address", zap.String("address", log.Address), zap.Error(err))
 				return err
