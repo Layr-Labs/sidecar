@@ -171,6 +171,7 @@ func (sm *StateMigrator) encodeMigrationLeavesForBlock(blockNumber uint64, leave
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Error(err),
 		)
+		return nil, err
 	}
 	return tree.Root(), nil
 }
