@@ -49,7 +49,7 @@ distinct_not_registered_operators AS (
 
 -- Step 3: Sum the operator tokens for each (reward hash, snapshot)
 -- Since we want to refund the sum of those operator amounts to the AVS in that reward submission for that snapshot
-operator_token_sums AS (
+avs_operator_refund_sums AS (
     SELECT
         reward_hash,
         snapshot,
@@ -140,7 +140,7 @@ distinct_staker_splits AS (
 ),
 
 -- Step 9: Sum the staker tokens for each (reward hash, snapshot) that should be refunded
-staker_token_sums AS (
+avs_staker_refund_sums AS (
     SELECT
         reward_hash,
         snapshot,
@@ -153,14 +153,14 @@ staker_token_sums AS (
 ),
 
 -- Step 10: Combine both refund cases into one result
-combined_refund_amounts AS (
-    SELECT * FROM operator_token_sums
+combined_avs_refund_amounts AS (
+    SELECT * FROM avs_operator_refund_sums
     UNION ALL
-    SELECT * FROM staker_token_sums
+    SELECT * FROM avs_staker_refund_sums
 )
 
 -- Output the final table
-SELECT * FROM combined_refund_amounts
+SELECT * FROM combined_avs_refund_amounts
 `
 
 func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate string, forks config.ForkMap) error {
