@@ -470,11 +470,7 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 0,
 			},
 			RewardsFork_Colorado: Fork{
-<<<<<<< HEAD
-				Date:        "2025-03-27",
-=======
 				Date:        "2025-04-10",
->>>>>>> 32255d6 (feat: colorado hard fork)
 				BlockNumber: 0, // TODO(seanmcgary): set this before slashing mainnet launch
 			},
 		}, nil
