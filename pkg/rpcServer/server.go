@@ -188,9 +188,35 @@ type RequestMetadata struct {
 
 const requestMetadataKey = "request_metadata"
 
+func parseOriginIpFromRequest(req *http.Request) string {
+	ip := req.Header.Get("X-Forwarded-For")
+
+	// If empty, try other common headers
+	if ip == "" {
+		ip = req.Header.Get("X-Real-IP")
+	}
+
+	// Fallback to RemoteAddr if headers are not available
+	if ip == "" {
+		ip, _, _ = net.SplitHostPort(req.RemoteAddr)
+	}
+
+	netIp := net.ParseIP(ip)
+	if netIp == nil {
+		return ip
+	}
+
+	if v4 := netIp.To4(); v4 != nil {
+		return v4.String()
+	}
+
+	return netIp.String()
+}
+
 func (s *RpcServer) MetricsAndLogsHttpHandler(next *runtime.ServeMux, l *zap.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
+		clientIp := parseOriginIpFromRequest(r)
 
 		md := &RequestMetadata{}
 		//nolint:staticcheck
@@ -228,6 +254,7 @@ func (s *RpcServer) MetricsAndLogsHttpHandler(next *runtime.ServeMux, l *zap.Log
 			{Name: "grpc_method", Value: md.Method},
 			{Name: "pattern", Value: pattern},
 			{Name: "rpc", Value: "http"},
+			{Name: "client_ip", Value: clientIp},
 		}
 
 		_ = s.metricsSink.Incr(metricsTypes.Metric_Incr_HttpRequest, labels, 1)
@@ -247,6 +274,7 @@ func (s *RpcServer) MetricsAndLogsHttpHandler(next *runtime.ServeMux, l *zap.Log
 				zap.String("grpc.service", grpcService),
 				zap.String("grpc.method", grpcMethod),
 				zap.Uint64("grpc.time_ms", uint64(duration.Milliseconds())),
+				zap.String("client_ip", clientIp),
 			)
 		}
 	})

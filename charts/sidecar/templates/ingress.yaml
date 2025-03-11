@@ -15,7 +15,7 @@ metadata:
     alb.ingress.kubernetes.io/success-codes: '0'
     alb.ingress.kubernetes.io/group.name: grpc-{{ include "sidecar.name" . }}-{{ .Release.Namespace }}
     external-dns.alpha.kubernetes.io/hostname: {{ .Values.sidecar.ingress.grpc.hostname }}
-    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=4000
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=4000,routing.http.xff_header_processing.mode=preserve
 spec:
   ingressClassName: alb
   tls:

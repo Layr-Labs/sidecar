@@ -68,6 +68,7 @@ var MetricTypes = map[MetricsType][]MetricsTypeConfig{
 				"grpc_method",
 				"pattern",
 				"rpc",
+				"client_ip",
 			},
 		},
 	},
@@ -100,6 +101,7 @@ var MetricTypes = map[MetricsType][]MetricsTypeConfig{
 				"grpc_method",
 				"pattern",
 				"rpc",
+				"client_ip",
 			},
 		},
 		MetricsTypeConfig{
