@@ -12,6 +12,7 @@ type Migration struct {
 
 func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
+		`truncate table staker_shares cascade`,
 		`alter table staker_shares add constraint uniq_staker_shares unique (staker, strategy, transaction_hash, log_index, block_number)`,
 		`create table if not exists staker_share_snapshots (
 			staker   varchar,
@@ -19,19 +20,24 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			shares   numeric,
 			snapshot date
 		)`,
+		`truncate table staker_share_snapshots cascade`,
 		`alter table staker_share_snapshots add constraint uniq_staker_share_snapshots unique (staker, strategy, snapshot)`,
 
 		// re-add indexes that likely got nuked due to dropping and re-creating the snapshot table
 		`create index if not exists idx_staker_share_snapshots_staker_strategy_snapshot on staker_share_snapshots (staker, strategy, snapshot)`,
 		`create index if not exists idx_staker_share_snapshots_strategy_snapshot on staker_share_snapshots (strategy, snapshot)`,
 
+		`truncate table staker_delegation_snapshots cascade`,
 		`alter table staker_delegation_snapshots add constraint uniq_staker_delegation_snapshots unique (staker, operator, snapshot)`,
 		`create index if not exists idx_staker_delegation_snapshots_operator_snapshot on staker_delegation_snapshots (operator, snapshot)`,
 
+		`truncate table operator_share_snapshots cascade`,
 		`alter table operator_share_snapshots add constraint uniq_operator_share_snapshots unique (operator, strategy, snapshot)`,
 
+		`truncate table operator_shares cascade`,
 		`alter table operator_shares add constraint uniq_operator_shares unique (operator, strategy, transaction_hash, log_index, block_number)`,
 
+		`truncate table operator_pi_split_snapshots cascade`,
 		`alter table operator_pi_split_snapshots add constraint uniq_operator_pi_split_snapshots unique (operator, split, snapshot)`,
 
 		`create table if not exists operator_directed_rewards(
@@ -51,16 +57,22 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			block_time      timestamp(6),
 			block_date      text
 		);`,
+
 		`alter table operator_directed_rewards add constraint uniq_operator_directed_rewards unique (avs, reward_hash, strategy_index, operator_index)`,
 
+		`truncate table operator_avs_strategy_snapshots cascade`,
 		`alter table operator_avs_strategy_snapshots add constraint uniq_operator_avs_strategy_snapshots unique (operator, avs, strategy, snapshot)`,
 
+		`truncate table operator_avs_registration_snapshots cascade`,
 		`alter table operator_avs_registration_snapshots add constraint uniq_operator_avs_registration_snapshots unique (operator, avs, snapshot)`,
 
+		`truncate table operator_avs_split_snapshots cascade`,
 		`alter table default_operator_split_snapshots add constraint uniq_default_operator_split_snapshots unique (snapshot)`,
 
+		`truncate table operator_avs_split_snapshots cascade`,
 		`alter table combined_rewards add constraint uniq_combined_rewards unique (avs, reward_hash, strategy_index)`,
 
+		`truncate table operator_avs_split_snapshots cascade`,
 		`alter table operator_avs_split_snapshots add constraint uniq_operator_avs_split_snapshots unique (operator, avs, snapshot)`,
 	}
 
