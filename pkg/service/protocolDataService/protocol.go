@@ -3,7 +3,10 @@ package protocolDataService
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/service/baseDataService"
@@ -334,6 +337,26 @@ func (pds *ProtocolDataService) ListDelegatedStakersForOperator(ctx context.Cont
 	return stakers, nil
 }
 
+type AvsAddresses []string
+
+func (aa *AvsAddresses) Value() (driver.Value, error) {
+	return json.Marshal(aa)
+}
+
+func (aa *AvsAddresses) Scan(value interface{}) error {
+	if value == nil {
+		*aa = AvsAddresses{}
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to unmarshal JSONB value: %v", value)
+	}
+
+	return json.Unmarshal(bytes, aa)
+}
+
 type StakerShares struct {
 	Staker       string
 	Strategy     string
@@ -341,7 +364,7 @@ type StakerShares struct {
 	BlockHeight  uint64
 	Operator     *string
 	Delegated    bool
-	AvsAddresses []string `gorm:"type:jsonb"`
+	AvsAddresses AvsAddresses `gorm:"type:jsonb"`
 }
 
 // ListStakerShares returns the shares of a staker at a given block height, including the operator they were delegated to
@@ -371,7 +394,7 @@ func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker str
 			dss.*,
 			dsc.operator,
 			dsc.delegated,
-			aosc.avs_list as avs_addresses
+			coalesce(aosc.avs_list, '[]'::jsonb) as avs_addresses
 		from distinct_staker_strategies as dss
 		left join lateral (
 			select

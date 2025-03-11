@@ -60,8 +60,8 @@ func Test_ProtocolDataService(t *testing.T) {
 	pds := NewProtocolDataService(sm, grm, l, cfg)
 
 	t.Run("Test ListRegisteredAVSsForOperator", func(t *testing.T) {
-		operator := "0xb5ead7a953052da8212da7e9462d65f91205d06d"
-		blockNumber := uint64(3204393)
+		operator := "0x7dcdae42c07ae52d6c5c9554e7c5109f19b2613d"
+		blockNumber := uint64(3240224)
 
 		avss, err := pds.ListRegisteredAVSsForOperator(context.Background(), operator, blockNumber)
 		assert.Nil(t, err)
@@ -97,11 +97,27 @@ func Test_ProtocolDataService(t *testing.T) {
 	})
 
 	t.Run("Test ListStakerShares", func(t *testing.T) {
-		staker := "0x130c646e1224d979ff23523308abb6012ce04b0a"
-		blockNumber := uint64(3204391)
+		t.Run("Should return an empty array of AVSs", func(t *testing.T) {
+			staker := "0x130c646e1224d979ff23523308abb6012ce04b0a"
+			blockNumber := uint64(3204391)
 
-		shares, err := pds.ListStakerShares(context.Background(), staker, blockNumber)
-		assert.Nil(t, err)
-		assert.True(t, len(shares) > 0)
+			shares, err := pds.ListStakerShares(context.Background(), staker, blockNumber)
+			assert.Nil(t, err)
+			assert.True(t, len(shares) > 0)
+			for _, share := range shares {
+				assert.True(t, len(share.AvsAddresses) == 0)
+			}
+		})
+		t.Run("Should return an array of AVSs", func(t *testing.T) {
+			staker := "0xbc9dec48f305167bb8ee593e44893acf65ad3f36"
+			blockNumber := uint64(3240224)
+
+			shares, err := pds.ListStakerShares(context.Background(), staker, blockNumber)
+			assert.Nil(t, err)
+			assert.True(t, len(shares) > 0)
+			for _, share := range shares {
+				assert.True(t, len(share.AvsAddresses) > 0)
+			}
+		})
 	})
 }
