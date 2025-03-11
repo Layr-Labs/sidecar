@@ -100,7 +100,7 @@ func Test_PostgresContractStore(t *testing.T) {
 			MatchingContractAddress: "",
 		}
 
-		createdContract, found, err := cs.FindOrCreateContract(contract.ContractAddress, contract.ContractAbi, contract.Verified, contract.BytecodeHash, contract.MatchingContractAddress, false)
+		createdContract, found, err := cs.FindOrCreateContract(contract.ContractAddress, contract.ContractAbi, contract.Verified, contract.BytecodeHash, contract.MatchingContractAddress, false, contractStore.ContractType_Core)
 		assert.Nil(t, err)
 		assert.False(t, found)
 		assert.Equal(t, contract.ContractAddress, createdContract.ContractAddress)
@@ -120,7 +120,7 @@ func Test_PostgresContractStore(t *testing.T) {
 			MatchingContractAddress: "",
 		}
 
-		createdContract, found, err := cs.FindOrCreateContract(contract.ContractAddress, contract.ContractAbi, contract.Verified, contract.BytecodeHash, contract.MatchingContractAddress, false)
+		createdContract, found, err := cs.FindOrCreateContract(contract.ContractAddress, contract.ContractAbi, contract.Verified, contract.BytecodeHash, contract.MatchingContractAddress, false, contractStore.ContractType_Core)
 		assert.Nil(t, err)
 		assert.True(t, found)
 		assert.Equal(t, contract.ContractAddress, createdContract.ContractAddress)
@@ -150,7 +150,7 @@ func Test_PostgresContractStore(t *testing.T) {
 			BytecodeHash:            "0x456",
 			MatchingContractAddress: "",
 		}
-		createdProxy, _, err := cs.FindOrCreateContract(newProxyContract.ContractAddress, newProxyContract.ContractAbi, newProxyContract.Verified, newProxyContract.BytecodeHash, newProxyContract.MatchingContractAddress, false)
+		createdProxy, _, err := cs.FindOrCreateContract(newProxyContract.ContractAddress, newProxyContract.ContractAbi, newProxyContract.Verified, newProxyContract.BytecodeHash, newProxyContract.MatchingContractAddress, false, contractStore.ContractType_Core)
 		assert.Nil(t, err)
 		createdContracts = append(createdContracts, createdProxy)
 

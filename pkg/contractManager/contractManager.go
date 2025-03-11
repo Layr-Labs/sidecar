@@ -120,6 +120,10 @@ func (cm *ContractManager) HandleContractUpgrade(ctx context.Context, blockNumbe
 	return nil
 }
 
+// CreateUpgradedProxyContract creates a new proxy contract relationship in the database.
+// It creates entries for both the proxy contract and the implementation contract,
+// fetching the ABI for the implementation contract.
+// If the proxy contract already exists, it returns without error.
 func (cm *ContractManager) CreateUpgradedProxyContract(
 	ctx context.Context,
 	blockNumber uint64,
@@ -168,6 +172,7 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 	}
 
 	// Create contract
+	// TODO: check the contract type
 	_, err = cm.ContractStore.CreateContract(
 		proxyContractAddress,
 		abi,
@@ -175,6 +180,7 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 		bytecodeHash,
 		"",
 		true,
+		contractStore.ContractType_External,
 	)
 	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to create new contract with fetched ABI",
@@ -189,7 +195,7 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 	return nil
 }
 
-func (cm *ContractManager) InitializeLoadingContract(
+func (cm *ContractManager) LoadContract(
 	ctx context.Context,
 	blockNumber uint64,
 	contractAddress string,

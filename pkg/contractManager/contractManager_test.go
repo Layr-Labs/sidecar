@@ -100,18 +100,18 @@ func Test_ContractManager(t *testing.T) {
 		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 	}
 
-	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-	if err := contractStore.InitializeCoreContracts(); err != nil {
+	cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
+	if err := cs.InitializeCoreContracts(); err != nil {
 		log.Fatalf("Failed to initialize core contracts: %v", err)
 	}
 
 	t.Run("Test indexing contract upgrades", func(t *testing.T) {
 		// Create a contract
-		_, err := contractStore.CreateContract(contract.ContractAddress, contract.ContractAbi, contract.Verified, contract.BytecodeHash, contract.MatchingContractAddress, false)
+		_, err := cs.CreateContract(contract.ContractAddress, contract.ContractAbi, contract.Verified, contract.BytecodeHash, contract.MatchingContractAddress, false, contractStore.ContractType_External)
 		assert.Nil(t, err)
 
 		// Create a proxy contract
-		_, err = contractStore.CreateProxyContract(uint64(proxyContract.BlockNumber), proxyContract.ContractAddress, proxyContract.ProxyContractAddress)
+		_, err = cs.CreateProxyContract(uint64(proxyContract.BlockNumber), proxyContract.ContractAddress, proxyContract.ProxyContractAddress)
 		assert.Nil(t, err)
 
 		// Check if contract and proxy contract exist
@@ -159,7 +159,7 @@ func Test_ContractManager(t *testing.T) {
 
 		// Perform the upgrade
 		blockNumber := 5
-		cm := NewContractManager(contractStore, client, af, sdc, l)
+		cm := NewContractManager(cs, client, af, sdc, l)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 
@@ -195,7 +195,7 @@ func Test_ContractManager(t *testing.T) {
 
 		// Perform the upgrade
 		blockNumber := 10
-		cm := NewContractManager(contractStore, client, af, sdc, l)
+		cm := NewContractManager(cs, client, af, sdc, l)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 

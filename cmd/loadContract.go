@@ -86,7 +86,7 @@ var loadContractCmd = &cobra.Command{
 			implementationForAddress := cfg.LoadContractConfig.ImplementationForAddress
 			implementationAbi := cfg.LoadContractConfig.ImplementationAbi
 
-			err = cm.InitializeLoadingContract(ctx, blockNumber, contractAddress, contractAbi, implementationForAddress, implementationAbi)
+			err = cm.LoadContract(ctx, blockNumber, contractAddress, contractAbi, implementationForAddress, implementationAbi)
 			if err != nil {
 				return fmt.Errorf("failed to initialize loading a contract: %w", err)
 			}
