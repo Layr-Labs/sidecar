@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
@@ -21,9 +22,9 @@ import (
 )
 
 var loadContractCmd = &cobra.Command{
-	Use:   "load-contract",
+	Use:   "load-contract [file]",
 	Short: "Load a contract",
-	Long:  "Load a contract",
+	Long:  `Load a contract from a file or stdin. If a file path is provided as the last argument, it will be used. If no file is provided, it will attempt to read from stdin.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		initLoadContractCmd(cmd)
 		cfg := config.NewConfig()
@@ -70,27 +71,73 @@ var loadContractCmd = &cobra.Command{
 
 		cm := contractManager.NewContractManager(contractStore, client, af, sink, l)
 
-		if cfg.LoadContractConfig.FromFile != "" {
-			filename := cfg.LoadContractConfig.FromFile
+		var filename string
+		var useFile bool
+		var useStdin bool
 
-			err = contractStore.InitializeExternalContracts(filename)
-			if err != nil {
-				return fmt.Errorf("failed to initialize external contracts: %w", err)
-			}
+		// Check if a file path is provided as a positional argument
+		if len(args) > 0 {
+			filename = args[0]
+			useFile = true
+		} else if cfg.LoadContractConfig.FromFile != "" {
+			// Check if a file path is provided via the --from-file flag
+			filename = cfg.LoadContractConfig.FromFile
+			useFile = true
 		} else {
-			blockNumber := cfg.LoadContractConfig.BlockNumber
-			contractAddress := cfg.LoadContractConfig.ContractAddress
-			contractAbi := cfg.LoadContractConfig.ContractAbi
-			implementationForAddress := cfg.LoadContractConfig.ImplementationForAddress
-			implementationAbi := cfg.LoadContractConfig.ImplementationAbi
-
-			err = cm.LoadContract(ctx, blockNumber, contractAddress, contractAbi, implementationForAddress, implementationAbi)
-			if err != nil {
-				return fmt.Errorf("failed to initialize loading a contract: %w", err)
+			// Check if we should read from stdin (if stdin is not a terminal)
+			stdinInfo, err := os.Stdin.Stat()
+			if err == nil && (stdinInfo.Mode()&os.ModeCharDevice) == 0 {
+				useStdin = true
 			}
 		}
 
-		return nil
+		// Process based on input source
+		if cfg.LoadContractConfig.Batch && useFile {
+			// Load contracts from file
+			err := contractStore.InitializeExternalContracts(filename)
+			if err != nil {
+				return fmt.Errorf("failed to initialize external contracts from file: %w", err)
+			}
+			return nil
+		} else if cfg.LoadContractConfig.Batch && useStdin {
+			// Read directly from stdin
+			err := contractStore.InitializeExternalContractsFromReader(os.Stdin)
+			if err != nil {
+				return fmt.Errorf("failed to initialize external contracts from stdin: %w", err)
+			}
+			return nil
+		} else if cfg.LoadContractConfig.Batch {
+			// If batch mode is enabled but no input source is provided
+			return fmt.Errorf("batch mode requires a file path or stdin input")
+		} else {
+			// If no file or stdin is provided, use the individual contract parameters
+			blockNumber := cfg.LoadContractConfig.BlockNumber
+			contractAddress := cfg.LoadContractConfig.Address
+			contractAbi := cfg.LoadContractConfig.Abi
+			implementationForAddress := cfg.LoadContractConfig.ImplementationForAddress
+			implementationAbi := cfg.LoadContractConfig.ImplementationAbi
+
+			// Validate required parameters
+			if contractAddress == "" {
+				return fmt.Errorf("contract address is required when not using a file or stdin")
+			}
+			if contractAbi == "" {
+				return fmt.Errorf("contract ABI is required when not using a file or stdin")
+			}
+			if (implementationForAddress != "" && implementationAbi == "") ||
+				(implementationForAddress == "" && implementationAbi != "") {
+				return fmt.Errorf("when implementation address is provided, implementation ABI is required and vice versa")
+			}
+			if blockNumber == 0 {
+				return fmt.Errorf("block number is required when not using a file or stdin")
+			}
+
+			err = cm.LoadContract(ctx, blockNumber, contractAddress, contractAbi, implementationForAddress, implementationAbi)
+			if err != nil {
+				return fmt.Errorf("failed to load contract: %w", err)
+			}
+			return nil
+		}
 	},
 }
 

@@ -118,8 +118,8 @@ type SidecarPrimaryConfig struct {
 }
 
 type LoadContractConfig struct {
-	ContractAddress          string
-	ContractAbi              string
+	Address                  string
+	Abi                      string
 	ImplementationForAddress string
 	ImplementationAbi        string
 	BlockNumber              uint64
@@ -212,13 +212,13 @@ var (
 
 	SidecarPrimaryUrl = "sidecar-primary.url"
 
-	LoadContractAddress                  = "load-contract.contract-address"
-	LoadContractAbi                      = "load-contract.contract-abi"
-	LoadContractImplementationForAddress = "load-contract.implementation-for-address"
-	LoadContractImplementationAbi        = "load-contract.implementation-abi"
-	LoadContractBlockNumber              = "load-contract.block-number"
-	LoadContractBatch                    = "load-contract.batch"
-	LoadContractFromFile                 = "load-contract.from-file"
+	LoadContractAddress                  = "contract.address"
+	LoadContractAbi                      = "contract.abi"
+	LoadContractImplementationForAddress = "contract.implementation-for-address"
+	LoadContractImplementationAbi        = "contract.implementation-abi"
+	LoadContractBlockNumber              = "contract.block-number"
+	LoadContractBatch                    = "contract.batch"
+	LoadContractFromFile                 = "contract.from-file"
 
 	IpfsUrl = "ipfs.url"
 
@@ -294,8 +294,8 @@ func NewConfig() *Config {
 		},
 
 		LoadContractConfig: LoadContractConfig{
-			ContractAddress:          viper.GetString(normalizeFlagName(LoadContractAddress)),
-			ContractAbi:              viper.GetString(normalizeFlagName(LoadContractAbi)),
+			Address:                  viper.GetString(normalizeFlagName(LoadContractAddress)),
+			Abi:                      viper.GetString(normalizeFlagName(LoadContractAbi)),
 			ImplementationForAddress: viper.GetString(normalizeFlagName(LoadContractImplementationForAddress)),
 			ImplementationAbi:        viper.GetString(normalizeFlagName(LoadContractImplementationAbi)),
 			BlockNumber:              viper.GetUint64(normalizeFlagName(LoadContractBlockNumber)),

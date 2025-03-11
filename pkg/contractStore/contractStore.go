@@ -3,6 +3,7 @@ package contractStore
 import (
 	"embed"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 )
@@ -23,6 +24,7 @@ type ContractStore interface {
 	InitializeContracts(contractsData *CoreContractsData, contractType ContractType) error
 	InitializeCoreContracts() error
 	InitializeExternalContracts(filename string) error
+	InitializeExternalContractsFromReader(reader io.Reader) error
 }
 
 // Constants.

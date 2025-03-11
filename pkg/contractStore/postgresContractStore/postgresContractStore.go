@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -366,9 +367,19 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 }
 
 func (s *PostgresContractStore) InitializeExternalContracts(filename string) error {
-	jsonData, err := os.ReadFile(filename)
+	file, err := os.Open(filename)
 	if err != nil {
 		return fmt.Errorf("failed to open external contracts file: %w", err)
+	}
+	defer file.Close()
+
+	return s.InitializeExternalContractsFromReader(file)
+}
+
+func (s *PostgresContractStore) InitializeExternalContractsFromReader(reader io.Reader) error {
+	jsonData, err := io.ReadAll(reader)
+	if err != nil {
+		return fmt.Errorf("failed to read external contracts data: %w", err)
 	}
 
 	// read entire file and marshal it into a CoreContractsData struct
