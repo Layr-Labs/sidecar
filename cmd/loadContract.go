@@ -72,15 +72,24 @@ var loadContractCmd = &cobra.Command{
 
 		cm := contractManager.NewContractManager(contractStore, client, af, sink, l)
 
-		blockNumber := cfg.LoadContractConfig.BlockNumber
-		contractAddress := cfg.LoadContractConfig.ContractAddress
-		contractAbi := cfg.LoadContractConfig.ContractAbi
-		implementationForAddress := cfg.LoadContractConfig.ImplementationForAddress
-		implementationAbi := cfg.LoadContractConfig.ImplementationAbi
+		if cfg.LoadContractConfig.FromFile != "" {
+			filename := cfg.LoadContractConfig.FromFile
 
-		err = cm.InitializeLoadingContract(ctx, blockNumber, contractAddress, contractAbi, implementationForAddress, implementationAbi)
-		if err != nil {
-			return fmt.Errorf("failed to initialize loading a contract: %w", err)
+			err = contractStore.InitializeExternalContracts(filename)
+			if err != nil {
+				return fmt.Errorf("failed to initialize external contracts: %w", err)
+			}
+		} else {
+			blockNumber := cfg.LoadContractConfig.BlockNumber
+			contractAddress := cfg.LoadContractConfig.ContractAddress
+			contractAbi := cfg.LoadContractConfig.ContractAbi
+			implementationForAddress := cfg.LoadContractConfig.ImplementationForAddress
+			implementationAbi := cfg.LoadContractConfig.ImplementationAbi
+
+			err = cm.InitializeLoadingContract(ctx, blockNumber, contractAddress, contractAbi, implementationForAddress, implementationAbi)
+			if err != nil {
+				return fmt.Errorf("failed to initialize loading a contract: %w", err)
+			}
 		}
 
 		return nil

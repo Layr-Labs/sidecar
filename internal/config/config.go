@@ -123,10 +123,8 @@ type LoadContractConfig struct {
 	ImplementationForAddress string
 	ImplementationAbi        string
 	BlockNumber              uint64
-}
-
-type BatchLoadContractsConfig struct {
-	JsonFile string
+	Batch                    bool
+	FromFile                 string
 }
 
 type IpfsConfig struct {
@@ -138,21 +136,20 @@ type EtherscanConfig struct {
 }
 
 type Config struct {
-	Debug                    bool
-	EthereumRpcConfig        EthereumRpcConfig
-	DatabaseConfig           DatabaseConfig
-	CreateSnapshotConfig     CreateSnapshotConfig
-	RestoreSnapshotConfig    RestoreSnapshotConfig
-	RpcConfig                RpcConfig
-	Chain                    Chain
-	Rewards                  RewardsConfig
-	DataDogConfig            DataDogConfig
-	PrometheusConfig         PrometheusConfig
-	SidecarPrimaryConfig     SidecarPrimaryConfig
-	LoadContractConfig       LoadContractConfig
-	BatchLoadContractsConfig BatchLoadContractsConfig
-	IpfsConfig               IpfsConfig
-	EtherscanConfig          EtherscanConfig
+	Debug                 bool
+	EthereumRpcConfig     EthereumRpcConfig
+	DatabaseConfig        DatabaseConfig
+	CreateSnapshotConfig  CreateSnapshotConfig
+	RestoreSnapshotConfig RestoreSnapshotConfig
+	RpcConfig             RpcConfig
+	Chain                 Chain
+	Rewards               RewardsConfig
+	DataDogConfig         DataDogConfig
+	PrometheusConfig      PrometheusConfig
+	SidecarPrimaryConfig  SidecarPrimaryConfig
+	LoadContractConfig    LoadContractConfig
+	IpfsConfig            IpfsConfig
+	EtherscanConfig       EtherscanConfig
 }
 
 func StringWithDefault(value, defaultValue string) string {
@@ -220,8 +217,8 @@ var (
 	LoadContractImplementationForAddress = "load-contract.implementation-for-address"
 	LoadContractImplementationAbi        = "load-contract.implementation-abi"
 	LoadContractBlockNumber              = "load-contract.block-number"
-
-	BatchLoadContractsJsonFile = "batch-load-contracts.json-file"
+	LoadContractBatch                    = "load-contract.batch"
+	LoadContractFromFile                 = "load-contract.from-file"
 
 	IpfsUrl = "ipfs.url"
 
@@ -302,10 +299,8 @@ func NewConfig() *Config {
 			ImplementationForAddress: viper.GetString(normalizeFlagName(LoadContractImplementationForAddress)),
 			ImplementationAbi:        viper.GetString(normalizeFlagName(LoadContractImplementationAbi)),
 			BlockNumber:              viper.GetUint64(normalizeFlagName(LoadContractBlockNumber)),
-		},
-
-		BatchLoadContractsConfig: BatchLoadContractsConfig{
-			JsonFile: viper.GetString(normalizeFlagName(BatchLoadContractsJsonFile)),
+			Batch:                    viper.GetBool(normalizeFlagName(LoadContractBatch)),
+			FromFile:                 viper.GetString(normalizeFlagName(LoadContractFromFile)),
 		},
 
 		IpfsConfig: IpfsConfig{
