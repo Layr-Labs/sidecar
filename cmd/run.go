@@ -78,8 +78,8 @@ var runCmd = &cobra.Command{
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
-		ipfs := ipfs.NewIpfs(&http.Client{Timeout: 5 * time.Second}, l, cfg)
-		af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg, []abiSource.AbiSource{ipfs})
+		ipfs := ipfs.NewIpfs(ipfs.DefaultHttpClient(), l, cfg)
+		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, cfg, []abiSource.AbiSource{ipfs})
 
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 

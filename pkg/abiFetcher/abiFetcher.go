@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
@@ -32,6 +33,12 @@ func NewAbiFetcher(
 		logger:         l,
 		config:         cfg,
 		abiSources:     sources,
+	}
+}
+
+func DefaultHttpClient() *http.Client {
+	return &http.Client{
+		Timeout: 5 * time.Second,
 	}
 }
 
