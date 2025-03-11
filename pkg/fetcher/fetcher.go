@@ -52,7 +52,7 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 		return nil, err
 	}
 
-	receipts, err := f.FetchBlockReceipts(ctx, block)
+	receipts, err := f.GetReceiptsForBlock(ctx, block)
 	if err != nil {
 		f.Logger.Sugar().Errorw("failed to fetch receipts for block", zap.Error(err))
 		return nil, err
@@ -176,6 +176,13 @@ func (f *Fetcher) FetchBlockReceipts(ctx context.Context, block *ethereum.Ethere
 	return receiptsMap, nil
 }
 
+func (f *Fetcher) GetReceiptsForBlock(ctx context.Context, block *ethereum.EthereumBlock) (map[string]*ethereum.EthereumTransactionReceipt, error) {
+	if f.Config.EthereumRpcConfig.UseGetBlockReceipts {
+		return f.FetchBlockReceipts(ctx, block)
+	}
+	return f.FetchReceiptsForBlock(ctx, block)
+}
+
 // IsInterestingAddress checks if a contract address is in the list of interesting addresses
 // defined in the configuration. This is used to filter which contracts to process.
 func (f *Fetcher) IsInterestingAddress(contractAddress string) bool {
@@ -277,7 +284,7 @@ func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, e
 		wg.Add(1)
 		go func(b *ethereum.EthereumBlock) {
 			defer wg.Done()
-			receipts, err := f.FetchBlockReceipts(ctx, b)
+			receipts, err := f.GetReceiptsForBlock(ctx, b)
 			if err != nil {
 				f.Logger.Sugar().Errorw("failed to fetch receipts for block",
 					zap.Uint64("blockNumber", b.Number.Value()),
