@@ -237,7 +237,7 @@ func (c *Client) GetTransactionByHash(ctx context.Context, txHash string) (*Ethe
 	if err != nil {
 		return nil, err
 	}
-	txReceipt, err := RPCMethod_getTransactionByHash.ResponseParser(res.Result)
+	tx, err := RPCMethod_getTransactionByHash.ResponseParser(res.Result)
 	if err != nil {
 		c.Logger.Sugar().Errorw("failed to parse transaction",
 			zap.Error(err),
@@ -245,7 +245,7 @@ func (c *Client) GetTransactionByHash(ctx context.Context, txHash string) (*Ethe
 		)
 		return nil, err
 	}
-	return txReceipt, nil
+	return tx, nil
 }
 
 // GetTransactionReceipt retrieves the transaction receipt for a given transaction hash.

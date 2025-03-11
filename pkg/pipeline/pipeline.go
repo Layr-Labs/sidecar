@@ -3,6 +3,11 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
@@ -14,10 +19,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"go.uber.org/zap"

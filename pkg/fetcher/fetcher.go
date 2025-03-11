@@ -5,13 +5,14 @@ package fetcher
 
 import (
 	"context"
+	"slices"
+	"sync"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"slices"
-	"sync"
-	"time"
 )
 
 // Fetcher is responsible for retrieving blockchain data from Ethereum nodes.
@@ -70,48 +71,15 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 func (f *Fetcher) FetchReceiptsForBlock(ctx context.Context, block *ethereum.EthereumBlock) (map[string]*ethereum.EthereumTransactionReceipt, error) {
 	blockNumber := block.Number.Value()
 
-	txReceiptRequests := make([]*ethereum.RPCRequest, 0)
-	f.Logger.Sugar().Debugf("Fetching '%d' transactions from block '%d'", len(block.Transactions), blockNumber)
-
-	for i, tx := range block.Transactions {
-		txReceiptRequests = append(txReceiptRequests, ethereum.GetTransactionReceiptRequest(tx.Hash.Value(), uint(i)))
-	}
-
-	f.Logger.Sugar().Debugw("Fetching transaction receipts",
-		zap.Int("count", len(txReceiptRequests)),
-		zap.Uint64("blockNumber", blockNumber),
-	)
-	receipts := make(map[string]*ethereum.EthereumTransactionReceipt)
-
-	if len(txReceiptRequests) == 0 {
-		return receipts, nil
-	}
-
-	receiptResponses, err := f.EthClient.BatchCall(ctx, txReceiptRequests)
+	receiptResponses, err := f.EthClient.GetBlockReceipts(ctx, blockNumber)
 	if err != nil {
-		f.Logger.Sugar().Errorw("failed to batch call for transaction receipts", zap.Error(err))
+		f.Logger.Sugar().Errorw("failed to get block receipts", zap.Error(err))
 		return nil, err
 	}
 
-	// Ensure that we have all the receipts.
-	if len(receiptResponses) != len(txReceiptRequests) {
-		f.Logger.Sugar().Errorw("failed to fetch all transaction receipts",
-			zap.Int("fetched", len(receiptResponses)),
-			zap.Int("expected", len(txReceiptRequests)),
-		)
-		return nil, errors.New("failed to fetch all transaction receipts")
-	}
-
-	for _, response := range receiptResponses {
-		r, err := ethereum.RPCMethod_getTransactionReceipt.ResponseParser(response.Result)
-		if err != nil {
-			f.Logger.Sugar().Errorw("failed to parse transaction receipt",
-				zap.Error(err),
-				zap.Uint("response ID", *response.ID),
-			)
-			return nil, err
-		}
-		receipts[r.TransactionHash.Value()] = r
+	receipts := make(map[string]*ethereum.EthereumTransactionReceipt)
+	for _, receipt := range receiptResponses {
+		receipts[receipt.TransactionHash.Value()] = receipt
 	}
 	return receipts, nil
 }
