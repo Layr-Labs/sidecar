@@ -131,15 +131,14 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	// Parse all transactions and logs for the block.
 	// - If a transaction is not calling to a contract, it is ignored
 	// - If a transaction has 0 interesting logs and itself is not interesting, it is ignored
-	parsedTransactions, ierr := p.Indexer.ParseInterestingTransactionsAndLogs(ctx, block)
-	if ierr != nil {
+	parsedTransactions, err := p.Indexer.ParseInterestingTransactionsAndLogs(ctx, block)
+	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to parse transactions and logs",
 			zap.Uint64("blockNumber", blockNumber),
-			zap.String("transactionHash", ierr.TransactionHash),
-			zap.Error(ierr.Err),
+			zap.Error(err),
 		)
 		hasError = true
-		return ierr
+		return err
 	}
 	p.Logger.Sugar().Debugw("Parsed transactions",
 		zap.Uint64("blockNumber", blockNumber),

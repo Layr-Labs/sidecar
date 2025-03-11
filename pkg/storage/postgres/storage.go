@@ -91,6 +91,7 @@ func (s *PostgresBlockStore) InsertTransactionLog(
 	blockNumber uint64,
 	log *parser.DecodedLog,
 	outputData map[string]interface{},
+	ignoreOnConflict bool,
 ) (*storage.TransactionLog, error) {
 	argsJson, err := json.Marshal(log.Arguments)
 	if err != nil {
@@ -112,7 +113,14 @@ func (s *PostgresBlockStore) InsertTransactionLog(
 		LogIndex:         log.LogIndex,
 		OutputData:       string(outputDataJson),
 	}
-	result := s.Db.Model(&storage.TransactionLog{}).Clauses(clause.Returning{}).Create(&txLog)
+	clauses := []clause.Expression{clause.Returning{}}
+	if ignoreOnConflict {
+		clauses = append(clauses, clause.OnConflict{
+			Columns:   []clause.Column{{Name: "transaction_hash"}, {Name: "log_index"}},
+			DoNothing: true,
+		})
+	}
+	result := s.Db.Model(&storage.TransactionLog{}).Clauses(clauses...).Create(&txLog)
 
 	if result.Error != nil {
 		return nil, fmt.Errorf("Failed to insert transaction log: %w - %+v", result.Error, txLog)

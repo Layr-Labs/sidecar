@@ -10,6 +10,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/parser"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
+	"github.com/Layr-Labs/sidecar/pkg/transactionLogParser"
 	"gorm.io/gorm"
 	"slices"
 	"strings"
@@ -36,6 +37,8 @@ type Indexer struct {
 	Config *config.Config
 	// ContractCaller executes read-only contract calls
 	ContractCaller contractCaller.IContractCaller
+	// transactionLogParser is used to parse transaction logs
+	TransactionLogParser *transactionLogParser.TransactionLogParser
 	// db is the database connection for persisting data
 	db *gorm.DB
 }
@@ -134,7 +137,7 @@ func NewIndexer(
 	l *zap.Logger,
 	cfg *config.Config,
 ) *Indexer {
-	return &Indexer{
+	i := &Indexer{
 		Logger:          l,
 		MetadataStore:   ms,
 		ContractStore:   cs,
@@ -145,12 +148,17 @@ func NewIndexer(
 		Config:          cfg,
 		db:              grm,
 	}
+
+	tlp := transactionLogParser.NewTransactionLogParser(l, cfg, cm, i)
+	i.TransactionLogParser = tlp
+
+	return i
 }
 
 // ParseInterestingTransactionsAndLogs processes a block's transactions and logs,
 // extracting only those relevant to monitored contracts.
 // Returns parsed transactions and any indexing errors encountered.
-func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fetchedBlock *fetcher.FetchedBlock) ([]*parser.ParsedTransaction, *IndexError) {
+func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fetchedBlock *fetcher.FetchedBlock) ([]*parser.ParsedTransaction, error) {
 	parsedTransactions := make([]*parser.ParsedTransaction, 0)
 	for i, tx := range fetchedBlock.Block.Transactions {
 		txReceipt, ok := fetchedBlock.TxReceipts[tx.Hash.Value()]
@@ -167,7 +175,7 @@ func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fet
 		parsedTransactionAndLogs, err := idx.ParseTransactionLogs(tx, txReceipt)
 		if err != nil {
 			idx.Logger.Sugar().Errorw("failed to process transaction logs",
-				zap.Error(err.Err),
+				zap.Error(err),
 				zap.String("txHash", tx.Hash.Value()),
 				zap.Uint64("block", tx.BlockNumber.Value()),
 			)
@@ -322,6 +330,7 @@ func (idx *Indexer) IndexLog(
 		blockNumber,
 		log,
 		log.OutputData,
+		false,
 	)
 	if err != nil {
 		idx.Logger.Sugar().Errorw("Failed to insert transaction log",

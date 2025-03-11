@@ -156,21 +156,5 @@ func main() {
 			break
 		}
 	}
-
-	logIndex := 4
-	receipt := block.TxReceipts[transaction.Hash.Value()]
-	var interestingLog *ethereum.EthereumEventLog
-
-	for _, log := range receipt.Logs {
-		if log.LogIndex.Value() == uint64(logIndex) {
-			fmt.Printf("Log: %+v\n", log)
-			interestingLog = log
-		}
-	}
-
-	decodedLog, err := idxr.DecodeLogWithAbi(nil, receipt, interestingLog)
-	if err != nil {
-		l.Sugar().Fatalw("Failed to decode log", zap.Error(err))
-	}
-	l.Sugar().Infof("Decoded log: %+v", decodedLog)
+	fmt.Printf("Transaction: %+v\n", transaction)
 }

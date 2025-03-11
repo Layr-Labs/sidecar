@@ -185,6 +185,7 @@ func Test_PostgresqlBlockstore(t *testing.T) {
 				txLog.BlockNumber,
 				decodedLog,
 				decodedLog.OutputData,
+				false,
 			)
 			assert.Nil(t, err)
 
@@ -227,6 +228,7 @@ func Test_PostgresqlBlockstore(t *testing.T) {
 				txLog.BlockNumber,
 				decodedLog,
 				decodedLog.OutputData,
+				false,
 			)
 			assert.NotNil(t, err)
 			assert.Contains(t, err.Error(), "duplicate key value violates unique constraint")
