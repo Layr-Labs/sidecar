@@ -230,6 +230,7 @@ func (c *Client) GetTransactionByHash(ctx context.Context, txHash string) (*Ethe
 	return txReceipt, nil
 }
 
+// GetTransactionReceipt retrieves the transaction receipt for a given transaction hash.
 func (c *Client) GetTransactionReceipt(ctx context.Context, txHash string) (*EthereumTransactionReceipt, error) {
 	rpcRequest := GetTransactionReceiptRequest(txHash, 1)
 
@@ -246,6 +247,24 @@ func (c *Client) GetTransactionReceipt(ctx context.Context, txHash string) (*Eth
 		return nil, err
 	}
 	return txReceipt, nil
+}
+
+// GetBlockTransactionReceipts retrieves the transaction receipts for a given block number.
+func (c *Client) GetBlockTransactionReceipts(ctx context.Context, blockNumber uint64) ([]*EthereumTransactionReceipt, error) {
+	rpcRequest := GetBlockReceiptsRequest(blockNumber, 1)
+
+	res, err := c.Call(ctx, rpcRequest)
+	if err != nil {
+		return nil, err
+	}
+	txReceipts, err := RPCMethod_getBlockReceipts.ResponseParser(res.Result)
+	if err != nil {
+		c.Logger.Sugar().Errorw("failed to parse transaction receipts",
+			zap.Error(err),
+		)
+		return nil, err
+	}
+	return txReceipts, nil
 }
 
 func (c *Client) GetStorageAt(ctx context.Context, address string, storagePosition string, block string) (string, error) {

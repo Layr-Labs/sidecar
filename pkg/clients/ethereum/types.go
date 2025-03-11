@@ -87,30 +87,21 @@ type (
 	}
 
 	EthereumTransactionReceipt struct {
-		TransactionHash   EthereumHexString    `json:"transactionHash"`
-		TransactionIndex  EthereumQuantity     `json:"transactionIndex"`
-		BlockHash         EthereumHexString    `json:"blockHash"`
-		BlockNumber       EthereumQuantity     `json:"blockNumber"`
-		From              EthereumHexString    `json:"from"`
-		To                EthereumHexString    `json:"to"`
-		CumulativeGasUsed EthereumQuantity     `json:"cumulativeGasUsed"`
-		GasUsed           EthereumQuantity     `json:"gasUsed"`
-		ContractAddress   EthereumHexString    `json:"contractAddress"`
-		Logs              []*EthereumEventLog  `json:"logs"`
-		LogsBloom         EthereumHexString    `json:"logsBloom"`
-		Root              EthereumHexString    `json:"root"`
-		Status            *EthereumQuantity    `json:"status"`
-		Type              EthereumQuantity     `json:"type"`
-		EffectiveGasPrice *EthereumQuantity    `json:"effectiveGasPrice"`
-		GasUsedForL1      *EthereumQuantity    `json:"gasUsedForL1"` // For Arbitrum network https://github.com/OffchainLabs/arbitrum/blob/6ca0d163417470b9d2f7eea930c3ad71d702c0b2/packages/arb-evm/evm/result.go#L336
-		L1GasUsed         *EthereumBigQuantity `json:"l1GasUsed"`    // For Optimism and Base networks https://github.com/ethereum-optimism/optimism/blob/3c3e1a88b234a68bcd59be0c123d9f3cc152a91e/l2geth/core/types/receipt.go#L73
-		L1GasPrice        *EthereumBigQuantity `json:"l1GasPrice"`
-		L1Fee             *EthereumBigQuantity `json:"l1Fee"`
-		L1FeeScaler       *EthereumBigFloat    `json:"l1FeeScalar"`
-
-		// Base/Optimism specific fields.
-		DepositNonce          *EthereumQuantity `json:"depositNonce"`
-		DepositReceiptVersion *EthereumQuantity `json:"depositReceiptVersion"`
+		TransactionHash   EthereumHexString   `json:"transactionHash"`
+		TransactionIndex  EthereumQuantity    `json:"transactionIndex"`
+		BlockHash         EthereumHexString   `json:"blockHash"`
+		BlockNumber       EthereumQuantity    `json:"blockNumber"`
+		From              EthereumHexString   `json:"from"`
+		To                EthereumHexString   `json:"to"`
+		CumulativeGasUsed EthereumQuantity    `json:"cumulativeGasUsed"`
+		GasUsed           EthereumQuantity    `json:"gasUsed"`
+		ContractAddress   EthereumHexString   `json:"contractAddress"`
+		Logs              []*EthereumEventLog `json:"logs"`
+		LogsBloom         EthereumHexString   `json:"logsBloom"`
+		Root              EthereumHexString   `json:"root"`
+		Status            *EthereumQuantity   `json:"status"`
+		Type              EthereumQuantity    `json:"type"`
+		EffectiveGasPrice *EthereumQuantity   `json:"effectiveGasPrice"`
 
 		// Not part of the standard receipt payload, but added for convenience
 		ContractBytecode EthereumHexString `json:"contractBytecode"`
