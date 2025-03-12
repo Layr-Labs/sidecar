@@ -12,6 +12,7 @@ Please delete options that are not relevant.
 - [ ] New feature (non-breaking change which adds functionality)
 - [ ] Chore (non-breaking change which does not add functionality)
 - [ ] Docs (documentation updates)
+- [ ] Performance improvement
 
 ## How Has This Been Tested?
 

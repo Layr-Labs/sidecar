@@ -52,7 +52,7 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 		return nil, err
 	}
 
-	receipts, err := f.FetchReceiptsForBlock(ctx, block)
+	receipts, err := f.GetReceiptsForBlock(ctx, block)
 	if err != nil {
 		f.Logger.Sugar().Errorw("failed to fetch receipts for block", zap.Error(err))
 		return nil, err
@@ -114,6 +114,73 @@ func (f *Fetcher) FetchReceiptsForBlock(ctx context.Context, block *ethereum.Eth
 		receipts[r.TransactionHash.Value()] = r
 	}
 	return receipts, nil
+}
+
+func findMissingReceipts(block *ethereum.EthereumBlock, receipts []*ethereum.EthereumTransactionReceipt) []string {
+	missingReceipts := make([]string, 0)
+	memoizedExpectedReceipts := make(map[string]bool)
+	memoizedReceivedReceipts := make(map[string]bool)
+
+	for _, receipt := range receipts {
+		memoizedReceivedReceipts[receipt.TransactionHash.Value()] = true
+	}
+
+	for _, tx := range block.Transactions {
+		memoizedExpectedReceipts[tx.Hash.Value()] = true
+	}
+
+	// find receipts that were received but not expected
+	for _, receipt := range receipts {
+		if _, ok := memoizedExpectedReceipts[receipt.TransactionHash.Value()]; !ok {
+			missingReceipts = append(missingReceipts, receipt.TransactionHash.Value())
+		}
+	}
+
+	// find receipts that were expected but not received
+	for _, tx := range block.Transactions {
+		if _, ok := memoizedReceivedReceipts[tx.Hash.Value()]; !ok {
+			missingReceipts = append(missingReceipts, tx.Hash.Value())
+		}
+	}
+	return missingReceipts
+}
+
+// FetchBlockReceipts retrieves transaction receipts for all transactions in a block using the eth_getBlockReceipts RPC method
+// rather than iterating over a list of transactions and fetching each receipt individually.
+func (f *Fetcher) FetchBlockReceipts(ctx context.Context, block *ethereum.EthereumBlock) (map[string]*ethereum.EthereumTransactionReceipt, error) {
+	receipts, err := f.EthClient.GetBlockTransactionReceipts(ctx, block.Number.Value())
+	if err != nil {
+		f.Logger.Sugar().Errorw("failed to get block receipts", zap.Error(err))
+		return nil, err
+	}
+
+	if len(receipts) != len(block.Transactions) {
+		f.Logger.Sugar().Errorw("failed to fetch all transaction receipts",
+			zap.Int("fetched", len(receipts)),
+			zap.Int("expected", len(block.Transactions)),
+		)
+
+		missing := findMissingReceipts(block, receipts)
+		f.Logger.Sugar().Errorw("missing receipts",
+			zap.Int("count", len(missing)),
+			zap.Strings("missing", missing),
+		)
+
+		return nil, errors.New("failed to fetch all transaction receipts")
+	}
+
+	receiptsMap := make(map[string]*ethereum.EthereumTransactionReceipt)
+	for _, r := range receipts {
+		receiptsMap[r.TransactionHash.Value()] = r
+	}
+	return receiptsMap, nil
+}
+
+func (f *Fetcher) GetReceiptsForBlock(ctx context.Context, block *ethereum.EthereumBlock) (map[string]*ethereum.EthereumTransactionReceipt, error) {
+	if f.Config.EthereumRpcConfig.UseGetBlockReceipts {
+		return f.FetchBlockReceipts(ctx, block)
+	}
+	return f.FetchReceiptsForBlock(ctx, block)
 }
 
 // IsInterestingAddress checks if a contract address is in the list of interesting addresses
@@ -217,7 +284,7 @@ func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, e
 		wg.Add(1)
 		go func(b *ethereum.EthereumBlock) {
 			defer wg.Done()
-			receipts, err := f.FetchReceiptsForBlock(ctx, b)
+			receipts, err := f.GetReceiptsForBlock(ctx, b)
 			if err != nil {
 				f.Logger.Sugar().Errorw("failed to fetch receipts for block",
 					zap.Uint64("blockNumber", b.Number.Value()),
