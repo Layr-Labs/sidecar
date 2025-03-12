@@ -462,18 +462,18 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date: "2025-01-21",
 			},
 			RewardsFork_Mississippi: Fork{
-				Date: "2025-03-27",
+				Date: "2025-04-10",
 				// mississippi fork on mainnet doesnt have a fork date since we didnt need to backfill
 				// any data for it like we did for preprod and holesky
 				BlockNumber: 0,
 			},
 			RewardsFork_Brazos: Fork{
-				Date: "2025-03-27",
+				Date: "2025-04-10",
 				// brazos fork on mainnet doesnt have a fork date since we didnt need to backfill slashing events
 				BlockNumber: 0,
 			},
 			RewardsFork_Colorado: Fork{
-				Date:        "2025-03-27",
+				Date:        "2025-04-10",
 				BlockNumber: 0, // TODO(seanmcgary): set this before slashing mainnet launch
 			},
 		}, nil
