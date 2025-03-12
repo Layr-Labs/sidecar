@@ -7,10 +7,9 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/metaState"
 	"log"
 	"net/http"
+	"os"
 	"testing"
 	"time"
-
-	"os"
 
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
