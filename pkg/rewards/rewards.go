@@ -4,10 +4,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/rewardsTypes"
-	"time"
 
 	"sync/atomic"
 
@@ -786,7 +787,7 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
-	if err := rc.GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate, forks); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate avs od operator set rewards", "error", err)
 		return err
 	}
