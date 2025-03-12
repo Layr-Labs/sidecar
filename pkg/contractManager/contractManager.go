@@ -200,19 +200,13 @@ func (cm *ContractManager) LoadContract(
 	blockNumber uint64,
 	contractAddress string,
 	contractAbi string,
+	contractBytecodeHash string,
 	implementationForAddress string,
 	implementationAbi string,
+	implementationBytecodeHash string,
 ) error {
 	// create a contract for contractAddress
-	contractBytecodeHash, err := cm.AbiFetcher.FetchContractBytecodeHash(ctx, contractAddress)
-	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to fetch contract details",
-			zap.Error(err),
-			zap.String("address", contractAddress),
-		)
-		return err
-	}
-	_, err = cm.ContractStore.CreateContract(
+	_, err := cm.ContractStore.CreateContract(
 		contractAddress,
 		contractAbi,
 		true,
@@ -230,14 +224,6 @@ func (cm *ContractManager) LoadContract(
 	}
 
 	// create a contract for implementationForAddress
-	implementationBytecodeHash, err := cm.AbiFetcher.FetchContractBytecodeHash(ctx, implementationForAddress)
-	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to fetch contract details",
-			zap.Error(err),
-			zap.String("address", contractAddress),
-		)
-		return err
-	}
 	_, err = cm.ContractStore.CreateContract(
 		implementationForAddress,
 		implementationAbi,

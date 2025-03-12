@@ -114,8 +114,24 @@ var loadContractCmd = &cobra.Command{
 			blockNumber := cfg.LoadContractConfig.BlockNumber
 			contractAddress := cfg.LoadContractConfig.Address
 			contractAbi := cfg.LoadContractConfig.Abi
+			bytecodeHash := cfg.LoadContractConfig.BytecodeHash
 			implementationForAddress := cfg.LoadContractConfig.ImplementationForAddress
 			implementationAbi := cfg.LoadContractConfig.ImplementationAbi
+			implementationBytecodeHash := cfg.LoadContractConfig.ImplementationBytecodeHash
+
+			// Fetch bytecode hash if not provided
+			if bytecodeHash == "" {
+				bytecodeHash, err = af.FetchContractBytecodeHash(ctx, contractAddress)
+				if err != nil {
+					return fmt.Errorf("failed to fetch contract bytecode hash: %w", err)
+				}
+			}
+			if implementationBytecodeHash == "" {
+				implementationBytecodeHash, err = af.FetchContractBytecodeHash(ctx, implementationForAddress)
+				if err != nil {
+					return fmt.Errorf("failed to fetch implementation bytecode hash: %w", err)
+				}
+			}
 
 			// Validate required parameters
 			if contractAddress == "" {
@@ -132,7 +148,7 @@ var loadContractCmd = &cobra.Command{
 				return fmt.Errorf("block number is required when not using a file or stdin")
 			}
 
-			err = cm.LoadContract(ctx, blockNumber, contractAddress, contractAbi, implementationForAddress, implementationAbi)
+			err = cm.LoadContract(ctx, blockNumber, contractAddress, contractAbi, bytecodeHash, implementationForAddress, implementationAbi, implementationBytecodeHash)
 			if err != nil {
 				return fmt.Errorf("failed to load contract: %w", err)
 			}

@@ -118,13 +118,15 @@ type SidecarPrimaryConfig struct {
 }
 
 type LoadContractConfig struct {
-	Address                  string
-	Abi                      string
-	ImplementationForAddress string
-	ImplementationAbi        string
-	BlockNumber              uint64
-	Batch                    bool
-	FromFile                 string
+	Address                    string
+	Abi                        string
+	BytecodeHash               string
+	ImplementationForAddress   string
+	ImplementationAbi          string
+	ImplementationBytecodeHash string
+	BlockNumber                uint64
+	Batch                      bool
+	FromFile                   string
 }
 
 type IpfsConfig struct {
@@ -212,13 +214,15 @@ var (
 
 	SidecarPrimaryUrl = "sidecar-primary.url"
 
-	LoadContractAddress                  = "contract.address"
-	LoadContractAbi                      = "contract.abi"
-	LoadContractImplementationForAddress = "contract.implementation-for-address"
-	LoadContractImplementationAbi        = "contract.implementation-abi"
-	LoadContractBlockNumber              = "contract.block-number"
-	LoadContractBatch                    = "contract.batch"
-	LoadContractFromFile                 = "contract.from-file"
+	LoadContractAddress                    = "contract.address"
+	LoadContractAbi                        = "contract.abi"
+	LoadContractBytecodeHash               = "contract.bytecode-hash"
+	LoadContractImplementationForAddress   = "contract.implementation-for-address"
+	LoadContractImplementationAbi          = "contract.implementation-abi"
+	LoadContractImplementationBytecodeHash = "contract.implementation-bytecode-hash"
+	LoadContractBlockNumber                = "contract.block-number"
+	LoadContractBatch                      = "contract.batch"
+	LoadContractFromFile                   = "contract.from-file"
 
 	IpfsUrl = "ipfs.url"
 
@@ -294,13 +298,15 @@ func NewConfig() *Config {
 		},
 
 		LoadContractConfig: LoadContractConfig{
-			Address:                  viper.GetString(normalizeFlagName(LoadContractAddress)),
-			Abi:                      viper.GetString(normalizeFlagName(LoadContractAbi)),
-			ImplementationForAddress: viper.GetString(normalizeFlagName(LoadContractImplementationForAddress)),
-			ImplementationAbi:        viper.GetString(normalizeFlagName(LoadContractImplementationAbi)),
-			BlockNumber:              viper.GetUint64(normalizeFlagName(LoadContractBlockNumber)),
-			Batch:                    viper.GetBool(normalizeFlagName(LoadContractBatch)),
-			FromFile:                 viper.GetString(normalizeFlagName(LoadContractFromFile)),
+			Address:                    viper.GetString(normalizeFlagName(LoadContractAddress)),
+			Abi:                        viper.GetString(normalizeFlagName(LoadContractAbi)),
+			BytecodeHash:               viper.GetString(normalizeFlagName(LoadContractBytecodeHash)),
+			ImplementationForAddress:   viper.GetString(normalizeFlagName(LoadContractImplementationForAddress)),
+			ImplementationAbi:          viper.GetString(normalizeFlagName(LoadContractImplementationAbi)),
+			ImplementationBytecodeHash: viper.GetString(normalizeFlagName(LoadContractImplementationBytecodeHash)),
+			BlockNumber:                viper.GetUint64(normalizeFlagName(LoadContractBlockNumber)),
+			Batch:                      viper.GetBool(normalizeFlagName(LoadContractBatch)),
+			FromFile:                   viper.GetString(normalizeFlagName(LoadContractFromFile)),
 		},
 
 		IpfsConfig: IpfsConfig{
