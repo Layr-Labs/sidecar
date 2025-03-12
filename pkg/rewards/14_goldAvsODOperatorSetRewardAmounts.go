@@ -76,6 +76,11 @@ registered_operators AS (
         ap.multiplier,
         ap.reward_submission_date
     FROM {{.activeODRewardsTable}} ap
+    JOIN operator_set_operator_registration_snapshots osor
+        ON ap.avs = osor.avs 
+        AND ap.operator_set_id = osor.operator_set_id
+        AND ap.snapshot = osor.snapshot 
+        AND ap.operator = osor.operator
     WHERE ap.num_registered_snapshots != 0
       AND ap.reward_submission_date >= @coloradoHardforkDate
 ),
