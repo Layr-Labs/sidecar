@@ -112,43 +112,40 @@ var loadContractCmd = &cobra.Command{
 		} else {
 			// If no file or stdin is provided, use the individual contract parameters
 			blockNumber := cfg.LoadContractConfig.BlockNumber
-			contractAddress := cfg.LoadContractConfig.Address
-			contractAbi := cfg.LoadContractConfig.Abi
+			address := cfg.LoadContractConfig.Address
+			abi := cfg.LoadContractConfig.Abi
 			bytecodeHash := cfg.LoadContractConfig.BytecodeHash
-			implementationForAddress := cfg.LoadContractConfig.ImplementationForAddress
-			implementationAbi := cfg.LoadContractConfig.ImplementationAbi
-			implementationBytecodeHash := cfg.LoadContractConfig.ImplementationBytecodeHash
+			associateToProxy := cfg.LoadContractConfig.AssociateToProxy
 
+			// Validate required parameters
+			if address == "" {
+				return fmt.Errorf("contract address is required in --contract.address")
+			} else if abi == "" {
+				return fmt.Errorf("contract ABI is required with the contract address in --contract.abi")
+			}
 			// Fetch bytecode hash if not provided
 			if bytecodeHash == "" {
-				bytecodeHash, err = af.FetchContractBytecodeHash(ctx, contractAddress)
+				bytecodeHash, err = af.FetchContractBytecodeHash(ctx, address)
 				if err != nil {
 					return fmt.Errorf("failed to fetch contract bytecode hash: %w", err)
 				}
 			}
-			if implementationBytecodeHash == "" {
-				implementationBytecodeHash, err = af.FetchContractBytecodeHash(ctx, implementationForAddress)
+			// Associate to proxy if specified
+			if associateToProxy != "" {
+				_, err := contractStore.GetContractForAddress(associateToProxy)
 				if err != nil {
-					return fmt.Errorf("failed to fetch implementation bytecode hash: %w", err)
+					return fmt.Errorf("proxy contract %s not found: %w", associateToProxy, err)
+				}
+				if blockNumber == 0 {
+					return fmt.Errorf("block number is required to load a proxy contract")
+				}
+				err = cm.LoadProxyContract(ctx, blockNumber, associateToProxy, address)
+				if err != nil {
+					return fmt.Errorf("failed to load to proxy contract: %w", err)
 				}
 			}
-
-			// Validate required parameters
-			if contractAddress == "" {
-				return fmt.Errorf("contract address is required when not using a file or stdin")
-			}
-			if contractAbi == "" {
-				return fmt.Errorf("contract ABI is required when not using a file or stdin")
-			}
-			if (implementationForAddress != "" && implementationAbi == "") ||
-				(implementationForAddress == "" && implementationAbi != "") {
-				return fmt.Errorf("when implementation address is provided, implementation ABI is required and vice versa")
-			}
-			if blockNumber == 0 {
-				return fmt.Errorf("block number is required when not using a file or stdin")
-			}
-
-			err = cm.LoadContract(ctx, blockNumber, contractAddress, contractAbi, bytecodeHash, implementationForAddress, implementationAbi, implementationBytecodeHash)
+			// Load the contract
+			err = cm.LoadContract(ctx, address, abi, bytecodeHash)
 			if err != nil {
 				return fmt.Errorf("failed to load contract: %w", err)
 			}

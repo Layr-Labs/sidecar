@@ -197,58 +197,45 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 
 func (cm *ContractManager) LoadContract(
 	ctx context.Context,
-	blockNumber uint64,
-	contractAddress string,
-	contractAbi string,
-	contractBytecodeHash string,
-	implementationForAddress string,
-	implementationAbi string,
-	implementationBytecodeHash string,
+	address string,
+	abi string,
+	bytecodeHash string,
 ) error {
 	// create a contract for contractAddress
 	_, err := cm.ContractStore.CreateContract(
-		contractAddress,
-		contractAbi,
+		address,
+		abi,
 		true,
-		contractBytecodeHash,
+		bytecodeHash,
 		"",
 		true,
-		"external",
+		contractStore.ContractType_External,
 	)
 	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to create a contract for contractAddress",
 			zap.Error(err),
-			zap.String("address", contractAddress),
+			zap.String("address", address),
 		)
 		return err
 	}
 
-	// create a contract for implementationForAddress
-	_, err = cm.ContractStore.CreateContract(
-		implementationForAddress,
-		implementationAbi,
-		true,
-		implementationBytecodeHash,
-		"",
-		true,
-		"external",
-	)
-	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to create a contract with implementationForAddress",
-			zap.Error(err),
-			zap.String("address", implementationForAddress),
-		)
-		return err
-	}
+	return nil
+}
 
+func (cm *ContractManager) LoadProxyContract(
+	ctx context.Context,
+	blockNumber uint64,
+	contractAddress string,
+	proxyContractAddress string,
+) error {
 	// create a proxy contract
-	_, err = cm.ContractStore.CreateProxyContract(blockNumber, contractAddress, implementationForAddress)
+	_, err := cm.ContractStore.CreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
 	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to create proxy contract",
 			zap.Error(err),
 			zap.Uint64("blockNumber", blockNumber),
 			zap.String("contractAddress", contractAddress),
-			zap.String("implementationForAddress", implementationForAddress),
+			zap.String("proxyContractAddress", proxyContractAddress),
 		)
 		return err
 	}

@@ -86,8 +86,8 @@ func init() {
 
 	loadContractCmd.PersistentFlags().String(config.LoadContractAddress, "", "Contract address to load")
 	loadContractCmd.PersistentFlags().String(config.LoadContractAbi, "", "ABI for the contract")
-	loadContractCmd.PersistentFlags().String(config.LoadContractImplementationForAddress, "", "Implementation contract address for the contract")
-	loadContractCmd.PersistentFlags().String(config.LoadContractImplementationAbi, "", "ABI for the implementation")
+	loadContractCmd.PersistentFlags().String(config.LoadContractBytecodeHash, "", "Bytecode hash for the contract")
+	loadContractCmd.PersistentFlags().String(config.LoadContractAssociateToProxy, "", "Contract address to associate to the proxy")
 	loadContractCmd.PersistentFlags().Uint64(config.LoadContractBlockNumber, uint64(0), "Block number for proxy contract deployment")
 	loadContractCmd.PersistentFlags().Bool(config.LoadContractBatch, false, "Batch load contracts from a JSON file")
 	loadContractCmd.PersistentFlags().String(config.LoadContractFromFile, "", "Path to a JSON file containing contract addresses to load")
