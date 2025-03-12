@@ -110,7 +110,6 @@ func (pds *ProtocolDataService) ListDelegatedStrategiesForOperator(ctx context.C
 			from operator_stakers as os
 			left join staker_share_deltas as ssd
 					on ssd.staker = os.staker
-					and ssd.block_number <= os.block_number
 			where
 				os.delegated = true
 		),
