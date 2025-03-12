@@ -159,39 +159,45 @@ func (pds *ProtocolDataService) getTotalDelegatedOperatorSharesForStrategy(ctx c
 			select
 				distinct staker,
 				operator,
-				block_number,
 				log_index
 			from operator_stakers as os
 			where
 				os.rn = 1
 				and os.delegated = true
 		),
-		stakers_with_shares as (
+		summed_staker_shares as (
 			select
-				dds.staker,
-				dds.operator,
-				dds.block_number,
-				ss.strategy,
-				dds.log_index,
-				ss.shares
+				ssd.staker,
+				ssd.strategy,
+				sum(shares) as shares
+			from staker_share_deltas as ssd
+			where
+				ssd.staker in (select staker from distinct_delegated_stakers)
+				and ssd.block_number <= @blockHeight
+		   group by 1, 2
+		),
+		delegated_staker_shares as (
+			select
+				dds.*,
+				ss.shares,
+				ss.strategy
 			from distinct_delegated_stakers as dds
-			join lateral (
-				select
-					ssd.strategy,
-					sum(ssd.shares) as shares
-				-- TODO: this should reference the staker_shares table once it is persistent and not deleted and recreated on each rewards run
-				from staker_share_deltas as ssd
-				where
-					ssd.staker = dds.staker
-					and ssd.block_number <= dds.block_number
-				group by 1
-			) as ss on(ss.strategy = @strategy)
+			join summed_staker_shares as ss on (
+				ss.staker = dds.staker
+			)
+		),
+		final_results as (
+			select
+				operator,
+				sum(shares) as shares
+			from delegated_staker_shares as dss
+			where dss.strategy = @strategy
+			group by 1
 		)
 		select
-			sws.operator,
-			sum(sws.shares) as shares
-		from stakers_with_shares as sws
-		group by 1
+			*
+		from final_results
+		where shares > 0;
 	`
 
 	var results struct {
