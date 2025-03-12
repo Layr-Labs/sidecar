@@ -54,6 +54,7 @@ import (
 	_202501061422_defaultOperatorSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061422_defaultOperatorSplits"
 	_202501071401_defaultOperatorSplitSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501071401_defaultOperatorSplitSnapshots"
 	_202501151039_rewardsClaimed "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501151039_rewardsClaimed"
+	_202502180836_snapshotUniqueConstraints "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502180836_snapshotUniqueConstraints"
 	_202503051449_addContractTypeColumn "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503051449_addContractTypeColumn"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -176,7 +177,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202502100846_goldTableRewardHashIndex.Migration{},
 		&_202502211539_hydrateClaimedRewards.Migration{},
 		&_202503042014_stakerOperatorIndex.Migration{},
-		// &_202502180836_snapshotUniqueConstraints.Migration{},
+		&_202502180836_snapshotUniqueConstraints.Migration{},
 		&_202503051449_addContractTypeColumn.Migration{},
 	}
 

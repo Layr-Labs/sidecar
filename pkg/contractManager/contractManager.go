@@ -172,7 +172,6 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 	}
 
 	// Create contract
-	// TODO: check the contract type
 	_, err = cm.ContractStore.CreateContract(
 		proxyContractAddress,
 		abi,
@@ -183,7 +182,7 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 		contractStore.ContractType_External,
 	)
 	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to create new contract with fetched ABI",
+		cm.Logger.Sugar().Errorw("Failed to create upgraded proxy contract",
 			zap.Error(err),
 			zap.String("address", proxyContractAddress),
 		)
