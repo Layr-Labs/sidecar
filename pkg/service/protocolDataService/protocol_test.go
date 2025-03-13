@@ -85,6 +85,9 @@ func Test_ProtocolDataService(t *testing.T) {
 		stake, err := pds.GetOperatorDelegatedStake(context.Background(), operator, strategy, blockNumber)
 		assert.Nil(t, err)
 		assert.NotNil(t, stake)
+		assert.Equal(t, stake.Shares, "999960761744418521836")
+		assert.Equal(t, stake.AvsAddresses[0], "0xd9b1da8159cf83ccc55ad5757bea33e6f0ce34be")
+
 	})
 
 	t.Run("Test ListDelegatedStakersForOperator", func(t *testing.T) {
