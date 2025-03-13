@@ -700,3 +700,92 @@ func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Co
 	}
 	return rewards, nil
 }
+
+type HistoricalReward struct {
+	Token    string
+	Amount   string
+	Snapshot string
+}
+
+func (rds *RewardsDataService) ListHistoricalRewardsForEarner(
+	ctx context.Context,
+	earnerAddress string,
+	startBlockHeight uint64,
+	endBlockHeight uint64,
+	tokens []string,
+) ([]*HistoricalReward, error) {
+	if earnerAddress == "" {
+		return nil, fmt.Errorf("earner is required")
+	}
+	if endBlockHeight != 0 && startBlockHeight > endBlockHeight {
+		return nil, fmt.Errorf("startBlockHeight must be less than or equal to endBlockHeight")
+	}
+
+	var startBlock *storage.Block
+	var endBlock *storage.Block
+	var err error
+
+	if startBlockHeight > 0 {
+		startBlock, err = rds.BaseDataService.GetBlock(ctx, startBlockHeight)
+		if err != nil {
+			return nil, err
+		}
+		if startBlock == nil {
+			return nil, fmt.Errorf("no block found for startBlock '%d'", startBlockHeight)
+		}
+	}
+
+	// if endBlockHeight is 0, we will use the latest confirmed block
+	if endBlockHeight == 0 {
+		endBlock, err = rds.BaseDataService.GetLatestConfirmedBlock(ctx)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		endBlock, err = rds.BaseDataService.GetBlock(ctx, endBlockHeight)
+		if err != nil {
+			return nil, err
+		}
+		if endBlock == nil {
+			return nil, fmt.Errorf("no block found for endBlock '%d'", endBlockHeight)
+		}
+	}
+
+	args := []interface{}{
+		sql.Named("earner", earnerAddress),
+	}
+	query := `
+		select
+		    snapshot,
+			token,
+			sum(amount) as amount
+		from gold_table as gt
+		where
+			earner = @earner
+	`
+	if startBlock != nil {
+		query += " and gt.snapshot >= @startBlockDate"
+		startBlockDate := startBlock.BlockTime.Format(time.DateOnly)
+		args = append(args, sql.Named("startBlockDate", startBlockDate))
+	}
+	if endBlock != nil {
+		query += " and gt.snapshot <= @endBlockDate"
+		endBlockDate := endBlock.BlockTime.Format(time.DateOnly)
+		args = append(args, sql.Named("endBlockDate", endBlockDate))
+	}
+
+	if len(tokens) > 0 {
+		query += " and gt.token in (?)"
+		tokens = lowercaseTokenList(tokens)
+		args = append(args, sql.Named("tokens", tokens))
+	}
+
+	query += "group by 1, 2 order by 1 desc, 2 asc"
+
+	var historicalRewards []*HistoricalReward
+	res := rds.db.Raw(query, args...).Scan(&historicalRewards)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	return historicalRewards, nil
+}
