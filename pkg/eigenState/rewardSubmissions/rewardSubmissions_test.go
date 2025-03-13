@@ -75,7 +75,7 @@ func Test_RewardSubmissions(t *testing.T) {
 	}
 
 	t.Run("Test each event type", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		model, err := NewRewardSubmissionsModel(esm, grm, l, cfg)
 
@@ -138,7 +138,7 @@ func Test_RewardSubmissions(t *testing.T) {
 				assert.Equal(t, strategiesAndMultipliers[i].Multiplier, submission.Multiplier)
 			}
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			rewards := make([]*RewardSubmission, 0)
@@ -213,7 +213,7 @@ func Test_RewardSubmissions(t *testing.T) {
 				assert.Equal(t, strategiesAndMultipliers[i].Multiplier, submission.Multiplier)
 			}
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			rewards := make([]*RewardSubmission, 0)
@@ -285,7 +285,7 @@ func Test_RewardSubmissions(t *testing.T) {
 				assert.Equal(t, strategiesAndMultipliers[i].Multiplier, submission.Multiplier)
 			}
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			rewards := make([]*RewardSubmission, 0)
@@ -394,7 +394,7 @@ func Test_RewardSubmissions(t *testing.T) {
 				assert.Equal(t, strategiesAndMultipliers[i].Multiplier, submission.Multiplier)
 			}
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			rewards := make([]*RewardSubmission, 0)
@@ -466,7 +466,7 @@ func Test_RewardSubmissions(t *testing.T) {
 				assert.Equal(t, strategiesAndMultipliers[i].Multiplier, submission.Multiplier)
 			}
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			rewards := make([]*RewardSubmission, 0)
@@ -493,7 +493,7 @@ func Test_RewardSubmissions(t *testing.T) {
 	})
 
 	t.Run("multi-block test", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		model, err := NewRewardSubmissionsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
@@ -527,7 +527,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		assert.NotNil(t, change)
 		typedChange := change.([]*RewardSubmission)
 
-		err = model.CommitFinalState(blockNumber)
+		err = model.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		query := `select count(*) from reward_submissions where block_number = ?`
@@ -573,7 +573,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		assert.NotNil(t, change)
 		typedChange = change.([]*RewardSubmission)
 
-		err = model.CommitFinalState(blockNumber)
+		err = model.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		stateRoot, err = model.GenerateStateRoot(blockNumber)
@@ -617,7 +617,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		assert.NotNil(t, change)
 		typedChange = change.([]*RewardSubmission)
 
-		err = model.CommitFinalState(blockNumber)
+		err = model.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		stateRoot, err = model.GenerateStateRoot(blockNumber)
@@ -661,7 +661,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		assert.NotNil(t, change)
 		typedChange = change.([]*RewardSubmission)
 
-		err = model.CommitFinalState(blockNumber)
+		err = model.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		stateRoot, err = model.GenerateStateRoot(blockNumber)
@@ -681,7 +681,7 @@ func Test_RewardSubmissions(t *testing.T) {
 	})
 
 	t.Run("single block, multiple events", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		model, err := NewRewardSubmissionsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
@@ -766,7 +766,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		assert.Equal(t, 0, count)
 
 		// Commit the final state
-		err = model.CommitFinalState(blockNumber)
+		err = model.CommitFinalState(blockNumber, false)
 		assert.Nil(t, err)
 
 		// Generate the stateroot

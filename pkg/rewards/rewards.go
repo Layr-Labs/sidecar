@@ -4,15 +4,18 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/rewardsTypes"
-	"time"
 
 	"sync/atomic"
 
 	"slices"
 	"strings"
+
+	"strconv"
 
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -25,7 +28,6 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strconv"
 )
 
 type RewardsCalculator struct {
@@ -236,7 +238,7 @@ func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (
 }
 
 func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) (string, error) {
-	goldStagingTableName := rewardsUtils.GetGoldTableNames(cutoffDate)[rewardsUtils.Table_11_GoldStaging]
+	goldStagingTableName := rewardsUtils.GetGoldTableNames(cutoffDate)[rewardsUtils.Table_15_GoldStaging]
 
 	var maxSnapshotStr string
 	query := fmt.Sprintf(`select to_char(max(snapshot), 'YYYY-MM-DD') as snapshot from %s`, goldStagingTableName)
@@ -644,6 +646,33 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	}
 	rc.logger.Sugar().Debugw("Generated default operator split snapshots")
 
+	// ------------------------------------------------------------------------
+	// Rewards V2.1 snapshots
+	// ------------------------------------------------------------------------
+	if err = rc.GenerateAndInsertOperatorDirectedOperatorSetRewards(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator directed operator set rewards", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated operator directed operator set rewards")
+
+	if err = rc.GenerateAndInsertOperatorSetSplitSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator set split snapshots", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated operator set split snapshots")
+
+	if err = rc.GenerateAndInsertOperatorSetOperatorRegistrationSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator set operator registration snapshots", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated operator set operator registration snapshots")
+
+	if err = rc.GenerateAndInsertOperatorSetStrategyRegistrationSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator set strategy registration snapshots", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated operator set strategy registration snapshots")
+
 	return nil
 }
 
@@ -702,12 +731,32 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
-	if err := rc.GenerateGold11StagingTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold11ActiveODOperatorSetRewards(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate active od operator set rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold12OperatorODOperatorSetRewardAmountsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator od operator set rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold13StakerODOperatorSetRewardAmountsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate staker od operator set rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate, forks); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate avs od operator set rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold15StagingTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate gold staging", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold12FinalTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold16FinalTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate final table", "error", err)
 		return err
 	}
@@ -813,4 +862,18 @@ func (rc *RewardsCalculator) ListDistributionRoots(blockHeight uint64) ([]*Distr
 		return nil, res.Error
 	}
 	return submittedDistributionRoots, nil
+}
+
+func (rc *RewardsCalculator) generateAndInsertFromQuery(
+	tableName string,
+	query string,
+	variables []interface{},
+) error {
+	return rewardsUtils.GenerateAndInsertFromQuery(
+		rc.grm,
+		tableName,
+		query,
+		variables,
+		rc.logger,
+	)
 }
