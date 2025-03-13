@@ -78,12 +78,9 @@ func (s *PostgresContractStore) GetProxyContractForAddress(blockNumber uint64, a
 
 // GetAllProxyAddressesInString returns all proxy addresses in the database as a slice of strings.
 func (s *PostgresContractStore) GetAllProxyAddressesInString() ([]string, error) {
-	var addressPointers []*string
+	var addresses []string
 
-	result := s.Db.Model(&contractStore.ProxyContract{}).
-		Distinct().
-		Pluck("contract_address", &addressPointers)
-
+	result := s.Db.Raw(`select distinct(contract_address) from proxy_contracts`).Scan(&addresses)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			s.Logger.Sugar().Debugf("No proxy contracts found in store")
@@ -91,15 +88,6 @@ func (s *PostgresContractStore) GetAllProxyAddressesInString() ([]string, error)
 		}
 		return nil, result.Error
 	}
-
-	// Dereference the pointers
-	addresses := make([]string, 0, len(addressPointers))
-	for _, addrPtr := range addressPointers {
-		if addrPtr != nil {
-			addresses = append(addresses, *addrPtr)
-		}
-	}
-
 	return addresses, nil
 }
 

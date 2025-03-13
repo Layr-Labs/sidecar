@@ -8,13 +8,12 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
-	"github.com/Layr-Labs/sidecar/pkg/contractManager"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -34,16 +33,6 @@ var loadContractCmd = &cobra.Command{
 		l, err := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 		if err != nil {
 			return fmt.Errorf("failed to initialize logger: %w", err)
-		}
-
-		metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
-		if err != nil {
-			return fmt.Errorf("failed to setup metrics sink: %w", err)
-		}
-
-		sink, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
-		if err != nil {
-			return fmt.Errorf("failed to setup metrics sink: %w", err)
 		}
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
@@ -67,9 +56,7 @@ var loadContractCmd = &cobra.Command{
 			return fmt.Errorf("failed to migrate: %w", err)
 		}
 
-		contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-
-		cm := contractManager.NewContractManager(contractStore, client, af, sink, l)
+		cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
 
 		var filename string
 		var useFile bool
@@ -92,21 +79,23 @@ var loadContractCmd = &cobra.Command{
 		}
 
 		// Process based on input source
-		if cfg.LoadContractConfig.Batch && useFile {
-			// Load contracts from file
-			err := contractStore.InitializeExternalContracts(filename)
-			if err != nil {
-				return fmt.Errorf("failed to initialize external contracts from file: %w", err)
+		if cfg.LoadContractConfig.Batch {
+			if useFile {
+				// Load contracts from file
+				err := cs.InitializeExternalContracts(filename)
+				if err != nil {
+					return fmt.Errorf("failed to initialize external contracts from file: %w", err)
+				}
+				return nil
 			}
-			return nil
-		} else if cfg.LoadContractConfig.Batch && useStdin {
-			// Read directly from stdin
-			err := contractStore.InitializeExternalContractsFromReader(os.Stdin)
-			if err != nil {
-				return fmt.Errorf("failed to initialize external contracts from stdin: %w", err)
+			if useStdin {
+				// Read directly from stdin
+				err := cs.InitializeExternalContractsFromReader(os.Stdin)
+				if err != nil {
+					return fmt.Errorf("failed to initialize external contracts from stdin: %w", err)
+				}
+				return nil
 			}
-			return nil
-		} else if cfg.LoadContractConfig.Batch {
 			// If batch mode is enabled but no input source is provided
 			return fmt.Errorf("batch mode requires a file path or stdin input")
 		} else {
@@ -120,7 +109,8 @@ var loadContractCmd = &cobra.Command{
 			// Validate required parameters
 			if address == "" {
 				return fmt.Errorf("contract address is required in --contract.address")
-			} else if abi == "" {
+			}
+			if abi == "" {
 				return fmt.Errorf("contract ABI is required with the contract address in --contract.abi")
 			}
 			// Fetch bytecode hash if not provided
@@ -132,20 +122,28 @@ var loadContractCmd = &cobra.Command{
 			}
 			// Associate to proxy if specified
 			if associateToProxy != "" {
-				_, err := contractStore.GetContractForAddress(associateToProxy)
+				_, err := cs.GetContractForAddress(associateToProxy)
 				if err != nil {
 					return fmt.Errorf("proxy contract %s not found: %w", associateToProxy, err)
 				}
 				if blockNumber == 0 {
 					return fmt.Errorf("block number is required to load a proxy contract")
 				}
-				err = cm.LoadProxyContract(ctx, blockNumber, associateToProxy, address)
+				_, err = cs.CreateProxyContract(blockNumber, associateToProxy, address)
 				if err != nil {
 					return fmt.Errorf("failed to load to proxy contract: %w", err)
 				}
 			}
 			// Load the contract
-			err = cm.LoadContract(ctx, address, abi, bytecodeHash)
+			_, err = cs.CreateContract(
+				address,
+				abi,
+				true,
+				bytecodeHash,
+				"",
+				true,
+				contractStore.ContractType_External,
+			)
 			if err != nil {
 				return fmt.Errorf("failed to load contract: %w", err)
 			}
