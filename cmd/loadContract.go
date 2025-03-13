@@ -11,6 +11,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
+	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -18,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"gorm.io/gorm"
 )
 
 var loadContractCmd = &cobra.Command{
@@ -120,33 +122,51 @@ var loadContractCmd = &cobra.Command{
 					return fmt.Errorf("failed to fetch contract bytecode hash: %w", err)
 				}
 			}
-			// Associate to proxy if specified
-			if associateToProxy != "" {
-				_, err := cs.GetContractForAddress(associateToProxy)
+
+			// Wrap contract creation and proxy association in a transaction
+			_, err = helpers.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
+				// Create a temporary contract store with the transaction
+				txContractStore := postgresContractStore.NewPostgresContractStore(tx, l, cfg)
+
+				// Load the contract
+				contract, err := txContractStore.CreateContract(
+					address,
+					abi,
+					true,
+					bytecodeHash,
+					"",
+					true,
+					contractStore.ContractType_External,
+				)
 				if err != nil {
-					return fmt.Errorf("proxy contract %s not found: %w", associateToProxy, err)
+					return nil, fmt.Errorf("failed to load contract: %w", err)
 				}
-				if blockNumber == 0 {
-					return fmt.Errorf("block number is required to load a proxy contract")
+
+				// Associate to proxy if specified
+				if associateToProxy != "" {
+					proxyContract, err := txContractStore.GetContractForAddress(associateToProxy)
+					if err != nil {
+						return nil, fmt.Errorf("error checking for proxy contract: %w", err)
+					}
+					if proxyContract == nil {
+						return nil, fmt.Errorf("proxy contract %s not found", associateToProxy)
+					}
+					if blockNumber == 0 {
+						return nil, fmt.Errorf("block number is required to load a proxy contract")
+					}
+					_, err = txContractStore.CreateProxyContract(blockNumber, associateToProxy, address)
+					if err != nil {
+						return nil, fmt.Errorf("failed to load to proxy contract: %w", err)
+					}
 				}
-				_, err = cs.CreateProxyContract(blockNumber, associateToProxy, address)
-				if err != nil {
-					return fmt.Errorf("failed to load to proxy contract: %w", err)
-				}
-			}
-			// Load the contract
-			_, err = cs.CreateContract(
-				address,
-				abi,
-				true,
-				bytecodeHash,
-				"",
-				true,
-				contractStore.ContractType_External,
-			)
+
+				return contract, nil
+			}, grm, nil)
+
 			if err != nil {
-				return fmt.Errorf("failed to load contract: %w", err)
+				return fmt.Errorf("failed to load contract with transaction: %w", err)
 			}
+
 			return nil
 		}
 	},
