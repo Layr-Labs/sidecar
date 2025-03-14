@@ -353,6 +353,7 @@ func (s *RpcServer) Start(ctx context.Context, shutdown chan bool) error {
 			ctx = context.WithValue(ctx, "httpServer", listener.Addr().String())
 			return ctx
 		},
+		WriteTimeout: time.Second * 300,
 	}
 
 	s.Logger.Sugar().Infow("Starting servers...",
