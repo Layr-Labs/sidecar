@@ -125,10 +125,6 @@ type EtherscanConfig struct {
 	ApiKey string
 }
 
-type BackfillConfig struct {
-	Addresses []string
-}
-
 type Config struct {
 	Debug                 bool
 	EthereumRpcConfig     EthereumRpcConfig
@@ -143,7 +139,6 @@ type Config struct {
 	SidecarPrimaryConfig  SidecarPrimaryConfig
 	IpfsConfig            IpfsConfig
 	EtherscanConfig       EtherscanConfig
-	BackfillConfig        BackfillConfig
 }
 
 func StringWithDefault(value, defaultValue string) string {
@@ -209,8 +204,6 @@ var (
 	IpfsUrl = "ipfs.url"
 
 	EtherscanApiKey = "etherscan.api-key"
-
-	BackfillAddresses = "backfill.addresses"
 )
 
 func NewConfig() *Config {
@@ -287,10 +280,6 @@ func NewConfig() *Config {
 
 		EtherscanConfig: EtherscanConfig{
 			ApiKey: viper.GetString(normalizeFlagName(EtherscanApiKey)),
-		},
-
-		BackfillConfig: BackfillConfig{
-			Addresses: viper.GetStringSlice(normalizeFlagName(BackfillAddresses)),
 		},
 	}
 }

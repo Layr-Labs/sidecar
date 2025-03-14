@@ -244,7 +244,7 @@ func (idx *Indexer) IsInterestingAddress(addr string) bool {
 	if addr == "" {
 		return false
 	}
-	return slices.Contains(idx.Config.GetInterestingAddressForConfigEnv(), strings.ToLower(addr)) || slices.Contains(idx.Config.BackfillConfig.Addresses, strings.ToLower(addr))
+	return slices.Contains(idx.Config.GetInterestingAddressForConfigEnv(), strings.ToLower(addr))
 }
 
 // IsInterestingTransaction determines if a transaction interacts with or creates
