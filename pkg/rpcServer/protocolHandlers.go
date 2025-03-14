@@ -191,7 +191,32 @@ func (s *RpcServer) ListStakerStrategies(ctx context.Context, request *protocolV
 
 // GetStrategyForStaker returns the strategy for a given staker and includes the staked amount
 func (s *RpcServer) GetStrategyForStaker(ctx context.Context, request *protocolV1.GetStrategyForStakerRequest) (*protocolV1.GetStrategyForStakerResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	stakerAddress := request.GetStakerAddress()
+	strategyAddress := request.GetStrategyAddress()
+	blockHeight := request.GetBlockHeight()
+
+	if stakerAddress == "" {
+		return nil, errors.New("staker address is required")
+	}
+
+	if strategyAddress == "" {
+		return nil, errors.New("strategy address is required")
+	}
+
+	strategy, err := s.protocolDataService.GetStrategyForStaker(ctx, stakerAddress, strategyAddress, blockHeight)
+	if err != nil {
+		return nil, err
+	}
+	return &protocolV1.GetStrategyForStakerResponse{
+		StakerStrategy: &protocolV1.StakerStrategy{
+			StakedAmount: strategy.Amount,
+			Strategy: &protocolV1.Strategy{
+				Strategy:       strategy.Strategy.Strategy,
+				TotalStake:     strategy.Strategy.TotalStaked,
+				RewardedTokens: strategy.Strategy.RewardTokens,
+			},
+		},
+	}, nil
 }
 
 // ListStakerQueuedWithdrawals lists all queued withdrawals for a given staker and includes:

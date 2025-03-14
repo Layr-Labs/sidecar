@@ -73,6 +73,17 @@ func (pds *ProtocolDataService) ListStrategies(ctx context.Context, strategyAddr
 				rs.strategy = ds.strategy
 				and rs.block_number <= @blockNumber
 			)
+		),
+		odos_reward_tokens as (
+			select
+				ds.strategy,
+				ds.shares,
+				rs.token
+			from distinct_strategies as ds
+			left join operator_directed_operator_set_reward_submissions as rs on (
+				rs.strategy = ds.strategy
+				and rs.block_number <= @blockNumber
+			)
 		)
 		select
 			ds.strategy,
@@ -83,6 +94,8 @@ func (pds *ProtocolDataService) ListStrategies(ctx context.Context, strategyAddr
 					select jsonb_array_elements(rst.avs_tokens) as token
 					union
 					select jsonb_array_elements(odrt.avs_tokens) as token
+					union
+					select jsonb_array_elements(odosrt.avs_tokens) as token
 				) t
 				WHERE token IS NOT NULL AND token <> 'null'::jsonb
 			), '[]'::jsonb) as reward_tokens
@@ -99,6 +112,12 @@ func (pds *ProtocolDataService) ListStrategies(ctx context.Context, strategyAddr
 			from od_reward_tokens as odrt
 			where odrt.strategy = ds.strategy
 		) as odrt on true
+		left join lateral (
+			select
+				jsonb_agg(distinct token) as avs_tokens
+			from odos_reward_tokens as odosrt
+			where odosrt.strategy = ds.strategy
+		) as odosrt on true
 	`
 
 	args := []interface{}{sql.Named("blockNumber", blockHeight)}
