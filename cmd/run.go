@@ -3,10 +3,14 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/metrics/prometheus"
 	"github.com/Layr-Labs/sidecar/internal/version"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
+	"github.com/Layr-Labs/sidecar/pkg/abiSource/ipfs"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
@@ -30,9 +34,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/shutdown"
 	"github.com/Layr-Labs/sidecar/pkg/sidecar"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
-	"log"
-	"net/http"
-	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -77,7 +78,8 @@ var runCmd = &cobra.Command{
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
-		af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg, []abiSource.AbiSource{})
+		ipfs := ipfs.NewIpfs(ipfs.DefaultHttpClient(), l, cfg)
+		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, cfg, []abiSource.AbiSource{ipfs})
 
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
@@ -140,7 +142,7 @@ var runCmd = &cobra.Command{
 
 		go rcq.Process()
 
-		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sink, eb, l)
+		p := pipeline.NewPipeline(fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, sink, eb, l)
 
 		scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)
 		if err != nil {

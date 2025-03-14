@@ -3,12 +3,12 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
+	"time"
+
 	_202501241111_addIndexesForRpcFunctions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241111_addIndexesForRpcFunctions"
 	_202502100846_goldTableRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502100846_goldTableRewardHashIndex"
-	_202502180836_snapshotUniqueConstraints "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502180836_snapshotUniqueConstraints"
 	_202502211539_hydrateClaimedRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502211539_hydrateClaimedRewards"
 	_202503042014_stakerOperatorIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503042014_stakerOperatorIndex"
-	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	_202409061249_bootstrapDb "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061249_bootstrapDb"
@@ -54,6 +54,8 @@ import (
 	_202501061422_defaultOperatorSplits "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501061422_defaultOperatorSplits"
 	_202501071401_defaultOperatorSplitSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501071401_defaultOperatorSplitSnapshots"
 	_202501151039_rewardsClaimed "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501151039_rewardsClaimed"
+	_202502180836_snapshotUniqueConstraints "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502180836_snapshotUniqueConstraints"
+	_202503051449_addContractTypeColumn "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503051449_addContractTypeColumn"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -176,6 +178,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202502211539_hydrateClaimedRewards.Migration{},
 		&_202503042014_stakerOperatorIndex.Migration{},
 		&_202502180836_snapshotUniqueConstraints.Migration{},
+		&_202503051449_addContractTypeColumn.Migration{},
 	}
 
 	for _, migration := range migrations {

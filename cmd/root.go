@@ -67,6 +67,7 @@ func init() {
 	rootCmd.AddCommand(createSnapshotCmd)
 	rootCmd.AddCommand(restoreSnapshotCmd)
 	rootCmd.AddCommand(rpcCmd)
+	rootCmd.AddCommand(loadContractCmd)
 
 	// bind any subcommand flags
 	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "(deprecated, use --output) Path to save the snapshot file")
@@ -82,6 +83,14 @@ func init() {
 	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotKind, "full", "The kind of snapshot to restore (slim, full, or archive)")
 
 	rpcCmd.PersistentFlags().String(config.SidecarPrimaryUrl, "", `RPC url of the "primary" Sidecar instance in an HA environment`)
+
+	loadContractCmd.PersistentFlags().String(config.LoadContractAddress, "", "Contract address to load")
+	loadContractCmd.PersistentFlags().String(config.LoadContractAbi, "", "ABI for the contract")
+	loadContractCmd.PersistentFlags().String(config.LoadContractBytecodeHash, "", "Bytecode hash for the contract")
+	loadContractCmd.PersistentFlags().String(config.LoadContractAssociateToProxy, "", "Contract address to associate to the proxy")
+	loadContractCmd.PersistentFlags().Uint64(config.LoadContractBlockNumber, uint64(0), "Block number for proxy contract deployment")
+	loadContractCmd.PersistentFlags().Bool(config.LoadContractBatch, false, "Batch load contracts from a JSON file")
+	loadContractCmd.PersistentFlags().String(config.LoadContractFromFile, "", "Path to a JSON file containing contract addresses to load")
 
 	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		key := config.KebabToSnakeCase(f.Name)

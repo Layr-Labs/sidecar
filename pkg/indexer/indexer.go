@@ -3,6 +3,9 @@ package indexer
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
+
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
@@ -12,8 +15,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/transactionLogParser"
 	"gorm.io/gorm"
-	"slices"
-	"strings"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
@@ -243,7 +244,12 @@ func (idx *Indexer) IsInterestingAddress(addr string) bool {
 	if addr == "" {
 		return false
 	}
-	return slices.Contains(idx.Config.GetInterestingAddressForConfigEnv(), strings.ToLower(addr))
+	addresses, err := idx.ContractStore.GetAllProxyAddressesInString()
+	if err != nil {
+		return false
+	}
+
+	return slices.Contains(addresses, strings.ToLower(addr))
 }
 
 // IsInterestingTransaction determines if a transaction interacts with or creates

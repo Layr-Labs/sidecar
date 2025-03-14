@@ -4,23 +4,22 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/metaState"
 	"log"
-	"net/http"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
+	"github.com/Layr-Labs/sidecar/pkg/metaState"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/metaStateManager"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
@@ -44,6 +43,8 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	*fetcher.Fetcher,
 	*indexer.Indexer,
 	storage.BlockStore,
+	contractStore.ContractStore,
+	*contractManager.ContractManager,
 	*stateManager.EigenStateManager,
 	*metaStateManager.MetaStateManager,
 	*rewards.RewardsCalculator,
@@ -80,7 +81,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	ethConfig.BaseUrl = rpcUrl
 	client := ethereum.NewClient(ethConfig, l)
 
-	af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg, []abiSource.AbiSource{})
+	af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, cfg, []abiSource.AbiSource{})
 
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
@@ -119,7 +120,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	eb := eventBus.NewEventBus(l)
 
-	return fetchr, idxr, mds, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbname
+	return fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbname
 
 }
 
@@ -127,10 +128,10 @@ func Test_PipelineIntegration(t *testing.T) {
 
 	t.Run("Should index a block, transaction with logs using native batched ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
-		fetchr, idxr, mds, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
+		fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sdc, eb, l)
+		p := NewPipeline(fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
 		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)
@@ -156,10 +157,10 @@ func Test_PipelineIntegration(t *testing.T) {
 	})
 	t.Run("Should index a block, transaction with logs using chunked ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultChunkedCallEthereumClientConfig()
-		fetchr, idxr, mds, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
+		fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sdc, eb, l)
+		p := NewPipeline(fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
 		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)

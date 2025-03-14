@@ -117,6 +117,16 @@ type SidecarPrimaryConfig struct {
 	IsPrimary bool
 }
 
+type LoadContractConfig struct {
+	Address          string
+	Abi              string
+	BytecodeHash     string
+	AssociateToProxy string
+	BlockNumber      uint64
+	Batch            bool
+	FromFile         string
+}
+
 type IpfsConfig struct {
 	Url string
 }
@@ -137,6 +147,7 @@ type Config struct {
 	DataDogConfig         DataDogConfig
 	PrometheusConfig      PrometheusConfig
 	SidecarPrimaryConfig  SidecarPrimaryConfig
+	LoadContractConfig    LoadContractConfig
 	IpfsConfig            IpfsConfig
 	EtherscanConfig       EtherscanConfig
 }
@@ -200,6 +211,14 @@ var (
 	PrometheusPort    = "prometheus.port"
 
 	SidecarPrimaryUrl = "sidecar-primary.url"
+
+	LoadContractAddress          = "contract.address"
+	LoadContractAbi              = "contract.abi"
+	LoadContractBytecodeHash     = "contract.bytecode-hash"
+	LoadContractAssociateToProxy = "contract.associate-to-proxy"
+	LoadContractBlockNumber      = "contract.block-number"
+	LoadContractBatch            = "contract.batch"
+	LoadContractFromFile         = "contract.from-file"
 
 	IpfsUrl = "ipfs.url"
 
@@ -272,6 +291,16 @@ func NewConfig() *Config {
 
 		SidecarPrimaryConfig: SidecarPrimaryConfig{
 			Url: viper.GetString(normalizeFlagName(SidecarPrimaryUrl)),
+		},
+
+		LoadContractConfig: LoadContractConfig{
+			Address:          viper.GetString(normalizeFlagName(LoadContractAddress)),
+			Abi:              viper.GetString(normalizeFlagName(LoadContractAbi)),
+			BytecodeHash:     viper.GetString(normalizeFlagName(LoadContractBytecodeHash)),
+			AssociateToProxy: viper.GetString(normalizeFlagName(LoadContractAssociateToProxy)),
+			BlockNumber:      viper.GetUint64(normalizeFlagName(LoadContractBlockNumber)),
+			Batch:            viper.GetBool(normalizeFlagName(LoadContractBatch)),
+			FromFile:         viper.GetString(normalizeFlagName(LoadContractFromFile)),
 		},
 
 		IpfsConfig: IpfsConfig{
