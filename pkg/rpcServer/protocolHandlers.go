@@ -5,7 +5,9 @@ import (
 	"errors"
 	"github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/common"
 	protocolV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/protocol"
+	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/types"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -142,19 +144,80 @@ func (rpc *RpcServer) GetEigenStateChanges(ctx context.Context, request *protoco
 // - total staked
 // - list of tokens being rewarded
 func (s *RpcServer) ListStrategies(ctx context.Context, request *protocolV1.ListStrategiesRequest) (*protocolV1.ListStrategiesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+
+	strategies, err := s.protocolDataService.ListStrategies(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocolV1.ListStrategiesResponse{
+		Strategies: utils.Map(strategies, func(strategy *protocolDataService.Strategy, i uint64) *protocolV1.Strategy {
+			return &protocolV1.Strategy{
+				Strategy:       strategy.Strategy,
+				TotalStake:     strategy.TotalStaked,
+				RewardedTokens: strategy.RewardTokens,
+			}
+		}),
+	}, nil
 }
 
 // ListStakerStrategies lists all strategies for a given staker and returns:
 // - the strategy
 // - the staked amount
 func (s *RpcServer) ListStakerStrategies(ctx context.Context, request *protocolV1.ListStakerStrategiesRequest) (*protocolV1.ListStakerStrategiesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	stakerAddress := request.GetStakerAddress()
+	if stakerAddress == "" {
+		return nil, errors.New("staker address is required")
+	}
+	blockHeight := request.GetBlockHeight()
+
+	strategies, err := s.protocolDataService.ListStakerStrategies(ctx, stakerAddress, blockHeight, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocolV1.ListStakerStrategiesResponse{
+		StakerStrategies: utils.Map(strategies, func(strategy *protocolDataService.DetailedStakerStrategy, i uint64) *protocolV1.StakerStrategy {
+			return &protocolV1.StakerStrategy{
+				StakedAmount: strategy.Amount,
+				Strategy: &protocolV1.Strategy{
+					Strategy:       strategy.Strategy.Strategy,
+					TotalStake:     strategy.Strategy.TotalStaked,
+					RewardedTokens: strategy.Strategy.RewardTokens,
+				},
+			}
+		}),
+	}, nil
 }
 
 // GetStrategyForStaker returns the strategy for a given staker and includes the staked amount
 func (s *RpcServer) GetStrategyForStaker(ctx context.Context, request *protocolV1.GetStrategyForStakerRequest) (*protocolV1.GetStrategyForStakerResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	stakerAddress := request.GetStakerAddress()
+	strategyAddress := request.GetStrategyAddress()
+	blockHeight := request.GetBlockHeight()
+
+	if stakerAddress == "" {
+		return nil, errors.New("staker address is required")
+	}
+
+	if strategyAddress == "" {
+		return nil, errors.New("strategy address is required")
+	}
+
+	strategy, err := s.protocolDataService.GetStrategyForStaker(ctx, stakerAddress, strategyAddress, blockHeight)
+	if err != nil {
+		return nil, err
+	}
+	return &protocolV1.GetStrategyForStakerResponse{
+		StakerStrategy: &protocolV1.StakerStrategy{
+			StakedAmount: strategy.Amount,
+			Strategy: &protocolV1.Strategy{
+				Strategy:       strategy.Strategy.Strategy,
+				TotalStake:     strategy.Strategy.TotalStaked,
+				RewardedTokens: strategy.Strategy.RewardTokens,
+			},
+		},
+	}, nil
 }
 
 // ListStakerQueuedWithdrawals lists all queued withdrawals for a given staker and includes:
