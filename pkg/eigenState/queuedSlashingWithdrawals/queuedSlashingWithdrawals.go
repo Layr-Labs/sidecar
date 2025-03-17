@@ -340,5 +340,5 @@ func (omm *QueuedSlashingWithdrawalModel) IsActiveForBlockHeight(blockHeight uin
 		return false, err
 	}
 
-	return blockHeight >= forks[config.RewardsFork_Brazos].BlockNumber, nil
+	return blockHeight >= forks[config.RewardsFork_Red].BlockNumber, nil
 }
