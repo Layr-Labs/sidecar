@@ -29,6 +29,16 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 		`alter table queued_slashing_withdrawals add constraint queued_slashing_withdrawals_pk primary key (block_number, log_index, transaction_hash)`,
 		`alter table queued_slashing_withdrawals add constraint queued_slashing_withdrawals_block_number_fk foreign key (block_number) references blocks (number) on delete cascade`,
 		`alter table queued_slashing_withdrawals add constraint uniq_queued_slashing_withdrawals unique (block_number, log_index, transaction_hash, staker, strategy, operator)`,
+
+		`create table if not exists completed_slashing_withdrawals (
+    		withdrawal_root text not null,
+    		block_number bigint not null,
+    		transaction_hash varchar not null,
+    		log_index bigint not null
+	 	)`,
+		`alter table completed_slashing_withdrawals add constraint completed_slashing_withdrawals_pk primary key (block_number, log_index, transaction_hash)`,
+		`alter table completed_slashing_withdrawals add constraint completed_slashing_withdrawals_block_number_fk foreign key (block_number) references blocks (number) on delete cascade`,
+		`alter table completed_slashing_withdrawals add constraint uniq_completed_slashing_withdrawals unique (block_number, log_index, transaction_hash)`,
 	}
 
 	for _, query := range queries {
