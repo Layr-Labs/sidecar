@@ -111,6 +111,7 @@ func Test_StateMigrator(t *testing.T) {
 		}
 		if sm == nil {
 			t.Fatal("StateMigrator is nil")
+			return
 		}
 		migrations := sm.migrations.GetMigrationsForBlock(1000)
 		assert.Equal(t, len(migrations), 0)
