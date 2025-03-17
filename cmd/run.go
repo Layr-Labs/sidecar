@@ -3,6 +3,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/metrics/prometheus"
 	"github.com/Layr-Labs/sidecar/internal/version"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
@@ -25,20 +29,19 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
+	"github.com/Layr-Labs/sidecar/pkg/service/backfillerService"
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
 	"github.com/Layr-Labs/sidecar/pkg/shutdown"
 	"github.com/Layr-Labs/sidecar/pkg/sidecar"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
-	"log"
-	"net/http"
-	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
+	"github.com/Layr-Labs/sidecar/pkg/transactionBackfiller"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -138,6 +141,26 @@ var runCmd = &cobra.Command{
 		pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 		rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
 
+		// Initialize the transaction backfiller
+		transactionBackfillerConfig := &transactionBackfiller.TransactionBackfillerConfig{
+			Workers: cfg.BackfillConfig.Workers,
+		}
+		txBackfiller := transactionBackfiller.NewTransactionBackfiller(
+			transactionBackfillerConfig,
+			l,
+			cfg,
+			fetchr,
+			mds,
+		)
+
+		// Initialize the backfiller service
+		bfs := backfillerService.NewBackfillerService(
+			txBackfiller,
+			grm,
+			l,
+			cfg,
+		)
+
 		go rcq.Process()
 
 		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sink, eb, l)
@@ -155,7 +178,7 @@ var runCmd = &cobra.Command{
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
 			HttpPort: cfg.RpcConfig.HttpPort,
-		}, mds, rc, rcq, eb, rps, pds, rds, scc, sink, l, cfg)
+		}, mds, rc, rcq, eb, rps, pds, rds, bfs, scc, sink, l, cfg)
 
 		// RPC channel to notify the RPC server to shutdown gracefully
 		rpcChannel := make(chan bool)

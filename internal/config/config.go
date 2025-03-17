@@ -125,6 +125,11 @@ type EtherscanConfig struct {
 	ApiKey string
 }
 
+type BackfillConfig struct {
+	Workers   int      // Number of workers to use for backfilling
+	Addresses []string // List of contract addresses to backfill
+}
+
 type Config struct {
 	Debug                 bool
 	EthereumRpcConfig     EthereumRpcConfig
@@ -139,6 +144,7 @@ type Config struct {
 	SidecarPrimaryConfig  SidecarPrimaryConfig
 	IpfsConfig            IpfsConfig
 	EtherscanConfig       EtherscanConfig
+	BackfillConfig        BackfillConfig
 }
 
 func StringWithDefault(value, defaultValue string) string {
@@ -280,6 +286,11 @@ func NewConfig() *Config {
 
 		EtherscanConfig: EtherscanConfig{
 			ApiKey: viper.GetString(normalizeFlagName(EtherscanApiKey)),
+		},
+
+		BackfillConfig: BackfillConfig{
+			Workers:   viper.GetInt(normalizeFlagName("backfill.workers")),
+			Addresses: strings.Split(viper.GetString(normalizeFlagName("backfill.addresses")), ","),
 		},
 	}
 }

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"log"
+
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
@@ -26,11 +28,12 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
+	"github.com/Layr-Labs/sidecar/pkg/service/backfillerService"
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
 	"github.com/Layr-Labs/sidecar/pkg/sidecar"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
-	"log"
+	"github.com/Layr-Labs/sidecar/pkg/transactionBackfiller"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -121,6 +124,26 @@ func main() {
 	pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 	rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
 
+	// Initialize the transaction backfiller
+	transactionBackfillerConfig := &transactionBackfiller.TransactionBackfillerConfig{
+		Workers: cfg.BackfillConfig.Workers,
+	}
+	txBackfiller := transactionBackfiller.NewTransactionBackfiller(
+		transactionBackfillerConfig,
+		l,
+		cfg,
+		fetchr,
+		mds,
+	)
+
+	// Initialize the backfiller service
+	bfs := backfillerService.NewBackfillerService(
+		txBackfiller,
+		grm,
+		l,
+		cfg,
+	)
+
 	scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)
 	if err != nil {
 		l.Sugar().Fatalw("Failed to create sidecar client", zap.Error(err))
@@ -134,7 +157,7 @@ func main() {
 	rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 		GrpcPort: cfg.RpcConfig.GrpcPort,
 		HttpPort: cfg.RpcConfig.HttpPort,
-	}, mds, rc, rcq, eb, rps, pds, rds, scc, sdc, l, cfg)
+	}, mds, rc, rcq, eb, rps, pds, rds, bfs, scc, sdc, l, cfg)
 
 	// RPC channel to notify the RPC server to shutdown gracefully
 	rpcChannel := make(chan bool)
