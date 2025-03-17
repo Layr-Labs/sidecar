@@ -82,7 +82,7 @@ registration_windows_extra as (
 		avs,
 		operator_set_id,
 		date_trunc('day', start_time) + interval '1' day as start_time,
-		-- End time is end time non inclusive becuase the strategy is not registered on the operator set at the end time OR it is current timestamp rounded up
+		-- End time is non-inclusive because the operator is not registered to the operator set at the end time OR it is current timestamp rounded down
 		date_trunc('day', end_time) as end_time
 	FROM registration_periods
 ),
