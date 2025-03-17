@@ -244,12 +244,17 @@ func (idx *Indexer) IsInterestingAddress(addr string) bool {
 	if addr == "" {
 		return false
 	}
+	addr = strings.ToLower(addr)
+	if slices.Contains(idx.Config.GetInterestingAddressForConfigEnv(), addr) {
+		return true
+	}
+
 	addresses, err := idx.ContractStore.GetAllProxyAddressesInString()
 	if err != nil {
 		return false
 	}
 
-	return slices.Contains(addresses, strings.ToLower(addr))
+	return slices.Contains(addresses, addr)
 }
 
 // IsInterestingTransaction determines if a transaction interacts with or creates
