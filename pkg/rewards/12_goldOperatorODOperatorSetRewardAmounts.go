@@ -36,7 +36,7 @@ distinct_operators AS (
     FROM (
         SELECT 
             *,
-            -- We can use an arbitrary order here since the avs_tokens is the same for each (operator, strategy, hash, snapshot)
+            -- We can use an arbitrary order here since the operator_tokens is the same for each (operator, strategy, hash, snapshot)
             -- We use strategy ASC for better debuggability
             ROW_NUMBER() OVER (
                 PARTITION BY reward_hash, snapshot, operator 
