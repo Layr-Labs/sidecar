@@ -102,6 +102,7 @@ func Test_QueuedSlashingWithdrawals(t *testing.T) {
 			assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", records[0].Strategy)
 			assert.Equal(t, "31749936128000000000", records[0].ScaledShares)
 			assert.Equal(t, "31749936128000000000", records[0].SharesToWithdraw)
+			assert.Equal(t, "72476200cf384b5466477b3af73acb26eb05cf9eff01251081a42a013ecb0dc5", records[0].WithdrawalRoot)
 			assert.Equal(t, log.TransactionHash, records[0].TransactionHash)
 			assert.Equal(t, log.LogIndex, records[0].LogIndex)
 			assert.Equal(t, log.BlockNumber, records[0].BlockNumber)
