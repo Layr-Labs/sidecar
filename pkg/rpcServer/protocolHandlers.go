@@ -145,7 +145,7 @@ func (rpc *RpcServer) GetEigenStateChanges(ctx context.Context, request *protoco
 // - list of tokens being rewarded
 func (s *RpcServer) ListStrategies(ctx context.Context, request *protocolV1.ListStrategiesRequest) (*protocolV1.ListStrategiesResponse, error) {
 
-	strategies, err := s.protocolDataService.ListStrategies(ctx, 0)
+	strategies, err := s.protocolDataService.ListStrategies(ctx, nil, 0)
 	if err != nil {
 		return nil, err
 	}
