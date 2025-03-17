@@ -6,6 +6,7 @@ import (
 	_202503061009_pectraPrune "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503061009_pectraPrune"
 	_202503061223_renameConstraint "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503061223_renameConstraint"
 	_202503130907_pectraPrunePartTwo "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503130907_pectraPrunePartTwo"
+	_202503171414_slashingWithdrawals "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503171414_slashingWithdrawals"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -204,6 +205,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202503061009_pectraPrune.Migration{},
 		&_202503061223_renameConstraint.Migration{},
 		&_202503130907_pectraPrunePartTwo.Migration{},
+		&_202503171414_slashingWithdrawals.Migration{},
 	}
 
 	for _, migration := range migrations {
