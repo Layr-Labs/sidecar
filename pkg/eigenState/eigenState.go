@@ -3,6 +3,7 @@ package eigenState
 import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/avsOperators"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/completedSlashingWithdrawals"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/defaultOperatorSplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/disabledDistributionRoots"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/encumberedMagnitudes"
@@ -126,6 +127,10 @@ func LoadEigenStateModels(
 	}
 	if _, err := queuedSlashingWithdrawals.NewQueuedSlashingWithdrawalModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Errorw("Failed to create QueuedSlashingWithdrawalModel", zap.Error(err))
+		return err
+	}
+	if _, err := completedSlashingWithdrawals.NewCompletedSlashingWithdrawalModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create CompletedSlashingWithdrawalModel", zap.Error(err))
 		return err
 	}
 
