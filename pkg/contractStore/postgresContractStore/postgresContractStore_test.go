@@ -100,7 +100,7 @@ func Test_PostgresContractStore(t *testing.T) {
 			MatchingContractAddress: "",
 		}
 
-		createdContract, found, err := cs.FindOrCreateContract(contract.ContractAddress, contract.ContractAbi, contract.Verified, contract.BytecodeHash, contract.MatchingContractAddress, false)
+		createdContract, found, err := cs.FindOrCreateContract(contract.ContractAddress, contract.ContractAbi, contract.Verified, contract.BytecodeHash, contract.MatchingContractAddress, false, contractStore.ContractType_Core)
 		assert.Nil(t, err)
 		assert.False(t, found)
 		assert.Equal(t, contract.ContractAddress, createdContract.ContractAddress)
@@ -120,7 +120,7 @@ func Test_PostgresContractStore(t *testing.T) {
 			MatchingContractAddress: "",
 		}
 
-		createdContract, found, err := cs.FindOrCreateContract(contract.ContractAddress, contract.ContractAbi, contract.Verified, contract.BytecodeHash, contract.MatchingContractAddress, false)
+		createdContract, found, err := cs.FindOrCreateContract(contract.ContractAddress, contract.ContractAbi, contract.Verified, contract.BytecodeHash, contract.MatchingContractAddress, false, contractStore.ContractType_Core)
 		assert.Nil(t, err)
 		assert.True(t, found)
 		assert.Equal(t, contract.ContractAddress, createdContract.ContractAddress)
@@ -150,7 +150,7 @@ func Test_PostgresContractStore(t *testing.T) {
 			BytecodeHash:            "0x456",
 			MatchingContractAddress: "",
 		}
-		createdProxy, _, err := cs.FindOrCreateContract(newProxyContract.ContractAddress, newProxyContract.ContractAbi, newProxyContract.Verified, newProxyContract.BytecodeHash, newProxyContract.MatchingContractAddress, false)
+		createdProxy, _, err := cs.FindOrCreateContract(newProxyContract.ContractAddress, newProxyContract.ContractAbi, newProxyContract.Verified, newProxyContract.BytecodeHash, newProxyContract.MatchingContractAddress, false, contractStore.ContractType_Core)
 		assert.Nil(t, err)
 		createdContracts = append(createdContracts, createdProxy)
 
@@ -169,6 +169,12 @@ func Test_PostgresContractStore(t *testing.T) {
 		assert.Equal(t, proxyContract.BlockNumber, proxy.BlockNumber)
 		assert.Equal(t, proxyContract.ContractAddress, proxy.ContractAddress)
 		assert.Equal(t, proxyContract.ProxyContractAddress, proxy.ProxyContractAddress)
+	})
+	t.Run("Get all proxy addresses in string", func(t *testing.T) {
+		addresses, err := cs.GetAllProxyAddressesInString()
+		assert.Nil(t, err)
+		assert.True(t, len(addresses) > 0)
+		assert.Contains(t, addresses, createdContracts[0].ContractAddress)
 	})
 	t.Run("Get contract from address", func(t *testing.T) {
 		address := createdContracts[0].ContractAddress
