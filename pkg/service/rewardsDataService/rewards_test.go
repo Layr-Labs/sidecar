@@ -73,7 +73,7 @@ func Test_RewardsDataService(t *testing.T) {
 	t.Run("Test GetRewardsForSnapshot", func(t *testing.T) {
 		snapshot := "2025-01-16"
 
-		r, err := rds.GetRewardsForSnapshot(context.Background(), snapshot)
+		r, err := rds.GetRewardsForSnapshot(context.Background(), snapshot, nil)
 		assert.Nil(t, err)
 		assert.NotNil(t, r)
 	})

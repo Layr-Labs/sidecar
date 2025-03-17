@@ -48,8 +48,8 @@ func NewRewardsDataService(
 	}
 }
 
-func (rds *RewardsDataService) GetRewardsForSnapshot(ctx context.Context, snapshot string) ([]*rewardsTypes.Reward, error) {
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot)
+func (rds *RewardsDataService) GetRewardsForSnapshot(ctx context.Context, snapshot string, earners []string) ([]*rewardsTypes.Reward, error) {
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot, earners)
 }
 
 func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context, rootIndex uint64) ([]*rewardsTypes.Reward, error) {
@@ -60,7 +60,7 @@ func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context
 	if root == nil {
 		return nil, fmt.Errorf("no distribution root found for root index '%d'", rootIndex)
 	}
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(root.GetSnapshotDate())
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(root.GetSnapshotDate(), nil)
 }
 
 type TotalClaimedReward struct {

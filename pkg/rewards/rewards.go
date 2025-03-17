@@ -209,7 +209,7 @@ func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (
 	*distribution.Distribution,
 	error,
 ) {
-	rewards, err := rc.FetchRewardsForSnapshot(snapshotDate)
+	rewards, err := rc.FetchRewardsForSnapshot(snapshotDate, nil)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -496,24 +496,41 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 	return nil
 }
 
-func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string) ([]*rewardsTypes.Reward, error) {
+func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earners []string) ([]*rewardsTypes.Reward, error) {
 	var goldRows []*rewardsTypes.Reward
-	query, err := rewardsUtils.RenderQueryTemplate(`
+
+	query := `
 		select
 			earner,
 			token,
 			max(snapshot) as snapshot,
 			cast(sum(amount) as varchar) as cumulative_amount
 		from gold_table
-		where snapshot <= date '{{.snapshotDate}}'
+		where
+		    snapshot <= date '{{.snapshotDate}}'
+		{{ if .filterEarners }}
+			and earner in @earners
+		{{ end }}
 		group by 1, 2
 		order by snapshot desc
-    `, map[string]interface{}{"snapshotDate": snapshotDate})
+    `
+	templateArgs := map[string]interface{}{
+		"snapshotDate":  snapshotDate,
+		"filterEarners": false,
+	}
+	args := make([]interface{}, 0)
+
+	if len(earners) > 0 {
+		templateArgs["filterEarners"] = true
+		args = append(args, sql.Named("earners", earners))
+	}
+
+	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, templateArgs)
 
 	if err != nil {
 		return nil, err
 	}
-	res := rc.grm.Raw(query).Scan(&goldRows)
+	res := rc.grm.Raw(renderedQuery, args...).Scan(&goldRows)
 	if res.Error != nil {
 		return nil, res.Error
 	}

@@ -222,7 +222,14 @@ func (rpc *RpcServer) GetRewardsForSnapshot(ctx context.Context, req *rewardsV1.
 		return nil, status.Error(codes.InvalidArgument, "snapshot is required")
 	}
 
-	snapshotRewards, err := rpc.rewardsDataService.GetRewardsForSnapshot(ctx, snapshot)
+	earner := req.GetEarner()
+
+	earners := make([]string, 0)
+	if earner != "" {
+		earners = append(earners, earner)
+	}
+
+	snapshotRewards, err := rpc.rewardsDataService.GetRewardsForSnapshot(ctx, snapshot, earners)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
