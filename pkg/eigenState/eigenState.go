@@ -3,6 +3,7 @@ package eigenState
 import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/avsOperators"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/completedSlashingWithdrawals"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/defaultOperatorSplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/disabledDistributionRoots"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/encumberedMagnitudes"
@@ -18,6 +19,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetStrategyRegistrations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSets"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorShares"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/queuedSlashingWithdrawals"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/rewardSubmissions"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperatorShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperators"
@@ -121,6 +123,14 @@ func LoadEigenStateModels(
 	}
 	if _, err := operatorAllocationDelayDelays.NewOperatorAllocationDelayModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Errorw("Failed to create OperatorAllocationDelayModel", zap.Error(err))
+		return err
+	}
+	if _, err := queuedSlashingWithdrawals.NewQueuedSlashingWithdrawalModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create QueuedSlashingWithdrawalModel", zap.Error(err))
+		return err
+	}
+	if _, err := completedSlashingWithdrawals.NewCompletedSlashingWithdrawalModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create CompletedSlashingWithdrawalModel", zap.Error(err))
 		return err
 	}
 
