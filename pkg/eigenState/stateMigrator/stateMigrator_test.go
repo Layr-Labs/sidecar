@@ -1,3 +1,4 @@
+// nolint
 package stateMigrator
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/completedSlashingWithdrawals"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/encumberedMagnitudes"
 	operatorAllocationDelayDelays "github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAllocationDelays"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAllocations"
@@ -13,6 +15,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetOperatorRegistrations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetStrategyRegistrations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSets"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/queuedSlashingWithdrawals"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperatorShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperators"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
@@ -111,6 +114,7 @@ func Test_StateMigrator(t *testing.T) {
 		}
 		if sm == nil {
 			t.Fatal("StateMigrator is nil")
+			return
 		}
 		migrations := sm.migrations.GetMigrationsForBlock(1000)
 		assert.Equal(t, len(migrations), 0)
@@ -130,6 +134,7 @@ func Test_StateMigrator(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		assert.NotNil(t, sm)
 		if sm == nil {
 			t.Fatal("StateMigrator is nil")
 		}
@@ -139,6 +144,7 @@ func Test_StateMigrator(t *testing.T) {
 		blockNumber := forks[config.RewardsFork_Mississippi].BlockNumber
 
 		migrations := sm.migrations.GetMigrationsForBlock(blockNumber)
+		assert.NotNil(t, migrations)
 		assert.Equal(t, len(migrations), 1)
 
 		root, committedStates, err := sm.RunMigrationsForBlock(blockNumber)
@@ -230,5 +236,51 @@ func Test_StateMigrator(t *testing.T) {
 		res = grm.Model(&operatorAllocationDelayDelays.OperatorAllocationDelay{}).Find(&operatorAllocationDelayResults)
 		assert.Nil(t, res.Error)
 		assert.True(t, len(operatorAllocationDelayResults) > 0)
+	})
+	t.Run("Should run migration for testnet withdrawal events migration", func(t *testing.T) {
+		dbName, grm, l, cfg, err := setup()
+		cfg.Chain = config.Chain_Holesky
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+
+		loadBlocks("withdrawalEvents", grm, projectRoot)
+		loadTransactionLogs("withdrawalEvents", grm, projectRoot)
+
+		sm, err := NewStateMigrator(grm, cfg, l)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if sm == nil {
+			t.Fatal("StateMigrator is nil")
+		}
+		forks, err := cfg.GetRewardsSqlForkDates()
+		assert.Nil(t, err)
+
+		blockNumber := forks[config.RewardsFork_Red].BlockNumber
+
+		migrations := sm.migrations.GetMigrationsForBlock(blockNumber)
+		assert.Equal(t, len(migrations), 1)
+
+		root, committedStates, err := sm.RunMigrationsForBlock(blockNumber)
+		assert.Nil(t, err)
+		assert.NotNil(t, root)
+		assert.NotNil(t, committedStates)
+		assert.True(t, len(root) > 0)
+		hexRoot := hex.EncodeToString(root)
+		fmt.Printf("Root: %s\n", hexRoot)
+
+		assert.True(t, len(committedStates) > 0)
+
+		var queuedWithdrawalsResults []queuedSlashingWithdrawals.QueuedSlashingWithdrawal
+		res := grm.Model(&queuedSlashingWithdrawals.QueuedSlashingWithdrawal{}).Find(&queuedWithdrawalsResults)
+		assert.Nil(t, res.Error)
+		assert.True(t, len(queuedWithdrawalsResults) > 0)
+
+		var completedWithdrawalResults []completedSlashingWithdrawals.CompletedSlashingWithdrawal
+		res = grm.Model(&completedSlashingWithdrawals.CompletedSlashingWithdrawal{}).Find(&completedWithdrawalResults)
+		assert.Nil(t, res.Error)
+		assert.True(t, len(completedWithdrawalResults) > 0)
 	})
 }
