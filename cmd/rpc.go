@@ -120,7 +120,6 @@ var rpcCmd = &cobra.Command{
 			l.Sugar().Fatalw("Failed to create sidecar client", zap.Error(err))
 		}
 
-
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
 			HttpPort: cfg.RpcConfig.HttpPort,
