@@ -3,6 +3,7 @@ package sidecar
 import (
 	"context"
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/version"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/metaStateManager"
@@ -10,6 +11,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/proofs"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
+	"github.com/Layr-Labs/sidecar/pkg/runtime"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"sync/atomic"
@@ -33,6 +35,7 @@ type Sidecar struct {
 	RewardProofs           *proofs.RewardsProofsStore
 	ShutdownChan           chan bool
 	shouldShutdown         *atomic.Bool
+	sidecarRuntime         *runtime.SidecarRuntime
 }
 
 func NewSidecar(
@@ -50,6 +53,9 @@ func NewSidecar(
 ) *Sidecar {
 	shouldShutdown := &atomic.Bool{}
 	shouldShutdown.Store(false)
+
+	rt := runtime.NewSidecarRuntime(em.DB, gCfg, l)
+
 	return &Sidecar{
 		Logger:                 l,
 		Config:                 cfg,
@@ -64,11 +70,16 @@ func NewSidecar(
 		StateManager:           em,
 		ShutdownChan:           make(chan bool),
 		shouldShutdown:         shouldShutdown,
+		sidecarRuntime:         rt,
 	}
 }
 
 func (s *Sidecar) Start(ctx context.Context) {
 	s.Logger.Info("Starting sidecar")
+
+	if err := s.sidecarRuntime.ValidateAndUpdateSidecarVersion(version.GetVersion()); err != nil {
+		s.Logger.Sugar().Fatalw("Failed to validate and update sidecar version", zap.Error(err))
+	}
 
 	// Spin up a goroutine that listens on a channel for a shutdown signal.
 	// When the signal is received, set shouldShutdown to true and return.
