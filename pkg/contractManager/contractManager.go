@@ -6,20 +6,34 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/parser"
+	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
+
+// ContractLoadParams contains all the parameters needed to load a contract
+type ContractLoadParams struct {
+	Address          string
+	Abi              string
+	BytecodeHash     string
+	BlockNumber      uint64
+	AssociateToProxy string
+}
 
 // ContractManager handles operations related to smart contracts, including
 // retrieving contract information, handling contract upgrades, and managing
 // proxy contracts.
 type ContractManager struct {
+	Db *gorm.DB
 	// ContractStore provides storage and retrieval of contract data
 	ContractStore contractStore.ContractStore
 	// EthereumClient is used to interact with the Ethereum blockchain
@@ -29,23 +43,28 @@ type ContractManager struct {
 	// metricsSink collects metrics about contract operations
 	metricsSink *metrics.MetricsSink
 	// Logger is used for logging contract operations
-	Logger *zap.Logger
+	Logger       *zap.Logger
+	globalConfig *config.Config
 }
 
 // NewContractManager creates a new ContractManager instance with the provided dependencies.
 func NewContractManager(
+	db *gorm.DB,
 	cs contractStore.ContractStore,
 	e *ethereum.Client,
 	af *abiFetcher.AbiFetcher,
 	ms *metrics.MetricsSink,
 	l *zap.Logger,
+	cfg *config.Config,
 ) *ContractManager {
 	return &ContractManager{
+		Db:             db,
 		ContractStore:  cs,
 		EthereumClient: e,
 		AbiFetcher:     af,
 		metricsSink:    ms,
 		Logger:         l,
+		globalConfig:   cfg,
 	}
 }
 
@@ -192,4 +211,72 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 	cm.Logger.Sugar().Debugf("Created new contract for proxy contract", zap.String("proxyContractAddress", proxyContractAddress))
 
 	return nil
+}
+
+// LoadContract loads a contract into the contract store with the given parameters.
+// If bytecodeHash is empty, it will be fetched using the AbiFetcher.
+// If associateToProxy is not empty, it will associate the contract with the proxy contract.
+// The function handles the transaction management internally.
+// Returns the contract address and any error encountered.
+func (cm *ContractManager) LoadContract(
+	ctx context.Context,
+	params ContractLoadParams,
+) (string, error) {
+	if params.Address == "" {
+		return "", fmt.Errorf("contract address is required")
+	}
+	if params.Abi == "" {
+		return "", fmt.Errorf("contract ABI is required with the contract address")
+	}
+
+	if params.BytecodeHash == "" {
+		var err error
+		params.BytecodeHash, err = cm.AbiFetcher.FetchContractBytecodeHash(ctx, params.Address)
+		if err != nil {
+			return "", fmt.Errorf("failed to fetch contract bytecode hash: %w", err)
+		}
+	}
+
+	contract, err := helpers.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
+		txContractStore := postgresContractStore.NewPostgresContractStore(tx, cm.Logger, cm.globalConfig)
+		// Load the contract
+
+		contract, err := txContractStore.CreateContract(
+			params.Address,
+			params.Abi,
+			true,
+			params.BytecodeHash,
+			"",
+			true,
+			contractStore.ContractType_External,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load contract: %w", err)
+		}
+
+		// Associate to proxy if specified
+		if params.AssociateToProxy != "" {
+			proxyContract, err := txContractStore.GetContractForAddress(params.AssociateToProxy)
+			if err != nil {
+				return nil, fmt.Errorf("error checking for proxy contract: %w", err)
+			}
+			if proxyContract == nil {
+				return nil, fmt.Errorf("proxy contract %s not found", params.AssociateToProxy)
+			}
+			if params.BlockNumber == 0 {
+				return nil, fmt.Errorf("block number is required to load a proxy contract")
+			}
+			_, err = txContractStore.CreateProxyContract(params.BlockNumber, params.AssociateToProxy, params.Address)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load to proxy contract: %w", err)
+			}
+		}
+
+		return contract, nil
+	}, cm.Db, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to load contract: %w", err)
+	}
+
+	return contract.ContractAddress, nil
 }

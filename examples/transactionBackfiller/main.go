@@ -74,7 +74,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 
-	cm := contractManager.NewContractManager(contractStore, client, af, sink, l)
+	cm := contractManager.NewContractManager(grm, contractStore, client, af, sink, l, cfg)
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 

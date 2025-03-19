@@ -158,7 +158,7 @@ func Test_ContractManager(t *testing.T) {
 
 		// Perform the upgrade
 		blockNumber := 5
-		cm := NewContractManager(cs, client, af, sdc, l)
+		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 
@@ -194,7 +194,7 @@ func Test_ContractManager(t *testing.T) {
 
 		// Perform the upgrade
 		blockNumber := 10
-		cm := NewContractManager(cs, client, af, sdc, l)
+		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 

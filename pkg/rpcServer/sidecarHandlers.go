@@ -1,17 +1,19 @@
 package rpcServer
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/Layr-Labs/sidecar/internal/version"
+	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
-	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
 
 	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/sidecar"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"gorm.io/gorm"
 )
 
 type ContractLoadParams struct {
@@ -22,8 +24,8 @@ type ContractLoadParams struct {
 	AssociateToProxy string
 }
 
-func requestToLoadParams(req *sidecarV1.LoadContractRequest) ContractLoadParams {
-	return ContractLoadParams{
+func requestToLoadParams(req *sidecarV1.LoadContractRequest) contractManager.ContractLoadParams {
+	return contractManager.ContractLoadParams{
 		Address:          req.GetAddress(),
 		Abi:              req.GetAbi(),
 		BytecodeHash:     req.GetBytecodeHash(),
@@ -32,8 +34,8 @@ func requestToLoadParams(req *sidecarV1.LoadContractRequest) ContractLoadParams 
 	}
 }
 
-func coreContractToLoadParams(core *sidecarV1.CoreContract) ContractLoadParams {
-	return ContractLoadParams{
+func coreContractToLoadParams(core *sidecarV1.CoreContract) contractManager.ContractLoadParams {
+	return contractManager.ContractLoadParams{
 		Address:      core.GetContractAddress(),
 		Abi:          core.GetContractAbi(),
 		BytecodeHash: core.GetBytecodeHash(),
@@ -76,74 +78,12 @@ func (rpc *RpcServer) About(ctx context.Context, req *sidecarV1.AboutRequest) (*
 	}, nil
 }
 
-func (rpc *RpcServer) loadContractWithinTx(ctx context.Context, params ContractLoadParams, tx *gorm.DB) (string, error) {
-	if params.Address == "" {
-		return "", status.Error(codes.Internal, "contract address is required")
-	}
-	if params.Abi == "" {
-		return "", status.Error(codes.Internal, "contract ABI is required with the contract address")
-	}
-
-	if params.BytecodeHash == "" {
-		abiFetcher := rpc.protocolDataService.GetAbiFetcher()
-
-		var err error
-		params.BytecodeHash, err = abiFetcher.FetchContractBytecodeHash(ctx, params.Address)
-		if err != nil {
-			return "", status.Error(codes.Internal, err.Error())
-		}
-	}
-
-	txContractStore := rpc.protocolDataService.GetContractStore()
-	if txContractStore == nil {
-		return "", status.Error(codes.Internal, "Contract store not available")
-	}
-
-	// Load the contract
-	contract, err := txContractStore.CreateContract(
-		params.Address,
-		params.Abi,
-		true,
-		params.BytecodeHash,
-		"",
-		true,
-		contractStore.ContractType_External,
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to load contract: %w", err)
-	}
-
-	// Associate to proxy if specified
-	if params.AssociateToProxy != "" {
-		proxyContract, err := txContractStore.GetContractForAddress(params.AssociateToProxy)
-		if err != nil {
-			return "", fmt.Errorf("error checking for proxy contract: %w", err)
-		}
-		if proxyContract == nil {
-			return "", fmt.Errorf("proxy contract %s not found", params.AssociateToProxy)
-		}
-		if params.BlockNumber == 0 {
-			return "", fmt.Errorf("block number is required to load a proxy contract")
-		}
-		_, err = txContractStore.CreateProxyContract(params.BlockNumber, params.AssociateToProxy, params.Address)
-		if err != nil {
-			return "", fmt.Errorf("failed to load to proxy contract: %w", err)
-		}
-	}
-
-	return contract.ContractAddress, nil
-}
-
 // LoadContract handles the gRPC request to load a contract into the contract store
 func (rpc *RpcServer) LoadContract(ctx context.Context, req *sidecarV1.LoadContractRequest) (*sidecarV1.LoadContractResponse, error) {
 	// Convert request to domain params
 	params := requestToLoadParams(req)
 
-	// Wrap contract creation and proxy association in a transaction
-	contractAddress, err := helpers.WrapTxAndCommit[string](func(tx *gorm.DB) (string, error) {
-		return rpc.loadContractWithinTx(ctx, params, tx)
-	}, rpc.protocolDataService.GetDB(), nil)
-
+	contractAddress, err := contractManager.LoadContract(ctx, params)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to load contract: %v", err))
 	}
@@ -161,54 +101,14 @@ func (rpc *RpcServer) LoadContract(ctx context.Context, req *sidecarV1.LoadContr
 }
 
 func (rpc *RpcServer) LoadContracts(ctx context.Context, req *sidecarV1.LoadContractsRequest) (*sidecarV1.LoadContractsResponse, error) {
-	loadedAddresses := []string{}
-	// Process all contracts in a single transaction
-	_, err := helpers.WrapTxAndCommit[string](func(tx *gorm.DB) (string, error) {
-		for _, coreContract := range req.GetCoreContracts() {
-			params := coreContractToLoadParams(coreContract)
-
-			address, err := rpc.loadContractWithinTx(ctx, params, tx)
-			if err != nil {
-				return "", fmt.Errorf("failed to load core contract %s: %w", address, err)
-			}
-			loadedAddresses = append(loadedAddresses, address)
-		}
-
-		// Get the contract store from the protocol data service
-		txContractStore := rpc.protocolDataService.GetContractStore()
-		if txContractStore == nil {
-			return "", fmt.Errorf("Contract store not available")
-		}
-
-		// Then process all proxy associations
-		for _, proxyContract := range req.GetProxyContracts() {
-			contractAddr := proxyContract.GetContractAddress()
-			proxyAddr := proxyContract.GetProxyContractAddress()
-			blockNumber := proxyContract.GetBlockNumber()
-
-			// Validate required parameters
-			if contractAddr == "" {
-				return "", fmt.Errorf("contract address is required")
-			}
-			if proxyAddr == "" {
-				return "", fmt.Errorf("proxy contract address is required")
-			}
-			if blockNumber == 0 {
-				return "", fmt.Errorf("block number is required to load a proxy contract")
-			}
-
-			// Create the proxy association
-			_, err := txContractStore.CreateProxyContract(blockNumber, proxyAddr, contractAddr)
-			if err != nil {
-				return "", fmt.Errorf("failed to associate contract %s with proxy %s: %w", contractAddr, proxyAddr, err)
-			}
-		}
-
-		return "", nil
-	}, rpc.protocolDataService.GetDB(), nil)
-
+	reader, loadedAddresses, err := requestToReaderAndAddresses(req)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to load contracts: %v", err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to prepare contract data: %v", err))
+	}
+
+	err = contractStore.InitializeExternalContractsFromReader(reader)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to initialize external contracts: %v", err))
 	}
 
 	// Get current block height for response
@@ -221,4 +121,39 @@ func (rpc *RpcServer) LoadContracts(ctx context.Context, req *sidecarV1.LoadCont
 		BlockHeight: block.Number,
 		Addresses:   loadedAddresses,
 	}, nil
+}
+
+// requestToReaderAndAddresses converts a LoadContractsRequest to an io.Reader containing the JSON representation
+// of contractsData and a list of contract addresses.
+func requestToReaderAndAddresses(req *sidecarV1.LoadContractsRequest) (io.Reader, []string, error) {
+	contractAddresses := make([]string, 0, len(req.GetCoreContracts()))
+
+	contractsData := &contractStore.CoreContractsData{
+		CoreContracts:  make([]contractStore.CoreContract, 0, len(req.GetCoreContracts())),
+		ProxyContracts: make([]contractStore.CoreProxyContract, 0, len(req.GetProxyContracts())),
+	}
+
+	for _, core := range req.GetCoreContracts() {
+		contractsData.CoreContracts = append(contractsData.CoreContracts, contractStore.CoreContract{
+			ContractAddress: core.GetContractAddress(),
+			ContractAbi:     core.GetContractAbi(),
+			BytecodeHash:    core.GetBytecodeHash(),
+		})
+		contractAddresses = append(contractAddresses, core.GetContractAddress())
+	}
+
+	for _, proxy := range req.GetProxyContracts() {
+		contractsData.ProxyContracts = append(contractsData.ProxyContracts, contractStore.CoreProxyContract{
+			ContractAddress:      proxy.GetContractAddress(),
+			ProxyContractAddress: proxy.GetProxyContractAddress(),
+			BlockNumber:          int64(proxy.GetBlockNumber()),
+		})
+	}
+
+	jsonData, err := json.Marshal(contractsData)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal contract data: %w", err)
+	}
+
+	return bytes.NewReader(jsonData), contractAddresses, nil
 }

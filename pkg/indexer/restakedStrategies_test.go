@@ -102,7 +102,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 
 	scc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, 10, l)
 
-	cm := contractManager.NewContractManager(contractStore, client, af, sdc, l)
+	cm := contractManager.NewContractManager(grm, contractStore, client, af, sdc, l, cfg)
 
 	t.Run("Integration - gets restaked strategies for avs/operator with multicall contract caller", func(t *testing.T) {
 		avs := "0xD4A7E1Bd8015057293f0D0A557088c286942e84b"

@@ -7,15 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"sync"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
-	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
-	"github.com/Layr-Labs/sidecar/pkg/contractStore"
-	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/service/baseDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/types"
@@ -47,22 +42,6 @@ func NewProtocolDataService(
 		logger:       logger,
 		globalConfig: globalConfig,
 	}
-}
-
-// GetContractStore returns a new instance of the contract store
-func (pds *ProtocolDataService) GetContractStore() contractStore.ContractStore {
-	return postgresContractStore.NewPostgresContractStore(pds.db, pds.logger, pds.globalConfig)
-}
-
-// GetAbiFetcher returns a new instance of the ABI fetcher
-func (pds *ProtocolDataService) GetAbiFetcher() *abiFetcher.AbiFetcher {
-	client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&pds.globalConfig.EthereumRpcConfig), pds.logger)
-	return abiFetcher.NewAbiFetcher(client, &http.Client{}, pds.logger, pds.globalConfig, nil)
-}
-
-// GetDB returns the database connection
-func (pds *ProtocolDataService) GetDB() *gorm.DB {
-	return pds.db
 }
 
 func (pds *ProtocolDataService) ListRegisteredAVSsForOperator(ctx context.Context, operator string, blockHeight uint64) ([]string, error) {
