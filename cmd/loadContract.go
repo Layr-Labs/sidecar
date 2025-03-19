@@ -36,6 +36,16 @@ var loadContractCmd = &cobra.Command{
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
 
+		metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
+		if err != nil {
+			return fmt.Errorf("failed to setup metrics sink: %w", err)
+		}
+
+		sink, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
+		if err != nil {
+			return fmt.Errorf("failed to setup metrics sink: %w", err)
+		}
+
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
 		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, cfg, []abiSource.AbiSource{})
@@ -59,11 +69,8 @@ var loadContractCmd = &cobra.Command{
 
 		cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
 
-		// Create metrics sink
-		ms := metrics.NewMetricsSink(l)
-
 		// Create the contract manager
-		cm := contractManager.NewContractManager(grm, cs, client, af, ms, l, cfg)
+		cm := contractManager.NewContractManager(grm, cs, client, af, sink, l, cfg)
 
 		var filename string
 		var useFile bool

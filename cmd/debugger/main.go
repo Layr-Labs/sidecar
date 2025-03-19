@@ -133,7 +133,7 @@ func main() {
 	rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 		GrpcPort: cfg.RpcConfig.GrpcPort,
 		HttpPort: cfg.RpcConfig.HttpPort,
-	}, mds, rc, rcq, eb, rps, pds, rds, scc, sdc, l, cfg)
+	}, mds, contractStore, cm, rc, rcq, eb, rps, pds, rds, scc, sdc, l, cfg)
 
 	// RPC channel to notify the RPC server to shutdown gracefully
 	rpcChannel := make(chan bool)

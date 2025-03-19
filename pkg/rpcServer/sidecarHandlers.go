@@ -34,14 +34,6 @@ func requestToLoadParams(req *sidecarV1.LoadContractRequest) contractManager.Con
 	}
 }
 
-func coreContractToLoadParams(core *sidecarV1.CoreContract) contractManager.ContractLoadParams {
-	return contractManager.ContractLoadParams{
-		Address:      core.GetContractAddress(),
-		Abi:          core.GetContractAbi(),
-		BytecodeHash: core.GetBytecodeHash(),
-	}
-}
-
 func (rpc *RpcServer) GetBlockHeight(ctx context.Context, req *sidecarV1.GetBlockHeightRequest) (*sidecarV1.GetBlockHeightResponse, error) {
 	verified := req.GetVerified()
 	block, err := rpc.protocolDataService.GetCurrentBlockHeight(ctx, verified)
@@ -83,7 +75,7 @@ func (rpc *RpcServer) LoadContract(ctx context.Context, req *sidecarV1.LoadContr
 	// Convert request to domain params
 	params := requestToLoadParams(req)
 
-	contractAddress, err := contractManager.LoadContract(ctx, params)
+	contractAddress, err := rpc.contractManager.LoadContract(ctx, params)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to load contract: %v", err))
 	}
@@ -106,7 +98,7 @@ func (rpc *RpcServer) LoadContracts(ctx context.Context, req *sidecarV1.LoadCont
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to prepare contract data: %v", err))
 	}
 
-	err = contractStore.InitializeExternalContractsFromReader(reader)
+	err = rpc.contractStore.InitializeExternalContractsFromReader(reader)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to initialize external contracts: %v", err))
 	}

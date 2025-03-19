@@ -3,9 +3,18 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/metrics/prometheus"
 	"github.com/Layr-Labs/sidecar/internal/version"
+	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
+	"github.com/Layr-Labs/sidecar/pkg/abiSource"
+	"github.com/Layr-Labs/sidecar/pkg/abiSource/ipfs"
+	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
+	"github.com/Layr-Labs/sidecar/pkg/contractManager"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
@@ -18,8 +27,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
 	"github.com/Layr-Labs/sidecar/pkg/shutdown"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
-	"log"
-	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -65,6 +72,11 @@ var rpcCmd = &cobra.Command{
 			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 		}
 
+		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
+
+		ipfs := ipfs.NewIpfs(ipfs.DefaultHttpClient(), l, cfg)
+		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, cfg, []abiSource.AbiSource{ipfs})
+
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
 		pg, err := postgres.NewPostgres(pgConfig)
@@ -76,6 +88,10 @@ var rpcCmd = &cobra.Command{
 		if err != nil {
 			l.Fatal("Failed to create gorm instance", zap.Error(err))
 		}
+
+		cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
+
+		cm := contractManager.NewContractManager(grm, cs, client, af, sink, l, cfg)
 
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {
@@ -112,7 +128,7 @@ var rpcCmd = &cobra.Command{
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
 			HttpPort: cfg.RpcConfig.HttpPort,
-		}, mds, rc, rcq, eb, rps, pds, rds, scc, sink, l, cfg)
+		}, mds, cs, cm, rc, rcq, eb, rps, pds, rds, scc, sink, l, cfg)
 
 		// RPC channel to notify the RPC server to shutdown gracefully
 		rpcChannel := make(chan bool)
