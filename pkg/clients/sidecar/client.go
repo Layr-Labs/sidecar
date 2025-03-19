@@ -15,7 +15,7 @@ import (
 
 type SidecarClient struct {
 	RewardsClient  rewardsV1.RewardsClient
-	RpcCclient     rpcV1.RpcClient
+	RpcClient      rpcV1.RpcClient
 	ProtocolClient protocolV1.ProtocolClient
 	EventsClient   eventsV1.EventsClient
 }
@@ -43,7 +43,7 @@ func NewSidecarClient(url string, insecureConn bool) (*SidecarClient, error) {
 
 	return &SidecarClient{
 		RewardsClient:  rc,
-		RpcCclient:     rpcc,
+		RpcClient:      rpcc,
 		ProtocolClient: pc,
 		EventsClient:   ec,
 	}, nil

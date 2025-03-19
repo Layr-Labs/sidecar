@@ -72,6 +72,11 @@ func (rpc *RpcServer) About(ctx context.Context, req *sidecarV1.AboutRequest) (*
 
 // LoadContract handles the gRPC request to load a contract into the contract store
 func (rpc *RpcServer) LoadContract(ctx context.Context, req *sidecarV1.LoadContractRequest) (*sidecarV1.LoadContractResponse, error) {
+	// Load contract is a write operation so we need to proxy the request to the "primary" sidecar
+	if !rpc.globalConfig.SidecarPrimaryConfig.IsPrimary {
+		return rpc.sidecarClient.RpcClient.LoadContract(ctx, req)
+	}
+
 	// Convert request to domain params
 	params := requestToLoadParams(req)
 
@@ -93,6 +98,11 @@ func (rpc *RpcServer) LoadContract(ctx context.Context, req *sidecarV1.LoadContr
 }
 
 func (rpc *RpcServer) LoadContracts(ctx context.Context, req *sidecarV1.LoadContractsRequest) (*sidecarV1.LoadContractsResponse, error) {
+	// Load contracts is a write operation so we need to proxy the request to the "primary" sidecar
+	if !rpc.globalConfig.SidecarPrimaryConfig.IsPrimary {
+		return rpc.sidecarClient.RpcClient.LoadContracts(ctx, req)
+	}
+
 	reader, loadedAddresses, err := requestToReaderAndAddresses(req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to prepare contract data: %v", err))
