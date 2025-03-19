@@ -245,7 +245,7 @@ func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) 
 		rc.logger.Sugar().Errorw("Failed to get count of rows in staging table", "error", res.Error)
 		return "", res.Error
 	}
-	
+
 	// if there arent any rows, we need to create what the rewardsCalcEndDate would be
 	if count == 0 {
 		cutoffDateTime, err := time.Parse(time.DateOnly, cutoffDate)
