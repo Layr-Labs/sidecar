@@ -87,7 +87,7 @@ func (pds *ProtocolDataService) ListStrategies(ctx context.Context, strategyAddr
 		)
 		select
 			ds.strategy,
-			ds.shares,
+			ds.shares as total_staked,
 			coalesce((
 				select jsonb_agg(distinct token)
 				from (
@@ -98,7 +98,7 @@ func (pds *ProtocolDataService) ListStrategies(ctx context.Context, strategyAddr
 					select jsonb_array_elements(odosrt.avs_tokens) as token
 				) t
 				WHERE token IS NOT NULL AND token <> 'null'::jsonb
-			), '[]'::jsonb) as tokens
+			), '[]'::jsonb) as reward_tokens
 		from distinct_strategies as ds
 		left join lateral (
 			select
@@ -127,7 +127,7 @@ func (pds *ProtocolDataService) ListStrategies(ctx context.Context, strategyAddr
 	}
 
 	var strategies []*Strategy
-	res := pds.DB.Raw(query, args...).Scan(&strategyAddresses)
+	res := pds.DB.Raw(query, args...).Scan(&strategies)
 	if res.Error != nil {
 		return nil, res.Error
 	}
