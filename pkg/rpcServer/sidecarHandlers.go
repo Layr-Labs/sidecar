@@ -16,14 +16,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type ContractLoadParams struct {
-	Address          string
-	Abi              string
-	BytecodeHash     string
-	BlockNumber      uint64
-	AssociateToProxy string
-}
-
 func requestToLoadParams(req *sidecarV1.LoadContractRequest) contractManager.ContractLoadParams {
 	return contractManager.ContractLoadParams{
 		Address:          req.GetAddress(),
