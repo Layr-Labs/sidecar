@@ -40,14 +40,14 @@ func (pds *ProtocolDataService) ListQueuedWithdrawals(
 		    qsw.withdrawal_root = csw.withdrawal_root
 		)
 		where
-		    block_number <= @blockHeight
+		    qsw.block_number <= @blockHeight
 		{{ if .filterStaker }}
-			and staker = @stakerAddress
+			and qsw.staker = @stakerAddress
 		{{ end }}
 		{{ if .filterStrategies }}
-		 	and strategy in @strategies
+		 	and qsw.strategy in @strategies
 		{{ end }}
-		order by block_number desc
+		order by qsw.block_number desc
 	`
 
 	templateArgs := map[string]interface{}{
@@ -74,7 +74,7 @@ func (pds *ProtocolDataService) ListQueuedWithdrawals(
 	var withdrawals []*StakerQueuedWithdrawal
 	res := pds.db.Raw(renderedQuery, queryArgs...).Scan(&withdrawals)
 
-	if res != nil {
+	if res.Error != nil {
 		return nil, res.Error
 	}
 	return withdrawals, nil
