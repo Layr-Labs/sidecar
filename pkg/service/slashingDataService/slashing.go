@@ -110,7 +110,7 @@ func (sds *SlashingDataService) listSlashingEvents(ctx context.Context, filter *
 		from slashed_operators as so
 		{{- .joinQuery }}
 		where
-		    so.block_height <= @blockHeight
+		    so.block_number <= @blockHeight
 	`
 
 	templateArgs := map[string]interface{}{
@@ -133,7 +133,7 @@ func (sds *SlashingDataService) listSlashingEvents(ctx context.Context, filter *
 			`
 			query = fmt.Sprintf("%s and so.operator = @operatorAddress", query)
 			args = append(args, sql.Named("operatorAddress", filter.FilterValues[HistoryFilter_OperatorKey]))
-			templateArgs["additionalSelect"] = ", sos.shares as slashed_shares"
+			templateArgs["additionalSelect"] = ", sos.total_slashed_shares as slashed_shares"
 			templateArgs["joinQuery"] = joinQuery
 		case HistoryFilter_Avs:
 			joinQuery := `
@@ -146,7 +146,7 @@ func (sds *SlashingDataService) listSlashingEvents(ctx context.Context, filter *
 			`
 			query = fmt.Sprintf("%s and so.avs = @avsAddress", query)
 			args = append(args, sql.Named("avsAddress", filter.FilterValues[HistoryFilter_AvsKey]))
-			templateArgs["additionalSelect"] = ", sos.shares as slashed_shares"
+			templateArgs["additionalSelect"] = ", sos.total_slashed_shares as slashed_shares"
 			templateArgs["joinQuery"] = joinQuery
 		case HistoryFilter_AvsOperatorSet:
 			joinQuery := `
@@ -161,7 +161,7 @@ func (sds *SlashingDataService) listSlashingEvents(ctx context.Context, filter *
 			query = fmt.Sprintf("%s and so.avs = @avsAddress and so.operator_set_id = @operatorSetId", query)
 			args = append(args, sql.Named("avsAddress", filter.FilterValues[HistoryFilter_AvsKey]))
 			args = append(args, sql.Named("operatorSetId", filter.FilterValues[HistoryFilter_OperatorSetKey]))
-			templateArgs["additionalSelect"] = ", sos.shares as slashed_shares"
+			templateArgs["additionalSelect"] = ", sos.total_slashed_shares as slashed_shares"
 			templateArgs["joinQuery"] = joinQuery
 		default:
 			sds.logger.Sugar().Infow("listSlashingEvents: invalid filter type", zap.Int("filterType", filter.FilterType))
@@ -177,7 +177,7 @@ func (sds *SlashingDataService) listSlashingEvents(ctx context.Context, filter *
 	}
 
 	var slashingEvents []*SlashingEventRow
-	res := sds.db.Raw(renderedQuery, args).Scan(&slashingEvents)
+	res := sds.db.Raw(renderedQuery, args...).Scan(&slashingEvents)
 	if res.Error != nil {
 		return nil, errors.Wrapf(res.Error, "listSlashingEvents: failed to list slashing events")
 	}
