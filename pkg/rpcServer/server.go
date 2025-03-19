@@ -47,6 +47,7 @@ type RpcServer struct {
 	rewardsV1.UnimplementedRewardsServer
 	slashingV1.UnimplementedSlashingServer
 	protocolV1.UnimplementedProtocolServer
+	sidecarV1.UnimplementedRpcServer
 	Logger              *zap.Logger
 	rpcConfig           *RpcServerConfig
 	blockStore          storage.BlockStore
