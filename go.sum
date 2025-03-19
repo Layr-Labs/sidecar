@@ -16,6 +16,8 @@ github.com/Layr-Labs/protocol-apis v1.8.0-rc.3.0.20250317132646-695bd148d806 h1:
 github.com/Layr-Labs/protocol-apis v1.8.0-rc.3.0.20250317132646-695bd148d806/go.mod h1:rseFsoIl5XDZNaAioipXlaf2F51Onu2tQhxac7glIrg=
 github.com/Layr-Labs/protocol-apis v1.8.0-rc.4 h1:jM2vU4Ccc/RywnSWCWWOAJzOi/duQdrhNPZT5QMGEb4=
 github.com/Layr-Labs/protocol-apis v1.8.0-rc.4/go.mod h1:rseFsoIl5XDZNaAioipXlaf2F51Onu2tQhxac7glIrg=
+github.com/Layr-Labs/protocol-apis v1.8.0 h1:1rMy6IVrghq9d85uZSnI3uNLAbA+C9oyxynGVielDzU=
+github.com/Layr-Labs/protocol-apis v1.8.0/go.mod h1:rseFsoIl5XDZNaAioipXlaf2F51Onu2tQhxac7glIrg=
 github.com/Microsoft/go-winio v0.5.0/go.mod h1:JPGBdM1cNvN/6ISo+n8V5iA4v8pBzdOpzfwIujj1a84=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
