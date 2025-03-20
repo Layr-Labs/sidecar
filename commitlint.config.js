@@ -7,7 +7,7 @@ module.exports = {
 		'type-enum': [
 			2,
 			'always',
-			['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore', 'revert', 'perf']
+			['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore', 'revert', 'perf', 'qol']
 		],
 		'footer-max-line-length': [2, 'always', Infinity],
 		'footer-leading-blank': [0]
