@@ -383,11 +383,13 @@ func (rpc *RpcServer) GetClaimedRewardsByBlock(ctx context.Context, req *rewards
 	return &rewardsV1.GetClaimedRewardsByBlockResponse{
 		Rewards: utils.Map(claims, func(c *types.RewardsClaimed, i uint64) *rewardsV1.ClaimedReward {
 			return &rewardsV1.ClaimedReward{
-				Earner:      c.Earner,
-				Claimer:     c.Claimer,
-				Token:       c.Token,
-				BlockNumber: c.BlockNumber,
-				Recipient:   c.Recipient,
+				Earner:           c.Earner,
+				Claimer:          c.Claimer,
+				Token:            c.Token,
+				BlockNumber:      c.BlockNumber,
+				Recipient:        c.Recipient,
+				DistributionRoot: c.Root,
+				Amount:           c.ClaimedAmount,
 			}
 		}),
 	}, nil
@@ -411,11 +413,13 @@ func (rpc *RpcServer) ListClaimedRewardsByBlockRange(ctx context.Context, req *r
 	return &rewardsV1.ListClaimedRewardsByBlockRangeResponse{
 		Rewards: utils.Map(claims, func(c *types.RewardsClaimed, i uint64) *rewardsV1.ClaimedReward {
 			return &rewardsV1.ClaimedReward{
-				Earner:      c.Earner,
-				Claimer:     c.Claimer,
-				Token:       c.Token,
-				BlockNumber: c.BlockNumber,
-				Recipient:   c.Recipient,
+				Earner:           c.Earner,
+				Claimer:          c.Claimer,
+				Token:            c.Token,
+				BlockNumber:      c.BlockNumber,
+				Recipient:        c.Recipient,
+				DistributionRoot: c.Root,
+				Amount:           c.ClaimedAmount,
 			}
 		}),
 	}, nil
