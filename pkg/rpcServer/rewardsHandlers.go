@@ -9,11 +9,14 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
+	serviceTypes "github.com/Layr-Labs/sidecar/pkg/service/types"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"slices"
+	"strings"
 )
 
 func (rpc *RpcServer) GetRewardsRoot(ctx context.Context, req *rewardsV1.GetRewardsRootRequest) (*rewardsV1.GetRewardsRootResponse, error) {
@@ -219,7 +222,14 @@ func (rpc *RpcServer) GetRewardsForSnapshot(ctx context.Context, req *rewardsV1.
 		return nil, status.Error(codes.InvalidArgument, "snapshot is required")
 	}
 
-	snapshotRewards, err := rpc.rewardsDataService.GetRewardsForSnapshot(ctx, snapshot)
+	earner := req.GetEarner()
+
+	earners := make([]string, 0)
+	if earner != "" {
+		earners = append(earners, earner)
+	}
+
+	snapshotRewards, err := rpc.rewardsDataService.GetRewardsForSnapshot(ctx, snapshot, earners)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -497,5 +507,102 @@ func (rpc *RpcServer) GetRewardsByAvsForDistributionRoot(ctx context.Context, re
 
 	return &rewardsV1.GetRewardsByAvsForDistributionRootResponse{
 		Rewards: rewardsResponse,
+	}, nil
+}
+
+// ListEarnerLifetimeRewards returns the lifetime rewards for an earner, which is a list of:
+// - token address
+// - total earned
+func (s *RpcServer) ListEarnerLifetimeRewards(ctx context.Context, request *rewardsV1.ListEarnerLifetimeRewardsRequest) (*rewardsV1.ListEarnerLifetimeRewardsResponse, error) {
+	earnerAddress := request.GetEarnerAddress()
+	if earnerAddress == "" {
+		return nil, status.Error(codes.InvalidArgument, "earner address is required")
+	}
+
+	blockHeight := request.GetBlockHeight()
+
+	// Pagination is not currently supported
+	requestedPage := request.GetPagination()
+	page := serviceTypes.NewDefaultPagination()
+	if requestedPage != nil {
+		page.Load(requestedPage.PageNumber, requestedPage.PageSize)
+	}
+
+	totalRewards, err := s.rewardsDataService.GetTotalRewardsForEarner(ctx, earnerAddress, nil, blockHeight, false)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &rewardsV1.ListEarnerLifetimeRewardsResponse{
+		Rewards: utils.Map(totalRewards, func(r *rewardsDataService.RewardAmount, i uint64) *rewardsV1.RewardAmount {
+			return &rewardsV1.RewardAmount{
+				Token:  r.Token,
+				Amount: r.Amount,
+			}
+		}),
+		// Since we're returning all rewards, there is no next page
+		NextPage: nil,
+	}, nil
+}
+
+func convertHistoricalRewardsToResponse(historicalRewards []*rewardsDataService.HistoricalReward) []*rewardsV1.HistoricalReward {
+	// map[token][snapshot] = amount
+	tokenMap := make(map[string]map[string]string)
+	tokenHistories := make(map[string]*rewardsV1.HistoricalReward)
+	tokenResponses := make([]*rewardsV1.HistoricalReward, 0, len(historicalRewards))
+
+	for _, r := range historicalRewards {
+		if _, ok := tokenMap[r.Token]; !ok {
+			tokenMap[r.Token] = make(map[string]string)
+			tokenHistories[r.Token] = &rewardsV1.HistoricalReward{
+				Token:   r.Token,
+				Amounts: make([]*rewardsV1.HistoricalReward_HistoricalRewardAmount, 0),
+			}
+		}
+		if _, ok := tokenMap[r.Token][r.Snapshot]; !ok {
+			tokenMap[r.Token][r.Snapshot] = r.Amount
+			tokenHistories[r.Token].Amounts = append(tokenHistories[r.Token].Amounts, &rewardsV1.HistoricalReward_HistoricalRewardAmount{
+				Snapshot: r.Snapshot,
+				Amount:   r.Amount,
+			})
+		}
+	}
+	// ensure the list of snapshots are sorted
+	for _, tokenHistory := range tokenHistories {
+		slices.SortFunc(tokenHistory.Amounts, func(i, j *rewardsV1.HistoricalReward_HistoricalRewardAmount) int {
+			return strings.Compare(i.Snapshot, j.Snapshot)
+		})
+		tokenResponses = append(tokenResponses, tokenHistory)
+	}
+	// ensure list of tokens are sorted
+	slices.SortFunc(tokenResponses, func(i, j *rewardsV1.HistoricalReward) int {
+		return strings.Compare(i.Token, j.Token)
+	})
+	return tokenResponses
+}
+
+// ListEarnerHistoricalRewards returns the historical rewards for an earner for a start/end block range and token list, returning
+// a list of:
+//   - token address
+//     for each token:
+//   - amount
+//   - snapshot
+func (s *RpcServer) ListEarnerHistoricalRewards(ctx context.Context, request *rewardsV1.ListEarnerHistoricalRewardsRequest) (*rewardsV1.ListEarnerHistoricalRewardsResponse, error) {
+	earnerAddress := request.GetEarnerAddress()
+	if earnerAddress == "" {
+		return nil, status.Error(codes.InvalidArgument, "earner address is required")
+	}
+
+	startBlock := request.GetStartBlockHeight()
+	endBlock := request.GetEndBlockHeight()
+	tokens := request.GetTokens()
+
+	historicalRewards, err := s.rewardsDataService.ListHistoricalRewardsForEarner(ctx, earnerAddress, startBlock, endBlock, tokens)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &rewardsV1.ListEarnerHistoricalRewardsResponse{
+		Rewards: convertHistoricalRewardsToResponse(historicalRewards),
 	}, nil
 }

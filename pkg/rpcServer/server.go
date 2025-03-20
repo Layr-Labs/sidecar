@@ -148,6 +148,8 @@ func (s *RpcServer) MetricsGrpcUnaryInterceptor() grpc.UnaryServerInterceptor {
 			{Name: "status", Value: status.Code(err).String()},
 			{Name: "status_code", Value: fmt.Sprintf("%d", status.Code(err))},
 			{Name: "rpc", Value: "grpc"},
+			{Name: "client_source", Value: "unknown"},
+			{Name: "client_type", Value: "grpc"},
 		}
 
 		_ = s.metricsSink.Incr(metricsTypes.Metric_Incr_GrpcRequest, labels, 1)
@@ -255,6 +257,13 @@ func (s *RpcServer) MetricsAndLogsHttpHandler(next *runtime.ServeMux, l *zap.Log
 
 		duration := time.Since(startTime)
 
+		clientType := "http"
+
+		clientSource := r.Header.Get("x-sidecar-source")
+		if clientSource != "" {
+			clientType = "unknown"
+		}
+
 		labels := []metricsTypes.MetricsLabel{
 			{Name: "method", Value: method},
 			{Name: "path", Value: path},
@@ -263,6 +272,8 @@ func (s *RpcServer) MetricsAndLogsHttpHandler(next *runtime.ServeMux, l *zap.Log
 			{Name: "pattern", Value: pattern},
 			{Name: "rpc", Value: "http"},
 			{Name: "client_ip", Value: clientIp},
+			{Name: "client_source", Value: clientSource},
+			{Name: "client_type", Value: clientType},
 		}
 
 		_ = s.metricsSink.Incr(metricsTypes.Metric_Incr_HttpRequest, labels, 1)
@@ -283,6 +294,8 @@ func (s *RpcServer) MetricsAndLogsHttpHandler(next *runtime.ServeMux, l *zap.Log
 				zap.String("grpc.method", grpcMethod),
 				zap.Uint64("grpc.time_ms", uint64(duration.Milliseconds())),
 				zap.String("client_ip", clientIp),
+				zap.String("client_source", clientSource),
+				zap.String("client_type", clientType),
 			)
 		}
 	})
