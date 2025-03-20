@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -72,6 +73,7 @@ import (
 	_202503061223_renameConstraint "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503061223_renameConstraint"
 	_202503130907_pectraPrunePartTwo "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503130907_pectraPrunePartTwo"
 	_202503171414_slashingWithdrawals "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503171414_slashingWithdrawals"
+	_202503191610_coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503191610_coreContractMigrations"
 	_202503311108_goldRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503311108_goldRewardHashIndex"
 	_202504240743_fixQueuedSlashingWithdrawalsPk "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202504240743_fixQueuedSlashingWithdrawalsPk"
 	_202505092007_startupJobs "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202505092007_startupJobs"
@@ -216,6 +218,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202504240743_fixQueuedSlashingWithdrawalsPk.Migration{},
 		&_202505092007_startupJobs.Migration{},
 		&_202506172149_snapshotUniqueConstraintsPartTwo.Migration{},
+		&_202503191610_coreContractMigrations.Migration{},
 	}
 
 	for _, migration := range migrations {
