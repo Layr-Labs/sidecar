@@ -6,19 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/pkg/contractManager"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/coreContracts/types"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
 )
-
-type CoreContractManager struct {
-	db              *gorm.DB
-	globalConfig    *config.Config
-	contractManager contractManager.ContractManager
-	logger          *zap.Logger
-}
 
 type Metadata map[string]interface{}
 
@@ -43,6 +36,14 @@ func (m *Metadata) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, m)
 }
 
+func (m *Metadata) Get(key string) (interface{}, bool) {
+	if m == nil {
+		return nil, false
+	}
+	v, ok := (*m)[key]
+	return v, ok
+}
+
 type CoreContractMigrations struct {
 	Id        uint64 `gorm:"serial"`
 	Name      string
@@ -50,15 +51,24 @@ type CoreContractMigrations struct {
 	CreatedAt time.Time
 }
 
+type CoreContractManager struct {
+	db            *gorm.DB
+	globalConfig  *config.Config
+	contractStore contractStore.ContractStore
+	logger        *zap.Logger
+}
+
 func NewCoreContractManager(
 	db *gorm.DB,
 	globalConfig *config.Config,
+	contractStore contractStore.ContractStore,
 	logger *zap.Logger,
 ) *CoreContractManager {
 	return &CoreContractManager{
-		db:           db,
-		globalConfig: globalConfig,
-		logger:       logger,
+		db:            db,
+		globalConfig:  globalConfig,
+		contractStore: contractStore,
+		logger:        logger,
 	}
 }
 
@@ -96,7 +106,7 @@ func (ccm *CoreContractManager) MigrateCoreContracts(migrations []types.ICoreCon
 		if m != nil {
 			ccm.logger.Sugar().Infof("Migration '%s' already applied", migration.GetName())
 		}
-		migrationRes, err := migration.Up(ccm.db, ccm.contractManager, ccm.logger, ccm.globalConfig)
+		migrationRes, err := migration.Up(ccm.db, ccm.contractStore, ccm.logger, ccm.globalConfig)
 		if err != nil {
 			ccm.logger.Sugar().Errorf("Failed to apply migration '%s': %v", migration.GetName(), err)
 			return nil, err
@@ -109,7 +119,6 @@ func (ccm *CoreContractManager) MigrateCoreContracts(migrations []types.ICoreCon
 			}
 		}
 
-		fmt.Printf("Metadata: %+v\n", metadata)
 		res := ccm.db.Model(&CoreContractMigrations{}).Create(&CoreContractMigrations{
 			Name:     migration.GetName(),
 			Metadata: metadata,
@@ -119,7 +128,11 @@ func (ccm *CoreContractManager) MigrateCoreContracts(migrations []types.ICoreCon
 			return nil, res.Error
 		}
 		if migrationRes != nil && len(migrationRes.CoreContractsAdded) > 0 {
-			addedCoreContracts = append(addedCoreContracts, migrationRes.CoreContractsAdded...)
+			for _, c := range migrationRes.CoreContractsAdded {
+				if c.Backfill {
+					addedCoreContracts = append(addedCoreContracts, migrationRes.CoreContractsAdded...)
+				}
+			}
 		}
 	}
 	return addedCoreContracts, nil

@@ -1,15 +1,11 @@
 package contractStore
 
 import (
-	"embed"
 	"fmt"
 	"io"
 	"strings"
 	"time"
 )
-
-//go:embed coreContracts
-var CoreContracts embed.FS
 
 type ContractStore interface {
 	GetContractForAddress(address string) (*Contract, error)
