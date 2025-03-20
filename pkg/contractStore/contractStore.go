@@ -20,7 +20,6 @@ type ContractStore interface {
 	SetContractCheckedForProxy(address string) (*Contract, error)
 
 	InitializeContracts(contractsData *CoreContractsData, contractType ContractType) error
-	InitializeCoreContracts() error
 	InitializeExternalContracts(filename string) error
 	InitializeExternalContractsFromReader(reader io.Reader) error
 }
