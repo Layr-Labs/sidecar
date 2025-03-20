@@ -1,3 +1,4 @@
+// Package coreContracts provides functionality for managing core smart contracts.
 package coreContracts
 
 import (
@@ -13,8 +14,12 @@ import (
 	"time"
 )
 
+// Metadata represents a map of string keys to arbitrary values used to store
+// additional information about core contracts.
 type Metadata map[string]interface{}
 
+// Value implements the driver.Valuer interface for database serialization.
+// Returns the JSON representation of the metadata or an empty JSON object if nil.
 func (m *Metadata) Value() (driver.Value, error) {
 	if m == nil {
 		return "{}", nil
@@ -22,6 +27,8 @@ func (m *Metadata) Value() (driver.Value, error) {
 	return json.Marshal(m)
 }
 
+// Scan implements the sql.Scanner interface for database deserialization.
+// Unmarshals JSON data into the Metadata map structure.
 func (m *Metadata) Scan(value interface{}) error {
 	if value == nil || value == "" {
 		*m = Metadata{}
@@ -36,6 +43,14 @@ func (m *Metadata) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, m)
 }
 
+// Get retrieves a value from the Metadata map by its key.
+//
+// Parameters:
+//   - key: The key to look up in the metadata
+//
+// Returns:
+//   - interface{}: The value associated with the key, or nil if not found
+//   - bool: Whether the key was found in the map
 func (m *Metadata) Get(key string) (interface{}, bool) {
 	if m == nil {
 		return nil, false
@@ -44,6 +59,8 @@ func (m *Metadata) Get(key string) (interface{}, bool) {
 	return v, ok
 }
 
+// CoreContractMigrations represents a database record of migrations that have been applied
+// to core contracts.
 type CoreContractMigrations struct {
 	Id        uint64 `gorm:"serial"`
 	Name      string
@@ -51,6 +68,7 @@ type CoreContractMigrations struct {
 	CreatedAt time.Time
 }
 
+// CoreContractManager handles the initialization and management of core contracts.
 type CoreContractManager struct {
 	db            *gorm.DB
 	globalConfig  *config.Config
@@ -58,6 +76,16 @@ type CoreContractManager struct {
 	logger        *zap.Logger
 }
 
+// NewCoreContractManager creates a new instance of CoreContractManager.
+//
+// Parameters:
+//   - db: Database connection
+//   - globalConfig: Application configuration
+//   - contractStore: Store for contract data
+//   - logger: Logger instance
+//
+// Returns:
+//   - *CoreContractManager: A new core contract manager instance
 func NewCoreContractManager(
 	db *gorm.DB,
 	globalConfig *config.Config,
@@ -72,6 +100,14 @@ func NewCoreContractManager(
 	}
 }
 
+// getMigrationByName retrieves a core contract migration record by name.
+//
+// Parameters:
+//   - name: The name of the migration to find
+//
+// Returns:
+//   - *CoreContractMigrations: The migration record if found, nil if not found
+//   - error: Any error that occurred during the database query
 func (ccm *CoreContractManager) getMigrationByName(name string) (*CoreContractMigrations, error) {
 	migration := &CoreContractMigrations{}
 	res := ccm.db.Where("name = ?", name).First(migration)
@@ -85,6 +121,14 @@ func (ccm *CoreContractManager) getMigrationByName(name string) (*CoreContractMi
 	return migration, nil
 }
 
+// resultToMetadata converts a MigrationResult to a Metadata structure.
+//
+// Parameters:
+//   - res: The migration result to convert
+//
+// Returns:
+//   - *Metadata: The converted metadata
+//   - error: Any error that occurred during conversion
 func resultToMetadata(res *types.MigrationResult) (*Metadata, error) {
 	j, err := json.Marshal(res)
 	if err != nil {
@@ -95,6 +139,15 @@ func resultToMetadata(res *types.MigrationResult) (*Metadata, error) {
 	return m, err
 }
 
+// MigrateCoreContracts applies a series of migrations to core contracts.
+// It tracks which migrations have been applied in the database to avoid duplication.
+//
+// Parameters:
+//   - migrations: A slice of migrations to apply
+//
+// Returns:
+//   - []types.CoreContractAdded: A list of core contracts that were added and require backfilling
+//   - error: Any error that occurred during migration
 func (ccm *CoreContractManager) MigrateCoreContracts(migrations []types.ICoreContractMigration) ([]types.CoreContractAdded, error) {
 	addedCoreContracts := make([]types.CoreContractAdded, 0)
 
