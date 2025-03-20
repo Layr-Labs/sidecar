@@ -57,6 +57,8 @@ var MetricTypes = map[MetricsType][]MetricsTypeConfig{
 				"status",
 				"status_code",
 				"rpc",
+				"client_source",
+				"client_type",
 			},
 		},
 		MetricsTypeConfig{
@@ -69,6 +71,8 @@ var MetricTypes = map[MetricsType][]MetricsTypeConfig{
 				"pattern",
 				"rpc",
 				"client_ip",
+				"client_source",
+				"client_type",
 			},
 		},
 	},
@@ -90,6 +94,8 @@ var MetricTypes = map[MetricsType][]MetricsTypeConfig{
 				"status",
 				"status_code",
 				"rpc",
+				"client_source",
+				"client_type",
 			},
 		},
 		MetricsTypeConfig{
@@ -102,6 +108,8 @@ var MetricTypes = map[MetricsType][]MetricsTypeConfig{
 				"pattern",
 				"rpc",
 				"client_ip",
+				"client_source",
+				"client_type",
 			},
 		},
 		MetricsTypeConfig{
