@@ -4,8 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/eigenState/precommitProcessors"
-	"github.com/Layr-Labs/sidecar/pkg/metaState"
+
 	"log"
 	"os"
 	"testing"
@@ -17,10 +16,14 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
+	"github.com/Layr-Labs/sidecar/pkg/coreContracts"
+	coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/precommitProcessors"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
+	"github.com/Layr-Labs/sidecar/pkg/metaState"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/metaStateManager"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
@@ -90,8 +93,10 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	}
 
 	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-	if err := contractStore.InitializeCoreContracts(); err != nil {
-		log.Fatalf("Failed to initialize core contracts: %v", err)
+
+	ccm := coreContracts.NewCoreContractManager(grm, cfg, contractStore, l)
+	if _, err := ccm.MigrateCoreContracts(coreContractMigrations.GetCoreContractMigrations()); err != nil {
+		l.Fatal("Failed to migrate core contracts", zap.Error(err))
 	}
 
 	cm := contractManager.NewContractManager(grm, contractStore, client, af, l)

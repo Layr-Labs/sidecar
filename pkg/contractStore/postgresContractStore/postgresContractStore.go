@@ -315,12 +315,6 @@ func (s *PostgresContractStore) SetContractCheckedForProxy(address string) (*con
 	return contract, nil
 }
 
-// loadContractData loads core contract data from embedded JSON files based on the chain configuration.
-// This is used to initialize the database with known contract addresses and ABIs.
-func (s *PostgresContractStore) loadContractData() (*contractStore.CoreContractsData, error) {
-	return nil, nil
-}
-
 func (s *PostgresContractStore) InitializeContracts(contractsData *contractStore.CoreContractsData, contractType contractStore.ContractType) error {
 	contracts := make([]*contractStore.Contract, 0)
 	res := s.Db.Find(&contracts)
@@ -373,18 +367,6 @@ func (s *PostgresContractStore) InitializeContracts(contractsData *contractStore
 			zap.String("contractAddress", proxy.ContractAddress),
 			zap.String("proxyContractAddress", proxy.ContractAddress),
 		)
-	}
-	return nil
-}
-
-func (s *PostgresContractStore) InitializeCoreContracts() error {
-	coreContracts, err := s.loadContractData()
-	if err != nil {
-		return fmt.Errorf("failed to load core contracts: %w", err)
-	}
-
-	if err := s.InitializeContracts(coreContracts, contractStore.ContractType_Core); err != nil {
-		return fmt.Errorf("failed to initialize core contracts: %w", err)
 	}
 	return nil
 }

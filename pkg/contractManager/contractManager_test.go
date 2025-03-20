@@ -3,7 +3,8 @@ package contractManager
 import (
 	"context"
 	"database/sql"
-	"log"
+	"github.com/Layr-Labs/sidecar/pkg/coreContracts"
+	coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations"
 	"net/http"
 	"reflect"
 	"testing"
@@ -89,8 +90,10 @@ func Test_ContractManager(t *testing.T) {
 	}
 
 	cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-	if err := cs.InitializeCoreContracts(); err != nil {
-		log.Fatalf("Failed to initialize core contracts: %v", err)
+
+	ccm := coreContracts.NewCoreContractManager(grm, cfg, cs, l)
+	if _, err := ccm.MigrateCoreContracts(coreContractMigrations.GetCoreContractMigrations()); err != nil {
+		l.Fatal("Failed to migrate core contracts", zap.Error(err))
 	}
 
 	t.Run("Test indexing contract upgrades", func(t *testing.T) {

@@ -21,7 +21,6 @@ type ContractStore interface {
 	GetProxyContractWithImplementations(contractAddress string) ([]*Contract, error)
 
 	InitializeContracts(contractsData *CoreContractsData, contractType ContractType) error
-	InitializeCoreContracts() error
 	InitializeExternalContracts(filename string) error
 	InitializeExternalContractsFromReader(reader io.Reader) error
 }

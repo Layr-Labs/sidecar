@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/tracer"
+	"github.com/Layr-Labs/sidecar/pkg/coreContracts"
+	coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations"
 	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"log"
 	"time"
@@ -117,8 +119,10 @@ var runCmd = &cobra.Command{
 		}
 
 		contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-		if err := contractStore.InitializeCoreContracts(); err != nil {
-			log.Fatalf("Failed to initialize core contracts: %v", err)
+
+		ccm := coreContracts.NewCoreContractManager(grm, cfg, contractStore, l)
+		if _, err := ccm.MigrateCoreContracts(coreContractMigrations.GetCoreContractMigrations()); err != nil {
+			l.Fatal("Failed to migrate core contracts", zap.Error(err))
 		}
 
 		cm := contractManager.NewContractManager(grm, contractStore, client, af, l)
