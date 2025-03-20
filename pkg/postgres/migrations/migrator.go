@@ -3,6 +3,7 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
+	_202503191610_coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503191610_coreContractMigrations"
 	_202503311108_goldRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503311108_goldRewardHashIndex"
 	"time"
 
@@ -181,6 +182,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202502180836_snapshotUniqueConstraints.Migration{},
 		&_202503051449_addContractTypeColumn.Migration{},
 		&_202503311108_goldRewardHashIndex.Migration{},
+		&_202503191610_coreContractMigrations.Migration{},
 	}
 
 	for _, migration := range migrations {
