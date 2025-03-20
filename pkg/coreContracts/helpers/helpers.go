@@ -1,9 +1,7 @@
 package helpers
 
 import (
-	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
-	"gorm.io/gorm"
 	"strings"
 )
 
@@ -25,15 +23,15 @@ type ImplementationContractImport struct {
 	// top-level proxy to associate the implementation contract with
 	ProxyContractAddress string
 
-	ImplementationContracts []ImplementationContract
+	ImplementationContracts []*ImplementationContract
 }
 
 type ContractsToImport struct {
-	CoreContracts           []ContractImport
-	ImplementationContracts []ImplementationContractImport
+	CoreContracts           []*ContractImport
+	ImplementationContracts []*ImplementationContractImport
 }
 
-func ImportCoreContracts(coreContracts []ContractImport, grm *gorm.DB, cm contractManager.ContractManager, cs contractStore.ContractStore) ([]string, error) {
+func ImportCoreContracts(coreContracts []*ContractImport, cs contractStore.ContractStore) ([]string, error) {
 	createdContracts := make([]string, 0)
 	for _, c := range coreContracts {
 		contract, found, err := cs.FindOrCreateContract(
@@ -57,14 +55,13 @@ func ImportCoreContracts(coreContracts []ContractImport, grm *gorm.DB, cm contra
 }
 
 func ImportImplementationContracts(
-	implementationContracts []ImplementationContractImport,
-	grm *gorm.DB,
-	cm contractManager.ContractManager,
+	implementationContracts []*ImplementationContractImport,
 	cs contractStore.ContractStore,
-) error {
+) ([]string, error) {
+	importedImplementationContracts := make([]string, 0)
 	for _, i := range implementationContracts {
 		for _, c := range i.ImplementationContracts {
-			contract, _, err := cs.FindOrCreateContract(
+			contract, found, err := cs.FindOrCreateContract(
 				strings.ToLower(c.Contract.Address),
 				c.Contract.Abi,
 				true,
@@ -74,19 +71,22 @@ func ImportImplementationContracts(
 				contractStore.ContractType_Core,
 			)
 			if err != nil {
-				return err
+				return nil, err
+			}
+			if !found {
+				importedImplementationContracts = append(importedImplementationContracts, contract.ContractAddress)
 			}
 
 			_, err = cs.SetContractCheckedForProxy(contract.ContractAddress)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			_, _, err = cs.FindOrCreateProxyContract(c.BlockNumber, i.ProxyContractAddress, contract.ContractAddress)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
-	return nil
+	return importedImplementationContracts, nil
 }
