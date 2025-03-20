@@ -74,7 +74,7 @@ func Test_DefaultOperatorSplit(t *testing.T) {
 	}
 
 	t.Run("Test each event type", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 
 		model, err := NewDefaultOperatorSplitModel(esm, grm, l, cfg)
 
@@ -111,7 +111,7 @@ func Test_DefaultOperatorSplit(t *testing.T) {
 			assert.Equal(t, uint64(1000), split.OldDefaultOperatorSplitBips)
 			assert.Equal(t, uint64(2000), split.NewDefaultOperatorSplitBips)
 
-			err = model.CommitFinalState(blockNumber)
+			err = model.CommitFinalState(blockNumber, false)
 			assert.Nil(t, err)
 
 			splits := make([]*DefaultOperatorSplit, 0)

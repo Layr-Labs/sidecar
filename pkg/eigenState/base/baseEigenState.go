@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/pkg/parser"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
+	"gorm.io/gorm/clause"
 	"slices"
 	"strings"
 
@@ -166,4 +167,32 @@ func CastInterfaceToCommittedState[T any](committedState []interface{}) []*T {
 		state[i] = v.(*T)
 	}
 	return state
+}
+
+func FormatUniqueConstraintName(tableName string) string {
+	return fmt.Sprintf("uniq_%s", tableName)
+}
+
+func CommitFinalState[T any](
+	records []*T,
+	ignoreInsertConflicts bool,
+	tableName string,
+	db *gorm.DB,
+) ([]*T, error) {
+	if len(records) == 0 {
+		return records, nil
+	}
+
+	clauses := []clause.Expression{
+		clause.Returning{},
+	}
+	if ignoreInsertConflicts {
+		clauses = append(clauses, clause.OnConflict{
+			OnConstraint: FormatUniqueConstraintName(tableName),
+			DoNothing:    true,
+		})
+	}
+
+	res := db.Model(&records[0]).Clauses(clauses...).Create(&records)
+	return records, res.Error
 }

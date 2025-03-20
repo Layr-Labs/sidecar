@@ -1,0 +1,7 @@
+dataSources:
+  - name: preprodSlim
+    dbName: sidecar_preprod_unit_tests
+    dataUrl: https://eigenlayer-sidecar-testdata.s3.us-east-1.amazonaws.com/databases/sidecar_preprod_unit_tests.dump
+  - name: testnetFull
+    dbName: sidecar_testnet_unit_tests
+    dataUrl: https://eigenlayer-sidecar-testdata.s3.us-east-1.amazonaws.com/databases/sidecar_testnet_unit_tests.dump
