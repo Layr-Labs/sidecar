@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"math"
 	"strings"
 )
 
@@ -57,7 +58,13 @@ func newGrpcClient(url string, insecureConn bool) (*grpc.ClientConn, error) {
 		creds = grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: false}))
 	}
 
-	return grpc.NewClient(url, creds)
+	opts := []grpc.DialOption{
+		creds,
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(math.MaxInt32)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(math.MaxInt32)),
+	}
+
+	return grpc.NewClient(url, opts...)
 }
 
 func NewSidecarRewardsClient(url string, insecureConn bool) (rewardsV1.RewardsClient, error) {
