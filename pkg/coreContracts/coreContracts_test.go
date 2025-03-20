@@ -1,11 +1,12 @@
 package coreContracts
 
 import (
-	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
-	"github.com/Layr-Labs/sidecar/pkg/contractManager"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
+	_02503191547_initializeAllNewContracts "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202503191547_initializeAllNewContracts"
 	"github.com/Layr-Labs/sidecar/pkg/coreContracts/types"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/stretchr/testify/assert"
@@ -20,6 +21,7 @@ func setup() (
 	*gorm.DB,
 	*zap.Logger,
 	*config.Config,
+	contractStore.ContractStore,
 	error,
 ) {
 	cfg := config.NewConfig()
@@ -31,36 +33,39 @@ func setup() (
 
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
-		return dbname, nil, nil, nil, err
+		return dbname, nil, nil, nil, nil, err
 	}
 
-	return dbname, grm, l, cfg, nil
+	cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
+
+	return dbname, grm, l, cfg, cs, nil
 }
 
 type TestContractMigration struct{}
 
-func (m *TestContractMigration) Up(db *gorm.DB, cm contractManager.ContractManager, l *zap.Logger, cfg *config.Config) (*types.MigrationResult, error) {
+func (m *TestContractMigration) Up(db *gorm.DB, cs contractStore.ContractStore, l *zap.Logger, cfg *config.Config) (*types.MigrationResult, error) {
 	return &types.MigrationResult{
 		CoreContractsAdded: []types.CoreContractAdded{
 			{
 				Address:         "0x1234567890",
 				IndexStartBlock: 100,
+				Backfill:        true,
 			},
 		},
 	}, nil
 }
 
 func (m *TestContractMigration) GetName() string {
-	return "202503191547_initializeAllNewContracts"
+	return "testContractMigration"
 }
 
 func Test_CoreContractManager(t *testing.T) {
-	dbname, grm, l, cfg, err := setup()
+	dbname, grm, l, cfg, cs, err := setup()
 	if err != nil {
 		t.Fatalf("Failed to setup test: %v", err)
 	}
 
-	ccm := NewCoreContractManager(grm, cfg, l)
+	ccm := NewCoreContractManager(grm, cfg, cs, l)
 	if ccm == nil {
 		t.Fatalf("Failed to create CoreContractManager")
 	}
@@ -70,8 +75,27 @@ func Test_CoreContractManager(t *testing.T) {
 			&TestContractMigration{},
 		})
 		assert.Nil(t, err)
-		fmt.Printf("New core contracts: %v\n", newCoreContracts)
 		assert.Equal(t, 1, len(newCoreContracts))
+	})
+
+	t.Run("Test migration for existing mainnet contracts", func(t *testing.T) {
+		migration := &_02503191547_initializeAllNewContracts.ContractMigration{}
+		newCoreContracts, err := ccm.MigrateCoreContracts([]types.ICoreContractMigration{
+			migration,
+		})
+		assert.Nil(t, err)
+		assert.Equal(t, 0, len(newCoreContracts))
+
+		var migrationRecord *CoreContractMigrations
+		res := grm.Debug().Model(&CoreContractMigrations{}).Where("name = ?", migration.GetName()).First(&migrationRecord)
+		assert.Nil(t, res.Error)
+
+		coreContractsAdded, _ := migrationRecord.Metadata.Get("CoreContractsAdded")
+		assert.Equal(t, 5, len(coreContractsAdded.([]interface{})))
+
+		implementationContractsAdded, _ := migrationRecord.Metadata.Get("ImplementationContractsAdded")
+		assert.Equal(t, 11, len(implementationContractsAdded.([]interface{})))
+
 	})
 
 	t.Cleanup(func() {
