@@ -83,7 +83,7 @@ func main() {
 		log.Fatalf("Failed to initialize core contracts: %v", err)
 	}
 
-	cm := contractManager.NewContractManager(contractStore, client, af, sdc, l)
+	cm := contractManager.NewContractManager(grm, contractStore, client, af, sdc, l, cfg)
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 	if err != nil {
@@ -133,7 +133,7 @@ func main() {
 	rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 		GrpcPort: cfg.RpcConfig.GrpcPort,
 		HttpPort: cfg.RpcConfig.HttpPort,
-	}, mds, rc, rcq, eb, rps, pds, rds, scc, sdc, l, cfg)
+	}, mds, contractStore, cm, rc, rcq, eb, rps, pds, rds, scc, sdc, l, cfg)
 
 	// RPC channel to notify the RPC server to shutdown gracefully
 	rpcChannel := make(chan bool)

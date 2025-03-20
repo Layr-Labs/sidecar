@@ -158,7 +158,7 @@ func Test_ContractManager(t *testing.T) {
 
 		// Perform the upgrade
 		blockNumber := 5
-		cm := NewContractManager(cs, client, af, sdc, l)
+		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 
@@ -194,7 +194,7 @@ func Test_ContractManager(t *testing.T) {
 
 		// Perform the upgrade
 		blockNumber := 10
-		cm := NewContractManager(cs, client, af, sdc, l)
+		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 
@@ -210,6 +210,172 @@ func Test_ContractManager(t *testing.T) {
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 3, proxyContractCount)
 	})
+	t.Run("Test LoadContract with valid parameters", func(t *testing.T) {
+		// Patch abiFetcher
+		patches := gomonkey.ApplyMethod(reflect.TypeOf(af), "FetchContractBytecodeHash",
+			func(_ *abiFetcher.AbiFetcher, _ context.Context, _ string) (string, error) {
+				return "mockedBytecodeHash", nil
+			})
+		defer patches.Reset()
+
+		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+
+		params := ContractLoadParams{
+			Address:      "0x2468ace02468ace02468ace02468ace02468ace0",
+			Abi:          `[{"type":"function","name":"test","inputs":[],"outputs":[]}]`,
+			BytecodeHash: "precomputedHash123",
+		}
+
+		address, err := cm.LoadContract(context.Background(), params)
+		assert.Nil(t, err)
+		assert.Equal(t, params.Address, address)
+
+		// Verify contract was stored correctly
+		contract, err := cs.GetContractForAddress(params.Address)
+		assert.Nil(t, err)
+		assert.NotNil(t, contract)
+		assert.Equal(t, params.Address, contract.ContractAddress)
+		assert.Equal(t, params.Abi, contract.ContractAbi)
+		assert.Equal(t, params.BytecodeHash, contract.BytecodeHash)
+	})
+
+	t.Run("Test LoadContract with empty bytecode hash", func(t *testing.T) {
+		// Patch abiFetcher to return a mocked bytecode hash
+		patches := gomonkey.ApplyMethod(reflect.TypeOf(af), "FetchContractBytecodeHash",
+			func(_ *abiFetcher.AbiFetcher, _ context.Context, _ string) (string, error) {
+				return "fetchedBytecodeHash", nil
+			})
+		defer patches.Reset()
+
+		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+
+		params := ContractLoadParams{
+			Address:      "0x1357924680135792468013579246801357924680",
+			Abi:          `[{"type":"function","name":"testFunc","inputs":[],"outputs":[]}]`,
+			BytecodeHash: "", // Empty bytecode hash should trigger fetch
+		}
+
+		address, err := cm.LoadContract(context.Background(), params)
+		assert.Nil(t, err)
+		assert.Equal(t, params.Address, address)
+
+		// Verify contract was stored with fetched bytecode hash
+		contract, err := cs.GetContractForAddress(params.Address)
+		assert.Nil(t, err)
+		assert.NotNil(t, contract)
+		assert.Equal(t, "fetchedBytecodeHash", contract.BytecodeHash)
+	})
+
+	t.Run("Test LoadContract with proxy association", func(t *testing.T) {
+		// Create a proxy contract first
+		proxyAddress := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		_, err := cs.CreateContract(
+			proxyAddress,
+			`[{"type":"function","name":"proxy","inputs":[],"outputs":[]}]`,
+			true,
+			"proxyBytecodeHash",
+			"",
+			true,
+			contractStore.ContractType_External,
+		)
+		assert.Nil(t, err)
+
+		// Patch abiFetcher
+		patches := gomonkey.ApplyMethod(reflect.TypeOf(af), "FetchContractBytecodeHash",
+			func(_ *abiFetcher.AbiFetcher, _ context.Context, _ string) (string, error) {
+				return "implBytecodeHash", nil
+			})
+		defer patches.Reset()
+
+		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+
+		params := ContractLoadParams{
+			Address:          "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			Abi:              `[{"type":"function","name":"implementation","inputs":[],"outputs":[]}]`,
+			BytecodeHash:     "implBytecodeHash",
+			BlockNumber:      100,
+			AssociateToProxy: proxyAddress,
+		}
+
+		address, err := cm.LoadContract(context.Background(), params)
+		assert.Nil(t, err)
+		assert.Equal(t, params.Address, address)
+
+		// Verify the proxy relationship
+		proxyContract, err := cs.GetProxyContractForAddress(params.BlockNumber, proxyAddress)
+		assert.Nil(t, err)
+		assert.NotNil(t, proxyContract)
+		assert.Equal(t, proxyAddress, proxyContract.ContractAddress)
+		assert.Equal(t, params.Address, proxyContract.ProxyContractAddress)
+	})
+
+	t.Run("Test LoadContract with proxy association but no block number", func(t *testing.T) {
+		// Create a proxy contract first
+		proxyAddress := "0xcccccccccccccccccccccccccccccccccccccccc"
+		_, err := cs.CreateContract(
+			proxyAddress,
+			`[{"type":"function","name":"proxy2","inputs":[],"outputs":[]}]`,
+			true,
+			"proxy2BytecodeHash",
+			"",
+			true,
+			contractStore.ContractType_External,
+		)
+		assert.Nil(t, err)
+
+		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+
+		params := ContractLoadParams{
+			Address:          "0xdddddddddddddddddddddddddddddddddddddddd",
+			Abi:              `[{"type":"function","name":"implementation2","inputs":[],"outputs":[]}]`,
+			BytecodeHash:     "impl2BytecodeHash",
+			BlockNumber:      0, // Missing block number
+			AssociateToProxy: proxyAddress,
+		}
+
+		_, err = cm.LoadContract(context.Background(), params)
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "block number is required")
+	})
+
+	t.Run("Test LoadContract with nonexistent proxy", func(t *testing.T) {
+		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+
+		params := ContractLoadParams{
+			Address:          "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+			Abi:              `[{"type":"function","name":"implementation3","inputs":[],"outputs":[]}]`,
+			BytecodeHash:     "impl3BytecodeHash",
+			BlockNumber:      200,
+			AssociateToProxy: "0xffffffffffffffffffffffffffffffffffffffff", // Non-existent proxy
+		}
+
+		_, err = cm.LoadContract(context.Background(), params)
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("Test LoadContract with missing parameters", func(t *testing.T) {
+		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+
+		// Missing address
+		params1 := ContractLoadParams{
+			Abi:          `[{"type":"function","name":"test","inputs":[],"outputs":[]}]`,
+			BytecodeHash: "hash",
+		}
+		_, err := cm.LoadContract(context.Background(), params1)
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "address is required")
+
+		// Missing ABI
+		params2 := ContractLoadParams{
+			Address:      "0x1111111111111111111111111111111111111111",
+			BytecodeHash: "hash",
+		}
+		_, err = cm.LoadContract(context.Background(), params2)
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "ABI is required")
+	})
+
 	t.Cleanup(func() {
 		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})

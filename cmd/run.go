@@ -103,7 +103,7 @@ var runCmd = &cobra.Command{
 			log.Fatalf("Failed to initialize core contracts: %v", err)
 		}
 
-		cm := contractManager.NewContractManager(contractStore, client, af, sink, l)
+		cm := contractManager.NewContractManager(grm, contractStore, client, af, sink, l, cfg)
 
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {
@@ -157,7 +157,7 @@ var runCmd = &cobra.Command{
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
 			HttpPort: cfg.RpcConfig.HttpPort,
-		}, mds, rc, rcq, eb, rps, pds, rds, scc, sink, l, cfg)
+		}, mds, contractStore, cm, rc, rcq, eb, rps, pds, rds, scc, sink, l, cfg)
 
 		// RPC channel to notify the RPC server to shutdown gracefully
 		rpcChannel := make(chan bool)
