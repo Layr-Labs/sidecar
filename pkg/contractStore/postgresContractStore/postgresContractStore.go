@@ -14,7 +14,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
 
-	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -27,17 +26,14 @@ type PostgresContractStore struct {
 	Db *gorm.DB
 	// Logger is used for logging operations
 	Logger *zap.Logger
-	// globalConfig contains application configuration
-	globalConfig *config.Config
 }
 
-// NewPostgresContractStore creates a new PostgresContractStore with the provided database connection,
-// logger, and configuration.
-func NewPostgresContractStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *PostgresContractStore {
+// NewPostgresContractStore creates a new PostgresContractStore with the provided database connection
+// and logger
+func NewPostgresContractStore(db *gorm.DB, l *zap.Logger) *PostgresContractStore {
 	cs := &PostgresContractStore{
-		Db:           db,
-		Logger:       l,
-		globalConfig: cfg,
+		Db:     db,
+		Logger: l,
 	}
 	return cs
 }

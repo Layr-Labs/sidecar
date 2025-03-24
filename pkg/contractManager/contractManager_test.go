@@ -89,7 +89,7 @@ func Test_ContractManager(t *testing.T) {
 		ProxyContractAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
 	}
 
-	cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
+	cs := postgresContractStore.NewPostgresContractStore(grm, l)
 
 	ccm := coreContracts.NewCoreContractManager(grm, cfg, cs, l)
 	if _, err := ccm.MigrateCoreContracts(coreContractMigrations.GetCoreContractMigrations()); err != nil {
