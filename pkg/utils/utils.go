@@ -115,3 +115,11 @@ func Flatten[A any](coll [][]A) []A {
 func ShortenHex(publicKey string) string {
 	return publicKey[0:6] + ".." + publicKey[len(publicKey)-4:]
 }
+
+func Values[A any](m map[string]A) []A {
+	out := make([]A, 0, len(m))
+	for _, v := range m {
+		out = append(out, v)
+	}
+	return out
+}

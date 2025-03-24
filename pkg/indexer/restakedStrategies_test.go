@@ -3,7 +3,8 @@ package indexer
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/Layr-Labs/sidecar/pkg/coreContracts"
+	coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations"
 	"testing"
 	"time"
 
@@ -90,8 +91,10 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 	}
 
 	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-	if err := contractStore.InitializeCoreContracts(); err != nil {
-		log.Fatalf("Failed to initialize core contracts: %v", err)
+
+	ccm := coreContracts.NewCoreContractManager(grm, cfg, contractStore, l)
+	if _, err := ccm.MigrateCoreContracts(coreContractMigrations.GetCoreContractMigrations()); err != nil {
+		l.Fatal("Failed to migrate core contracts", zap.Error(err))
 	}
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
