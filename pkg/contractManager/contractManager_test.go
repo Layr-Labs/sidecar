@@ -74,7 +74,7 @@ func Test_ContractManager(t *testing.T) {
 	client := ethereum.NewClient(ethConfig, l)
 	client.SetHttpClient(mockHttpClient)
 
-	af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, cfg, []abiSource.AbiSource{})
+	af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, []abiSource.AbiSource{})
 
 	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 	if err != nil {
@@ -158,7 +158,7 @@ func Test_ContractManager(t *testing.T) {
 
 		// Perform the upgrade
 		blockNumber := 5
-		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+		cm := NewContractManager(grm, cs, client, af, sdc, l)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 
@@ -194,7 +194,7 @@ func Test_ContractManager(t *testing.T) {
 
 		// Perform the upgrade
 		blockNumber := 10
-		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+		cm := NewContractManager(grm, cs, client, af, sdc, l)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 
@@ -218,7 +218,7 @@ func Test_ContractManager(t *testing.T) {
 			})
 		defer patches.Reset()
 
-		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+		cm := NewContractManager(grm, cs, client, af, sdc, l)
 
 		params := ContractLoadParams{
 			Address:      "0x2468ace02468ace02468ace02468ace02468ace0",
@@ -247,7 +247,7 @@ func Test_ContractManager(t *testing.T) {
 			})
 		defer patches.Reset()
 
-		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+		cm := NewContractManager(grm, cs, client, af, sdc, l)
 
 		params := ContractLoadParams{
 			Address:      "0x1357924680135792468013579246801357924680",
@@ -287,7 +287,7 @@ func Test_ContractManager(t *testing.T) {
 			})
 		defer patches.Reset()
 
-		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+		cm := NewContractManager(grm, cs, client, af, sdc, l)
 
 		params := ContractLoadParams{
 			Address:          "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -323,7 +323,7 @@ func Test_ContractManager(t *testing.T) {
 		)
 		assert.Nil(t, err)
 
-		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+		cm := NewContractManager(grm, cs, client, af, sdc, l)
 
 		params := ContractLoadParams{
 			Address:          "0xdddddddddddddddddddddddddddddddddddddddd",
@@ -339,7 +339,7 @@ func Test_ContractManager(t *testing.T) {
 	})
 
 	t.Run("Test LoadContract with nonexistent proxy", func(t *testing.T) {
-		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+		cm := NewContractManager(grm, cs, client, af, sdc, l)
 
 		params := ContractLoadParams{
 			Address:          "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
@@ -355,7 +355,7 @@ func Test_ContractManager(t *testing.T) {
 	})
 
 	t.Run("Test LoadContract with missing parameters", func(t *testing.T) {
-		cm := NewContractManager(grm, cs, client, af, sdc, l, cfg)
+		cm := NewContractManager(grm, cs, client, af, sdc, l)
 
 		// Missing address
 		params1 := ContractLoadParams{

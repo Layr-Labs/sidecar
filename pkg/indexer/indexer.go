@@ -150,7 +150,7 @@ func NewIndexer(
 		db:              grm,
 	}
 
-	tlp := transactionLogParser.NewTransactionLogParser(l, cfg, cm, i)
+	tlp := transactionLogParser.NewTransactionLogParser(l, cm, i)
 	i.TransactionLogParser = tlp
 
 	return i

@@ -3,7 +3,6 @@ package transactionBackfiller
 import (
 	"context"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
@@ -42,13 +41,12 @@ type BackfillerMessage struct {
 // TransactionBackfiller processes transaction logs for specified block ranges.
 // It uses a worker pool to concurrently process blocks and extract relevant transaction logs.
 type TransactionBackfiller struct {
-	logger       *zap.Logger
-	config       *TransactionBackfillerConfig
-	globalConfig *config.Config
-	fetcher      *fetcher.Fetcher
-	blockStore   storage.BlockStore
-	queue        chan *BackfillerMessage
-	done         chan struct{}
+	logger     *zap.Logger
+	config     *TransactionBackfillerConfig
+	fetcher    *fetcher.Fetcher
+	blockStore storage.BlockStore
+	queue      chan *BackfillerMessage
+	done       chan struct{}
 }
 
 const (
@@ -63,7 +61,6 @@ const (
 // Parameters:
 //   - cfg: Configuration for the backfiller
 //   - logger: Logger for recording operations
-//   - globalConfig: Global application configuration
 //   - fetcher: Service for fetching blockchain data
 //   - bs: Storage for block data
 //
@@ -72,7 +69,6 @@ const (
 func NewTransactionBackfiller(
 	cfg *TransactionBackfillerConfig,
 	logger *zap.Logger,
-	globalConfig *config.Config,
 	fetcher *fetcher.Fetcher,
 	bs storage.BlockStore,
 ) *TransactionBackfiller {
@@ -80,13 +76,12 @@ func NewTransactionBackfiller(
 		cfg.Workers = defaultWorkers
 	}
 	return &TransactionBackfiller{
-		config:       cfg,
-		logger:       logger,
-		globalConfig: globalConfig,
-		fetcher:      fetcher,
-		blockStore:   bs,
-		queue:        make(chan *BackfillerMessage, queueDepth),
-		done:         make(chan struct{}),
+		config:     cfg,
+		logger:     logger,
+		fetcher:    fetcher,
+		blockStore: bs,
+		queue:      make(chan *BackfillerMessage, queueDepth),
+		done:       make(chan struct{}),
 	}
 }
 

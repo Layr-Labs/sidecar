@@ -6,12 +6,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
-	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/parser"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
 	"github.com/ethereum/go-ethereum/common"
@@ -43,8 +41,7 @@ type ContractManager struct {
 	// metricsSink collects metrics about contract operations
 	metricsSink *metrics.MetricsSink
 	// Logger is used for logging contract operations
-	Logger       *zap.Logger
-	globalConfig *config.Config
+	Logger *zap.Logger
 }
 
 // NewContractManager creates a new ContractManager instance with the provided dependencies.
@@ -55,7 +52,6 @@ func NewContractManager(
 	af *abiFetcher.AbiFetcher,
 	ms *metrics.MetricsSink,
 	l *zap.Logger,
-	cfg *config.Config,
 ) *ContractManager {
 	return &ContractManager{
 		Db:             db,
@@ -64,7 +60,6 @@ func NewContractManager(
 		AbiFetcher:     af,
 		metricsSink:    ms,
 		Logger:         l,
-		globalConfig:   cfg,
 	}
 }
 
@@ -238,10 +233,8 @@ func (cm *ContractManager) LoadContract(
 	}
 
 	contract, err := helpers.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
-		txContractStore := postgresContractStore.NewPostgresContractStore(tx, cm.Logger, cm.globalConfig)
-		// Load the contract
 
-		contract, err := txContractStore.CreateContract(
+		contract, err := cm.ContractStore.CreateContract(
 			params.Address,
 			params.Abi,
 			true,
@@ -256,7 +249,7 @@ func (cm *ContractManager) LoadContract(
 
 		// Associate to proxy if specified
 		if params.AssociateToProxy != "" {
-			proxyContract, err := txContractStore.GetContractForAddress(params.AssociateToProxy)
+			proxyContract, err := cm.ContractStore.GetContractForAddress(params.AssociateToProxy)
 			if err != nil {
 				return nil, fmt.Errorf("error checking for proxy contract: %w", err)
 			}
@@ -266,7 +259,7 @@ func (cm *ContractManager) LoadContract(
 			if params.BlockNumber == 0 {
 				return nil, fmt.Errorf("block number is required to load a proxy contract")
 			}
-			_, err = txContractStore.CreateProxyContract(params.BlockNumber, params.AssociateToProxy, params.Address)
+			_, err = cm.ContractStore.CreateProxyContract(params.BlockNumber, params.AssociateToProxy, params.Address)
 			if err != nil {
 				return nil, fmt.Errorf("failed to load to proxy contract: %w", err)
 			}
