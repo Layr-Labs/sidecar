@@ -100,7 +100,7 @@ func Test_ContractManager(t *testing.T) {
 		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 	}
 
-	cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
+	cs := postgresContractStore.NewPostgresContractStore(grm, l)
 
 	ccm := coreContracts.NewCoreContractManager(grm, cfg, cs, l)
 	if _, err := ccm.MigrateCoreContracts(coreContractMigrations.GetCoreContractMigrations()); err != nil {

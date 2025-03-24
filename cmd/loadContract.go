@@ -58,7 +58,7 @@ var loadContractCmd = &cobra.Command{
 			return fmt.Errorf("failed to migrate: %w", err)
 		}
 
-		cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
+		cs := postgresContractStore.NewPostgresContractStore(grm, l)
 
 		var filename string
 		var useFile bool
@@ -126,7 +126,7 @@ var loadContractCmd = &cobra.Command{
 			// Wrap contract creation and proxy association in a transaction
 			_, err = helpers.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
 				// Create a temporary contract store with the transaction
-				txContractStore := postgresContractStore.NewPostgresContractStore(tx, l, cfg)
+				txContractStore := postgresContractStore.NewPostgresContractStore(tx, l)
 
 				// Load the contract
 				contract, err := txContractStore.CreateContract(
