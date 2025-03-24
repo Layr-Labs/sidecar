@@ -44,7 +44,7 @@ func Test_PostgresContractStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cs := NewPostgresContractStore(db, l, cfg)
+	cs := NewPostgresContractStore(db, l)
 
 	createdContracts := make([]*contractStore.Contract, 0)
 	createdProxyContracts := make([]*contractStore.ProxyContract, 0)

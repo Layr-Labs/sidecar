@@ -79,7 +79,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 
 	af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, []abiSource.AbiSource{})
 
-	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
+	contractStore := postgresContractStore.NewPostgresContractStore(grm, l)
 
 	ccm := coreContracts.NewCoreContractManager(grm, cfg, contractStore, l)
 	if _, err := ccm.MigrateCoreContracts(coreContractMigrations.GetCoreContractMigrations()); err != nil {

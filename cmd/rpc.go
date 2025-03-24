@@ -97,7 +97,7 @@ var rpcCmd = &cobra.Command{
 			l.Fatal("Failed to create gorm instance", zap.Error(err))
 		}
 
-		cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
+		cs := postgresContractStore.NewPostgresContractStore(grm, l)
 
 		cm := contractManager.NewContractManager(grm, cs, client, af, l)
 

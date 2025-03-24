@@ -83,7 +83,7 @@ func main() {
 		l.Fatal("Failed to migrate", zap.Error(err))
 	}
 
-	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
+	contractStore := postgresContractStore.NewPostgresContractStore(grm, l)
 
 	ccm := coreContracts.NewCoreContractManager(grm, cfg, contractStore, l)
 	if _, err := ccm.MigrateCoreContracts(coreContractMigrations.GetCoreContractMigrations()); err != nil {

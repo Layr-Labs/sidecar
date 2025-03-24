@@ -36,7 +36,7 @@ func setup() (
 		return dbname, nil, nil, nil, nil, err
 	}
 
-	cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
+	cs := postgresContractStore.NewPostgresContractStore(grm, l)
 
 	return dbname, grm, l, cfg, cs, nil
 }

@@ -9,11 +9,11 @@ import (
 // ContractImport represents a contract to be imported into the system.
 type ContractImport struct {
 	// Address is the Ethereum address of the contract
-	Address      string
-	
+	Address string
+
 	// Abi is the Application Binary Interface (ABI) of the contract
-	Abi          string
-	
+	Abi string
+
 	// BytecodeHash is the hash of the contract's bytecode
 	BytecodeHash string
 }
@@ -40,8 +40,8 @@ type ImplementationContractImport struct {
 // ContractsToImport represents a collection of contracts to be imported into the system.
 type ContractsToImport struct {
 	// CoreContracts is a list of top-level core contracts to import
-	CoreContracts           []*ContractImport
-	
+	CoreContracts []*ContractImport
+
 	// ImplementationContracts is a list of implementation contracts and their proxies
 	ImplementationContracts []*ImplementationContractImport
 }

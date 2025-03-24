@@ -56,7 +56,7 @@ var loadContractCmd = &cobra.Command{
 			return fmt.Errorf("failed to migrate: %w", err)
 		}
 
-		cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
+		cs := postgresContractStore.NewPostgresContractStore(grm, l)
 
 		// Create the contract manager
 		cm := contractManager.NewContractManager(grm, cs, client, af, l)
