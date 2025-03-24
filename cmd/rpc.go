@@ -91,7 +91,7 @@ var rpcCmd = &cobra.Command{
 
 		cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
 
-		cm := contractManager.NewContractManager(grm, cs, client, af, sink, l)
+		cm := contractManager.NewContractManager(grm, cs, client, af, l)
 
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {
