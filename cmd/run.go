@@ -103,7 +103,7 @@ var runCmd = &cobra.Command{
 			log.Fatalf("Failed to initialize core contracts: %v", err)
 		}
 
-		cm := contractManager.NewContractManager(grm, contractStore, client, af, sink, l)
+		cm := contractManager.NewContractManager(grm, contractStore, client, af, l)
 
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {

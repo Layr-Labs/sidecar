@@ -11,7 +11,6 @@ import (
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
@@ -79,16 +78,6 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 
 	af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, []abiSource.AbiSource{})
 
-	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
-	if err != nil {
-		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
-	}
-
-	sdc, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
-	if err != nil {
-		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
-	}
-
 	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
 	if err := contractStore.InitializeCoreContracts(); err != nil {
 		log.Fatalf("Failed to initialize core contracts: %v", err)
@@ -102,7 +91,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 
 	scc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, 10, l)
 
-	cm := contractManager.NewContractManager(grm, contractStore, client, af, sdc, l)
+	cm := contractManager.NewContractManager(grm, contractStore, client, af, l)
 
 	t.Run("Integration - gets restaked strategies for avs/operator with multicall contract caller", func(t *testing.T) {
 		avs := "0xD4A7E1Bd8015057293f0D0A557088c286942e84b"

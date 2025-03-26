@@ -14,7 +14,6 @@ import (
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -34,16 +33,6 @@ var loadContractCmd = &cobra.Command{
 		l, err := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 		if err != nil {
 			return fmt.Errorf("failed to initialize logger: %w", err)
-		}
-
-		metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
-		if err != nil {
-			return fmt.Errorf("failed to setup metrics sink: %w", err)
-		}
-
-		sink, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
-		if err != nil {
-			return fmt.Errorf("failed to setup metrics sink: %w", err)
 		}
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
@@ -70,7 +59,7 @@ var loadContractCmd = &cobra.Command{
 		cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
 
 		// Create the contract manager
-		cm := contractManager.NewContractManager(grm, cs, client, af, sink, l)
+		cm := contractManager.NewContractManager(grm, cs, client, af, l)
 
 		var filename string
 		var useFile bool

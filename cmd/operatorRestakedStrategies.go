@@ -7,7 +7,6 @@ import (
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
@@ -37,16 +36,6 @@ var runOperatorRestakedStrategiesCmd = &cobra.Command{
 
 		l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-		metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
-		if err != nil {
-			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
-		}
-
-		sdc, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
-		if err != nil {
-			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
-		}
-
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
 		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, []abiSource.AbiSource{})
@@ -73,7 +62,7 @@ var runOperatorRestakedStrategiesCmd = &cobra.Command{
 			log.Fatalf("Failed to initialize core contracts: %v", err)
 		}
 
-		cm := contractManager.NewContractManager(grm, contractStore, client, af, sdc, l)
+		cm := contractManager.NewContractManager(grm, contractStore, client, af, l)
 
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {

@@ -4,13 +4,14 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
+	"log"
+	"strings"
+
 	v1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/events"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	"io"
-	"log"
-	"strings"
 )
 
 func NewSidecarClient(url string, insecureConn bool) (v1.EventsClient, error) {

@@ -12,7 +12,6 @@ import (
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
@@ -76,11 +75,6 @@ func Test_ContractManager(t *testing.T) {
 
 	af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, []abiSource.AbiSource{})
 
-	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
-	if err != nil {
-		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
-	}
-
 	contract := &contractStore.Contract{
 		ContractAddress:         "0x1234567890abcdef1234567890abcdef12345678",
 		ContractAbi:             "[]",
@@ -92,11 +86,6 @@ func Test_ContractManager(t *testing.T) {
 		BlockNumber:          1,
 		ContractAddress:      contract.ContractAddress,
 		ProxyContractAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-	}
-
-	sdc, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
-	if err != nil {
-		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 	}
 
 	cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
@@ -158,7 +147,7 @@ func Test_ContractManager(t *testing.T) {
 
 		// Perform the upgrade
 		blockNumber := 5
-		cm := NewContractManager(grm, cs, client, af, sdc, l)
+		cm := NewContractManager(grm, cs, client, af, l)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 
@@ -194,7 +183,7 @@ func Test_ContractManager(t *testing.T) {
 
 		// Perform the upgrade
 		blockNumber := 10
-		cm := NewContractManager(grm, cs, client, af, sdc, l)
+		cm := NewContractManager(grm, cs, client, af, l)
 		err = cm.HandleContractUpgrade(context.Background(), uint64(blockNumber), upgradedLog)
 		assert.Nil(t, err)
 
@@ -218,7 +207,7 @@ func Test_ContractManager(t *testing.T) {
 			})
 		defer patches.Reset()
 
-		cm := NewContractManager(grm, cs, client, af, sdc, l)
+		cm := NewContractManager(grm, cs, client, af, l)
 
 		params := ContractLoadParams{
 			Address:      "0x2468ace02468ace02468ace02468ace02468ace0",
@@ -247,7 +236,7 @@ func Test_ContractManager(t *testing.T) {
 			})
 		defer patches.Reset()
 
-		cm := NewContractManager(grm, cs, client, af, sdc, l)
+		cm := NewContractManager(grm, cs, client, af, l)
 
 		params := ContractLoadParams{
 			Address:      "0x1357924680135792468013579246801357924680",
@@ -287,7 +276,7 @@ func Test_ContractManager(t *testing.T) {
 			})
 		defer patches.Reset()
 
-		cm := NewContractManager(grm, cs, client, af, sdc, l)
+		cm := NewContractManager(grm, cs, client, af, l)
 
 		params := ContractLoadParams{
 			Address:          "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -323,7 +312,7 @@ func Test_ContractManager(t *testing.T) {
 		)
 		assert.Nil(t, err)
 
-		cm := NewContractManager(grm, cs, client, af, sdc, l)
+		cm := NewContractManager(grm, cs, client, af, l)
 
 		params := ContractLoadParams{
 			Address:          "0xdddddddddddddddddddddddddddddddddddddddd",
@@ -339,7 +328,7 @@ func Test_ContractManager(t *testing.T) {
 	})
 
 	t.Run("Test LoadContract with nonexistent proxy", func(t *testing.T) {
-		cm := NewContractManager(grm, cs, client, af, sdc, l)
+		cm := NewContractManager(grm, cs, client, af, l)
 
 		params := ContractLoadParams{
 			Address:          "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
@@ -355,7 +344,7 @@ func Test_ContractManager(t *testing.T) {
 	})
 
 	t.Run("Test LoadContract with missing parameters", func(t *testing.T) {
-		cm := NewContractManager(grm, cs, client, af, sdc, l)
+		cm := NewContractManager(grm, cs, client, af, l)
 
 		// Missing address
 		params1 := ContractLoadParams{

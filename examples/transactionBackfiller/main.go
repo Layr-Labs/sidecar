@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
@@ -52,16 +51,6 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, []abiSource.AbiSource{})
 
-	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
-	if err != nil {
-		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
-	}
-
-	sink, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
-	if err != nil {
-		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
-	}
-
 	_, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
 		log.Fatal(err)
@@ -74,7 +63,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 
-	cm := contractManager.NewContractManager(grm, contractStore, client, af, sink, l)
+	cm := contractManager.NewContractManager(grm, contractStore, client, af, l)
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 

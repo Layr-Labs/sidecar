@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
@@ -38,8 +37,6 @@ type ContractManager struct {
 	EthereumClient *ethereum.Client
 	// AbiFetcher is used to fetch contract ABIs
 	AbiFetcher *abiFetcher.AbiFetcher
-	// metricsSink collects metrics about contract operations
-	metricsSink *metrics.MetricsSink
 	// Logger is used for logging contract operations
 	Logger *zap.Logger
 }
@@ -50,7 +47,6 @@ func NewContractManager(
 	cs contractStore.ContractStore,
 	e *ethereum.Client,
 	af *abiFetcher.AbiFetcher,
-	ms *metrics.MetricsSink,
 	l *zap.Logger,
 ) *ContractManager {
 	return &ContractManager{
@@ -58,7 +54,6 @@ func NewContractManager(
 		ContractStore:  cs,
 		EthereumClient: e,
 		AbiFetcher:     af,
-		metricsSink:    ms,
 		Logger:         l,
 	}
 }
