@@ -79,7 +79,7 @@ var runCmd = &cobra.Command{
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
 		ipfs := ipfs.NewIpfs(ipfs.DefaultHttpClient(), l, cfg)
-		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, cfg, []abiSource.AbiSource{ipfs})
+		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, []abiSource.AbiSource{ipfs})
 
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
@@ -103,7 +103,7 @@ var runCmd = &cobra.Command{
 			log.Fatalf("Failed to initialize core contracts: %v", err)
 		}
 
-		cm := contractManager.NewContractManager(grm, contractStore, client, af, sink, l, cfg)
+		cm := contractManager.NewContractManager(grm, contractStore, client, af, sink, l)
 
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {

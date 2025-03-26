@@ -3,7 +3,6 @@ package transactionLogParser
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractAbi"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
@@ -27,7 +26,6 @@ type InterestingLogQualifier interface {
 // It uses contract ABIs to decode event data into structured format.
 type TransactionLogParser struct {
 	logger                  *zap.Logger
-	globalConfig            *config.Config
 	contractManager         *contractManager.ContractManager
 	interestingLogQualifier InterestingLogQualifier
 }
@@ -36,7 +34,6 @@ type TransactionLogParser struct {
 //
 // Parameters:
 //   - logger: Logger for recording operations
-//   - globalConfig: Global application configuration
 //   - contractManager: Manager for contract ABIs and metadata
 //   - interestingLogQualifier: Qualifier to determine which logs to process
 //
@@ -44,13 +41,11 @@ type TransactionLogParser struct {
 //   - *TransactionLogParser: A configured transaction log parser
 func NewTransactionLogParser(
 	logger *zap.Logger,
-	globalConfig *config.Config,
 	contractManager *contractManager.ContractManager,
 	interestingLogQualifier InterestingLogQualifier,
 ) *TransactionLogParser {
 	return &TransactionLogParser{
 		logger:                  logger,
-		globalConfig:            globalConfig,
 		contractManager:         contractManager,
 		interestingLogQualifier: interestingLogQualifier,
 	}

@@ -50,7 +50,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	ethConfig.NativeBatchCallSize = 10
 	client := ethereum.NewClient(ethConfig, l)
 
-	af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg, []abiSource.AbiSource{})
+	af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, []abiSource.AbiSource{})
 
 	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 	if err != nil {
@@ -74,7 +74,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 
-	cm := contractManager.NewContractManager(grm, contractStore, client, af, sink, l, cfg)
+	cm := contractManager.NewContractManager(grm, contractStore, client, af, sink, l)
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 
@@ -92,7 +92,6 @@ func NewBackfillerPlugin(
 	bs storage.BlockStore,
 	l *zap.Logger,
 	cm *contractManager.ContractManager,
-	cfg *config.Config,
 ) *BackfillerPlugin {
 	b := &BackfillerPlugin{
 		blockStore: bs,
@@ -100,7 +99,7 @@ func NewBackfillerPlugin(
 	}
 
 	// IsInterestingAddress satisfies the IsInterestingAddress interface
-	logParser := transactionLogParser.NewTransactionLogParser(l, cfg, cm, b)
+	logParser := transactionLogParser.NewTransactionLogParser(l, cm, b)
 
 	b.logParser = logParser
 	return b
@@ -135,15 +134,15 @@ func (bp *BackfillerPlugin) DecodeAndStoreLog(
 }
 
 func main() {
-	cfg, l, fetchr, mds, cm, err := setup(&ethereum.EthereumClientConfig{})
+	_, l, fetchr, mds, cm, err := setup(&ethereum.EthereumClientConfig{})
 
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	plugin := NewBackfillerPlugin(mds, l, cm, cfg)
+	plugin := NewBackfillerPlugin(mds, l, cm)
 
-	bf := transactionBackfiller.NewTransactionBackfiller(&transactionBackfiller.TransactionBackfillerConfig{}, l, cfg, fetchr, mds)
+	bf := transactionBackfiller.NewTransactionBackfiller(&transactionBackfiller.TransactionBackfillerConfig{}, l, fetchr, mds)
 
 	startBlock := uint64(22020900)
 	endBlock := uint64(22020901)

@@ -55,7 +55,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	ethConfig.NativeBatchCallSize = 10
 	client := ethereum.NewClient(ethConfig, l)
 
-	af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, cfg, []abiSource.AbiSource{})
+	af := abiFetcher.NewAbiFetcher(client, &http.Client{Timeout: 5 * time.Second}, l, []abiSource.AbiSource{})
 
 	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 	if err != nil {
@@ -79,7 +79,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 
-	cm := contractManager.NewContractManager(grm, contractStore, client, af, sink, l, cfg)
+	cm := contractManager.NewContractManager(grm, contractStore, client, af, sink, l)
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 
@@ -98,7 +98,7 @@ func Test_TransactionBackfiller(t *testing.T) {
 	cfg, l, fetcher, mds, grm, cm, dbname, err := setup(&ethereum.EthereumClientConfig{})
 	assert.Nil(t, err)
 
-	bf := NewTransactionBackfiller(&TransactionBackfillerConfig{}, l, cfg, fetcher, mds)
+	bf := NewTransactionBackfiller(&TransactionBackfillerConfig{}, l, fetcher, mds)
 
 	t.Run("Test backfill two blocks", func(t *testing.T) {
 		logsHandled := atomic.Uint64{}
@@ -106,7 +106,7 @@ func Test_TransactionBackfiller(t *testing.T) {
 
 		logHandler := &customLogHandler{}
 
-		logParser := transactionLogParser.NewTransactionLogParser(l, cfg, cm, logHandler)
+		logParser := transactionLogParser.NewTransactionLogParser(l, cm, logHandler)
 
 		message := &BackfillerMessage{
 			StartBlock: 22020900,

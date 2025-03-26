@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"go.uber.org/zap"
@@ -16,7 +15,6 @@ type AbiFetcher struct {
 	ethereumClient *ethereum.Client
 	httpClient     *http.Client
 	logger         *zap.Logger
-	config         *config.Config
 	abiSources     []abiSource.AbiSource
 }
 
@@ -24,14 +22,12 @@ func NewAbiFetcher(
 	e *ethereum.Client,
 	hc *http.Client,
 	l *zap.Logger,
-	cfg *config.Config,
 	sources []abiSource.AbiSource,
 ) *AbiFetcher {
 	return &AbiFetcher{
 		ethereumClient: e,
 		httpClient:     hc,
 		logger:         l,
-		config:         cfg,
 		abiSources:     sources,
 	}
 }

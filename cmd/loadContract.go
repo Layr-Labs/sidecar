@@ -48,7 +48,7 @@ var loadContractCmd = &cobra.Command{
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
-		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, cfg, []abiSource.AbiSource{})
+		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, []abiSource.AbiSource{})
 
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
@@ -70,7 +70,7 @@ var loadContractCmd = &cobra.Command{
 		cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
 
 		// Create the contract manager
-		cm := contractManager.NewContractManager(grm, cs, client, af, sink, l, cfg)
+		cm := contractManager.NewContractManager(grm, cs, client, af, sink, l)
 
 		var filename string
 		var useFile bool

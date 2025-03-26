@@ -81,7 +81,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	ethConfig.BaseUrl = rpcUrl
 	client := ethereum.NewClient(ethConfig, l)
 
-	af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, cfg, []abiSource.AbiSource{})
+	af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, []abiSource.AbiSource{})
 
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
@@ -93,7 +93,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 		log.Fatalf("Failed to initialize core contracts: %v", err)
 	}
 
-	cm := contractManager.NewContractManager(grm, contractStore, client, af, sdc, l, cfg)
+	cm := contractManager.NewContractManager(grm, contractStore, client, af, sdc, l)
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 

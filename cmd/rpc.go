@@ -75,7 +75,7 @@ var rpcCmd = &cobra.Command{
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
 		ipfs := ipfs.NewIpfs(ipfs.DefaultHttpClient(), l, cfg)
-		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, cfg, []abiSource.AbiSource{ipfs})
+		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, []abiSource.AbiSource{ipfs})
 
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
@@ -91,7 +91,7 @@ var rpcCmd = &cobra.Command{
 
 		cs := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
 
-		cm := contractManager.NewContractManager(grm, cs, client, af, sink, l, cfg)
+		cm := contractManager.NewContractManager(grm, cs, client, af, sink, l)
 
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {
