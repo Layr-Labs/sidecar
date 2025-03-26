@@ -519,8 +519,13 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 }
 
 func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earners []string) ([]*rewardsTypes.Reward, error) {
-	var goldRows []*rewardsTypes.Reward
+	snapshotDateTime, err := time.Parse(time.DateOnly, snapshotDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid snapshot date format: %w", err)
+	}
+	cutoffDate := snapshotDateTime.Add(time.Hour * 24).Format(time.DateOnly)
 
+	var goldRows []*rewardsTypes.Reward
 	query := `
 		select
 			earner,
@@ -530,6 +535,13 @@ func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earner
 		from gold_table
 		where
 		    snapshot <= date '{{.snapshotDate}}'
+		    and reward_hash in (
+		        select
+					distinct(reward_hash)
+				from combined_rewards
+				where
+					block_time <= TIMESTAMP '{{.cutoffDate}}'
+		    )
 		{{ if .filterEarners }}
 			and earner in @earners
 		{{ end }}
@@ -539,6 +551,7 @@ func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earner
 	templateArgs := map[string]interface{}{
 		"snapshotDate":  snapshotDate,
 		"filterEarners": false,
+		"cutoffDate":    cutoffDate,
 	}
 	args := make([]interface{}, 0)
 
@@ -552,7 +565,7 @@ func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earner
 	if err != nil {
 		return nil, err
 	}
-	res := rc.grm.Raw(renderedQuery, args...).Scan(&goldRows)
+	res := rc.grm.Debug().Raw(renderedQuery, args...).Scan(&goldRows)
 	if res.Error != nil {
 		return nil, res.Error
 	}

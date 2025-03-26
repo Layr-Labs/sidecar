@@ -88,9 +88,9 @@ func (rpc *RpcServer) GenerateRewards(ctx context.Context, req *rewardsV1.Genera
 
 func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *rewardsV1.GenerateRewardsRootRequest) (*rewardsV1.GenerateRewardsRootResponse, error) {
 	// Generating rewards is a write operation so we need to proxy the request to the "primary" sidecar
-	if !rpc.globalConfig.SidecarPrimaryConfig.IsPrimary {
-		return rpc.sidecarClient.RewardsClient.GenerateRewardsRoot(ctx, req)
-	}
+	//if !rpc.globalConfig.SidecarPrimaryConfig.IsPrimary {
+	//	return rpc.sidecarClient.RewardsClient.GenerateRewardsRoot(ctx, req)
+	//}
 	cutoffDate := req.GetCutoffDate()
 	if cutoffDate == "" {
 		return nil, status.Error(codes.InvalidArgument, "snapshot date is required")
