@@ -5,7 +5,9 @@ import (
 	"errors"
 	"github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/common"
 	protocolV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/protocol"
+	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/types"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 )
 
 func (rpc *RpcServer) GetRegisteredAvsForOperator(ctx context.Context, request *protocolV1.GetRegisteredAvsForOperatorRequest) (*protocolV1.GetRegisteredAvsForOperatorResponse, error) {
@@ -132,5 +134,55 @@ func (rpc *RpcServer) GetEigenStateChanges(ctx context.Context, request *protoco
 
 	return &protocolV1.GetEigenStateChangesResponse{
 		Changes: changes,
+	}, nil
+}
+
+// ListStrategies lists all strategies and includes the:
+// - strategy address
+// - total staked
+// - list of tokens being rewarded
+func (s *RpcServer) ListStrategies(ctx context.Context, request *protocolV1.ListStrategiesRequest) (*protocolV1.ListStrategiesResponse, error) {
+	strategies, err := s.protocolDataService.ListStrategies(ctx, nil, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocolV1.ListStrategiesResponse{
+		Strategies: utils.Map(strategies, func(strategy *protocolDataService.Strategy, i uint64) *protocolV1.Strategy {
+			return &protocolV1.Strategy{
+				Strategy:       strategy.Strategy,
+				TotalStake:     strategy.TotalStaked,
+				RewardedTokens: strategy.RewardTokens,
+			}
+		}),
+	}, nil
+}
+
+// ListStakerStrategies lists all strategies for a given staker and returns:
+// - the strategy
+// - the staked amount
+func (s *RpcServer) ListStakerStrategies(ctx context.Context, request *protocolV1.ListStakerStrategiesRequest) (*protocolV1.ListStakerStrategiesResponse, error) {
+	stakerAddress := request.GetStakerAddress()
+	if stakerAddress == "" {
+		return nil, errors.New("staker address is required")
+	}
+	blockHeight := request.GetBlockHeight()
+
+	strategies, err := s.protocolDataService.ListStakerStrategies(ctx, stakerAddress, blockHeight, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocolV1.ListStakerStrategiesResponse{
+		StakerStrategies: utils.Map(strategies, func(strategy *protocolDataService.DetailedStakerStrategy, i uint64) *protocolV1.StakerStrategy {
+			return &protocolV1.StakerStrategy{
+				StakedAmount: strategy.Amount,
+				Strategy: &protocolV1.Strategy{
+					Strategy:       strategy.Strategy.Strategy,
+					TotalStake:     strategy.Strategy.TotalStaked,
+					RewardedTokens: strategy.Strategy.RewardTokens,
+				},
+			}
+		}),
 	}, nil
 }

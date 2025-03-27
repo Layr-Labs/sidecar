@@ -10,20 +10,29 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"log"
 	"os"
 	"testing"
 )
 
-func setup() (
+func setup(dataSourceName string) (
 	*gorm.DB,
 	*zap.Logger,
 	*config.Config,
 	error,
 ) {
+	projectRoot := tests.GetProjectRoot()
+	datasources, err := tests.GetTestDataSources(projectRoot)
+	if err != nil {
+		log.Fatalf("Failed to get datasources: %v", err)
+	}
+	dsTestnet := datasources.GetDataSourceByName(dataSourceName)
+
 	cfg := config.NewConfig()
 	cfg.Chain = config.Chain_Holesky
 	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+	cfg.DatabaseConfig.DbName = dsTestnet.DbName
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
@@ -47,7 +56,7 @@ func Test_ProtocolDataService(t *testing.T) {
 		return
 	}
 
-	grm, l, cfg, err := setup()
+	grm, l, cfg, err := setup("testnetFull")
 
 	t.Logf("Using database with name: %s", cfg.DatabaseConfig.DbName)
 
