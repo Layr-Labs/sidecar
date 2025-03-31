@@ -3,6 +3,14 @@ package transactionBackfiller
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -19,13 +27,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"log"
-	"net/http"
-	"os"
-	"strings"
-	"sync/atomic"
-	"testing"
-	"time"
 )
 
 func setup(ethConfig *ethereum.EthereumClientConfig) (
@@ -70,7 +71,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	cm := contractManager.NewContractManager(grm, contractStore, client, af, l)
 
-	fetchr := fetcher.NewFetcher(client, cfg, l)
+	fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, l)
 
 	return cfg, l, fetchr, mds, grm, cm, dbname, nil
 

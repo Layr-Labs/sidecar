@@ -120,7 +120,7 @@ var runCmd = &cobra.Command{
 			l.Sugar().Fatalw("Failed to load meta state models", zap.Error(err))
 		}
 
-		fetchr := fetcher.NewFetcher(client, cfg, l)
+		fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, l)
 
 		cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, cfg.EthereumRpcConfig.ContractCallBatchSize, l)
 

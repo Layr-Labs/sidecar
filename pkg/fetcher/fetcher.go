@@ -5,14 +5,21 @@ package fetcher
 
 import (
 	"context"
-	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
+
+// FetcherConfig contains the configuration specific to the Fetcher
+type FetcherConfig struct {
+	// UseGetBlockReceipts determines whether to use eth_getBlockReceipts RPC method
+	// instead of fetching receipts for each transaction individually
+	UseGetBlockReceipts bool
+}
 
 // Fetcher is responsible for retrieving blockchain data from Ethereum nodes.
 // It provides methods for fetching blocks and transaction receipts.
@@ -21,16 +28,16 @@ type Fetcher struct {
 	EthClient *ethereum.Client
 	// Logger is used for logging fetch operations
 	Logger *zap.Logger
-	// Config contains application configuration
-	Config *config.Config
+	// FetcherConfig contains the configuration specific to the Fetcher
+	FetcherConfig *FetcherConfig
 }
 
 // NewFetcher creates a new Fetcher with the provided Ethereum client, configuration, and logger.
-func NewFetcher(ethClient *ethereum.Client, cfg *config.Config, l *zap.Logger) *Fetcher {
+func NewFetcher(ethClient *ethereum.Client, cfg *FetcherConfig, l *zap.Logger) *Fetcher {
 	return &Fetcher{
-		EthClient: ethClient,
-		Logger:    l,
-		Config:    cfg,
+		EthClient:     ethClient,
+		Logger:        l,
+		FetcherConfig: cfg,
 	}
 }
 
@@ -177,16 +184,10 @@ func (f *Fetcher) FetchBlockReceipts(ctx context.Context, block *ethereum.Ethere
 }
 
 func (f *Fetcher) GetReceiptsForBlock(ctx context.Context, block *ethereum.EthereumBlock) (map[string]*ethereum.EthereumTransactionReceipt, error) {
-	if f.Config.EthereumRpcConfig.UseGetBlockReceipts {
+	if f.FetcherConfig.UseGetBlockReceipts {
 		return f.FetchBlockReceipts(ctx, block)
 	}
 	return f.FetchReceiptsForBlock(ctx, block)
-}
-
-// IsInterestingAddress checks if a contract address is in the list of interesting addresses
-// defined in the configuration. This is used to filter which contracts to process.
-func (f *Fetcher) IsInterestingAddress(contractAddress string) bool {
-	return slices.Contains(f.Config.GetInterestingAddressForConfigEnv(), contractAddress)
 }
 
 // FetchBlocksWithRetries attempts to fetch a range of blocks with exponential backoff retries.
