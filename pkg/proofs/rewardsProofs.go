@@ -107,7 +107,6 @@ func (rps *RewardsProofsStore) GenerateRewardsClaimProof(earnerAddress string, t
 	error,
 ) {
 	distributionRoot, err := rps.rewardsCalculator.FindClaimableDistributionRoot(rootIndex)
-	fmt.Printf("distributionRoot: %v\n", distributionRoot)
 	if err != nil {
 		rps.logger.Sugar().Errorf("Failed to find claimable distribution root for root_index",
 			zap.Int64("rootIndex", rootIndex),
