@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -19,7 +18,6 @@ type SubmittedDistributionRoot struct {
 }
 
 func (sdr *SubmittedDistributionRoot) GetSnapshotDate() string {
-	fmt.Printf("RewardsCalculationEnd: %v\n", sdr.RewardsCalculationEnd.UTC())
 	return sdr.RewardsCalculationEnd.UTC().Format(time.DateOnly)
 }
 

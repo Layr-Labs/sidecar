@@ -2,10 +2,8 @@ package rpcServer
 
 import (
 	"context"
-	"fmt"
 	rewardsCoordinator "github.com/Layr-Labs/eigenlayer-contracts/pkg/bindings/IRewardsCoordinator"
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -51,7 +49,6 @@ func (rpc *RpcServer) GenerateClaimProof(ctx context.Context, req *rewardsV1.Gen
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to generate claim proof %s", err.Error())
 	}
-	fmt.Printf("root: %v\n", utils.ConvertBytesToString(root))
 	return &rewardsV1.GenerateClaimProofResponse{
 		Proof: convertClaimProofToRPCResponse(root, claim),
 	}, nil
