@@ -3,8 +3,10 @@ package tests
 import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/gocarina/gocsv"
 	"github.com/google/uuid"
+	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
 	"strings"
@@ -287,4 +289,34 @@ func GetOperatorPISplitsSqlFile(projectBase string) (string, error) {
 func GetOperatorDirectedRewardsSqlFile(projectBase string) (string, error) {
 	path := getTestdataPathFromProjectRoot(projectBase, "/operatorDirectedRewardSubmissions/operatorDirectedRewardSubmissions.sql")
 	return getSqlFile(path)
+}
+
+type Source struct {
+	Name    string `yaml:"name"`
+	DbName  string `yaml:"dbName"`
+	DataUrl string `yaml:"dataUrl"`
+}
+
+type TestDataSources struct {
+	DataSources []*Source `yaml:"dataSources"`
+}
+
+func (t *TestDataSources) GetDataSourceByName(name string) *Source {
+	return utils.Find(t.DataSources, func(s *Source) bool {
+		return s.Name == name
+	})
+}
+
+func GetTestDataSources(projectBase string) (*TestDataSources, error) {
+	filePath := fmt.Sprintf("%s/internal/tests/dataSources.yaml", projectBase)
+	file, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var dataSources *TestDataSources
+	if err := yaml.Unmarshal(file, &dataSources); err != nil {
+		return nil, err
+	}
+	return dataSources, nil
 }
