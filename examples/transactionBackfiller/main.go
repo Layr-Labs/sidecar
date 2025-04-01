@@ -3,6 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -18,11 +24,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/transactionBackfiller"
 	"github.com/Layr-Labs/sidecar/pkg/transactionLogParser"
 	"go.uber.org/zap"
-	"log"
-	"net/http"
-	"os"
-	"strings"
-	"time"
 )
 
 func setup(ethConfig *ethereum.EthereumClientConfig) (
@@ -65,7 +66,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	cm := contractManager.NewContractManager(grm, contractStore, client, af, l)
 
-	fetchr := fetcher.NewFetcher(client, cfg, l)
+	fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, l)
 
 	return cfg, l, fetchr, mds, cm, nil
 

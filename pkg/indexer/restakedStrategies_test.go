@@ -85,7 +85,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 
-	fetchr := fetcher.NewFetcher(client, cfg, l)
+	fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, l)
 
 	mccc := multicallContractCaller.NewMulticallContractCaller(client, l)
 
