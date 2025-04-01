@@ -12,6 +12,12 @@ updates:
       interval: weekly
     commit-message:
       prefix: "chore"
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "*"
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:

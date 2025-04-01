@@ -49,7 +49,6 @@ func (rpc *RpcServer) GenerateClaimProof(ctx context.Context, req *rewardsV1.Gen
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to generate claim proof %s", err.Error())
 	}
-
 	return &rewardsV1.GenerateClaimProofResponse{
 		Proof: convertClaimProofToRPCResponse(root, claim),
 	}, nil
