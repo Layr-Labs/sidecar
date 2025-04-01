@@ -568,7 +568,7 @@ func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earner
 	if err != nil {
 		return nil, err
 	}
-	res := rc.grm.Debug().Raw(renderedQuery, args...).Scan(&goldRows)
+	res := rc.grm.Raw(renderedQuery, args...).Scan(&goldRows)
 	if res.Error != nil {
 		return nil, res.Error
 	}
