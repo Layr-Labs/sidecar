@@ -18,7 +18,6 @@ updates:
       interval: "weekly"
     ignore:
       - dependency-name: "*"
-        directory: "docs"
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
