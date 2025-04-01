@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/config"
 	"io"
 	"net/http"
 	"slices"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/internal/config"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -265,6 +266,24 @@ func (c *Client) GetBlockTransactionReceipts(ctx context.Context, blockNumber ui
 		return nil, err
 	}
 	return txReceipts, nil
+}
+
+func (c *Client) GetLogs(ctx context.Context, address string, fromBlock uint64, toBlock uint64) ([]*EthereumEventLog, error) {
+	rpcRequest := GetLogsRequest(address, fromBlock, toBlock, 1)
+
+	res, err := c.Call(ctx, rpcRequest)
+	if err != nil {
+		return nil, err
+	}
+	logs, err := RPCMethod_getLogs.ResponseParser(res.Result)
+	if err != nil {
+		c.Logger.Sugar().Errorw("failed to parse logs",
+			zap.Error(err),
+			zap.Any("raw response", res.Result),
+		)
+		return nil, err
+	}
+	return logs, nil
 }
 
 func (c *Client) GetStorageAt(ctx context.Context, address string, storagePosition string, block string) (string, error) {
