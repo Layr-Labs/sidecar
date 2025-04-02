@@ -76,8 +76,8 @@ func (s *PostgresContractStore) GetProxyContractForAddress(blockNumber uint64, a
 	return proxyContract, nil
 }
 
-// GetAllProxyAddressesInString returns all proxy addresses in the database as a slice of strings.
-func (s *PostgresContractStore) GetAllProxyAddressesInString() ([]string, error) {
+// ListInterestingContractAddresses returns all proxy addresses in the database as a slice of strings.
+func (s *PostgresContractStore) ListInterestingContractAddresses() ([]string, error) {
 	var addresses []string
 
 	result := s.Db.Raw(`select distinct(contract_address) from proxy_contracts`).Scan(&addresses)
