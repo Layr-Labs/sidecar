@@ -55,13 +55,8 @@ func setupRegression(dataSourceName string) (
 	return grm, l, cfg, sink, nil
 }
 
-func Test_RewardsRegression(t *testing.T) {
-	if !tests.LargeTestsEnabled() {
-		t.Skipf("Skipping large test")
-		return
-	}
-
-	grm, l, cfg, sink, err := setupRegression("mainnetFull")
+func runRegressionTest(t *testing.T, dbName string) {
+	grm, l, cfg, sink, err := setupRegression(dbName)
 
 	t.Logf("Using database with name: %s", cfg.DatabaseConfig.DbName)
 
@@ -74,33 +69,47 @@ func Test_RewardsRegression(t *testing.T) {
 		t.Fatalf("Failed to create rewards calculator: %v", err)
 	}
 
-	t.Run("Verify root generation against existing roots", func(t *testing.T) {
-		var distributionRoots []types.SubmittedDistributionRoot
-		res := grm.Find(&types.SubmittedDistributionRoot{}).Order("block_number desc").Scan(&distributionRoots)
-		if res.Error != nil {
-			t.Fatalf("Failed to get distribution roots: %v", res.Error)
+	var distributionRoots []types.SubmittedDistributionRoot
+	res := grm.Find(&types.SubmittedDistributionRoot{}).Order("block_number desc").Scan(&distributionRoots)
+	if res.Error != nil {
+		t.Fatalf("Failed to get distribution roots: %v", res.Error)
+	}
+
+	for i := 0; i < len(distributionRoots) && i < 15; i++ {
+		distRoot := distributionRoots[i]
+		fmt.Printf("Distribution root: %+v\n", distRoot)
+		cutoffDate := distRoot.GetSnapshotDate()
+
+		fmt.Printf("Using cutoff date: %v\n", cutoffDate)
+
+		accountTree, tokenTree, distro, err := rewardsCalculator.MerkelizeRewardsForSnapshot(cutoffDate)
+		if err != nil {
+			t.Fatalf("Failed to merkel rewards: %v", err)
 		}
+		assert.NotNil(t, distro)
+		assert.NotNil(t, tokenTree)
 
-		for i := 0; i < len(distributionRoots) && i < 15; i++ {
-			distRoot := distributionRoots[0]
-			fmt.Printf("Distribution root: %+v\n", distRoot)
-			cutoffDate := distRoot.GetSnapshotDate()
+		generatedRoot := utils.ConvertBytesToString(accountTree.Root())
+		fmt.Printf("Generated root: %v\n", generatedRoot)
+		fmt.Printf("Existing root: %v\n", distRoot.Root)
 
-			fmt.Printf("Using cutoff date: %v\n", cutoffDate)
+		assert.Equal(t, distRoot.Root, generatedRoot)
+	}
+}
 
-			accountTree, tokenTree, distro, err := rewardsCalculator.MerkelizeRewardsForSnapshot(cutoffDate)
-			if err != nil {
-				t.Fatalf("Failed to merkel rewards: %v", err)
-			}
-			assert.NotNil(t, distro)
-			assert.NotNil(t, tokenTree)
+func Test_RewardsRegression(t *testing.T) {
+	if !tests.LargeTestsEnabled() {
+		t.Skipf("Skipping large test")
+		return
+	}
 
-			generatedRoot := utils.ConvertBytesToString(accountTree.Root())
-			fmt.Printf("Generated root: %v\n", generatedRoot)
-			fmt.Printf("Existing root: %v\n", distRoot.Root)
+	// t.Run("Verify root generation against existing roots for mainnet", func(t *testing.T) {
+	// 	runRegressionTest(t, "mainnetFull")
+	// })
 
-			assert.Equal(t, distRoot.Root, generatedRoot)
-		}
-
+	// TODO(seanmcgary): since the mainnet database doesnt yet include changes from testnet-slashing,
+	// we can only run this test on the testnet database
+	t.Run("Verify root generation against existing roots for testnet", func(t *testing.T) {
+		runRegressionTest(t, "testnetFull")
 	})
 }
