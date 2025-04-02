@@ -236,7 +236,7 @@ func (f *Fetcher) FetchBlocksWithRetries(ctx context.Context, startBlockInclusiv
 }
 
 func (f *Fetcher) FetchLogsForContractsForBlockRange(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64, contractAddresses []string) ([]uint64, error) {
-	f.Logger.Sugar().Infow("Fetching logs for contracts",
+	f.Logger.Sugar().Debugw("Fetching logs for contracts",
 		zap.Uint64("startBlock", startBlockInclusive),
 		zap.Uint64("endBlock", endBlockInclusive),
 	)
