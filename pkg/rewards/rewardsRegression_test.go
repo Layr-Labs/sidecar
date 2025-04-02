@@ -82,7 +82,7 @@ func Test_RewardsRegression(t *testing.T) {
 		}
 
 		for i := 0; i < len(distributionRoots) && i < 15; i++ {
-			distRoot := distributionRoots[0]
+			distRoot := distributionRoots[i]
 			fmt.Printf("Distribution root: %+v\n", distRoot)
 			cutoffDate := distRoot.GetSnapshotDate()
 
