@@ -10,7 +10,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"slices"
 	"sort"
 	"strings"
@@ -192,7 +191,8 @@ func (a *AvsOperatorsModel) prepareState(blockNumber uint64) ([]*AvsOperatorStat
 	return accumulatedState, nil
 }
 
-func (a *AvsOperatorsModel) writeDeltaRecords(blockNumber uint64) error {
+// CommitFinalState commits the final state for the given block number.
+func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	records, ok := a.stateAccumulator[blockNumber]
 	if !ok {
 		msg := "delta accumulator was not initialized"
@@ -200,23 +200,12 @@ func (a *AvsOperatorsModel) writeDeltaRecords(blockNumber uint64) error {
 		return errors.New(msg)
 	}
 
-	if len(records) > 0 {
-		res := a.DB.Model(&AvsOperatorStateChange{}).Clauses(clause.Returning{}).Create(&records)
-		if res.Error != nil {
-			a.logger.Sugar().Errorw("Failed to insert delta records", zap.Error(res.Error))
-			return res.Error
-		}
-	}
-	a.committedState[blockNumber] = records
-	return nil
-}
-
-// CommitFinalState commits the final state for the given block number.
-func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64) error {
-	if err := a.writeDeltaRecords(blockNumber); err != nil {
+	insertedRecords, err := base.CommitFinalState(records, ignoreInsertConflicts, a.GetTableName(), a.DB)
+	if err != nil {
+		a.logger.Sugar().Errorw("Failed to insert delta records", zap.Error(err))
 		return err
 	}
-
+	a.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
@@ -269,8 +258,12 @@ func (a *AvsOperatorsModel) sortValuesForMerkleTree(deltas []*AvsOperatorStateCh
 	return inputs
 }
 
+func (a *AvsOperatorsModel) GetTableName() string {
+	return "avs_operator_state_changes"
+}
+
 func (a *AvsOperatorsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return a.BaseEigenState.DeleteState("avs_operator_state_changes", startBlockNumber, endBlockNumber, a.DB)
+	return a.BaseEigenState.DeleteState(a.GetTableName(), startBlockNumber, endBlockNumber, a.DB)
 }
 
 func (a *AvsOperatorsModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
@@ -285,4 +278,8 @@ func (a *AvsOperatorsModel) ListForBlockRange(startBlockNumber uint64, endBlockN
 		return nil, res.Error
 	}
 	return base.CastCommittedStateToInterface(records), nil
+}
+
+func (a *AvsOperatorsModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
 }

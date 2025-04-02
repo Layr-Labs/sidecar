@@ -22,6 +22,7 @@ type ContractStore interface {
 	FindOrCreateProxyContract(blockNumber uint64, contractAddress string, proxyContractAddress string) (*ProxyContract, bool, error)
 	GetContractWithProxyContract(address string, atBlockNumber uint64) (*ContractsTree, error)
 	SetContractCheckedForProxy(address string) (*Contract, error)
+	GetProxyContractWithImplementations(contractAddress string) ([]*Contract, error)
 
 	InitializeContracts(contractsData *CoreContractsData, contractType ContractType) error
 	InitializeCoreContracts() error
@@ -77,6 +78,18 @@ type ContractWithProxyContract struct {
 	ProxyContractAddress  string
 	ProxyContractAbi      string
 	ProxyContractVerified string
+}
+
+func CombineAbis(contracts []*Contract) (string, error) {
+	abisToCombine := make([]string, 0)
+
+	for _, contract := range contracts {
+		strippedContractAbi := contract.ContractAbi[1 : len(contract.ContractAbi)-1]
+		abisToCombine = append(abisToCombine, strippedContractAbi)
+	}
+
+	combinedAbi := fmt.Sprintf("[%s]", strings.Join(abisToCombine, ","))
+	return combinedAbi, nil
 }
 
 func (c *ContractWithProxyContract) CombineAbis() (string, error) {

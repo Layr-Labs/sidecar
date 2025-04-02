@@ -58,6 +58,10 @@ func NewContractManager(
 	}
 }
 
+func (cm *ContractManager) GetContractWithImplementations(contractAddress string) ([]*contractStore.Contract, error) {
+	return cm.ContractStore.GetProxyContractWithImplementations(contractAddress)
+}
+
 // GetContractWithProxy retrieves a contract and its associated proxy contract (if any)
 // for the given contract address at the specified block number.
 // It returns a ContractsTree containing the contract and proxy information.

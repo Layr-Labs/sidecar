@@ -186,3 +186,160 @@ func (s *RpcServer) ListStakerStrategies(ctx context.Context, request *protocolV
 		}),
 	}, nil
 }
+
+// GetStrategyForStaker returns the strategy for a given staker and includes the staked amount
+func (s *RpcServer) GetStrategyForStaker(ctx context.Context, request *protocolV1.GetStrategyForStakerRequest) (*protocolV1.GetStrategyForStakerResponse, error) {
+	stakerAddress := request.GetStakerAddress()
+	strategyAddress := request.GetStrategyAddress()
+	blockHeight := request.GetBlockHeight()
+
+	if stakerAddress == "" {
+		return nil, errors.New("staker address is required")
+	}
+
+	if strategyAddress == "" {
+		return nil, errors.New("strategy address is required")
+	}
+
+	strategy, err := s.protocolDataService.GetStrategyForStaker(ctx, stakerAddress, strategyAddress, blockHeight)
+	if err != nil {
+		return nil, err
+	}
+	return &protocolV1.GetStrategyForStakerResponse{
+		StakerStrategy: &protocolV1.StakerStrategy{
+			StakedAmount: strategy.Amount,
+			Strategy: &protocolV1.Strategy{
+				Strategy:       strategy.Strategy.Strategy,
+				TotalStake:     strategy.Strategy.TotalStaked,
+				RewardedTokens: strategy.Strategy.RewardTokens,
+			},
+		},
+	}, nil
+}
+
+// ListStakerQueuedWithdrawals lists all queued withdrawals for a given staker and includes:
+// - the strategy
+// - the amount
+// - the block height the withdrawal was queued at
+func (s *RpcServer) ListStakerQueuedWithdrawals(ctx context.Context, request *protocolV1.ListStakerQueuedWithdrawalsRequest) (*protocolV1.ListStakerQueuedWithdrawalsResponse, error) {
+	staker := request.GetStakerAddress()
+	if staker == "" {
+		return nil, errors.New("staker address is required")
+	}
+
+	withdrawals, err := s.protocolDataService.ListQueuedWithdrawals(ctx, protocolDataService.WithdrawalFilters{
+		Staker: staker,
+	}, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocolV1.ListStakerQueuedWithdrawalsResponse{
+		QueuedWithdrawals: utils.Map(withdrawals, func(withdrawal *protocolDataService.StakerQueuedWithdrawal, i uint64) *protocolV1.QueuedStrategyWithdrawal {
+			return &protocolV1.QueuedStrategyWithdrawal{
+				Strategy:    withdrawal.Strategy,
+				Amount:      withdrawal.SharesToWithdraw,
+				BlockNumber: withdrawal.StartBlock,
+			}
+		}),
+	}, nil
+}
+
+// ListStrategyQueuedWithdrawals lists all queued withdrawals for a given strategy and includes:
+// - the staker
+// - the amount
+// - the block height the withdrawal was queued at
+func (s *RpcServer) ListStrategyQueuedWithdrawals(ctx context.Context, request *protocolV1.ListStrategyQueuedWithdrawalsRequest) (*protocolV1.ListStrategyQueuedWithdrawalsResponse, error) {
+	strategy := request.GetStrategyAddress()
+	if strategy == "" {
+		return nil, errors.New("strategy address is required")
+	}
+
+	withdrawals, err := s.protocolDataService.ListQueuedWithdrawals(ctx, protocolDataService.WithdrawalFilters{
+		Strategies: []string{strategy},
+	}, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocolV1.ListStrategyQueuedWithdrawalsResponse{
+		Withdrawals: utils.Map(withdrawals, func(withdrawal *protocolDataService.StakerQueuedWithdrawal, i uint64) *protocolV1.StakerWithdrawal {
+			return &protocolV1.StakerWithdrawal{
+				Staker:      withdrawal.Staker,
+				Amount:      withdrawal.SharesToWithdraw,
+				BlockNumber: withdrawal.StartBlock,
+			}
+		}),
+	}, nil
+}
+
+// ListOperatorQueuedWithdrawals lists all queued withdrawals by strategy and includes:
+// - the staker
+// - the amount
+// - the block height the withdrawal was queued at
+func (s *RpcServer) ListOperatorQueuedWithdrawals(ctx context.Context, request *protocolV1.ListOperatorQueuedWithdrawalsRequest) (*protocolV1.ListOperatorQueuedWithdrawalsResponse, error) {
+	operator := request.GetOperatorAddress()
+	if operator == "" {
+		return nil, errors.New("operator address is required")
+	}
+
+	withdrawals, err := s.protocolDataService.ListOperatorQueuedWithdrawals(ctx, operator, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	mappedStrategies := make(map[string]*protocolV1.QueueStakerStrategyWithdrawal)
+	for _, withdrawal := range withdrawals {
+		if _, ok := mappedStrategies[withdrawal.Strategy]; !ok {
+			mappedStrategies[withdrawal.Strategy] = &protocolV1.QueueStakerStrategyWithdrawal{
+				Strategy:    withdrawal.Strategy,
+				Withdrawals: make([]*protocolV1.StakerWithdrawal, 0),
+			}
+		}
+		mappedStrategies[withdrawal.Strategy].Withdrawals = append(mappedStrategies[withdrawal.Strategy].Withdrawals, &protocolV1.StakerWithdrawal{
+			Staker:      withdrawal.Staker,
+			Amount:      withdrawal.SharesToWithdraw,
+			BlockNumber: withdrawal.StartBlock,
+		})
+	}
+
+	strategiesList := make([]*protocolV1.QueueStakerStrategyWithdrawal, 0, len(mappedStrategies))
+	for _, strategy := range mappedStrategies {
+		strategiesList = append(strategiesList, strategy)
+	}
+
+	return &protocolV1.ListOperatorQueuedWithdrawalsResponse{
+		Strategies: strategiesList,
+	}, nil
+}
+
+// ListOperatorStrategyQueuedWithdrawals lists all queued withdrawals for a given strategy and includes:
+// - the staker
+// - the amount
+// - the block height the withdrawal was queued at
+func (s *RpcServer) ListOperatorStrategyQueuedWithdrawals(ctx context.Context, request *protocolV1.ListOperatorStrategyQueuedWithdrawalsRequest) (*protocolV1.ListOperatorStrategyQueuedWithdrawalsResponse, error) {
+	operator := request.GetOperatorAddress()
+	if operator == "" {
+		return nil, errors.New("operator address is required")
+	}
+
+	strategy := request.GetStrategyAddress()
+	if strategy == "" {
+		return nil, errors.New("strategy address is required")
+	}
+
+	withdrawals, err := s.protocolDataService.ListOperatorQueuedWithdrawalsForStrategy(ctx, operator, strategy, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocolV1.ListOperatorStrategyQueuedWithdrawalsResponse{
+		Withdrawals: utils.Map(withdrawals, func(withdrawal *protocolDataService.StakerQueuedWithdrawal, i uint64) *protocolV1.StakerWithdrawal {
+			return &protocolV1.StakerWithdrawal{
+				Staker:      withdrawal.Staker,
+				Amount:      withdrawal.SharesToWithdraw,
+				BlockNumber: withdrawal.StartBlock,
+			}
+		}),
+	}, nil
+}
