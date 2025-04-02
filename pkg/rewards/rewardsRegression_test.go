@@ -93,7 +93,23 @@ func runRegressionTest(t *testing.T, dbName string) {
 		fmt.Printf("Generated root: %v\n", generatedRoot)
 		fmt.Printf("Existing root: %v\n", distRoot.Root)
 
-		assert.Equal(t, distRoot.Root, generatedRoot)
+		for i := 0; i < len(distributionRoots) && i < 15; i++ {
+			distRoot := distributionRoots[i]
+			fmt.Printf("Distribution root: %+v\n", distRoot)
+			cutoffDate := distRoot.GetSnapshotDate()
+
+			fmt.Printf("Using cutoff date: %v\n", cutoffDate)
+			accountTree, tokenTree, distro, err := rewardsCalculator.MerkelizeRewardsForSnapshot(cutoffDate)
+			if err != nil {
+				t.Fatalf("Failed to merkel rewards: %v", err)
+			}
+			assert.NotNil(t, distro)
+			assert.NotNil(t, tokenTree)
+			generatedRoot := utils.ConvertBytesToString(accountTree.Root())
+			fmt.Printf("Generated root: %v\n", generatedRoot)
+			fmt.Printf("Existing root: %v\n", distRoot.Root)
+			assert.Equal(t, distRoot.Root, generatedRoot)
+		}
 	}
 }
 
