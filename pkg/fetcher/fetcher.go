@@ -5,6 +5,8 @@ package fetcher
 
 import (
 	"context"
+	"github.com/Layr-Labs/sidecar/pkg/providers"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"slices"
 	"sync"
 	"time"
@@ -30,14 +32,22 @@ type Fetcher struct {
 	Logger *zap.Logger
 	// FetcherConfig contains the configuration specific to the Fetcher
 	FetcherConfig *FetcherConfig
+
+	InterestingLogsProvider providers.InterestingContractsProvider
 }
 
 // NewFetcher creates a new Fetcher with the provided Ethereum client, configuration, and logger.
-func NewFetcher(ethClient *ethereum.Client, cfg *FetcherConfig, l *zap.Logger) *Fetcher {
+func NewFetcher(
+	ethClient *ethereum.Client,
+	cfg *FetcherConfig,
+	ilp providers.InterestingContractsProvider,
+	l *zap.Logger,
+) *Fetcher {
 	return &Fetcher{
-		EthClient:     ethClient,
-		Logger:        l,
-		FetcherConfig: cfg,
+		EthClient:               ethClient,
+		Logger:                  l,
+		FetcherConfig:           cfg,
+		InterestingLogsProvider: ilp,
 	}
 }
 
@@ -197,7 +207,7 @@ func (f *Fetcher) FetchBlocksWithRetries(ctx context.Context, startBlockInclusiv
 	retries := []int{1, 2, 4, 8, 16, 32, 64}
 	var e error
 	for i, r := range retries {
-		fetchedBlocks, err := f.FetchBlocks(ctx, startBlockInclusive, endBlockInclusive)
+		fetchedBlocks, err := f.FetchBlocksWithReceipts(ctx, startBlockInclusive, endBlockInclusive)
 		if err == nil {
 			if i > 0 {
 				f.Logger.Sugar().Infow("successfully fetched blocks for range after retries",
@@ -225,17 +235,148 @@ func (f *Fetcher) FetchBlocksWithRetries(ctx context.Context, startBlockInclusiv
 	return nil, e
 }
 
-// FetchBlocks retrieves a range of blocks and their transaction receipts.
-// It uses batch requests to fetch blocks and parallel processing to fetch receipts.
-// Returns an array of FetchedBlock objects sorted by block number.
-func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64) ([]*FetchedBlock, error) {
+func (f *Fetcher) FetchLogsForContractsForBlockRange(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64, contractAddresses []string) ([]uint64, error) {
+	f.Logger.Sugar().Debugw("Fetching logs for contracts",
+		zap.Uint64("startBlock", startBlockInclusive),
+		zap.Uint64("endBlock", endBlockInclusive),
+	)
+	logsCollector := make(chan []*ethereum.EthereumEventLog, len(contractAddresses))
+	errorCollector := make(chan error, len(contractAddresses))
+
+	wg := &sync.WaitGroup{}
+	for _, contractAddress := range contractAddresses {
+		wg.Add(1)
+		go func(contractAddress string) {
+			defer wg.Done()
+			f.Logger.Sugar().Debugw("Fetching logs for contract",
+				zap.Uint64("startBlock", startBlockInclusive),
+				zap.Uint64("endBlock", endBlockInclusive),
+				zap.String("contract", contractAddress),
+			)
+			logs, err := f.EthClient.GetLogs(ctx, contractAddress, startBlockInclusive, endBlockInclusive)
+			f.Logger.Sugar().Debugw("Fetched logs for contract",
+				zap.Uint64("startBlock", startBlockInclusive),
+				zap.Uint64("endBlock", endBlockInclusive),
+				zap.String("contract", contractAddress),
+				zap.Int("count", len(logs)),
+			)
+			if err != nil {
+				f.Logger.Sugar().Errorw("failed to fetch logs for contracts",
+					zap.Uint64("startBlock", startBlockInclusive),
+					zap.Uint64("endBlock", endBlockInclusive),
+					zap.Strings("contracts", contractAddresses),
+					zap.Error(err),
+				)
+				errorCollector <- err
+				return
+			}
+			logsCollector <- logs
+		}(contractAddress)
+	}
+	wg.Wait()
+	close(logsCollector)
+	close(errorCollector)
+	f.Logger.Sugar().Debugw("Finished fetching logs for contracts",
+		zap.Uint64("startBlock", startBlockInclusive),
+		zap.Uint64("endBlock", endBlockInclusive),
+		zap.Strings("contracts", contractAddresses),
+	)
+	interestingBlockNumbers := make(map[uint64]bool)
+	// collectedLogs := make([]*ethereum.EthereumEventLog, 0)
+	for logs := range logsCollector {
+		// collectedLogs = append(collectedLogs, logs...)
+		for _, log := range logs {
+			interestingBlockNumbers[log.BlockNumber.Value()] = true
+		}
+	}
+	var err error
+	for e := range errorCollector {
+		err = e
+		return nil, err
+	}
+
+	blockNumbers := make([]uint64, 0)
+	for blockNumber := range interestingBlockNumbers {
+		blockNumbers = append(blockNumbers, blockNumber)
+	}
+	slices.Sort(blockNumbers)
+
+	return blockNumbers, err
+}
+
+func (f *Fetcher) FetchFilteredBlocksWithRetries(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64) ([]*FetchedBlock, error) {
+	f.Logger.Sugar().Debugw("Fetching filtered blocks with retries",
+		zap.Uint64("startBlock", startBlockInclusive),
+		zap.Uint64("endBlock", endBlockInclusive),
+	)
+	// Fetch logs for all contracts and topics
+	contractAddresses, err := f.InterestingLogsProvider.ListInterestingContractAddresses()
+	if err != nil {
+		f.Logger.Sugar().Errorw("failed to list interesting contract addresses", zap.Error(err))
+		return nil, err
+	}
+
+	interestingBlockNumbers, err := f.FetchLogsForContractsForBlockRange(ctx, startBlockInclusive, endBlockInclusive, contractAddresses)
+	if err != nil {
+		f.Logger.Sugar().Errorw("failed to fetch logs for contracts", zap.Error(err))
+		return nil, err
+	}
+
+	blocks, err := f.FetchBlocks(ctx, startBlockInclusive, endBlockInclusive)
+	if err != nil {
+		f.Logger.Sugar().Errorw("failed to fetch blocks",
+			zap.Uint64("startBlock", startBlockInclusive),
+			zap.Uint64("endBlock", endBlockInclusive),
+			zap.Error(err),
+		)
+		return nil, err
+	}
+
+	// fetch receipts for only the interesting blocks
+	f.Logger.Sugar().Debugw("Fetching receipts for interesting blocks", zap.Int("count", len(interestingBlockNumbers)))
+
+	// pick blocks from the interesting block numbers
+	interestingBlocks := utils.Filter(blocks, func(b *ethereum.EthereumBlock) bool {
+		return slices.Contains(interestingBlockNumbers, b.Number.Value())
+	})
+
+	// get receipts for only the interesting blocks
+	receipts := make([]*FetchedBlock, 0)
+
+	if len(interestingBlocks) > 0 {
+		receipts, err = f.FetchReceiptsForBlocks(ctx, interestingBlocks)
+		if err != nil {
+			f.Logger.Sugar().Errorw("failed to fetch receipts for interesting blocks", zap.Error(err))
+			return nil, err
+		}
+	}
+
+	finalBlocks := utils.Map(blocks, func(b *ethereum.EthereumBlock, i uint64) *FetchedBlock {
+		if slices.Contains(interestingBlockNumbers, b.Number.Value()) {
+			foundBlock := utils.Find(receipts, func(r *FetchedBlock) bool {
+				return r.Block.Number.Value() == b.Number.Value()
+			})
+			if foundBlock != nil {
+				return foundBlock
+			}
+		}
+		return &FetchedBlock{
+			Block:      b,
+			TxReceipts: make(map[string]*ethereum.EthereumTransactionReceipt),
+		}
+	})
+
+	return finalBlocks, nil
+}
+
+func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64) ([]*ethereum.EthereumBlock, error) {
 	blockNumbers := make([]uint64, 0)
 	for i := startBlockInclusive; i <= endBlockInclusive; i++ {
 		blockNumbers = append(blockNumbers, i)
 	}
 
 	if len(blockNumbers) == 0 {
-		return []*FetchedBlock{}, nil
+		return []*ethereum.EthereumBlock{}, nil
 	}
 
 	blockRequests := make([]*ethereum.RPCRequest, 0)
@@ -276,7 +417,10 @@ func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, e
 		)
 		return nil, err
 	}
+	return blocks, nil
+}
 
+func (f *Fetcher) FetchReceiptsForBlocks(ctx context.Context, blocks []*ethereum.EthereumBlock) ([]*FetchedBlock, error) {
 	fetchedBlockResponses := make(chan *FetchedBlock, len(blocks))
 	foundErrorsChan := make(chan bool, 1)
 
@@ -330,9 +474,26 @@ func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, e
 
 	f.Logger.Sugar().Debugw("Fetched blocks",
 		zap.Int("count", len(fetchedBlocks)),
-		zap.Uint64("startBlock", startBlockInclusive),
-		zap.Uint64("endBlock", endBlockInclusive),
+		zap.Uint64("startBlock", blocks[0].Number.Value()),
+		zap.Uint64("endBlock", blocks[len(blocks)-1].Number.Value()),
 	)
 
 	return fetchedBlocks, nil
+}
+
+// FetchBlocksWithReceipts retrieves a range of blocks and their transaction receipts.
+// It uses batch requests to fetch blocks and parallel processing to fetch receipts.
+// Returns an array of FetchedBlock objects sorted by block number.
+func (f *Fetcher) FetchBlocksWithReceipts(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64) ([]*FetchedBlock, error) {
+	blocks, err := f.FetchBlocks(ctx, startBlockInclusive, endBlockInclusive)
+	if err != nil {
+		f.Logger.Sugar().Errorw("failed to fetch blocks",
+			zap.Uint64("startBlock", startBlockInclusive),
+			zap.Uint64("endBlock", endBlockInclusive),
+			zap.Error(err),
+		)
+		return nil, err
+	}
+
+	return f.FetchReceiptsForBlocks(ctx, blocks)
 }
