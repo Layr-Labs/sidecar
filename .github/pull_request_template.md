@@ -13,6 +13,7 @@ Please delete options that are not relevant.
 - [ ] Chore (non-breaking change which does not add functionality)
 - [ ] Docs (documentation updates)
 - [ ] Performance improvement
+- [ ] Refactor (non-breaking change which does not add or remove functionality)
 
 ## How Has This Been Tested?
 
