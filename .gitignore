@@ -36,3 +36,4 @@ chart_releases
 /*.dump
 .env
 !/pkg/eigenState/stateMigrator/**/*.sql
+rawTestData

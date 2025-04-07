@@ -369,6 +369,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			StrategyManager:    "0x858646372cc42e1a627fce94aa7a7033e7cf075a",
 			DelegationManager:  "0x39053d51b77dc0d36036fc1fcc8cb819df8ef37a",
 			AvsDirectory:       "0x135dda560e946695d6f155dacafc6f1f25c1f5af",
+			AllocationManager:  "0x948a420b8cc1d6bfd0b6087c2e7c344a2cd0bc39",
 		}
 	} else {
 		return nil
