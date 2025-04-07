@@ -15,7 +15,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type OperatorAVSSplit struct {
@@ -64,8 +63,10 @@ func NewOperatorAVSSplitModel(
 	return model, nil
 }
 
+const OperatorAVSSplitModelName = "OperatorAVSSplitModel"
+
 func (oas *OperatorAVSSplitModel) GetModelName() string {
-	return "OperatorAVSSplitModel"
+	return OperatorAVSSplitModelName
 }
 
 type operatorAVSSplitOutputData struct {
@@ -213,22 +214,18 @@ func (oas *OperatorAVSSplitModel) prepareState(blockNumber uint64) ([]*OperatorA
 }
 
 // CommitFinalState commits the final state for the given block number.
-func (oas *OperatorAVSSplitModel) CommitFinalState(blockNumber uint64) error {
+func (oas *OperatorAVSSplitModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	recordsToInsert, err := oas.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
-	if len(recordsToInsert) > 0 {
-		for _, record := range recordsToInsert {
-			res := oas.DB.Model(&OperatorAVSSplit{}).Clauses(clause.Returning{}).Create(&record)
-			if res.Error != nil {
-				oas.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				return res.Error
-			}
-		}
+	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, oas.GetTableName(), oas.DB)
+	if err != nil {
+		oas.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
+		return err
 	}
-	oas.committedState[blockNumber] = recordsToInsert
+	oas.committedState[blockNumber] = insertedRecords
 	return nil
 }
 
@@ -320,8 +317,12 @@ func (oas *OperatorAVSSplitModel) sortValuesForMerkleTree(splits []*OperatorAVSS
 	return inputs, nil
 }
 
+func (oas *OperatorAVSSplitModel) GetTableName() string {
+	return "operator_avs_splits"
+}
+
 func (oas *OperatorAVSSplitModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return oas.BaseEigenState.DeleteState("operator_avs_splits", startBlockNumber, endBlockNumber, oas.DB)
+	return oas.BaseEigenState.DeleteState(oas.GetTableName(), startBlockNumber, endBlockNumber, oas.DB)
 }
 
 func (oar *OperatorAVSSplitModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
@@ -332,4 +333,8 @@ func (oar *OperatorAVSSplitModel) ListForBlockRange(startBlockNumber uint64, end
 		return nil, res.Error
 	}
 	return base.CastCommittedStateToInterface(splits), nil
+}
+
+func (oas *OperatorAVSSplitModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
 }

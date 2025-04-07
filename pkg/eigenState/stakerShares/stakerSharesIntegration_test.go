@@ -77,7 +77,7 @@ func Test_StakerSharesIntegration(t *testing.T) {
 		if !tests.LargeTestsEnabled() {
 			t.Skipf("Skipping large test")
 		}
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
@@ -121,7 +121,7 @@ func Test_StakerSharesIntegration(t *testing.T) {
 				}
 			}
 
-			if err := model.CommitFinalState(i); err != nil {
+			if err := model.CommitFinalState(i, false); err != nil {
 				t.Logf("Failed to commit final state for block %d", i)
 				t.Fatal(err)
 			}

@@ -56,13 +56,13 @@ func Test_AvsOperatorState(t *testing.T) {
 	}
 
 	t.Run("Should create a new AvsOperatorState", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, avsOperatorState)
 	})
 	t.Run("Should correctly generate state across multiple blocks", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
 		blocks := []uint64{
 			300,
 			301,
@@ -120,8 +120,12 @@ func Test_AvsOperatorState(t *testing.T) {
 			assert.Nil(t, err)
 			assert.NotNil(t, stateChange)
 
-			err = avsOperatorState.CommitFinalState(log.BlockNumber)
+			err = avsOperatorState.CommitFinalState(log.BlockNumber, false)
 			assert.Nil(t, err)
+
+			committedState, err := avsOperatorState.GetCommittedState(log.BlockNumber)
+			assert.Nil(t, err)
+			assert.Equal(t, len(committedState), 1)
 
 			states := []AvsOperatorStateChange{}
 			statesRes := avsOperatorState.DB.
@@ -165,6 +169,127 @@ func Test_AvsOperatorState(t *testing.T) {
 		}
 
 		assert.Equal(t, len(logs), len(inserted))
+	})
+	t.Run("Should build the state, but throw an error when inserting duplicate records", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		blocks := []uint64{
+			300,
+			301,
+		}
+
+		logs := []*storage.TransactionLog{
+			{
+				TransactionHash:  "some hash",
+				TransactionIndex: 100,
+				BlockNumber:      blocks[0],
+				Address:          cfg.GetContractsMapForChain().AvsDirectory,
+				Arguments:        `[{"Value": "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e" }, { "Value": "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0" }]`,
+				EventName:        "OperatorAVSRegistrationStatusUpdated",
+				LogIndex:         400,
+				OutputData:       `{ "status": 1 }`,
+				CreatedAt:        time.Time{},
+				UpdatedAt:        time.Time{},
+				DeletedAt:        time.Time{},
+			},
+			{
+				TransactionHash:  "some hash",
+				TransactionIndex: 100,
+				BlockNumber:      blocks[1],
+				Address:          cfg.GetContractsMapForChain().AvsDirectory,
+				Arguments:        `[{"Value": "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e" }, { "Value": "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0" }]`,
+				EventName:        "OperatorAVSRegistrationStatusUpdated",
+				LogIndex:         400,
+				OutputData:       `{ "status": 0 }`,
+				CreatedAt:        time.Time{},
+				UpdatedAt:        time.Time{},
+				DeletedAt:        time.Time{},
+			},
+		}
+
+		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		for _, log := range logs {
+			assert.True(t, avsOperatorState.IsInterestingLog(log))
+
+			err = avsOperatorState.SetupStateForBlock(log.BlockNumber)
+			assert.Nil(t, err)
+
+			stateChange, err := avsOperatorState.HandleStateChange(log)
+			assert.Nil(t, err)
+			assert.NotNil(t, stateChange)
+
+			err = avsOperatorState.CommitFinalState(log.BlockNumber, false)
+			assert.NotNil(t, err)
+		}
+	})
+	t.Run("Should build the state, but ignore the conflict for duplicate records", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		blocks := []uint64{
+			300,
+			301,
+		}
+
+		logs := []*storage.TransactionLog{
+			{
+				TransactionHash:  "some hash",
+				TransactionIndex: 100,
+				BlockNumber:      blocks[0],
+				Address:          cfg.GetContractsMapForChain().AvsDirectory,
+				Arguments:        `[{"Value": "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e" }, { "Value": "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0" }]`,
+				EventName:        "OperatorAVSRegistrationStatusUpdated",
+				LogIndex:         400,
+				OutputData:       `{ "status": 1 }`,
+				CreatedAt:        time.Time{},
+				UpdatedAt:        time.Time{},
+				DeletedAt:        time.Time{},
+			},
+			{
+				TransactionHash:  "some hash",
+				TransactionIndex: 100,
+				BlockNumber:      blocks[1],
+				Address:          cfg.GetContractsMapForChain().AvsDirectory,
+				Arguments:        `[{"Value": "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e" }, { "Value": "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0" }]`,
+				EventName:        "OperatorAVSRegistrationStatusUpdated",
+				LogIndex:         400,
+				OutputData:       `{ "status": 0 }`,
+				CreatedAt:        time.Time{},
+				UpdatedAt:        time.Time{},
+				DeletedAt:        time.Time{},
+			},
+		}
+
+		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		for _, log := range logs {
+			assert.True(t, avsOperatorState.IsInterestingLog(log))
+
+			err = avsOperatorState.SetupStateForBlock(log.BlockNumber)
+			assert.Nil(t, err)
+
+			stateChange, err := avsOperatorState.HandleStateChange(log)
+			assert.Nil(t, err)
+			assert.NotNil(t, stateChange)
+
+			err = avsOperatorState.CommitFinalState(log.BlockNumber, true)
+			assert.Nil(t, err)
+
+			var states []*AvsOperatorStateChange
+			statesRes := avsOperatorState.DB.
+				Raw("select * from avs_operator_state_changes where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
+				Scan(&states)
+
+			if statesRes.Error != nil {
+				t.Fatalf("Failed to fetch avs_operator_state_changes: %v", statesRes.Error)
+			}
+
+			committedState, err := avsOperatorState.GetCommittedState(log.BlockNumber)
+			assert.Nil(t, err)
+			assert.Equal(t, len(committedState), 0)
+
+			assert.Equal(t, 1, len(states))
+		}
 	})
 	t.Cleanup(func() {
 		postgres.TeardownTestDatabase(dbName, cfg, grm, l)

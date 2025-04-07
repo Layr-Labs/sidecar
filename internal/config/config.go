@@ -34,11 +34,15 @@ const (
 
 // Rewards forks named after rivers
 const (
-	RewardsFork_Nile    ForkName = "nile"
-	RewardsFork_Amazon  ForkName = "amazon"
-	RewardsFork_Panama  ForkName = "panama"
-	RewardsFork_Arno    ForkName = "arno"
-	RewardsFork_Trinity ForkName = "trinity"
+	RewardsFork_Nile        ForkName = "nile"
+	RewardsFork_Amazon      ForkName = "amazon"
+	RewardsFork_Panama      ForkName = "panama"
+	RewardsFork_Arno        ForkName = "arno"
+	RewardsFork_Trinity     ForkName = "trinity"
+	RewardsFork_Mississippi ForkName = "mississippi"
+	RewardsFork_Brazos      ForkName = "brazos"
+	RewardsFork_Colorado    ForkName = "colorado"
+	RewardsFork_Red         ForkName = "red"
 )
 
 func normalizeFlagName(name string) string {
@@ -52,6 +56,7 @@ type EthereumRpcConfig struct {
 	NativeBatchCallSize   int  // Number of calls to put in a single eth_call request
 	ChunkedBatchCallSize  int  // Number of calls to make in parallel
 	UseGetBlockReceipts   bool // Use eth_getBlockReceipts instead of fetching receipts for each tx individually. Requires geth, erigon or other compatible client.
+	BlockType             string
 }
 
 type DatabaseConfig struct {
@@ -202,6 +207,7 @@ var (
 	EthereumRpcNativeBatchCallSize   = "ethereum.native_batch_call_size"
 	EthereumRpcChunkedBatchCallSize  = "ethereum.chunked_batch_call_size"
 	EthereumUseGetBlockReceipts      = "ethereum.use-get-block-receipts"
+	EthereumLatestBlockType          = "ethereum.latest-block-type"
 
 	DataDogStatsdEnabled    = "datadog.statsd.enabled"
 	DataDogStatsdUrl        = "datadog.statsd.url"
@@ -237,6 +243,7 @@ func NewConfig() *Config {
 			NativeBatchCallSize:   viper.GetInt(normalizeFlagName(EthereumRpcNativeBatchCallSize)),
 			ChunkedBatchCallSize:  viper.GetInt(normalizeFlagName(EthereumRpcChunkedBatchCallSize)),
 			UseGetBlockReceipts:   viper.GetBool(normalizeFlagName(EthereumUseGetBlockReceipts)),
+			BlockType:             viper.GetString(normalizeFlagName(EthereumLatestBlockType)),
 		},
 
 		DatabaseConfig: DatabaseConfig{
@@ -329,6 +336,7 @@ type ContractAddresses struct {
 	StrategyManager    string
 	DelegationManager  string
 	AvsDirectory       string
+	AllocationManager  string
 }
 
 func (c *Config) ChainIsOneOf(chains ...Chain) bool {
@@ -343,6 +351,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			StrategyManager:    "0xf9fbf2e35d8803273e214c99bf15174139f4e67a",
 			DelegationManager:  "0x75dfe5b44c2e530568001400d3f704bc8ae350cc",
 			AvsDirectory:       "0x141d6995556135d4997b2ff72eb443be300353bc",
+			AllocationManager:  "0xfdd5749e11977d60850e06bf5b13221ad95eb6b4",
 		}
 	} else if c.Chain == Chain_Holesky {
 		return &ContractAddresses{
@@ -351,6 +360,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			StrategyManager:    "0xdfb5f6ce42aaa7830e94ecfccad411bef4d4d5b6",
 			DelegationManager:  "0xa44151489861fe9e3055d95adc98fbd462b948e7",
 			AvsDirectory:       "0x055733000064333caddbc92763c58bf0192ffebf",
+			AllocationManager:  "0x78469728304326cbc65f8f95fa756b0b73164462",
 		}
 	} else if c.Chain == Chain_Mainnet {
 		return &ContractAddresses{
@@ -359,6 +369,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			StrategyManager:    "0x858646372cc42e1a627fce94aa7a7033e7cf075a",
 			DelegationManager:  "0x39053d51b77dc0d36036fc1fcc8cb819df8ef37a",
 			AvsDirectory:       "0x135dda560e946695d6f155dacafc6f1f25c1f5af",
+			AllocationManager:  "0x948a420b8cc1d6bfd0b6087c2e7c344a2cd0bc39",
 		}
 	} else {
 		return nil
@@ -378,6 +389,7 @@ func (c *Config) GetInterestingAddressForConfigEnv() []string {
 		addresses.StrategyManager,
 		addresses.DelegationManager,
 		addresses.AvsDirectory,
+		addresses.AllocationManager,
 	}
 }
 
@@ -394,33 +406,120 @@ func (c *Config) GetGenesisBlockNumber() uint64 {
 	}
 }
 
-type ForkMap map[ForkName]string
+type Fork struct {
+	Date        string
+	BlockNumber uint64
+}
+
+type ForkMap map[ForkName]Fork
 
 func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 	switch c.Chain {
 	case Chain_Preprod:
 		return ForkMap{
-			RewardsFork_Amazon:  "1970-01-01", // Amazon hard fork was never on preprod as we backfilled
-			RewardsFork_Nile:    "2024-08-14", // Last calculation end timestamp was 8-13: https://holesky.etherscan.io/tx/0xb5a6855e88c79312b7c0e1c9f59ae9890b97f157ea27e69e4f0fadada4712b64#eventlog
-			RewardsFork_Panama:  "2024-10-01",
-			RewardsFork_Arno:    "2024-12-11",
-			RewardsFork_Trinity: "2025-01-09",
+			RewardsFork_Amazon: Fork{
+				Date: "1970-01-01",
+			},
+			RewardsFork_Nile: Fork{
+				Date: "2024-08-14", // Last calculation end timestamp was 8-13: https://holesky.etherscan.io/tx/0xb5a6855e88c79312b7c0e1c9f59ae9890b97f157ea27e69e4f0fadada4712b64#eventlog},
+			},
+			RewardsFork_Panama: Fork{
+				Date: "2024-10-01",
+			},
+			RewardsFork_Arno: Fork{
+				Date: "2024-12-11",
+			},
+			RewardsFork_Trinity: Fork{
+				Date: "2025-01-09",
+			},
+			RewardsFork_Mississippi: Fork{
+				Date:        "2025-02-05",
+				BlockNumber: 3293200,
+			},
+			RewardsFork_Brazos: Fork{
+				Date:        "2025-03-06",
+				BlockNumber: 3455600,
+			},
+			RewardsFork_Colorado: Fork{
+				Date:        "2025-03-11",
+				BlockNumber: 3474750,
+			},
+			RewardsFork_Red: Fork{
+				Date:        "2025-03-18",
+				BlockNumber: 3516000,
+			},
 		}, nil
 	case Chain_Holesky:
 		return ForkMap{
-			RewardsFork_Amazon:  "1970-01-01", // Amazon hard fork was never on testnet as we backfilled
-			RewardsFork_Nile:    "2024-08-13", // Last calculation end timestamp was 8-12: https://holesky.etherscan.io/tx/0x5fc81b5ed2a78b017ef313c181d8627737a97fef87eee85acedbe39fc8708c56#eventlog
-			RewardsFork_Panama:  "2024-10-01",
-			RewardsFork_Arno:    "2024-12-13",
-			RewardsFork_Trinity: "2025-01-09",
+			RewardsFork_Amazon: Fork{
+				Date: "1970-01-01", // Amazon hard fork was never on testnet as we backfilled
+			},
+			RewardsFork_Nile: Fork{
+				Date: "2024-08-13", // Last calculation end timestamp was 8-12: https://holesky.etherscan.io/tx/0x5fc81b5ed2a78b017ef313c181d8627737a97fef87eee85acedbe39fc8708c56#eventlog
+			},
+			RewardsFork_Panama: Fork{
+				Date: "2024-10-01",
+			},
+			RewardsFork_Arno: Fork{
+				Date: "2024-12-13",
+			},
+			RewardsFork_Trinity: Fork{
+				Date: "2025-01-09",
+			},
+			RewardsFork_Mississippi: Fork{
+				Date:        "2025-02-10",
+				BlockNumber: 3327000,
+			},
+			RewardsFork_Brazos: Fork{
+				Date:        "2025-03-06",
+				BlockNumber: 3455600,
+			},
+			RewardsFork_Colorado: Fork{
+				Date:        "2025-03-11",
+				BlockNumber: 3474750,
+			},
+			RewardsFork_Red: Fork{
+				Date:        "2025-03-18",
+				BlockNumber: 3516000,
+			},
 		}, nil
 	case Chain_Mainnet:
 		return ForkMap{
-			RewardsFork_Amazon:  "2024-08-02", // Last calculation end timestamp was 8-01: https://etherscan.io/tx/0x2aff6f7b0132092c05c8f6f41a5e5eeeb208aa0d95ebcc9022d7823e343dd012#eventlog
-			RewardsFork_Nile:    "2024-08-12", // Last calculation end timestamp was 8-11: https://etherscan.io/tx/0x922d29d93c02d189fc2332041f01a80e0007cd7a625a5663ef9d30082f7ef66f#eventlog
-			RewardsFork_Panama:  "2024-10-01",
-			RewardsFork_Arno:    "2025-01-21",
-			RewardsFork_Trinity: "2025-01-21",
+			RewardsFork_Amazon: Fork{
+				Date: "2024-08-02", // Last calculation end timestamp was 8-01: https://etherscan.io/tx/0x2aff6f7b0132092c05c8f6f41a5e5eeeb208aa0d95ebcc9022d7823e343dd012#eventlog
+			},
+			RewardsFork_Nile: Fork{
+				Date: "2024-08-12", // Last calculation end timestamp was 8-11: https://etherscan.io/tx/0x922d29d93c02d189fc2332041f01a80e0007cd7a625a5663ef9d30082f7ef66f#eventlog
+			},
+			RewardsFork_Panama: Fork{
+				Date: "2024-10-01",
+			},
+			RewardsFork_Arno: Fork{
+				Date: "2025-01-21",
+			},
+			RewardsFork_Trinity: Fork{
+				Date: "2025-01-21",
+			},
+			RewardsFork_Mississippi: Fork{
+				Date: "2025-04-17",
+				// mississippi fork on mainnet doesnt have a fork date since we didnt need to backfill
+				// any data for it like we did for preprod and holesky
+				BlockNumber: 0,
+			},
+			RewardsFork_Brazos: Fork{
+				Date: "2025-04-17",
+				// brazos fork on mainnet doesnt have a fork date since we didnt need to backfill slashing events
+				BlockNumber: 0,
+			},
+			RewardsFork_Colorado: Fork{
+				Date:        "2025-04-17",
+				BlockNumber: 22294800,
+			},
+			RewardsFork_Red: Fork{
+				// red fork on mainnet doesnt have a fork date since we didnt need to backfill slashing events
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
 		}, nil
 	}
 	return nil, errors.New("unsupported chain")
@@ -485,12 +584,29 @@ func (c *Config) IsRewardsV2EnabledForCutoffDate(cutoffDate string) (bool, error
 	if err != nil {
 		return false, errors.Join(fmt.Errorf("failed to parse cutoff date %s", cutoffDate), err)
 	}
-	arnoForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Arno])
+	arnoForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Arno].Date)
 	if err != nil {
-		return false, errors.Join(fmt.Errorf("failed to parse Arno fork date %s", forks[RewardsFork_Arno]), err)
+		return false, errors.Join(fmt.Errorf("failed to parse Arno fork date %s", forks[RewardsFork_Arno].Date), err)
 	}
 
 	return cutoffDateTime.Compare(arnoForkDateTime) >= 0, nil
+}
+
+func (c *Config) IsRewardsV2_1EnabledForCutoffDate(cutoffDate string) (bool, error) {
+	forks, err := c.GetRewardsSqlForkDates()
+	if err != nil {
+		return false, err
+	}
+	cutoffDateTime, err := time.Parse(time.DateOnly, cutoffDate)
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("failed to parse cutoff date %s", cutoffDate), err)
+	}
+	mississippiForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Mississippi].Date)
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("failed to parse Mississippi fork date %s", forks[RewardsFork_Mississippi].Date), err)
+	}
+
+	return cutoffDateTime.Compare(mississippiForkDateTime) >= 0, nil
 }
 
 // CanIgnoreIncorrectRewardsRoot returns true if the rewards root can be ignored for the given block number

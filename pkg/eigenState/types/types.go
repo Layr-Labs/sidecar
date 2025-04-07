@@ -31,7 +31,7 @@ type IEigenStateModel interface {
 
 	// CommitFinalState
 	// Once all state changes are processed, commit the final state to the database
-	CommitFinalState(blockNumber uint64) error
+	CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error
 
 	// GetCommittedState
 	// Get the committed state for the model at the given block height.
@@ -50,6 +50,15 @@ type IEigenStateModel interface {
 
 	// ListForBlockRange lists all records for the block range, inclusive of start and end block numbers
 	ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error)
+
+	IsActiveForBlockHeight(blockHeight uint64) (bool, error)
+
+	GetTableName() string
+}
+
+type IEigenPrecommitProcessor interface {
+	Process(blockNumber uint64, models map[string]IEigenStateModel) error
+	GetName() string
 }
 
 // StateTransitions
@@ -66,4 +75,6 @@ var (
 	MerkleLeafPrefix_EigenStateRoot   MerkleLeafPrefix = []byte("0x02")
 	MerkleLeafPrefix_EigenStateBlock  MerkleLeafPrefix = []byte("0x03")
 	MerkleLeafPrefix_EigenStateChange MerkleLeafPrefix = []byte("0x04")
+	MerkleLeafPrefix_MigrationRoot    MerkleLeafPrefix = []byte("0x05")
+	MerkleLeafPrefix_MigratedState    MerkleLeafPrefix = []byte("0x06")
 )

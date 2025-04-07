@@ -17,7 +17,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type SubmittedDistributionRootsModel struct {
@@ -234,20 +233,18 @@ func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]
 	return preparedState, nil
 }
 
-func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64) error {
+func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64, ignoreInsertConflicts bool) error {
 	records, err := sdr.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
-	if len(records) > 0 {
-		res := sdr.DB.Model(&types.SubmittedDistributionRoot{}).Clauses(clause.Returning{}).Create(&records)
-		if res.Error != nil {
-			sdr.logger.Sugar().Errorw("Failed to create new submitted_distribution_roots records", zap.Error(res.Error))
-			return res.Error
-		}
+	insertedRecords, err := base.CommitFinalState(records, ignoreInsertConflicts, sdr.GetTableName(), sdr.DB)
+	if err != nil {
+		sdr.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
+		return err
 	}
-	sdr.committedState[blockNumber] = records
+	sdr.committedState[blockNumber] = insertedRecords
 
 	return nil
 }
@@ -300,8 +297,12 @@ func (sdr *SubmittedDistributionRootsModel) GenerateStateRoot(blockNumber uint64
 	return fullTree.Root(), nil
 }
 
+func (sdr *SubmittedDistributionRootsModel) GetTableName() string {
+	return "submitted_distribution_roots"
+}
+
 func (sdr *SubmittedDistributionRootsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return sdr.BaseEigenState.DeleteState("submitted_distribution_roots", startBlockNumber, endBlockNumber, sdr.DB)
+	return sdr.BaseEigenState.DeleteState(sdr.GetTableName(), startBlockNumber, endBlockNumber, sdr.DB)
 }
 
 func (sdr *SubmittedDistributionRootsModel) GetAccumulatedState(blockNumber uint64) []*types.SubmittedDistributionRoot {
@@ -339,4 +340,8 @@ func (sdr *SubmittedDistributionRootsModel) ListForBlockRange(startBlockNumber u
 		return nil, res.Error
 	}
 	return base.CastCommittedStateToInterface(deltas), nil
+}
+
+func (sdr *SubmittedDistributionRootsModel) IsActiveForBlockHeight(blockHeight uint64) (bool, error) {
+	return true, nil
 }

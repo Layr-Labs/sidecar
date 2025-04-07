@@ -218,7 +218,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				zap.Uint64("logIndex", log.LogIndex),
 			)
 
-			if err := p.stateManager.HandleLogStateChange(indexedLog); err != nil {
+			if err := p.stateManager.HandleLogStateChange(indexedLog, true); err != nil {
 				p.Logger.Sugar().Errorw("Failed to handle log state change",
 					zap.Uint64("blockNumber", blockNumber),
 					zap.String("transactionHash", pt.Transaction.Hash.Value()),
@@ -278,8 +278,14 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 		}
 	}
 
+	if err = p.stateManager.RunPrecommitProcessors(blockNumber); err != nil {
+		p.Logger.Sugar().Errorw("Failed to run precommit processors", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		hasError = true
+		return err
+	}
+
 	blockFetchTime = time.Now()
-	committedState, err := p.stateManager.CommitFinalState(blockNumber)
+	committedState, err := p.stateManager.CommitFinalState(blockNumber, false)
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to commit final state", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		hasError = true

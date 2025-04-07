@@ -17,6 +17,8 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/precommitProcessors"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
@@ -31,6 +33,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
+	"github.com/Layr-Labs/sidecar/pkg/service/slashingDataService"
 	"github.com/Layr-Labs/sidecar/pkg/shutdown"
 	"github.com/Layr-Labs/sidecar/pkg/sidecar"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
@@ -110,7 +113,12 @@ var runCmd = &cobra.Command{
 			log.Fatalln(err)
 		}
 
-		sm := stateManager.NewEigenStateManager(l, grm)
+		smig, err := stateMigrator.NewStateMigrator(grm, cfg, l)
+		if err != nil {
+			l.Sugar().Fatalw("Failed to create state migrator", zap.Error(err))
+		}
+
+		sm := stateManager.NewEigenStateManager(smig, l, grm)
 		if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
 			l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
 		}
@@ -119,6 +127,8 @@ var runCmd = &cobra.Command{
 		if err := metaState.LoadMetaStateModels(msm, grm, l, cfg); err != nil {
 			l.Sugar().Fatalw("Failed to load meta state models", zap.Error(err))
 		}
+
+		precommitProcessors.LoadPrecommitProcessors(sm, grm, l)
 
 		fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, l)
 
@@ -139,6 +149,7 @@ var runCmd = &cobra.Command{
 
 		pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 		rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
+		sds := slashingDataService.NewSlashingDataService(grm, l, cfg)
 
 		go rcq.Process()
 
@@ -157,7 +168,7 @@ var runCmd = &cobra.Command{
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
 			HttpPort: cfg.RpcConfig.HttpPort,
-		}, mds, contractStore, cm, rc, rcq, eb, rps, pds, rds, scc, sink, l, cfg)
+		}, mds, contractStore, cm, rc, rcq, eb, rps, pds, rds, sds, scc, sink, l, cfg)
 
 		// RPC channel to notify the RPC server to shutdown gracefully
 		rpcChannel := make(chan bool)
