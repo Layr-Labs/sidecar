@@ -1271,7 +1271,7 @@ func (ss *StakerSharesModel) formatSlotId(
 	if err != nil {
 		return "", err
 	}
-	if ss.globalConfig.ChainIsOneOf(config.Chain_Holesky, config.Chain_Preprod) && blockNumber < forks[config.RewardsFork_Colorado].BlockNumber {
+	if ss.globalConfig.ChainIsOneOf(config.Chain_Holesky, config.Chain_Preprod, config.Chain_Mainnet) && blockNumber < forks[config.RewardsFork_Colorado].BlockNumber {
 		// pre EL21-02 fix
 		return NewSlotID(diff.TransactionHash, diff.LogIndex, diff.OriginalStaker, diff.OriginalStrategy, diff.StrategyIndex), nil
 	}
