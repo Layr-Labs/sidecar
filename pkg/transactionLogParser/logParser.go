@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractAbi"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/parser"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -82,7 +83,13 @@ func (tlp *TransactionLogParser) ParseTransactionLogs(receipt *ethereum.Ethereum
 		decodedLog, err := tlp.DecodeLogWithAbi(a, receipt, lg)
 		if err != nil {
 			msg := fmt.Sprintf("Error decoding log - index: '%d' - '%s'", i, receipt.TransactionHash.Value())
-			tlp.logger.Sugar().Debugw(msg, zap.Error(err))
+			tlp.logger.Sugar().Errorw(msg,
+				zap.String("logAddress", lg.Address.Value()),
+				zap.String("transactionHash", lg.TransactionHash.Value()),
+				zap.Uint64("blockNumber", receipt.BlockNumber.Value()),
+				zap.Uint64("logIndex", lg.LogIndex.Value()),
+				zap.Error(err),
+			)
 			return nil, err
 		} else {
 			tlp.logger.Sugar().Debugw(fmt.Sprintf("Decoded log - index: '%d' - '%s'", i, receipt.TransactionHash.Value()))
@@ -119,16 +126,16 @@ func (tlp *TransactionLogParser) DecodeLogWithAbi(
 	} else {
 		tlp.logger.Sugar().Debugw("Log address does not match contract address", zap.String("logAddress", logAddress.String()), zap.String("contractAddress", txReceipt.GetTargetAddress().Value()))
 		// Find/create the log address and attempt to determine if it is a proxy address
-		foundContract, err := tlp.contractManager.GetContractWithProxy(logAddress.String(), txReceipt.BlockNumber.Value())
+		foundContracts, err := tlp.contractManager.GetContractWithImplementations(logAddress.String())
 		if err != nil {
 			return tlp.DecodeLog(nil, lg)
 		}
-		if foundContract == nil {
+		if len(foundContracts) == 0 {
 			tlp.logger.Sugar().Debugw("No contract found for address", zap.String("address", logAddress.String()))
 			return tlp.DecodeLog(nil, lg)
 		}
 
-		combinedAbis := foundContract.CombineAbis()
+		combinedAbis, err := contractStore.CombineAbis(foundContracts)
 		if err != nil {
 			tlp.logger.Sugar().Errorw("Failed to combine ABIs", zap.Error(err), zap.String("contractAddress", logAddress.String()))
 			return tlp.DecodeLog(nil, lg)
