@@ -1,10 +1,11 @@
 package prometheus
 
 import (
-	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/Layr-Labs/sidecar/pkg/logger"
+	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_UnexpectedLabelsParsing(t *testing.T) {

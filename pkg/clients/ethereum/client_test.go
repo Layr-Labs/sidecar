@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Layr-Labs/sidecar/internal/logger"
+	"github.com/Layr-Labs/sidecar/pkg/logger"
 	"github.com/stretchr/testify/assert"
 )
 

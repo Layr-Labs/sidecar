@@ -3,8 +3,8 @@ package eventBus
 import (
 	"context"
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
+	"github.com/Layr-Labs/sidecar/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"sync"

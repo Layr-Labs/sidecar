@@ -1,7 +1,7 @@
 package rpcServer
 
 import (
-	"github.com/Layr-Labs/sidecar/internal/logger"
+	"github.com/Layr-Labs/sidecar/pkg/logger"
 	"testing"
 	"time"
 

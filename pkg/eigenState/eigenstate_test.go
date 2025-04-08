@@ -7,11 +7,11 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/avsOperators"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
+	"github.com/Layr-Labs/sidecar/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

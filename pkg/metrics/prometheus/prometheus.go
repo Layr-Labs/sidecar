@@ -2,13 +2,14 @@ package prometheus
 
 import (
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
-	"github.com/prometheus/client_golang/prometheus"
-	"go.uber.org/zap"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
+	"github.com/prometheus/client_golang/prometheus"
+	"go.uber.org/zap"
 )
 
 type PrometheusMetricsConfig struct {

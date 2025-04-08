@@ -13,7 +13,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/logger"
+	"github.com/Layr-Labs/sidecar/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

@@ -2,10 +2,11 @@ package dogstatsd
 
 import (
 	"fmt"
-	"github.com/DataDog/datadog-go/v5/statsd"
-	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
-	"go.uber.org/zap"
 	"time"
+
+	"github.com/DataDog/datadog-go/v5/statsd"
+	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
+	"go.uber.org/zap"
 )
 
 type DogStatsdMetricsClient struct {

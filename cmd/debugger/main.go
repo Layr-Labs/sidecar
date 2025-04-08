@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"log"
+
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
@@ -31,12 +34,10 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/service/slashingDataService"
 	"github.com/Layr-Labs/sidecar/pkg/sidecar"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
-	"log"
 
-	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
+	"github.com/Layr-Labs/sidecar/pkg/logger"
+	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
 	"go.uber.org/zap"
 )

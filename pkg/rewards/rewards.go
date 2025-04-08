@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Layr-Labs/sidecar/internal/metrics"
-	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
+	"github.com/Layr-Labs/sidecar/pkg/metrics"
+	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/rewardsTypes"
 
 	"sync/atomic"
