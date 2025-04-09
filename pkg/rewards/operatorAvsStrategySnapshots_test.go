@@ -2,15 +2,15 @@ package rewards
 
 import (
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
+	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/sidecar/pkg/logger"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/stretchr/testify/assert"

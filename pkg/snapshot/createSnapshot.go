@@ -2,13 +2,14 @@ package snapshot
 
 import (
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
-	"go.uber.org/zap"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
+	"go.uber.org/zap"
 )
 
 // defaultDumpOptions returns the default command-line options for pg_dump.

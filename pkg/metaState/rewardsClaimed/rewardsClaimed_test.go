@@ -2,8 +2,8 @@ package rewardsClaimed
 
 import (
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/sidecar/pkg/logger"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/metaStateManager"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/types"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"

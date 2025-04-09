@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
+
 	"github.com/Layr-Labs/sidecar/internal/version"
+	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"go.uber.org/zap"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/logger"
+	"github.com/Layr-Labs/sidecar/pkg/logger"
 	"github.com/Layr-Labs/sidecar/pkg/snapshot"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"

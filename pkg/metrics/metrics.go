@@ -1,12 +1,13 @@
 package metrics
 
 import (
-	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/metrics/dogstatsd"
-	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
-	"github.com/Layr-Labs/sidecar/internal/metrics/prometheus"
-	"go.uber.org/zap"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/metrics/dogstatsd"
+	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
+	"github.com/Layr-Labs/sidecar/pkg/metrics/prometheus"
+	"go.uber.org/zap"
 )
 
 type MetricsSink struct {

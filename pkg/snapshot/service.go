@@ -2,8 +2,9 @@ package snapshot
 
 import (
 	"fmt"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
+	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"go.uber.org/zap"
 )
 

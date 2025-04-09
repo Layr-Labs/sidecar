@@ -8,8 +8,8 @@ import (
 	"os"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/sidecar/pkg/logger"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/agiledragon/gomonkey/v2"
 	"github.com/jarcoal/httpmock"
