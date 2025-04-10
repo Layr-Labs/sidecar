@@ -334,7 +334,11 @@ func (t *TransactionBackfiller) ProcessBlocksWithAddresses(ctx context.Context, 
 	_, logs, err := t.fetcher.FetchInterestingBlocksAndLogsForContractsForBlockRange(ctx, queueMessage.StartBlock, queueMessage.EndBlock, queueMessage.Addresses)
 	if err != nil {
 		t.logger.Sugar().Errorw("Error fetching interesting blocks and logs", zap.Error(err))
-		return nil
+		// Return a proper error response instead of nil
+		return &BackfillerResponse{
+			Errors: []error{fmt.Errorf("failed to fetch logs for block range %d-%d: %w",
+				queueMessage.StartBlock, queueMessage.EndBlock, err)},
+		}
 	}
 
 	// Group logs by block number and create blockWithLogs structs directly
@@ -363,10 +367,24 @@ func (t *TransactionBackfiller) ProcessBlocksWithAddresses(ctx context.Context, 
 		blockLogs.logs = append(blockLogs.logs, logWithMetadata)
 	}
 
+	// If context is already canceled, fail fast
+	select {
+	case <-ctx.Done():
+		return &BackfillerResponse{
+			Errors: []error{ctx.Err()},
+		}
+	default:
+		// Continue processing
+	}
+
 	// Create worker pool for block fetching and processing
 	wg := &sync.WaitGroup{}
 	blockLogsQueue := make(chan blockWithLogs, len(blockLogsMap))
 	errorsRecv := make(chan error, len(blockLogsMap))
+
+	// Create a context that can be canceled when an error occurs
+	processingCtx, cancelProcessing := context.WithCancel(ctx)
+	defer cancelProcessing()
 
 	// Launch workers
 	wg.Add(t.config.Workers)
@@ -374,22 +392,30 @@ func (t *TransactionBackfiller) ProcessBlocksWithAddresses(ctx context.Context, 
 		go func() {
 			defer wg.Done()
 			for blockData := range blockLogsQueue {
+				// Check if processing should stop due to an error
+				select {
+				case <-processingCtx.Done():
+					return
+				default:
+					// Continue processing
+				}
+
 				// Fetch the block
-				fetchedBlock, err := t.fetcher.FetchBlock(ctx, blockData.blockNumber)
+				fetchedBlock, err := t.fetcher.FetchBlock(processingCtx, blockData.blockNumber)
 				if err != nil {
 					t.logger.Sugar().Errorw("Error fetching block",
 						zap.Uint64("blockNumber", blockData.blockNumber),
 						zap.Error(err))
 					errorsRecv <- err
-					continue
+					cancelProcessing() // Cancel other workers
+					return
 				}
 
 				// Process logs for this block
 				if err := t.processLogsForBlock(queueMessage, blockData.logs, fetchedBlock); err != nil {
 					errorsRecv <- err
-					// Stop processing on error to prevent partial processing
-					// This avoids inconsistent state that could occur if only some logs are processed
-					break
+					cancelProcessing() // Cancel other workers
+					return
 				}
 			}
 		}()
@@ -398,7 +424,13 @@ func (t *TransactionBackfiller) ProcessBlocksWithAddresses(ctx context.Context, 
 	// Queue the blocks with their logs
 	t.logger.Sugar().Infow("Queueing blocks for processing", zap.Int("count", len(blockLogsMap)))
 	for _, blockLogs := range blockLogsMap {
-		blockLogsQueue <- *blockLogs
+		select {
+		case <-processingCtx.Done():
+			// Stop queueing if processing was canceled
+			break
+		default:
+			blockLogsQueue <- *blockLogs
+		}
 	}
 	close(blockLogsQueue)
 
