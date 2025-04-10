@@ -225,6 +225,75 @@ func (f *Fetcher) FetchBlocksWithRetries(ctx context.Context, startBlockInclusiv
 	return nil, e
 }
 
+func (f *Fetcher) FetchInterestingBlocksAndLogsForContractsForBlockRange(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64, contractAddresses []string) ([]uint64, []*ethereum.EthereumEventLog, error) {
+	f.Logger.Sugar().Debugw("Fetching logs for contracts",
+		zap.Uint64("startBlock", startBlockInclusive),
+		zap.Uint64("endBlock", endBlockInclusive),
+	)
+	logsCollector := make(chan []*ethereum.EthereumEventLog, len(contractAddresses))
+	errorCollector := make(chan error, len(contractAddresses))
+
+	wg := &sync.WaitGroup{}
+	for _, contractAddress := range contractAddresses {
+		wg.Add(1)
+		go func(contractAddress string) {
+			defer wg.Done()
+			f.Logger.Sugar().Debugw("Fetching logs for contract",
+				zap.Uint64("startBlock", startBlockInclusive),
+				zap.Uint64("endBlock", endBlockInclusive),
+				zap.String("contract", contractAddress),
+			)
+			logs, err := f.EthClient.GetLogs(ctx, contractAddress, startBlockInclusive, endBlockInclusive)
+			f.Logger.Sugar().Debugw("Fetched logs for contract",
+				zap.Uint64("startBlock", startBlockInclusive),
+				zap.Uint64("endBlock", endBlockInclusive),
+				zap.String("contract", contractAddress),
+				zap.Int("count", len(logs)),
+			)
+			if err != nil {
+				f.Logger.Sugar().Errorw("failed to fetch logs for contracts",
+					zap.Uint64("startBlock", startBlockInclusive),
+					zap.Uint64("endBlock", endBlockInclusive),
+					zap.Strings("contracts", contractAddresses),
+					zap.Error(err),
+				)
+				errorCollector <- err
+				return
+			}
+			logsCollector <- logs
+		}(contractAddress)
+	}
+	wg.Wait()
+	close(logsCollector)
+	close(errorCollector)
+	f.Logger.Sugar().Debugw("Finished fetching logs for contracts",
+		zap.Uint64("startBlock", startBlockInclusive),
+		zap.Uint64("endBlock", endBlockInclusive),
+		zap.Strings("contracts", contractAddresses),
+	)
+	interestingBlockNumbers := make(map[uint64]bool)
+	collectedLogs := make([]*ethereum.EthereumEventLog, 0)
+	for logs := range logsCollector {
+		for _, log := range logs {
+			collectedLogs = append(collectedLogs, log)
+			interestingBlockNumbers[log.BlockNumber.Value()] = true
+		}
+	}
+	var err error
+	for e := range errorCollector {
+		err = e
+		return nil, nil, err
+	}
+
+	blockNumbers := make([]uint64, 0)
+	for blockNumber := range interestingBlockNumbers {
+		blockNumbers = append(blockNumbers, blockNumber)
+	}
+	slices.Sort(blockNumbers)
+
+	return blockNumbers, collectedLogs, err
+}
+
 // FetchBlocks retrieves a range of blocks and their transaction receipts.
 // It uses batch requests to fetch blocks and parallel processing to fetch receipts.
 // Returns an array of FetchedBlock objects sorted by block number.
