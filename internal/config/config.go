@@ -329,7 +329,7 @@ var AVSDirectoryAddresses = map[Chain]string{
 	Chain_Preprod: "0x141d6995556135D4997b2ff72EB443Be300353bC",
 	Chain_Holesky: "0x055733000064333CaDDbC92763c58BF0192fFeBf",
 	Chain_Mainnet: "0x135dda560e946695d6f155dacafc6f1f25c1f5af",
-	Chain_Sepolia: "", // TODO(seanmcgary): add Sepolia AVS Directory
+	Chain_Sepolia: "0xa789c91ecddae96865913130b786140ee17af545",
 }
 
 type ContractAddresses struct {
@@ -367,12 +367,12 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 	} else if c.Chain == Chain_Sepolia {
 		// TODO(seanmcgary): add Sepolia contract addresses
 		return &ContractAddresses{
-			RewardsCoordinator: "",
-			EigenpodManager:    "",
-			StrategyManager:    "",
-			DelegationManager:  "",
-			AvsDirectory:       "",
-			AllocationManager:  "",
+			AllocationManager:  "0x42583067658071247ec8ce0a516a58f682002d07",
+			AvsDirectory:       "0xa789c91ecddae96865913130b786140ee17af545",
+			DelegationManager:  "0xd4a7e1bd8015057293f0d0a557088c286942e84b",
+			EigenpodManager:    "0x56bfeb94879f4543e756d26103976c567256034a",
+			RewardsCoordinator: "0x5ae8152fb88c26ff9ca5c014c94fca3c68029349",
+			StrategyManager:    "0x2e3d6c0744b10eb0a4e6f679f71554a39ec47a5d",
 		}
 	} else if c.Chain == Chain_Mainnet {
 		return &ContractAddresses{
@@ -412,7 +412,7 @@ func (c *Config) GetGenesisBlockNumber() uint64 {
 	case Chain_Holesky:
 		return 1167044
 	case Chain_Sepolia:
-		return 0 // TODO(seanmcgary): add Sepolia genesis block number
+		return 8086200
 	case Chain_Mainnet:
 		return 17445563
 	default:
@@ -508,6 +508,18 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "1970-01-01",
 				BlockNumber: 0,
 			},
+			RewardsFork_Brazos: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Colorado: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Red: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
 		}, nil
 	case Chain_Mainnet:
 		return ForkMap{
@@ -589,7 +601,7 @@ func (c *Config) GetOperatorRestakedStrategiesStartBlock() uint64 {
 	case Chain_Holesky:
 		return 1162800
 	case Chain_Sepolia:
-		return 0 // TODO(seanmcagry): add Sepolia start block
+		return 8086200
 	case Chain_Mainnet:
 		return 19616400
 	}
