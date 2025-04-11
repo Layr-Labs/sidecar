@@ -365,7 +365,6 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			AllocationManager:  "0x78469728304326cbc65f8f95fa756b0b73164462",
 		}
 	} else if c.Chain == Chain_Sepolia {
-		// TODO(seanmcgary): add Sepolia contract addresses
 		return &ContractAddresses{
 			AllocationManager:  "0x42583067658071247ec8ce0a516a58f682002d07",
 			AvsDirectory:       "0xa789c91ecddae96865913130b786140ee17af545",
