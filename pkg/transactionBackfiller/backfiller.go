@@ -3,11 +3,12 @@ package transactionBackfiller
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
-	"sync"
 )
 
 // TransactionBackfillerConfig contains configuration options for the transaction backfiller.
@@ -28,6 +29,8 @@ type BackfillerMessage struct {
 	StartBlock uint64
 	// EndBlock is the last block to process (inclusive)
 	EndBlock uint64
+	// Addresses is a list of addresses to process
+	Addresses []string
 	// TransactionLogHandler is a function called for each interesting log
 	TransactionLogHandler func(block *ethereum.EthereumBlock, receipt *ethereum.EthereumTransactionReceipt, log *ethereum.EthereumEventLog) error
 	// IsInterestingLog determines if a log should be processed
@@ -47,6 +50,19 @@ type TransactionBackfiller struct {
 	blockStore storage.BlockStore
 	queue      chan *BackfillerMessage
 	done       chan struct{}
+}
+
+// LogWithMetadata represents a log with additional information needed for processing
+type LogWithMetadata struct {
+	Log         *ethereum.EthereumEventLog
+	BlockNumber uint64
+	TxHash      string
+}
+
+// blockWithLogs is a struct that wraps a block number with its logs for thread-safe processing
+type blockWithLogs struct {
+	blockNumber uint64
+	logs        []*LogWithMetadata
 }
 
 const (
@@ -196,6 +212,12 @@ func (t *TransactionBackfiller) Process() {
 //   - *BackfillerResponse: The result of processing the blocks
 func (t *TransactionBackfiller) ProcessBlocks(ctx context.Context, queueMessage *BackfillerMessage) *BackfillerResponse {
 	response := &BackfillerResponse{}
+
+	// If addresses are specified, use the optimized method
+	if len(queueMessage.Addresses) > 0 {
+		return t.ProcessBlocksWithAddresses(ctx, queueMessage)
+	}
+
 	wg := &sync.WaitGroup{}
 	blocksQueue := make(chan uint64, queueMessage.EndBlock-queueMessage.StartBlock+1)
 
@@ -292,6 +314,166 @@ func (t *TransactionBackfiller) ProcessBlock(ctx context.Context, blockNumber ui
 					return err
 				}
 			}
+		}
+	}
+	return nil
+}
+
+// ProcessBlocksWithAddresses processes logs for specified addresses within a block range.
+// It uses eth_getLogs RPC call to efficiently fetch logs for specific addresses.
+//
+// Parameters:
+//   - ctx: Context for the operation
+//   - queueMessage: The backfill message containing the block range, addresses, and handlers
+//
+// Returns:
+//   - *BackfillerResponse: The result of processing the logs
+func (t *TransactionBackfiller) ProcessBlocksWithAddresses(ctx context.Context, queueMessage *BackfillerMessage) *BackfillerResponse {
+	response := &BackfillerResponse{}
+
+	_, logs, err := t.fetcher.FetchInterestingBlocksAndLogsForContractsForBlockRange(ctx, queueMessage.StartBlock, queueMessage.EndBlock, queueMessage.Addresses)
+	if err != nil {
+		t.logger.Sugar().Errorw("Error fetching interesting blocks and logs", zap.Error(err))
+		// Return a proper error response instead of nil
+		return &BackfillerResponse{
+			Errors: []error{fmt.Errorf("failed to fetch logs for block range %d-%d: %w",
+				queueMessage.StartBlock, queueMessage.EndBlock, err)},
+		}
+	}
+
+	// Group logs by block number and create blockWithLogs structs directly
+	blockLogsMap := make(map[uint64]*blockWithLogs)
+	for _, log := range logs {
+		blockNum := log.BlockNumber.Value()
+		txHash := log.TransactionHash.Value()
+
+		logWithMetadata := &LogWithMetadata{
+			Log:         log,
+			BlockNumber: blockNum,
+			TxHash:      txHash,
+		}
+
+		// Create or retrieve blockWithLogs for this block number
+		blockLogs, exists := blockLogsMap[blockNum]
+		if !exists {
+			blockLogs = &blockWithLogs{
+				blockNumber: blockNum,
+				logs:        make([]*LogWithMetadata, 0),
+			}
+			blockLogsMap[blockNum] = blockLogs
+		}
+
+		// Add this log to the block's logs
+		blockLogs.logs = append(blockLogs.logs, logWithMetadata)
+	}
+
+	// If context is already canceled, fail fast
+	select {
+	case <-ctx.Done():
+		return &BackfillerResponse{
+			Errors: []error{ctx.Err()},
+		}
+	default:
+		// Continue processing
+	}
+
+	// Create worker pool for block fetching and processing
+	wg := &sync.WaitGroup{}
+	blockLogsQueue := make(chan blockWithLogs, len(blockLogsMap))
+	errorsRecv := make(chan error, len(blockLogsMap))
+
+	// Create a context that can be canceled when an error occurs
+	processingCtx, cancelProcessing := context.WithCancel(ctx)
+	defer cancelProcessing()
+
+	// Launch workers
+	wg.Add(t.config.Workers)
+	for i := 0; i < t.config.Workers; i++ {
+		go func() {
+			defer wg.Done()
+			for blockData := range blockLogsQueue {
+				// Check if processing should stop due to an error
+				select {
+				case <-processingCtx.Done():
+					return
+				default:
+					// Continue processing
+				}
+
+				// Fetch the block
+				fetchedBlock, err := t.fetcher.FetchBlock(processingCtx, blockData.blockNumber)
+				if err != nil {
+					t.logger.Sugar().Errorw("Error fetching block",
+						zap.Uint64("blockNumber", blockData.blockNumber),
+						zap.Error(err))
+					errorsRecv <- err
+					cancelProcessing() // Cancel other workers
+					return
+				}
+
+				// Process logs for this block
+				if err := t.processLogsForBlock(queueMessage, blockData.logs, fetchedBlock); err != nil {
+					errorsRecv <- err
+					cancelProcessing() // Cancel other workers
+					return
+				}
+			}
+		}()
+	}
+
+	// Queue the blocks with their logs
+	t.logger.Sugar().Infow("Queueing blocks for processing", zap.Int("count", len(blockLogsMap)))
+	for _, blockLogs := range blockLogsMap {
+		select {
+		case <-processingCtx.Done():
+			// Stop queueing if processing was canceled
+			break
+		default:
+			blockLogsQueue <- *blockLogs
+		}
+	}
+	close(blockLogsQueue)
+
+	t.logger.Sugar().Infow("Waiting for workers to finish")
+	wg.Wait()
+
+	t.logger.Sugar().Infow("All workers finished, compiling errors")
+	close(errorsRecv)
+	errors := make([]error, 0)
+	for err := range errorsRecv {
+		errors = append(errors, err)
+	}
+
+	response.Errors = errors
+	return response
+}
+
+// processLogsForBlock processes all logs for a specific block
+// Returns the first error encountered or nil if all logs are processed successfully
+func (t *TransactionBackfiller) processLogsForBlock(
+	queueMessage *BackfillerMessage,
+	logs []*LogWithMetadata,
+	fetchedBlock *fetcher.FetchedBlock,
+) error {
+	for _, logData := range logs {
+		// Get the transaction receipt from the fetched block
+		receipt, exists := fetchedBlock.TxReceipts[logData.TxHash]
+		if !exists {
+			t.logger.Sugar().Warnw("Transaction receipt not found in block",
+				zap.String("txHash", logData.TxHash),
+				zap.Uint64("blockNumber", fetchedBlock.Block.Number.Value()),
+			)
+			continue
+		}
+
+		// Handle the log
+		if err := queueMessage.TransactionLogHandler(fetchedBlock.Block, receipt, logData.Log); err != nil {
+			t.logger.Sugar().Errorw("Error processing transaction log",
+				zap.Error(err),
+				zap.String("txHash", logData.TxHash),
+				zap.Uint64("blockNumber", fetchedBlock.Block.Number.Value()),
+			)
+			return err
 		}
 	}
 	return nil
