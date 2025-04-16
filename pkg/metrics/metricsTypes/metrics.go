@@ -28,9 +28,12 @@ type MetricsTypeConfig struct {
 }
 
 var (
-	Metric_Incr_BlockProcessed = "blockProcessed"
-	Metric_Incr_GrpcRequest    = "rpc.grpc.request"
-	Metric_Incr_HttpRequest    = "rpc.http.request"
+	Metric_Incr_BlockProcessed             = "blockProcessed"
+	Metric_Incr_GrpcRequest                = "rpc.grpc.request"
+	Metric_Incr_HttpRequest                = "rpc.http.request"
+	Metric_Incr_RewardsRootVerified        = "indexer.rewardsRootVerified"
+	Metric_Incr_RewardsRootInvalid         = "indexer.rewardsRootInvalid"
+	Metric_Incr_RewardsMerkelizationFailed = "indexer.rewardsWerkelizationFailed"
 
 	Metric_Gauge_CurrentBlockHeight = "currentBlockHeight"
 	Metric_Gauge_SnapshotSize       = "snapshots.create.size"
@@ -73,6 +76,24 @@ var MetricTypes = map[MetricsType][]MetricsTypeConfig{
 				"client_ip",
 				"client_source",
 				"client_type",
+			},
+		},
+		MetricsTypeConfig{
+			Name: Metric_Incr_RewardsRootVerified,
+			Labels: []string{
+				"block_number",
+			},
+		},
+		MetricsTypeConfig{
+			Name: Metric_Incr_RewardsRootInvalid,
+			Labels: []string{
+				"block_number",
+			},
+		},
+		MetricsTypeConfig{
+			Name: Metric_Incr_RewardsMerkelizationFailed,
+			Labels: []string{
+				"block_number",
 			},
 		},
 	},
