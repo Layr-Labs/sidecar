@@ -230,47 +230,68 @@ func (f *Fetcher) FetchInterestingBlocksAndLogsForContractsForBlockRange(ctx con
 		zap.Uint64("startBlock", startBlockInclusive),
 		zap.Uint64("endBlock", endBlockInclusive),
 	)
-	logsCollector := make(chan []*ethereum.EthereumEventLog, len(contractAddresses))
-	errorCollector := make(chan error, len(contractAddresses))
+
+	// Define a reasonable chunk size to avoid HTTP 413 errors
+	// This value can be adjusted based on your specific node's limitations
+	const chunkSize uint64 = 4000
+
+	numChunks := (endBlockInclusive-startBlockInclusive)/chunkSize + 1
+
+	logsCollector := make(chan []*ethereum.EthereumEventLog, len(contractAddresses)*int(numChunks))
+	errorCollector := make(chan error, len(contractAddresses)*int(numChunks))
 
 	wg := &sync.WaitGroup{}
+
 	for _, contractAddress := range contractAddresses {
-		wg.Add(1)
-		go func(contractAddress string) {
-			defer wg.Done()
-			f.Logger.Sugar().Debugw("Fetching logs for contract",
-				zap.Uint64("startBlock", startBlockInclusive),
-				zap.Uint64("endBlock", endBlockInclusive),
-				zap.String("contract", contractAddress),
-			)
-			logs, err := f.EthClient.GetLogs(ctx, contractAddress, startBlockInclusive, endBlockInclusive)
-			f.Logger.Sugar().Debugw("Fetched logs for contract",
-				zap.Uint64("startBlock", startBlockInclusive),
-				zap.Uint64("endBlock", endBlockInclusive),
-				zap.String("contract", contractAddress),
-				zap.Int("count", len(logs)),
-			)
-			if err != nil {
-				f.Logger.Sugar().Errorw("failed to fetch logs for contracts",
-					zap.Uint64("startBlock", startBlockInclusive),
-					zap.Uint64("endBlock", endBlockInclusive),
-					zap.Strings("contracts", contractAddresses),
-					zap.Error(err),
-				)
-				errorCollector <- err
-				return
+		for chunkStart := startBlockInclusive; chunkStart <= endBlockInclusive; chunkStart += chunkSize {
+			chunkEnd := chunkStart + chunkSize - 1
+			if chunkEnd > endBlockInclusive {
+				chunkEnd = endBlockInclusive
 			}
-			logsCollector <- logs
-		}(contractAddress)
+
+			wg.Add(1)
+			go func(contractAddress string, startBlock, endBlock uint64) {
+				defer wg.Done()
+				f.Logger.Sugar().Debugw("Fetching logs for contract in chunk",
+					zap.Uint64("startBlock", startBlock),
+					zap.Uint64("endBlock", endBlock),
+					zap.String("contract", contractAddress),
+				)
+
+				logs, err := f.EthClient.GetLogs(ctx, contractAddress, startBlock, endBlock)
+				f.Logger.Sugar().Debugw("Fetched logs for contract in chunk",
+					zap.Uint64("startBlock", startBlock),
+					zap.Uint64("endBlock", endBlock),
+					zap.String("contract", contractAddress),
+					zap.Int("count", len(logs)),
+				)
+
+				if err != nil {
+					f.Logger.Sugar().Errorw("failed to fetch logs for contract in chunk",
+						zap.Uint64("startBlock", startBlock),
+						zap.Uint64("endBlock", endBlock),
+						zap.String("contract", contractAddress),
+						zap.Error(err),
+					)
+					errorCollector <- err
+					return
+				}
+
+				logsCollector <- logs
+			}(contractAddress, chunkStart, chunkEnd)
+		}
 	}
+
 	wg.Wait()
 	close(logsCollector)
 	close(errorCollector)
+
 	f.Logger.Sugar().Debugw("Finished fetching logs for contracts",
 		zap.Uint64("startBlock", startBlockInclusive),
 		zap.Uint64("endBlock", endBlockInclusive),
 		zap.Strings("contracts", contractAddresses),
 	)
+
 	interestingBlockNumbers := make(map[uint64]bool)
 	collectedLogs := make([]*ethereum.EthereumEventLog, 0)
 	for logs := range logsCollector {
@@ -279,6 +300,7 @@ func (f *Fetcher) FetchInterestingBlocksAndLogsForContractsForBlockRange(ctx con
 			interestingBlockNumbers[log.BlockNumber.Value()] = true
 		}
 	}
+
 	var err error
 	for e := range errorCollector {
 		err = e
