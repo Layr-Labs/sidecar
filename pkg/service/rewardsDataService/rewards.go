@@ -268,8 +268,40 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 	if snapshot == nil {
 		return nil, nil, fmt.Errorf("no distribution root found for blockHeight '%d'", blockHeight)
 	}
+	snapshotDateTime, err := time.Parse(time.DateOnly, snapshot.GetSnapshotDate())
+	cutoffDate := snapshotDateTime.Add(time.Hour * 24).Format(time.DateOnly)
+
 	query := `
-		with claimed_tokens as (
+		with all_combined_rewards as (
+			select
+				distinct(reward_hash) as reward_hash
+			from (
+				select reward_hash from combined_rewards where block_time <= TIMESTAMP '{{.cutoffDate}}'
+				union all
+				select reward_hash from operator_directed_rewards where block_time <= TIMESTAMP '{{.cutoffDate}}'
+				union all
+				select
+					odosrs.reward_hash
+				from operator_directed_operator_set_reward_submissions as odosrs
+				-- operator_directed_operator_set_reward_submissions lacks a block_time column, so we need to join blocks
+				join blocks as b on (b.number = odosrs.block_number)
+				where
+					b.block_time::timestamp(6) <= TIMESTAMP '{{.cutoffDate}}'
+			) as t
+		),
+		earner_rewards as (
+			select
+				earner,
+				token,
+				sum(amount) as amount
+			from gold_table
+			where
+				snapshot <= date '{{.snapshotDate}}'
+				and reward_hash in (select reward_hash from all_combined_rewards)
+				and earner = @earner
+			group by 1, 2
+		),
+		claimed_tokens as (
 			select
 				earner,
 				token,
@@ -279,27 +311,29 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 				earner = @earner
 				and block_number <= @blockNumber
 			group by 1, 2
-		),
-		earner_tokens as (
-			select
-				earner,
-				token,
-				sum(amount) as amount
-			from gold_table as gt
-			where
-				earner = @earner
-				and snapshot <= @snapshot
-			group by earner, token
 		)
 		select
-			et.token,
-			(coalesce(et.amount, 0) - coalesce(ct.amount, 0))::numeric as amount
-		from earner_tokens as et
+			er.token,
+			(coalesce(er.amount, 0) - coalesce(ct.amount, 0))::numeric as amount
+		from earner_rewards as er
 		left join claimed_tokens as ct on (
-			ct.token = et.token
-			and ct.earner = et.earner
+			ct.token = er.token
+			and ct.earner = er.earner
 		)
 	`
+	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
+		"cutoffDate":   cutoffDate,
+		"snapshotDate": snapshotDateTime.Format(time.DateOnly),
+	})
+	if err != nil {
+		rds.logger.Sugar().Errorw("failed to render query template",
+			zap.Uint64("blockHeight", blockHeight),
+			zap.Bool("claimable", true),
+			zap.Error(err),
+		)
+		return nil, nil, err
+	}
+
 	args := []interface{}{
 		sql.Named("earner", earner),
 		sql.Named("blockNumber", blockHeight),
@@ -312,7 +346,7 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 	}
 
 	claimableRewards := make([]*RewardAmount, 0)
-	res := rds.db.Raw(query, args...).Scan(&claimableRewards)
+	res := rds.db.Raw(renderedQuery, args...).Scan(&claimableRewards)
 	if res.Error != nil {
 		return nil, nil, res.Error
 	}
