@@ -269,6 +269,9 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 		return nil, nil, fmt.Errorf("no distribution root found for blockHeight '%d'", blockHeight)
 	}
 	snapshotDateTime, err := time.Parse(time.DateOnly, snapshot.GetSnapshotDate())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse snapshot date '%s' for block height '%d'", snapshot.GetSnapshotDate(), blockHeight)
+	}
 	cutoffDate := snapshotDateTime.Add(time.Hour * 24).Format(time.DateOnly)
 
 	query := `
@@ -321,6 +324,18 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 			and ct.earner = er.earner
 		)
 	`
+
+	args := []interface{}{
+		sql.Named("earner", earner),
+		sql.Named("blockNumber", blockHeight),
+		sql.Named("snapshot", snapshot.GetSnapshotDate()),
+	}
+	if len(tokens) > 0 {
+		query += " and token in (?)"
+		tokens = lowercaseTokenList(tokens)
+		args = append(args, sql.Named("tokens", tokens))
+	}
+
 	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
 		"cutoffDate":   cutoffDate,
 		"snapshotDate": snapshotDateTime.Format(time.DateOnly),
@@ -332,17 +347,6 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 			zap.Error(err),
 		)
 		return nil, nil, err
-	}
-
-	args := []interface{}{
-		sql.Named("earner", earner),
-		sql.Named("blockNumber", blockHeight),
-		sql.Named("snapshot", snapshot.GetSnapshotDate()),
-	}
-	if len(tokens) > 0 {
-		query += " and token in (?)"
-		tokens = lowercaseTokenList(tokens)
-		args = append(args, sql.Named("tokens", tokens))
 	}
 
 	claimableRewards := make([]*RewardAmount, 0)
