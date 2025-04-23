@@ -357,6 +357,7 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 	return claimableRewards, snapshot, nil
 }
 
+//nolint:unused
 func (rds *RewardsDataService) findRewardsGenerationForSnapshotDate(snapshotDate string) (*storage.GeneratedRewardsSnapshots, error) {
 	query := `
 		select
@@ -675,68 +676,60 @@ func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Co
 		return nil, fmt.Errorf("no distribution root found for root index '%d'", rootIndex)
 	}
 
-	rootSnapshotDate, err := time.Parse(time.DateOnly, root.GetSnapshotDate())
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse snapshot date '%s' for root index '%d'", root.GetSnapshotDate(), rootIndex)
-	}
-
-	// snapshot date from the DistributionRoot is the underlying RewardsCalculationEnd date, which is the exclusive cutoff date.
-	// the date the rewards were generated is RewardsCalculationEnd + 1day
-	rewardsGenerationDate := rootSnapshotDate.Add(time.Hour * 24).Format(time.DateOnly)
-
-	// Rewards generation can happen at any point, so its not 100% guaranteed that the rewards for the rewardsGenerationDate
-	// actually happened. If it didnt, the rewards would be included in the next closest rewards generation by snapshot date.
-	rewardsGeneration, err := rds.findRewardsGenerationForSnapshotDate(rewardsGenerationDate)
-	if err != nil {
-		return nil, err
-	}
-	if rewardsGeneration == nil {
-		return nil, fmt.Errorf("no rewards generation found for snapshot date '%s'", rewardsGenerationDate)
-	}
-
-	tablePattern := fmt.Sprintf("%s_%s",
-		rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_15_GoldStaging],
-		utils.SnakeCase(rewardsGeneration.SnapshotDate),
-	)
-
-	stagingTableName, err := rewardsUtils.FindTableByLikeName(tablePattern, rds.db, rds.globalConfig.DatabaseConfig.SchemaName)
-	if err != nil {
-		return nil, err
-	}
-	if stagingTableName == "" {
-		return nil, fmt.Errorf("no staging table found for pattern '%s'", tablePattern)
-	}
-
 	query := `
+		with all_combined_rewards as (
+			select
+				distinct(reward_hash) as reward_hash
+			from (
+				select reward_hash from combined_rewards where block_time <= TIMESTAMP '{{.cutoffDate}}'
+				union all
+				select reward_hash from operator_directed_rewards where block_time <= TIMESTAMP '{{.cutoffDate}}'
+				union all
+				select
+					odosrs.reward_hash
+				from operator_directed_operator_set_reward_submissions as odosrs
+				-- operator_directed_operator_set_reward_submissions lacks a block_time column, so we need to join blocks
+				join blocks as b on (b.number = odosrs.block_number)
+				where
+					b.block_time::timestamp(6) <= TIMESTAMP '{{.cutoffDate}}'
+			) as t
+		)
 		SELECT
 			cr.avs as avs,
 			cr.reward_type as reward_type,
 			gt.*
-		FROM {{.goldStagingName}} gt
+		FROM gold_table as gt
 		JOIN (
 			SELECT DISTINCT avs, reward_hash,
 				reward_type
 			FROM combined_rewards as cr
 		) cr ON (cr.reward_hash = gt.reward_hash)
 		where
-			gt.snapshot <= date '{{.rewardCalculationEnd}}'
+			gt.snapshot <= date '{{.snapshotDate}}'
+			and gt.reward_hash in (select reward_hash from all_combined_rewards)
 	`
 
+	snapshotDateTime, err := time.Parse(time.DateOnly, root.GetSnapshotDate())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse snapshot date '%s' for rootIndex '%d'", root.GetSnapshotDate(), root.RootIndex)
+	}
+	cutoffDate := snapshotDateTime.Add(time.Hour * 24).Format(time.DateOnly)
+
 	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
-		"goldStagingName":      stagingTableName,
-		"rewardCalculationEnd": root.GetSnapshotDate(),
+		"cutoffDate":   cutoffDate,
+		"snapshotDate": snapshotDateTime.Format(time.DateOnly),
 	})
 
 	if err != nil {
 		return nil, errors2.Wrap(err, "failed to render query template")
 	}
 
-	var rewards []*AvsReward
-	res := rds.db.Raw(renderedQuery).Scan(&rewards)
+	var rewardsResults []*AvsReward
+	res := rds.db.Raw(renderedQuery).Scan(&rewardsResults)
 	if res.Error != nil {
 		return nil, res.Error
 	}
-	return rewards, nil
+	return rewardsResults, nil
 }
 
 type HistoricalReward struct {
