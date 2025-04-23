@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/common"
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/types"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
+	"github.com/Layr-Labs/sidecar/pkg/rewards/rewardsTypes"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
 	serviceTypes "github.com/Layr-Labs/sidecar/pkg/service/types"
@@ -476,13 +478,25 @@ func convertRewardTypeToEnum(rewardType string) (rewardsV1.RewardType, error) {
 	}
 }
 
+const (
+	DefaultRewardsByAvsPageSize = 10000
+)
+
 // GetRewardsByAvsForDistributionRoot returns the rewards for a specific distribution root.
-//
-// TODO(seanmcgary): add pagination if this response gets too large in the future
 func (rpc *RpcServer) GetRewardsByAvsForDistributionRoot(ctx context.Context, req *rewardsV1.GetRewardsByAvsForDistributionRootRequest) (*rewardsV1.GetRewardsByAvsForDistributionRootResponse, error) {
 	rootIndex := req.GetRootIndex()
+	pagination := req.GetPagination()
 
-	rewards, err := rpc.rewardsDataService.GetRewardsByAvsForDistributionRoot(ctx, rootIndex)
+	var page *serviceTypes.Pagination
+	if pagination != nil {
+		page = serviceTypes.NewDefaultPagination()
+		page.Load(pagination.PageNumber, pagination.PageSize)
+		if page.PageSize == 0 {
+			page.PageSize = DefaultRewardsByAvsPageSize
+		}
+	}
+
+	rewards, err := rpc.rewardsDataService.GetRewardsByAvsForDistributionRoot(ctx, rootIndex, page)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -504,8 +518,17 @@ func (rpc *RpcServer) GetRewardsByAvsForDistributionRoot(ctx context.Context, re
 		})
 	}
 
+	var nextPage *common.Pagination
+	if page != nil && uint32(len(rewardsResponse)) == page.PageSize {
+		nextPage = &common.Pagination{
+			PageNumber: page.Page + 1,
+			PageSize:   page.PageSize,
+		}
+	}
+
 	return &rewardsV1.GetRewardsByAvsForDistributionRootResponse{
-		Rewards: rewardsResponse,
+		Rewards:  rewardsResponse,
+		NextPage: nextPage,
 	}, nil
 }
 
@@ -533,10 +556,10 @@ func (s *RpcServer) ListEarnerLifetimeRewards(ctx context.Context, request *rewa
 	}
 
 	return &rewardsV1.ListEarnerLifetimeRewardsResponse{
-		Rewards: utils.Map(totalRewards, func(r *rewardsDataService.RewardAmount, i uint64) *rewardsV1.RewardAmount {
+		Rewards: utils.Map(totalRewards, func(r *rewardsTypes.Reward, i uint64) *rewardsV1.RewardAmount {
 			return &rewardsV1.RewardAmount{
 				Token:  r.Token,
-				Amount: r.Amount,
+				Amount: r.CumulativeAmount,
 			}
 		}),
 		// Since we're returning all rewards, there is no next page

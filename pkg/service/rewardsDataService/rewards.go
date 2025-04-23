@@ -12,6 +12,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards/rewardsTypes"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"github.com/Layr-Labs/sidecar/pkg/service/baseDataService"
+	serviceTypes "github.com/Layr-Labs/sidecar/pkg/service/types"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	errors2 "github.com/pkg/errors"
@@ -49,7 +50,7 @@ func NewRewardsDataService(
 }
 
 func (rds *RewardsDataService) GetRewardsForSnapshot(ctx context.Context, snapshot string, earners []string) ([]*rewardsTypes.Reward, error) {
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot, earners)
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot, earners, nil)
 }
 
 func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context, rootIndex uint64) ([]*rewardsTypes.Reward, error) {
@@ -60,7 +61,7 @@ func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context
 	if root == nil {
 		return nil, fmt.Errorf("no distribution root found for root index '%d'", rootIndex)
 	}
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(root.GetSnapshotDate(), nil)
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(root.GetSnapshotDate(), nil, nil)
 }
 
 type TotalClaimedReward struct {
@@ -189,11 +190,16 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(
 	tokens []string,
 	blockHeight uint64,
 	claimable bool,
-) ([]*RewardAmount, error) {
+) ([]*rewardsTypes.Reward, error) {
 	if earner == "" {
 		return nil, fmt.Errorf("earner is required")
 	}
 	earner = strings.ToLower(earner)
+
+	blockHeight, err := rds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
+	if err != nil {
+		return nil, err
+	}
 
 	snapshot, err := rds.findDistributionRootClosestToBlockHeight(blockHeight, claimable)
 	if err != nil {
@@ -204,40 +210,7 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(
 		return nil, fmt.Errorf("no distribution root found for blockHeight '%d'", blockHeight)
 	}
 
-	query := `
-		with token_snapshots as (
-			select
-				token,
-				amount
-			from gold_table as gt
-			where
-				earner = @earner
-				and snapshot <= @snapshot
-		)
-		select
-			token,
-			coalesce(sum(amount), 0) as amount
-		from token_snapshots
-		group by 1
-	`
-	args := []interface{}{
-		sql.Named("earner", earner),
-		sql.Named("snapshot", snapshot.GetSnapshotDate()),
-	}
-	if len(tokens) > 0 {
-		query += " and token in (?)"
-		tokens = lowercaseTokenList(tokens)
-		args = append(args, sql.Named("tokens", tokens))
-	}
-
-	rewardAmounts := make([]*RewardAmount, 0)
-	res := rds.db.Raw(query, args...).Scan(&rewardAmounts)
-
-	if res.Error != nil {
-		return nil, res.Error
-	}
-
-	return rewardAmounts, nil
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot.GetSnapshotDate(), []string{earner}, tokens)
 }
 
 // GetClaimableRewardsForEarner returns the rewards that are claimable for a given earner at a given block height (totalActiveRewards - claimed)
@@ -357,6 +330,7 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 	return claimableRewards, snapshot, nil
 }
 
+//nolint:unused
 func (rds *RewardsDataService) findRewardsGenerationForSnapshotDate(snapshotDate string) (*storage.GeneratedRewardsSnapshots, error) {
 	query := `
 		select
@@ -486,7 +460,12 @@ func (rds *RewardsDataService) GetSummarizedRewards(ctx context.Context, earner 
 		if err != nil {
 			res.Error = err
 		} else {
-			res.Data = earnedRewards
+			res.Data = utils.Map(earnedRewards, func(er *rewardsTypes.Reward, i uint64) *RewardAmount {
+				return &RewardAmount{
+					Token:  er.Token,
+					Amount: er.CumulativeAmount,
+				}
+			})
 		}
 		earnedRewardsChan <- res
 	}()
@@ -499,7 +478,12 @@ func (rds *RewardsDataService) GetSummarizedRewards(ctx context.Context, earner 
 		if err != nil {
 			res.Error = err
 		} else {
-			res.Data = activeRewards
+			res.Data = utils.Map(activeRewards, func(er *rewardsTypes.Reward, i uint64) *RewardAmount {
+				return &RewardAmount{
+					Token:  er.Token,
+					Amount: er.CumulativeAmount,
+				}
+			})
 		}
 		activeRewardsChan <- res
 	}()
@@ -665,7 +649,7 @@ type AvsReward struct {
 	RewardType string
 }
 
-func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Context, rootIndex uint64) ([]*AvsReward, error) {
+func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Context, rootIndex uint64, pagination *serviceTypes.Pagination) ([]*AvsReward, error) {
 	root, err := rds.getDistributionRootByRootIndex(rootIndex)
 	if err != nil {
 		return nil, err
@@ -675,68 +659,72 @@ func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Co
 		return nil, fmt.Errorf("no distribution root found for root index '%d'", rootIndex)
 	}
 
-	rootSnapshotDate, err := time.Parse(time.DateOnly, root.GetSnapshotDate())
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse snapshot date '%s' for root index '%d'", root.GetSnapshotDate(), rootIndex)
-	}
-
-	// snapshot date from the DistributionRoot is the underlying RewardsCalculationEnd date, which is the exclusive cutoff date.
-	// the date the rewards were generated is RewardsCalculationEnd + 1day
-	rewardsGenerationDate := rootSnapshotDate.Add(time.Hour * 24).Format(time.DateOnly)
-
-	// Rewards generation can happen at any point, so its not 100% guaranteed that the rewards for the rewardsGenerationDate
-	// actually happened. If it didnt, the rewards would be included in the next closest rewards generation by snapshot date.
-	rewardsGeneration, err := rds.findRewardsGenerationForSnapshotDate(rewardsGenerationDate)
-	if err != nil {
-		return nil, err
-	}
-	if rewardsGeneration == nil {
-		return nil, fmt.Errorf("no rewards generation found for snapshot date '%s'", rewardsGenerationDate)
-	}
-
-	tablePattern := fmt.Sprintf("%s_%s",
-		rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_15_GoldStaging],
-		utils.SnakeCase(rewardsGeneration.SnapshotDate),
-	)
-
-	stagingTableName, err := rewardsUtils.FindTableByLikeName(tablePattern, rds.db, rds.globalConfig.DatabaseConfig.SchemaName)
-	if err != nil {
-		return nil, err
-	}
-	if stagingTableName == "" {
-		return nil, fmt.Errorf("no staging table found for pattern '%s'", tablePattern)
-	}
-
 	query := `
+		with all_combined_rewards as (
+			select
+				distinct(reward_hash) as reward_hash
+			from (
+				select reward_hash from combined_rewards where block_time <= TIMESTAMP '{{.cutoffDate}}'
+				union all
+				select reward_hash from operator_directed_rewards where block_time <= TIMESTAMP '{{.cutoffDate}}'
+				union all
+				select
+					odosrs.reward_hash
+				from operator_directed_operator_set_reward_submissions as odosrs
+				-- operator_directed_operator_set_reward_submissions lacks a block_time column, so we need to join blocks
+				join blocks as b on (b.number = odosrs.block_number)
+				where
+					b.block_time::timestamp(6) <= TIMESTAMP '{{.cutoffDate}}'
+			) as t
+		)
 		SELECT
 			cr.avs as avs,
 			cr.reward_type as reward_type,
 			gt.*
-		FROM {{.goldStagingName}} gt
+		FROM gold_table as gt
 		JOIN (
 			SELECT DISTINCT avs, reward_hash,
 				reward_type
 			FROM combined_rewards as cr
 		) cr ON (cr.reward_hash = gt.reward_hash)
 		where
-			gt.snapshot <= date '{{.rewardCalculationEnd}}'
+			gt.snapshot <= date '{{.snapshotDate}}'
+			and gt.reward_hash in (select reward_hash from all_combined_rewards)
+		{{ if .pagination }}
+		order by gt.snapshot, cr.avs, gt.earner, gt.token desc
+		limit @limit
+		offset @offset
+		{{ end }}
 	`
 
+	snapshotDateTime, err := time.Parse(time.DateOnly, root.GetSnapshotDate())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse snapshot date '%s' for rootIndex '%d'", root.GetSnapshotDate(), root.RootIndex)
+	}
+	cutoffDate := snapshotDateTime.Add(time.Hour * 24).Format(time.DateOnly)
+
 	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
-		"goldStagingName":      stagingTableName,
-		"rewardCalculationEnd": root.GetSnapshotDate(),
+		"cutoffDate":   cutoffDate,
+		"snapshotDate": snapshotDateTime.Format(time.DateOnly),
+		"pagination":   pagination != nil,
 	})
+
+	queryArgs := []interface{}{}
+	if pagination != nil {
+		queryArgs = append(queryArgs, sql.Named("limit", pagination.PageSize))
+		queryArgs = append(queryArgs, sql.Named("offset", pagination.Page))
+	}
 
 	if err != nil {
 		return nil, errors2.Wrap(err, "failed to render query template")
 	}
 
-	var rewards []*AvsReward
-	res := rds.db.Raw(renderedQuery).Scan(&rewards)
+	var rewardsResults []*AvsReward
+	res := rds.db.Raw(renderedQuery, queryArgs...).Scan(&rewardsResults)
 	if res.Error != nil {
 		return nil, res.Error
 	}
-	return rewards, nil
+	return rewardsResults, nil
 }
 
 type HistoricalReward struct {
