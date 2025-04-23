@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
+	"github.com/Layr-Labs/sidecar/pkg/service/types"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -148,9 +149,20 @@ func Test_RewardsDataService(t *testing.T) {
 	t.Run("Test GetRewardsByAvsForDistributionRoot", func(t *testing.T) {
 		rootIndex := uint64(189)
 
-		r, err := rds.GetRewardsByAvsForDistributionRoot(context.Background(), rootIndex)
+		r, err := rds.GetRewardsByAvsForDistributionRoot(context.Background(), rootIndex, nil)
 		assert.Nil(t, err)
 		assert.NotNil(t, r)
 		assert.True(t, len(r) > 0)
+	})
+	t.Run("Test GetRewardsByAvsForDistributionRoot with pagination", func(t *testing.T) {
+		rootIndex := uint64(189)
+
+		r, err := rds.GetRewardsByAvsForDistributionRoot(context.Background(), rootIndex, &types.Pagination{
+			Page:     0,
+			PageSize: 10,
+		})
+		assert.Nil(t, err)
+		assert.NotNil(t, r)
+		assert.Equal(t, len(r), 10)
 	})
 }

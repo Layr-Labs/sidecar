@@ -12,6 +12,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards/rewardsTypes"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"github.com/Layr-Labs/sidecar/pkg/service/baseDataService"
+	serviceTypes "github.com/Layr-Labs/sidecar/pkg/service/types"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	errors2 "github.com/pkg/errors"
@@ -666,7 +667,7 @@ type AvsReward struct {
 	RewardType string
 }
 
-func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Context, rootIndex uint64) ([]*AvsReward, error) {
+func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Context, rootIndex uint64, pagination *serviceTypes.Pagination) ([]*AvsReward, error) {
 	root, err := rds.getDistributionRootByRootIndex(rootIndex)
 	if err != nil {
 		return nil, err
@@ -707,6 +708,11 @@ func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Co
 		where
 			gt.snapshot <= date '{{.snapshotDate}}'
 			and gt.reward_hash in (select reward_hash from all_combined_rewards)
+		{{ if .pagination }}
+		order by gt.snapshot, cr.avs, gt.earner, gt.token desc
+		limit @limit
+		offset @offset
+		{{ end }}
 	`
 
 	snapshotDateTime, err := time.Parse(time.DateOnly, root.GetSnapshotDate())
@@ -718,14 +724,21 @@ func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Co
 	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
 		"cutoffDate":   cutoffDate,
 		"snapshotDate": snapshotDateTime.Format(time.DateOnly),
+		"pagination":   pagination != nil,
 	})
+
+	queryArgs := []interface{}{}
+	if pagination != nil {
+		queryArgs = append(queryArgs, sql.Named("limit", pagination.PageSize))
+		queryArgs = append(queryArgs, sql.Named("offset", pagination.Page))
+	}
 
 	if err != nil {
 		return nil, errors2.Wrap(err, "failed to render query template")
 	}
 
 	var rewardsResults []*AvsReward
-	res := rds.db.Raw(renderedQuery).Scan(&rewardsResults)
+	res := rds.db.Raw(renderedQuery, queryArgs...).Scan(&rewardsResults)
 	if res.Error != nil {
 		return nil, res.Error
 	}
