@@ -8,6 +8,7 @@ import (
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/types"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
+	"github.com/Layr-Labs/sidecar/pkg/rewards/rewardsTypes"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
 	serviceTypes "github.com/Layr-Labs/sidecar/pkg/service/types"
@@ -555,10 +556,10 @@ func (s *RpcServer) ListEarnerLifetimeRewards(ctx context.Context, request *rewa
 	}
 
 	return &rewardsV1.ListEarnerLifetimeRewardsResponse{
-		Rewards: utils.Map(totalRewards, func(r *rewardsDataService.RewardAmount, i uint64) *rewardsV1.RewardAmount {
+		Rewards: utils.Map(totalRewards, func(r *rewardsTypes.Reward, i uint64) *rewardsV1.RewardAmount {
 			return &rewardsV1.RewardAmount{
 				Token:  r.Token,
-				Amount: r.Amount,
+				Amount: r.CumulativeAmount,
 			}
 		}),
 		// Since we're returning all rewards, there is no next page

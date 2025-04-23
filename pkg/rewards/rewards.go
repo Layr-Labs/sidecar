@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"time"
 
 	"github.com/Layr-Labs/sidecar/pkg/metrics"
@@ -209,7 +210,7 @@ func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (
 	*distribution.Distribution,
 	error,
 ) {
-	rewards, err := rc.FetchRewardsForSnapshot(snapshotDate, nil)
+	rewards, err := rc.FetchRewardsForSnapshot(snapshotDate, nil, nil)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -520,7 +521,7 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 	return nil
 }
 
-func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earners []string) ([]*rewardsTypes.Reward, error) {
+func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earners []string, tokens []string) ([]*rewardsTypes.Reward, error) {
 	snapshotDateTime, err := time.Parse(time.DateOnly, snapshotDate)
 	if err != nil {
 		return nil, fmt.Errorf("invalid snapshot date format: %w", err)
@@ -558,19 +559,28 @@ func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earner
 		{{ if .filterEarners }}
 			and earner in @earners
 		{{ end }}
+		{{ if .filterTokens }}
+			and token in @tokens
+		{{ end }}
 		group by 1, 2
 		order by snapshot desc
     `
 	templateArgs := map[string]interface{}{
 		"snapshotDate":  snapshotDate,
 		"filterEarners": false,
+		"filterTokens":  false,
 		"cutoffDate":    cutoffDate,
 	}
 	args := make([]interface{}, 0)
 
 	if len(earners) > 0 {
 		templateArgs["filterEarners"] = true
-		args = append(args, sql.Named("earners", earners))
+		args = append(args, sql.Named("earners", lowercaseAddressList(earners)))
+	}
+
+	if len(tokens) > 0 {
+		templateArgs["filterTokens"] = true
+		args = append(args, sql.Named("tokens", lowercaseAddressList(tokens)))
 	}
 
 	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, templateArgs)
@@ -583,6 +593,12 @@ func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earner
 		return nil, res.Error
 	}
 	return goldRows, nil
+}
+
+func lowercaseAddressList(addresses []string) []string {
+	return utils.Map(addresses, func(token string, i uint64) string {
+		return strings.ToLower(token)
+	})
 }
 
 func (rc *RewardsCalculator) calculateRewards(snapshotDate string) error {

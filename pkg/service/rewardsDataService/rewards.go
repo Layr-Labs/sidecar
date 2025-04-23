@@ -50,7 +50,7 @@ func NewRewardsDataService(
 }
 
 func (rds *RewardsDataService) GetRewardsForSnapshot(ctx context.Context, snapshot string, earners []string) ([]*rewardsTypes.Reward, error) {
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot, earners)
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot, earners, nil)
 }
 
 func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context, rootIndex uint64) ([]*rewardsTypes.Reward, error) {
@@ -61,7 +61,7 @@ func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context
 	if root == nil {
 		return nil, fmt.Errorf("no distribution root found for root index '%d'", rootIndex)
 	}
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(root.GetSnapshotDate(), nil)
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(root.GetSnapshotDate(), nil, nil)
 }
 
 type TotalClaimedReward struct {
@@ -190,7 +190,7 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(
 	tokens []string,
 	blockHeight uint64,
 	claimable bool,
-) ([]*RewardAmount, error) {
+) ([]*rewardsTypes.Reward, error) {
 	if earner == "" {
 		return nil, fmt.Errorf("earner is required")
 	}
@@ -210,40 +210,7 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(
 		return nil, fmt.Errorf("no distribution root found for blockHeight '%d'", blockHeight)
 	}
 
-	query := `
-		with token_snapshots as (
-			select
-				token,
-				amount
-			from gold_table as gt
-			where
-				earner = @earner
-				and snapshot <= @snapshot
-		)
-		select
-			token,
-			coalesce(sum(amount), 0) as amount
-		from token_snapshots
-		group by 1
-	`
-	args := []interface{}{
-		sql.Named("earner", earner),
-		sql.Named("snapshot", snapshot.GetSnapshotDate()),
-	}
-	if len(tokens) > 0 {
-		query += " and token in (?)"
-		tokens = lowercaseTokenList(tokens)
-		args = append(args, sql.Named("tokens", tokens))
-	}
-
-	rewardAmounts := make([]*RewardAmount, 0)
-	res := rds.db.Raw(query, args...).Scan(&rewardAmounts)
-
-	if res.Error != nil {
-		return nil, res.Error
-	}
-
-	return rewardAmounts, nil
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot.GetSnapshotDate(), []string{earner}, tokens)
 }
 
 // GetClaimableRewardsForEarner returns the rewards that are claimable for a given earner at a given block height (totalActiveRewards - claimed)
@@ -493,7 +460,12 @@ func (rds *RewardsDataService) GetSummarizedRewards(ctx context.Context, earner 
 		if err != nil {
 			res.Error = err
 		} else {
-			res.Data = earnedRewards
+			res.Data = utils.Map(earnedRewards, func(er *rewardsTypes.Reward, i uint64) *RewardAmount {
+				return &RewardAmount{
+					Token:  er.Token,
+					Amount: er.CumulativeAmount,
+				}
+			})
 		}
 		earnedRewardsChan <- res
 	}()
@@ -506,7 +478,12 @@ func (rds *RewardsDataService) GetSummarizedRewards(ctx context.Context, earner 
 		if err != nil {
 			res.Error = err
 		} else {
-			res.Data = activeRewards
+			res.Data = utils.Map(activeRewards, func(er *rewardsTypes.Reward, i uint64) *RewardAmount {
+				return &RewardAmount{
+					Token:  er.Token,
+					Amount: er.CumulativeAmount,
+				}
+			})
 		}
 		activeRewardsChan <- res
 	}()
