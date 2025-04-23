@@ -196,6 +196,11 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(
 	}
 	earner = strings.ToLower(earner)
 
+	blockHeight, err := rds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
+	if err != nil {
+		return nil, err
+	}
+
 	snapshot, err := rds.findDistributionRootClosestToBlockHeight(blockHeight, claimable)
 	if err != nil {
 		return nil, err
