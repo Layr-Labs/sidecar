@@ -231,7 +231,11 @@ func (omm *QueuedSlashingWithdrawalModel) CommitFinalState(blockNumber uint64, i
 
 	insertedRecords, err := base.CommitFinalState(recordsToInsert, ignoreInsertConflicts, omm.GetTableName(), omm.DB)
 	if err != nil {
-		omm.logger.Sugar().Errorw("Failed to commit final state", zap.Error(err))
+		omm.logger.Sugar().Errorw("Failed to commit final state",
+			zap.Error(err),
+			zap.Uint64("blockNumber", blockNumber),
+			zap.Any("recordsToInsert", recordsToInsert),
+		)
 		return err
 	}
 	omm.committedState[blockNumber] = insertedRecords
