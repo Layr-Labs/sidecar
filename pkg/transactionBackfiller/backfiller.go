@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"slices"
-
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
@@ -379,32 +377,21 @@ func (t *TransactionBackfiller) ProcessBlocksWithAddresses(ctx context.Context, 
 		// Continue processing
 	}
 
+	// Create worker pool for block fetching and processing
+	wg := &sync.WaitGroup{}
+	blockLogsQueue := make(chan blockWithLogs, len(blockLogsMap))
+	errorsRecv := make(chan error, len(blockLogsMap))
+
 	// Create a context that can be canceled when an error occurs
 	processingCtx, cancelProcessing := context.WithCancel(ctx)
 	defer cancelProcessing()
-
-	// Create channels for error collection
-	errorsRecv := make(chan error, len(blockLogsMap))
-
-	// Split blocks into chunks for processing with FetchBlocksWithRetries
-	// Define a reasonable chunk size to avoid overwhelming the node
-	const chunkSize uint64 = 100
-	blockNumbers := make([]uint64, 0, len(blockLogsMap))
-	for blockNum := range blockLogsMap {
-		blockNumbers = append(blockNumbers, blockNum)
-	}
-	slices.Sort(blockNumbers)
-
-	// Create worker pool for processing chunks
-	wg := &sync.WaitGroup{}
-	chunkQueue := make(chan struct{ start, end uint64 }, (len(blockNumbers)+int(chunkSize)-1)/int(chunkSize))
 
 	// Launch workers
 	wg.Add(t.config.Workers)
 	for i := 0; i < t.config.Workers; i++ {
 		go func() {
 			defer wg.Done()
-			for chunk := range chunkQueue {
+			for blockData := range blockLogsQueue {
 				// Check if processing should stop due to an error
 				select {
 				case <-processingCtx.Done():
@@ -413,59 +400,39 @@ func (t *TransactionBackfiller) ProcessBlocksWithAddresses(ctx context.Context, 
 					// Continue processing
 				}
 
-				// Fetch blocks for this chunk using FetchBlocksWithRetries
-				fetchedBlocks, err := t.fetcher.FetchBlocksWithRetries(processingCtx, chunk.start, chunk.end)
+				// Fetch the block
+				fetchedBlock, err := t.fetcher.FetchBlock(processingCtx, blockData.blockNumber)
 				if err != nil {
-					t.logger.Sugar().Errorw("Error fetching blocks for chunk",
-						zap.Uint64("startBlock", chunk.start),
-						zap.Uint64("endBlock", chunk.end),
+					t.logger.Sugar().Errorw("Error fetching block",
+						zap.Uint64("blockNumber", blockData.blockNumber),
 						zap.Error(err))
 					errorsRecv <- err
 					cancelProcessing() // Cancel other workers
 					return
 				}
 
-				// Process each block in the chunk
-				for _, fetchedBlock := range fetchedBlocks {
-					blockNum := fetchedBlock.Block.Number.Value()
-					blockLogs, exists := blockLogsMap[blockNum]
-					if !exists {
-						continue // Skip blocks that don't have logs
-					}
-
-					// Process logs for this block
-					if err := t.processLogsForBlock(queueMessage, blockLogs.logs, fetchedBlock); err != nil {
-						errorsRecv <- err
-						cancelProcessing() // Cancel other workers
-						return
-					}
+				// Process logs for this block
+				if err := t.processLogsForBlock(queueMessage, blockData.logs, fetchedBlock); err != nil {
+					errorsRecv <- err
+					cancelProcessing() // Cancel other workers
+					return
 				}
 			}
 		}()
 	}
 
-	// Queue the chunks for processing
-	t.logger.Sugar().Infow("Queueing chunks for processing",
-		zap.Int("chunkCount", (len(blockNumbers)+int(chunkSize)-1)/int(chunkSize)))
-
-	for i := 0; i < len(blockNumbers); i += int(chunkSize) {
-		end := i + int(chunkSize)
-		if end > len(blockNumbers) {
-			end = len(blockNumbers)
-		}
-
+	// Queue the blocks with their logs
+	t.logger.Sugar().Infow("Queueing blocks for processing", zap.Int("count", len(blockLogsMap)))
+	for _, blockLogs := range blockLogsMap {
 		select {
 		case <-processingCtx.Done():
 			// Stop queueing if processing was canceled
 			break
 		default:
-			chunkQueue <- struct{ start, end uint64 }{
-				start: blockNumbers[i],
-				end:   blockNumbers[end-1],
-			}
+			blockLogsQueue <- *blockLogs
 		}
 	}
-	close(chunkQueue)
+	close(blockLogsQueue)
 
 	t.logger.Sugar().Infow("Waiting for workers to finish")
 	wg.Wait()
