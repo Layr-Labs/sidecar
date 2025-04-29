@@ -3,6 +3,7 @@ package rpcServer
 import (
 	"context"
 	"errors"
+
 	"github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/common"
 	protocolV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/protocol"
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
@@ -221,6 +222,8 @@ func (s *RpcServer) GetStrategyForStaker(ctx context.Context, request *protocolV
 // - the strategy
 // - the amount
 // - the block height the withdrawal was queued at
+// - the transaction hash
+// - the log index
 func (s *RpcServer) ListStakerQueuedWithdrawals(ctx context.Context, request *protocolV1.ListStakerQueuedWithdrawalsRequest) (*protocolV1.ListStakerQueuedWithdrawalsResponse, error) {
 	staker := request.GetStakerAddress()
 	if staker == "" {
@@ -237,9 +240,11 @@ func (s *RpcServer) ListStakerQueuedWithdrawals(ctx context.Context, request *pr
 	return &protocolV1.ListStakerQueuedWithdrawalsResponse{
 		QueuedWithdrawals: utils.Map(withdrawals, func(withdrawal *protocolDataService.StakerQueuedWithdrawal, i uint64) *protocolV1.QueuedStrategyWithdrawal {
 			return &protocolV1.QueuedStrategyWithdrawal{
-				Strategy:    withdrawal.Strategy,
-				Amount:      withdrawal.SharesToWithdraw,
-				BlockNumber: withdrawal.StartBlock,
+				Strategy:        withdrawal.Strategy,
+				Amount:          withdrawal.SharesToWithdraw,
+				BlockNumber:     withdrawal.StartBlock,
+				TransactionHash: withdrawal.TransactionHash,
+				LogIndex:        withdrawal.LogIndex,
 			}
 		}),
 	}, nil
