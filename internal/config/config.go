@@ -100,6 +100,7 @@ type RpcConfig struct {
 type RewardsConfig struct {
 	ValidateRewardsRoot          bool
 	GenerateStakerOperatorsTable bool
+	CalculateRewardsDaily        bool
 }
 
 type StatsdConfig struct {
@@ -201,6 +202,7 @@ var (
 
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
+	RewardsCalculateRewardsDaily        = "rewards.calculate_rewards_daily"
 
 	EthereumRpcBaseUrl               = "ethereum.rpc_url"
 	EthereumRpcContractCallBatchSize = "ethereum.contract_call_batch_size"
@@ -282,6 +284,7 @@ func NewConfig() *Config {
 		Rewards: RewardsConfig{
 			ValidateRewardsRoot:          viper.GetBool(normalizeFlagName(RewardsValidateRewardsRoot)),
 			GenerateStakerOperatorsTable: viper.GetBool(normalizeFlagName(RewardsGenerateStakerOperatorsTable)),
+			CalculateRewardsDaily:        viper.GetBool(normalizeFlagName(RewardsCalculateRewardsDaily)),
 		},
 
 		DataDogConfig: DataDogConfig{
