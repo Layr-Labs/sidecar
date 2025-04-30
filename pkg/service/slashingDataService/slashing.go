@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
@@ -26,6 +27,9 @@ func NewSlashingDataService(
 	globalConfig *config.Config,
 ) *SlashingDataService {
 	return &SlashingDataService{
+		BaseDataService: baseDataService.BaseDataService{
+			DB: db,
+		},
 		db:           db,
 		logger:       logger,
 		globalConfig: globalConfig,
