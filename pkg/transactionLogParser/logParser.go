@@ -3,6 +3,7 @@ package transactionLogParser
 import (
 	"encoding/hex"
 	"fmt"
+
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractAbi"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
@@ -204,22 +205,33 @@ func (tlp *TransactionLogParser) DecodeLog(a *abi.ABI, lg *ethereum.EthereumEven
 	decodedLog.EventName = event.RawName
 	decodedLog.Arguments = make([]parser.Argument, len(event.Inputs))
 
+	// Track the indexed parameter count to correctly match topics with parameters
+	indexedCount := 0
+
 	for i, input := range event.Inputs {
 		decodedLog.Arguments[i] = parser.Argument{
 			Name:    input.Name,
 			Type:    input.Type.String(),
 			Indexed: input.Indexed,
 		}
-	}
 
-	if len(lg.Topics) > 1 {
-		for i, param := range lg.Topics[1:] {
-			d, err := ParseLogValueForType(event.Inputs[i], param.Value())
-			if err != nil {
-				tlp.logger.Sugar().Errorw("Failed to parse log value for type", zap.Error(err))
-			} else {
-				decodedLog.Arguments[i].Value = d
+		if input.Indexed {
+			// Topics[0] is the event signature, indexed params start at index 1
+			if indexedCount < len(lg.Topics)-1 {
+				topic := lg.Topics[indexedCount+1]
+				d, err := ParseLogValueForType(input, topic.Value())
+				if err != nil {
+					tlp.logger.Sugar().Errorw("Failed to parse log value for indexed parameter",
+						zap.Error(err),
+						zap.String("paramName", input.Name),
+						zap.Int("paramIndex", i),
+						zap.Int("topicIndex", indexedCount+1),
+					)
+				} else {
+					decodedLog.Arguments[i].Value = d
+				}
 			}
+			indexedCount++
 		}
 	}
 
