@@ -1,6 +1,9 @@
 package rewardsCalculatorQueue
 
-import "fmt"
+import (
+	"fmt"
+	"go.uber.org/zap"
+)
 
 // Process starts the main processing loop for the rewards calculator queue.
 // This method should be run in a separate goroutine. It continuously listens
@@ -42,6 +45,10 @@ func (rcq *RewardsCalculatorQueue) Process() {
 func (rcq *RewardsCalculatorQueue) processMessage(msg *RewardsCalculationMessage) *RewardsCalculatorResponse {
 	response := &RewardsCalculatorResponse{}
 	cutoffDate := msg.Data.CutoffDate
+
+	rcq.logger.Sugar().Infow("Processing rewards calculation message",
+		zap.String("cutoffDate", cutoffDate),
+	)
 
 	switch msg.Data.CalculationType {
 	case RewardsCalculationType_CalculateRewards:

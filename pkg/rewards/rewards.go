@@ -165,7 +165,9 @@ func (rc *RewardsCalculator) CalculateRewardsForSnapshotDate(snapshotDate string
 
 func (rc *RewardsCalculator) CalculateRewardsForLatestSnapshot() (string, error) {
 	snapshotDate := GetSnapshotFromCurrentDateTime()
-
+	rc.logger.Sugar().Infow("Calculating rewards for latest snapshot date",
+		zap.String("snapshotDate", snapshotDate),
+	)
 	return snapshotDate, rc.CalculateRewardsForSnapshotDate(snapshotDate)
 }
 
