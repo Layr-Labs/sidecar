@@ -49,6 +49,7 @@ func init() {
 
 	rootCmd.PersistentFlags().Bool(config.RewardsValidateRewardsRoot, true, `Validate rewards roots while indexing`)
 	rootCmd.PersistentFlags().Bool(config.RewardsGenerateStakerOperatorsTable, false, `Generate staker operators table while indexing`)
+	rootCmd.PersistentFlags().Bool(config.RewardsCalculateRewardsDaily, false, `Calculate rewards daily while indexing`)
 
 	rootCmd.PersistentFlags().Int("rpc.grpc-port", 7100, `gRPC port`)
 	rootCmd.PersistentFlags().Int("rpc.http-port", 7101, `http rpc port`)
