@@ -57,7 +57,7 @@ func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 			return errors.New("Failed to get last indexed block")
 		}
 
-		// Get the latest safe block from the Ethereum node
+		// Get the latest safe/latest block from the Ethereum node
 		latestTip, err := s.EthereumClient.GetLatestBlock(ctx)
 		if err != nil {
 			s.Logger.Sugar().Fatalw("Failed to get latest tip", zap.Error(err))
@@ -72,17 +72,9 @@ func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 					zap.Uint64("latestTip", latestTip),
 					zap.Int64("latestIndexedBlock", latestIndexedBlock))
 
-				// Handle reorg by deleting the corrupted state
-				if err := s.StateManager.DeleteCorruptedState(latestTip+1, uint64(latestIndexedBlock)); err != nil {
-					s.Logger.Sugar().Errorw("Failed to delete corrupted state", zap.Error(err))
-					return err
-				}
-				if err := s.RewardsCalculator.DeleteCorruptedRewardsFromBlockHeight(latestTip + 1); err != nil {
-					s.Logger.Sugar().Errorw("Failed to purge corrupted rewards", zap.Error(err))
-					return err
-				}
-				if err := s.Storage.DeleteCorruptedState(latestTip+1, uint64(latestIndexedBlock)); err != nil {
-					s.Logger.Sugar().Errorw("Failed to delete corrupted state", zap.Error(err))
+				// Delete the corrupted states
+				if err := s.DeleteCorruptedStates(ctx, latestTip+1, uint64(latestIndexedBlock)); err != nil {
+					s.Logger.Sugar().Errorw("Failed to delete corrupted states during reorg handling", zap.Error(err))
 					return err
 				}
 
@@ -342,6 +334,57 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		progress.UpdateAndPrintProgress(uint64(batchEndBlock))
 
 		currentBlock = batchEndBlock + 1
+	}
+
+	return nil
+}
+
+// DeleteCorruptedStates deletes all corrupted state between the given block range
+func (s *Sidecar) DeleteCorruptedStates(ctx context.Context, startBlock uint64, endBlock uint64) (err error) {
+	// Use defer to capture any error and ensure proper logging
+	defer func() {
+		if err != nil {
+			s.Logger.Sugar().Errorw("Failed to complete deletion of corrupted states - operation was aborted",
+				zap.Error(err),
+				zap.Uint64("startBlock", startBlock),
+				zap.Uint64("endBlock", endBlock))
+		} else {
+			s.Logger.Sugar().Infow("Successfully deleted all corrupted states",
+				zap.Uint64("startBlock", startBlock),
+				zap.Uint64("endBlock", endBlock))
+		}
+	}()
+
+	// StateManager
+	stateManagerErr := s.StateManager.DeleteCorruptedState(startBlock, endBlock)
+	if stateManagerErr != nil {
+		s.Logger.Sugar().Errorw("Failed to delete corrupted state from StateManager",
+			zap.Error(stateManagerErr),
+			zap.Uint64("startBlock", startBlock),
+			zap.Uint64("endBlock", endBlock))
+		err = fmt.Errorf("failed to delete corrupted state from StateManager: %w", stateManagerErr)
+		return
+	}
+
+	// RewardsCalculator
+	rewardsErr := s.RewardsCalculator.DeleteCorruptedRewardsFromBlockHeight(startBlock)
+	if rewardsErr != nil {
+		s.Logger.Sugar().Errorw("Failed to delete corrupted rewards",
+			zap.Error(rewardsErr),
+			zap.Uint64("startBlock", startBlock))
+		err = fmt.Errorf("failed to delete corrupted rewards: %w", rewardsErr)
+		return
+	}
+
+	// Storage
+	storageErr := s.Storage.DeleteCorruptedState(startBlock, endBlock)
+	if storageErr != nil {
+		s.Logger.Sugar().Errorw("Failed to delete corrupted state from Storage",
+			zap.Error(storageErr),
+			zap.Uint64("startBlock", startBlock),
+			zap.Uint64("endBlock", endBlock))
+		err = fmt.Errorf("failed to delete corrupted state from Storage: %w", storageErr)
+		return
 	}
 
 	return nil
