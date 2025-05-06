@@ -743,6 +743,7 @@ func (rds *RewardsDataService) ListHistoricalRewardsForEarner(
 	if earnerAddress == "" {
 		return nil, fmt.Errorf("earner is required")
 	}
+	earnerAddress = strings.ToLower(earnerAddress)
 	if endBlockHeight != 0 && startBlockHeight > endBlockHeight {
 		return nil, fmt.Errorf("startBlockHeight must be less than or equal to endBlockHeight")
 	}
