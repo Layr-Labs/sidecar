@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/parser"
-	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"strings"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/parser"
+	"github.com/Layr-Labs/sidecar/pkg/storage"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
@@ -62,19 +63,25 @@ func (s *PostgresBlockStore) InsertBlockTransaction(
 	to string,
 	contractAddress string,
 	bytecodeHash string,
+	gasUsed uint64,
+	cumulativeGasUsed uint64,
+	effectiveGasPrice uint64,
 ) (*storage.Transaction, error) {
 	to = strings.ToLower(to)
 	from = strings.ToLower(from)
 	contractAddress = strings.ToLower(contractAddress)
 
 	tx := &storage.Transaction{
-		BlockNumber:      blockNumber,
-		TransactionHash:  txHash,
-		TransactionIndex: txIndex,
-		FromAddress:      from,
-		ToAddress:        to,
-		ContractAddress:  contractAddress,
-		BytecodeHash:     bytecodeHash,
+		BlockNumber:       blockNumber,
+		TransactionHash:   txHash,
+		TransactionIndex:  txIndex,
+		FromAddress:       from,
+		ToAddress:         to,
+		ContractAddress:   contractAddress,
+		BytecodeHash:      bytecodeHash,
+		GasUsed:           gasUsed,
+		CumulativeGasUsed: cumulativeGasUsed,
+		EffectiveGasPrice: effectiveGasPrice,
 	}
 
 	result := s.Db.Model(&storage.Transaction{}).Clauses(clause.Returning{}).Create(&tx)

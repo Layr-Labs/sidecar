@@ -99,13 +99,16 @@ func Test_PostgresqlBlockstore(t *testing.T) {
 
 		t.Run("InsertBlockTransaction", func(t *testing.T) {
 			tx := storage.Transaction{
-				BlockNumber:      block.Number,
-				TransactionHash:  "txHash",
-				TransactionIndex: 0,
-				FromAddress:      "from",
-				ToAddress:        "to",
-				ContractAddress:  "contractAddress",
-				BytecodeHash:     "bytecodeHash",
+				BlockNumber:       block.Number,
+				TransactionHash:   "txHash",
+				TransactionIndex:  0,
+				FromAddress:       "from",
+				ToAddress:         "to",
+				ContractAddress:   "contractAddress",
+				BytecodeHash:      "bytecodeHash",
+				GasUsed:           1000000,
+				CumulativeGasUsed: 1000000,
+				EffectiveGasPrice: 1000000,
 			}
 			insertedTx, err := blockStore.InsertBlockTransaction(
 				tx.BlockNumber,
@@ -115,6 +118,9 @@ func Test_PostgresqlBlockstore(t *testing.T) {
 				tx.ToAddress,
 				tx.ContractAddress,
 				tx.BytecodeHash,
+				tx.GasUsed,
+				tx.CumulativeGasUsed,
+				tx.EffectiveGasPrice,
 			)
 			assert.Nil(t, err)
 			assert.NotNil(t, insertedTx)
@@ -125,18 +131,24 @@ func Test_PostgresqlBlockstore(t *testing.T) {
 			assert.Equal(t, tx.ToAddress, insertedTx.ToAddress)
 			assert.Equal(t, strings.ToLower(tx.ContractAddress), insertedTx.ContractAddress)
 			assert.Equal(t, tx.BytecodeHash, insertedTx.BytecodeHash)
+			assert.Equal(t, tx.GasUsed, insertedTx.GasUsed)
+			assert.Equal(t, tx.CumulativeGasUsed, insertedTx.CumulativeGasUsed)
+			assert.Equal(t, tx.EffectiveGasPrice, insertedTx.EffectiveGasPrice)
 
 			insertedTransactions = append(insertedTransactions, insertedTx)
 		})
 		t.Run("Fail to insert a duplicate transaction", func(t *testing.T) {
 			tx := storage.Transaction{
-				BlockNumber:      block.Number,
-				TransactionHash:  "txHash",
-				TransactionIndex: 0,
-				FromAddress:      "from",
-				ToAddress:        "to",
-				ContractAddress:  "contractAddress",
-				BytecodeHash:     "bytecodeHash",
+				BlockNumber:       block.Number,
+				TransactionHash:   "txHash",
+				TransactionIndex:  0,
+				FromAddress:       "from",
+				ToAddress:         "to",
+				ContractAddress:   "contractAddress",
+				BytecodeHash:      "bytecodeHash",
+				GasUsed:           1000000,
+				CumulativeGasUsed: 1000000,
+				EffectiveGasPrice: 1000000,
 			}
 			_, err := blockStore.InsertBlockTransaction(
 				tx.BlockNumber,
@@ -146,6 +158,9 @@ func Test_PostgresqlBlockstore(t *testing.T) {
 				tx.ToAddress,
 				tx.ContractAddress,
 				tx.BytecodeHash,
+				tx.GasUsed,
+				tx.CumulativeGasUsed,
+				tx.EffectiveGasPrice,
 			)
 			assert.NotNil(t, err)
 			assert.Contains(t, err.Error(), "duplicate key value violates unique constraint")
