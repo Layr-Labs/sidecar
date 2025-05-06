@@ -806,7 +806,7 @@ func (rds *RewardsDataService) ListHistoricalRewardsForEarner(
 		args = append(args, sql.Named("tokens", tokens))
 	}
 
-	query += "group by 1, 2 order by 1 desc, 2 asc"
+	query += " group by 1, 2 order by 1 desc, 2 asc"
 
 	var historicalRewards []*HistoricalReward
 	res := rds.db.Raw(query, args...).Scan(&historicalRewards)
