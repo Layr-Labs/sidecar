@@ -8,7 +8,7 @@ import (
 
 type BlockStore interface {
 	InsertBlockAtHeight(blockNumber uint64, hash string, parentHash string, blockTime uint64) (*Block, error)
-	InsertBlockTransaction(blockNumber uint64, txHash string, txIndex uint64, from string, to string, contractAddress string, bytecodeHash string, gasUsed uint64, cumulativeGasUsed uint64, effectiveGasPrice uint64) (*Transaction, error)
+	InsertBlockTransaction(blockNumber uint64, txHash string, txIndex uint64, from string, to string, contractAddress string, bytecodeHash string, gasUsed uint64, cumulativeGasUsed uint64, effectiveGasPrice uint64, ignoreOnConflict bool) (*Transaction, error)
 	InsertTransactionLog(txHash string, transactionIndex uint64, blockNumber uint64, log *parser.DecodedLog, outputData map[string]interface{}, ignoreOnConflict bool) (*TransactionLog, error)
 	GetLatestBlock() (*Block, error)
 	GetBlockByNumber(blockNumber uint64) (*Block, error)

@@ -326,6 +326,7 @@ func (idx *Indexer) IndexTransaction(
 		receipt.GasUsed.Value(),
 		receipt.CumulativeGasUsed.Value(),
 		receipt.EffectiveGasPrice.Value(),
+		false,
 	)
 }
 
