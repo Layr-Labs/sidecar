@@ -66,6 +66,7 @@ func (s *PostgresBlockStore) InsertBlockTransaction(
 	gasUsed uint64,
 	cumulativeGasUsed uint64,
 	effectiveGasPrice uint64,
+	ignoreOnConflict bool,
 ) (*storage.Transaction, error) {
 	to = strings.ToLower(to)
 	from = strings.ToLower(from)
@@ -84,7 +85,18 @@ func (s *PostgresBlockStore) InsertBlockTransaction(
 		EffectiveGasPrice: effectiveGasPrice,
 	}
 
-	result := s.Db.Model(&storage.Transaction{}).Clauses(clause.Returning{}).Create(&tx)
+	clauses := []clause.Expression{clause.Returning{}}
+	if ignoreOnConflict {
+		clauses = append(clauses, clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "block_number"},
+				{Name: "transaction_hash"},
+				{Name: "transaction_index"},
+			},
+			DoNothing: true,
+		})
+	}
+	result := s.Db.Model(&storage.Transaction{}).Clauses(clauses...).Create(&tx)
 
 	if result.Error != nil {
 		return nil, fmt.Errorf("Failed to insert block transaction '%d' - '%s': %w", blockNumber, txHash, result.Error)

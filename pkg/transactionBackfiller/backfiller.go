@@ -386,33 +386,6 @@ func (t *TransactionBackfiller) ProcessBlock(ctx context.Context, blockNumber ui
 func (t *TransactionBackfiller) ProcessBlocksWithAddresses(ctx context.Context, queueMessage *BackfillerMessage) *BackfillerResponse {
 	response := &BackfillerResponse{}
 
-	// Validate that proper handlers are provided based on what we're backfilling
-	if !queueMessage.BackfillTransactionsOnly {
-		if queueMessage.TransactionLogHandler == nil {
-			return &BackfillerResponse{
-				Errors: []error{fmt.Errorf("TransactionLogHandler is required when backfilling logs")},
-			}
-		}
-		if queueMessage.IsInterestingLog == nil {
-			return &BackfillerResponse{
-				Errors: []error{fmt.Errorf("IsInterestingLog is required when backfilling logs")},
-			}
-		}
-	}
-
-	if !queueMessage.BackfillLogsOnly {
-		if queueMessage.TransactionHandler == nil {
-			return &BackfillerResponse{
-				Errors: []error{fmt.Errorf("TransactionHandler is required when backfilling transactions")},
-			}
-		}
-		if queueMessage.IsInterestingTransaction == nil {
-			return &BackfillerResponse{
-				Errors: []error{fmt.Errorf("IsInterestingTransaction is required when backfilling transactions")},
-			}
-		}
-	}
-
 	_, logs, err := t.fetcher.FetchInterestingBlocksAndLogsForContractsForBlockRange(ctx, queueMessage.StartBlock, queueMessage.EndBlock, queueMessage.Addresses)
 	if err != nil {
 		t.logger.Sugar().Errorw("Error fetching interesting blocks and logs", zap.Error(err))

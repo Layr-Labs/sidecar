@@ -114,6 +114,8 @@ func Test_TransactionBackfiller(t *testing.T) {
 				fmt.Printf("Decoded log: %+v\n", decodedLog)
 				return nil
 			},
+			BackfillLogsOnly:         true,
+			BackfillTransactionsOnly: false,
 		}
 
 		go bf.Process()
@@ -152,6 +154,8 @@ func Test_TransactionBackfiller(t *testing.T) {
 				fmt.Printf("Decoded log: %+v\n", decodedLog)
 				return nil
 			},
+			BackfillLogsOnly:         true,
+			BackfillTransactionsOnly: false,
 		}
 
 		go bf.Process()
