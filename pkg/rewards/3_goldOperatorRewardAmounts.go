@@ -45,6 +45,7 @@ func (rc *RewardsCalculator) GenerateGold3OperatorRewardAmountsTable(snapshotDat
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_3_goldOperatorRewardAmountsQuery, map[string]interface{}{
+		"destTableName":              destTableName,
 		"stakerRewardAmountsTable":   rewardsUtils.RewardsTable_2_StakerRewardAmounts,
 		"generatedRewardsSnapshotId": generatedSnapshotId,
 	})
