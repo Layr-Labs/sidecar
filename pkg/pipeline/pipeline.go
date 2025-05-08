@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -388,6 +389,12 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.String("cutoffDate", cutoffDate), zap.Error(err),
 					zap.Uint64("blockNumber", blockNumber),
 				)
+				_ = p.metricsSink.Gauge(metricsTypes.Metric_Incr_RewardsMerkelizationFailed, 1, []metricsTypes.MetricsLabel{
+					{
+						Name:  "block_number",
+						Value: fmt.Sprintf("%d", blockNumber),
+					},
+				})
 				hasError = true
 				return err
 			}
@@ -408,6 +415,12 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 						zap.Int64("rewardsTotalTimeMs", rewardsTotalTimeMs),
 					)
 					hasError = true
+					_ = p.metricsSink.Gauge(metricsTypes.Metric_Incr_RewardsRootInvalid, 1, []metricsTypes.MetricsLabel{
+						{
+							Name:  "block_number",
+							Value: fmt.Sprintf("%d", blockNumber),
+						},
+					})
 					return errors.New("roots do not match")
 				}
 				p.Logger.Sugar().Warnw("Roots do not match, but allowed to ignore",
@@ -418,6 +431,12 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.Int64("rewardsTotalTimeMs", rewardsTotalTimeMs),
 				)
 			} else {
+				_ = p.metricsSink.Gauge(metricsTypes.Metric_Incr_RewardsRootVerified, 1, []metricsTypes.MetricsLabel{
+					{
+						Name:  "block_number",
+						Value: fmt.Sprintf("%d", blockNumber),
+					},
+				})
 				p.Logger.Sugar().Infow("Roots match", zap.String("cutoffDate", cutoffDate), zap.Uint64("blockNumber", blockNumber))
 			}
 		}
