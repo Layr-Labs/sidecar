@@ -78,7 +78,7 @@ operator_splits AS (
 SELECT * FROM operator_splits
 `
 
-func (rc *RewardsCalculator) GenerateGold8OperatorODRewardAmountsTable(snapshotDate string, forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold8OperatorODRewardAmountsTable(snapshotDate string, generatedSnapshotId uint64, forks config.ForkMap) error {
 	rewardsV2Enabled, err := rc.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
