@@ -1,8 +1,8 @@
-package _202503041615_newRewardsTables
+package _202505081219_newRewardsTables
 
 import (
-	"github.com/Layr-Labs/sidecar/internal/config"
 	"database/sql"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"gorm.io/gorm"
 )
 
@@ -14,5 +14,5 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 }
 
 func (m *Migration) GetName() string {
-	return "202503041615_newRewardsTables"
+	return "202505081219_newRewardsTables"
 }
