@@ -166,7 +166,7 @@ SELECT *
 FROM deduped_earners
 `
 
-func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string, generatedSnapshotId uint64) error {
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 	destTableName := allTableNames[rewardsUtils.Table_15_GoldStaging]
 

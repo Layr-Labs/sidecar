@@ -168,7 +168,7 @@ combined_avs_refund_amounts AS (
 SELECT * FROM combined_avs_refund_amounts
 `
 
-func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate string, forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate string, generatedSnapshotId uint64, forks config.ForkMap) error {
 	rewardsV2_1Enabled, err := rc.globalConfig.IsRewardsV2_1EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.1 is enabled", "error", err)
