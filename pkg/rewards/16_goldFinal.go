@@ -26,7 +26,7 @@ type GoldRow struct {
 	Amount     string
 }
 
-func (rc *RewardsCalculator) GenerateGold16FinalTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold16FinalTable(snapshotDate string, generatedSnapshotId uint64) error {
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 
 	rc.logger.Sugar().Infow("Generating gold final table",

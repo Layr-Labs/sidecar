@@ -122,7 +122,7 @@ staker_reward_amounts AS (
 SELECT * FROM staker_reward_amounts
 `
 
-func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDate string, forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDate string, generatedSnapshotId uint64, forks config.ForkMap) error {
 	rewardsV2Enabled, err := rc.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
