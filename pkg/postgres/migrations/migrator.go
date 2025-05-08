@@ -68,7 +68,6 @@ import (
 	_202502211539_hydrateClaimedRewards "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502211539_hydrateClaimedRewards"
 	_202502252204_slashingModels "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502252204_slashingModels"
 	_202503030846_cleanupConstraintNames "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503030846_cleanupConstraintNames"
-	_202503041615_migrateRewardsTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503041615_migrateRewardsTables"
 	_202503042014_stakerOperatorIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503042014_stakerOperatorIndex"
 	_202503051449_addContractTypeColumn "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503051449_addContractTypeColumn"
 	_202503061009_pectraPrune "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503061009_pectraPrune"
@@ -78,6 +77,7 @@ import (
 	_202503191610_coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503191610_coreContractMigrations"
 	_202503311108_goldRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503311108_goldRewardHashIndex"
 	_202504240743_fixQueuedSlashingWithdrawalsPk "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202504240743_fixQueuedSlashingWithdrawalsPk"
+	_202505081218_migrateRewardsTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202505081218_migrateRewardsTables"
 	_202505092007_startupJobs "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202505092007_startupJobs"
 	_202506172149_snapshotUniqueConstraintsPartTwo "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202506172149_snapshotUniqueConstraintsPartTwo"
 	_202507301346_taskMailboxTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202507301346_taskMailboxTables"
@@ -223,9 +223,13 @@ func (m *Migrator) MigrateAll() error {
 		&_202505092007_startupJobs.Migration{},
 		&_202506172149_snapshotUniqueConstraintsPartTwo.Migration{},
 		&_202503191610_coreContractMigrations.Migration{},
+<<<<<<< HEAD
 		&_202507301421_crossChainRegistryTables.Migration{},
 		&_202507301346_taskMailboxTables.Migration{},
 		&_202503041615_migrateRewardsTables.Migration{},
+=======
+		&_202505081218_migrateRewardsTables.Migration{},
+>>>>>>> 7e7ad6ec (rename migrations, add missing tables)
 	}
 
 	for _, migration := range migrations {

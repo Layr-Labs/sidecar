@@ -1,4 +1,4 @@
-package _202503041615_migrateRewardsTables
+package _202505081218_migrateRewardsTables
 
 import (
 	"database/sql"
@@ -355,6 +355,101 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			ExistingTablePattern: "gold_[0-9]+_staker_avs_od_reward_amounts_[0-9_]+$",
 		},
 		{
+			CreateTableQuery: `create table if not exists rewards_gold_11_active_od_operator_set_rewards (
+				avs                                    varchar,
+				operator_set_id                        bigint,
+				operator                               varchar,
+				snapshot                               date,
+				token                                  varchar,
+				amount_decimal                         numeric,
+				multiplier                             numeric(78),
+				strategy                               varchar,
+				duration                               bigint,
+				reward_hash                            varchar,
+				reward_submission_date                 text,
+				num_registered_snapshots               bigint,
+				tokens_per_registered_snapshot_decimal numeric,
+    			generated_rewards_snapshot_id bigint,
+    			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
+			);`,
+			PreDataMigrationQueries: []string{
+				`alter table rewards_gold_11_active_od_operator_set_rewards add constraint uniq_rewards_gold_11_active_od_operator_set_rewards unique (reward_hash, operator_set_id, strategy, snapshot);`,
+			},
+			NewTableName:         "rewards_gold_11_active_od_operator_set_rewards",
+			ExistingTablePattern: "gold_[0-9]+_active_od_operator_set_rewards_[0-9_]+$",
+		},
+		{
+			CreateTableQuery: `create table if not exists rewards_gold_12_operator_od_operator_set_reward_amounts (
+				reward_hash                            varchar,
+				snapshot                               date,
+				token                                  varchar,
+				tokens_per_registered_snapshot_decimal numeric,
+				avs                                    varchar,
+				operator_set_id                        bigint,
+				operator                               varchar,
+				strategy                               varchar,
+				multiplier                             numeric(78),
+				reward_submission_date                 text,
+				rn                                     bigint,
+				split_pct                              numeric,
+				operator_tokens                        numeric,
+    			generated_rewards_snapshot_id bigint,
+    			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
+			);`,
+			PreDataMigrationQueries: []string{
+				`alter table rewards_gold_12_operator_od_operator_set_reward_amounts add constraint uniq_rewards_gold_12_operator_od_operator_set_reward_amounts unique (reward_hash, operator_set_id, operator, strategy, snapshot);`,
+			},
+			NewTableName:         "rewards_gold_12_operator_od_operator_set_reward_amounts",
+			ExistingTablePattern: "gold_[0-9]+_operator_od_operator_set_reward_amounts_[0-9_]+$",
+		},
+		{
+			CreateTableQuery: `create table if not exists rewards_gold_13_staker_od_operator_set_reward_amounts (
+				reward_hash                            varchar,
+				snapshot                               date,
+				token                                  varchar,
+				tokens_per_registered_snapshot_decimal numeric,
+				avs                                    varchar,
+				operator_set_id                        bigint,
+				operator                               varchar,
+				strategy                               varchar,
+				multiplier                             numeric(78),
+				reward_submission_date                 text,
+				staker_split                           numeric,
+				staker                                 varchar,
+				shares                                 numeric,
+				staker_weight                          numeric,
+				rn                                     bigint,
+				total_weight                           numeric,
+				staker_proportion                      numeric,
+				staker_tokens                          numeric,
+    			generated_rewards_snapshot_id bigint,
+    			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
+			);`,
+			PreDataMigrationQueries: []string{
+				`alter table rewards_gold_13_staker_od_operator_set_reward_amounts add constraint uniq_rewards_gold_13_staker_od_operator_set_reward_amounts unique (reward_hash, snapshot, operator_set_id, operator, strategy);`,
+			},
+			NewTableName:         "rewards_gold_13_staker_od_operator_set_reward_amounts",
+			ExistingTablePattern: "gold_[0-9]+_staker_od_operator_set_reward_amounts_[0-9_]+$",
+		},
+		{
+			CreateTableQuery: `create table if not exists rewards_gold_14_avs_od_operator_set_reward_amounts (
+				reward_hash     varchar,
+				snapshot        date,
+				token           varchar,
+				avs             varchar,
+				operator_set_id bigint,
+				operator        varchar,
+				avs_tokens      numeric,
+				generated_rewards_snapshot_id bigint,
+    			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
+			);`,
+			PreDataMigrationQueries: []string{
+				`alter table rewards_gold_14_avs_od_operator_set_reward_amounts add constraint uniq_rewards_gold_14_avs_od_operator_set_reward_amounts unique (reward_hash, snapshot, operator_set_id, operator, token);`,
+			},
+			NewTableName:         "rewards_gold_14_avs_od_operator_set_reward_amounts",
+			ExistingTablePattern: "gold_[0-9]+_avs_od_operator_set_reward_amounts_[0-9_]+$",
+		},
+		{
 			CreateTableQuery: `create table if not exists rewards_gold_staging (
 				earner      varchar,
 				snapshot    date,
@@ -389,5 +484,5 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 }
 
 func (m *Migration) GetName() string {
-	return "202503041615_migrateRewardsTables"
+	return "202505081218_migrateRewardsTables"
 }
