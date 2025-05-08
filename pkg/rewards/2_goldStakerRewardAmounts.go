@@ -142,11 +142,14 @@ token_breakdowns AS (
   ON sott.operator = oas.operator AND sott.avs = oas.avs AND sott.snapshot = oas.snapshot
   LEFT JOIN default_operator_split_snapshots dos ON (sott.snapshot = dos.snapshot)
 )
-SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id from token_breakdowns
+SELECT
+	tb.*,
+	@generatedRewardsSnapshotId as generated_rewards_snapshot_id
+from token_breakdowns as tb
 ORDER BY reward_hash, snapshot, staker, operator
 `
 
-func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate string, generatedSnapshotId uint64, forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
 	destTableName := rewardsUtils.RewardsTable_2_StakerRewardAmounts
 
 	rc.logger.Sugar().Infow("Generating staker reward amounts",
@@ -159,8 +162,9 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_2_goldStakerRewardAmountsQuery, map[string]interface{}{
+		"destTableName":              destTableName,
 		"activeRewardsTable":         rewardsUtils.RewardsTable_1_ActiveRewards,
-		"generatedRewardsSnapshotId": generatedSnapshotId,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -175,6 +179,7 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 		sql.Named("nileHardforkDate", forks[config.RewardsFork_Nile].Date),
 		sql.Named("arnoHardforkDate", forks[config.RewardsFork_Arno].Date),
 		sql.Named("trinityHardforkDate", forks[config.RewardsFork_Trinity].Date),
+		sql.Named("generatedRewardsSnapshotId", snapshotDate),
 	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_staker_reward_amounts", "error", res.Error)
