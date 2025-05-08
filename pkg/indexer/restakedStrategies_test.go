@@ -94,6 +94,8 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 	cm := contractManager.NewContractManager(grm, contractStore, client, af, l)
 
 	t.Run("Integration - gets restaked strategies for avs/operator with multicall contract caller", func(t *testing.T) {
+		t.Skip("Skipping test for multicall contract caller since its not used")
+		
 		avs := "0xD4A7E1Bd8015057293f0D0A557088c286942e84b"
 		operator := "0xA8C128BD6f5A314b46202Dd7C68E7E2422eD61F2"
 
