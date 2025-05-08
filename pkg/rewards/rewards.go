@@ -580,7 +580,7 @@ func lowercaseAddressList(addresses []string) []string {
 }
 
 func (rc *RewardsCalculator) calculateRewards(snapshotDate string) error {
-	_, err := rc.CreateRewardSnapshotStatus(snapshotDate)
+	snapshot, err := rc.CreateRewardSnapshotStatus(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to create reward snapshot status", "error", err)
 		return err
@@ -592,7 +592,7 @@ func (rc *RewardsCalculator) calculateRewards(snapshotDate string) error {
 		return err
 	}
 
-	if err = rc.generateGoldTables(snapshotDate); err != nil {
+	if err = rc.generateGoldTables(snapshotDate, snapshot.Id); err != nil {
 		_ = rc.UpdateRewardSnapshotStatus(snapshotDate, storage.RewardSnapshotStatusFailed)
 		rc.logger.Sugar().Errorw("Failed to generate gold tables", "error", err)
 		return err
@@ -735,7 +735,7 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	return nil
 }
 
-func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
+func (rc *RewardsCalculator) generateGoldTables(snapshotDate string, generatedSnapshotId uint64) error {
 	forks, err := rc.globalConfig.GetRewardsSqlForkDates()
 	if err != nil {
 		return err
@@ -745,77 +745,77 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
-	if err := rc.GenerateGold2StakerRewardAmountsTable(snapshotDate, forks); err != nil {
+	if err := rc.GenerateGold2StakerRewardAmountsTable(snapshotDate, generatedSnapshotId, forks); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker reward amounts", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold3OperatorRewardAmountsTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold3OperatorRewardAmountsTable(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator reward amounts", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold4RewardsForAllTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold4RewardsForAllTable(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate rewards for all", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold5RfaeStakersTable(snapshotDate, forks); err != nil {
+	if err := rc.GenerateGold5RfaeStakersTable(snapshotDate, generatedSnapshotId, forks); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate RFAE stakers", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold6RfaeOperatorsTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold6RfaeOperatorsTable(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate RFAE operators", "error", err)
 		return err
 	}
 
-	if err := rc.Generate7ActiveODRewards(snapshotDate); err != nil {
+	if err := rc.Generate7ActiveODRewards(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate active od rewards", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold8OperatorODRewardAmountsTable(snapshotDate, forks); err != nil {
+	if err := rc.GenerateGold8OperatorODRewardAmountsTable(snapshotDate, generatedSnapshotId, forks); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator od reward amounts", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold9StakerODRewardAmountsTable(snapshotDate, forks); err != nil {
+	if err := rc.GenerateGold9StakerODRewardAmountsTable(snapshotDate, generatedSnapshotId, forks); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker od reward amounts", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold10AvsODRewardAmountsTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold10AvsODRewardAmountsTable(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate avs od reward amounts", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold11ActiveODOperatorSetRewards(snapshotDate); err != nil {
+	if err := rc.GenerateGold11ActiveODOperatorSetRewards(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate active od operator set rewards", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold12OperatorODOperatorSetRewardAmountsTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold12OperatorODOperatorSetRewardAmountsTable(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator od operator set rewards", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold13StakerODOperatorSetRewardAmountsTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold13StakerODOperatorSetRewardAmountsTable(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker od operator set rewards", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate, forks); err != nil {
+	if err := rc.GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate, generatedSnapshotId, forks); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate avs od operator set rewards", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold15StagingTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold15StagingTable(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate gold staging", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold16FinalTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold16FinalTable(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate final table", "error", err)
 		return err
 	}
