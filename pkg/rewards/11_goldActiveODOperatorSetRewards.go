@@ -176,7 +176,7 @@ SELECT * FROM active_rewards_final
 // @param snapshotDate: The upper bound of when to calculate rewards to
 // @param startDate: The lower bound of when to calculate rewards from. If we're running rewards for the first time,
 // this will be "1970-01-01". If this is a subsequent run, this will be the last snapshot date.
-func (r *RewardsCalculator) GenerateGold11ActiveODOperatorSetRewards(snapshotDate string) error {
+func (r *RewardsCalculator) GenerateGold11ActiveODOperatorSetRewards(snapshotDate string, generatedSnapshotId uint64) error {
 	rewardsV2_1Enabled, err := r.globalConfig.IsRewardsV2_1EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to check if rewards v2.1 is enabled", "error", err)
