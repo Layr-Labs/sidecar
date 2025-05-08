@@ -7,7 +7,7 @@ import (
 )
 
 var _1_goldActiveRewardsQuery = `
-insert into rewards_gold_1_active_rewards (avs, snapshot, token, tokens_per_day, tokens_per_day_decimal, multiplier, strategy, reward_hash, reward_type, reward_submission_date)
+insert into rewards_gold_1_active_rewards (avs, snapshot, token, tokens_per_day, tokens_per_day_decimal, multiplier, strategy, reward_hash, reward_type, reward_submission_date, generated_rewards_snapshot_id)
 WITH active_rewards_modified as (
     SELECT *,
            amount/(duration/86400) as tokens_per_day,
@@ -92,7 +92,10 @@ active_rewards_final AS (
 	-- Remove snapshots on the start day
 	WHERE day != reward_start_exclusive
 )
-select * from active_rewards_final
+select
+    arf.*,
+    @generatedRewardsSnapshotId as generated_rewards_snapshot_id
+from active_rewards_final as arf
 `
 
 // Generate1ActiveRewards generates active rewards for the gold_1_active_rewards table

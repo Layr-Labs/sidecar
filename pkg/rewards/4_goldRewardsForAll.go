@@ -67,7 +67,7 @@ staker_tokens AS (
 SELECT * from staker_tokens
 `
 
-func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string, generatedSnapshotId uint64) error {
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 	destTableName := allTableNames[rewardsUtils.Table_4_RewardsForAll]
 
