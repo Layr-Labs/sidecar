@@ -7,7 +7,7 @@ import (
 )
 
 var _1_goldActiveRewardsQuery = `
-insert into rewards_gold_1_active_rewards (avs, snapshot, token, tokens_per_day, tokens_per_day_decimal, multiplier, strategy, reward_hash, reward_type, reward_submission_date, generated_rewards_snapshot_id)
+create table {{.destTableName}} as
 WITH active_rewards_modified as (
     SELECT *,
            amount/(duration/86400) as tokens_per_day,
@@ -103,9 +103,9 @@ from active_rewards_final as arf
 // @param snapshotDate: The upper bound of when to calculate rewards to
 // @param startDate: The lower bound of when to calculate rewards from. If we're running rewards for the first time,
 // this will be "1970-01-01". If this is a subsequent run, this will be the last snapshot date.
-func (r *RewardsCalculator) Generate1ActiveRewards(snapshotDate string) error {
+func (r *RewardsCalculator) Generate1ActiveRewards(snapshotDate string, generatedRewardsSnapshotId uint64) error {
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_1_ActiveRewards]
+	destTableName := rewardsUtils.FormatTableNameWithGeneratedSnaphotId(allTableNames[rewardsUtils.RewardsTable_1_ActiveRewards], generatedRewardsSnapshotId)
 
 	rewardsStart := "1970-01-01 00:00:00" // This will always start as this date and get's updated later in the query
 
@@ -127,6 +127,7 @@ func (r *RewardsCalculator) Generate1ActiveRewards(snapshotDate string) error {
 
 	res := r.grm.Exec(query,
 		sql.Named("cutoffDate", snapshotDate),
+		sql.Named("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
 	)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate active rewards", "error", res.Error)

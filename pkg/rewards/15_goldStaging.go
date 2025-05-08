@@ -191,7 +191,7 @@ func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string, gen
 
 	query, err := rewardsUtils.RenderQueryTemplate(_15_goldStagingQuery, map[string]interface{}{
 		"destTableName":                           destTableName,
-		"stakerRewardAmountsTable":                allTableNames[rewardsUtils.Table_2_StakerRewardAmounts],
+		"stakerRewardAmountsTable":                rewardsUtils.FormatTableNameWithGeneratedSnaphotId(allTableNames[rewardsUtils.RewardsTable_2_StakerRewardAmounts], generatedSnapshotId),
 		"operatorRewardAmountsTable":              allTableNames[rewardsUtils.Table_3_OperatorRewardAmounts],
 		"rewardsForAllTable":                      allTableNames[rewardsUtils.Table_4_RewardsForAll],
 		"rfaeStakerTable":                         allTableNames[rewardsUtils.Table_5_RfaeStakers],

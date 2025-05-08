@@ -47,7 +47,7 @@ func (rc *RewardsCalculator) GenerateGold3OperatorRewardAmountsTable(snapshotDat
 
 	query, err := rewardsUtils.RenderQueryTemplate(_3_goldOperatorRewardAmountsQuery, map[string]interface{}{
 		"destTableName":            destTableName,
-		"stakerRewardAmountsTable": allTableNames[rewardsUtils.Table_2_StakerRewardAmounts],
+		"stakerRewardAmountsTable": rewardsUtils.FormatTableNameWithGeneratedSnaphotId(allTableNames[rewardsUtils.RewardsTable_2_StakerRewardAmounts], generatedSnapshotId),
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

@@ -2,7 +2,6 @@ package rewards
 
 import (
 	"database/sql"
-
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
@@ -142,13 +141,16 @@ token_breakdowns AS (
   ON sott.operator = oas.operator AND sott.avs = oas.avs AND sott.snapshot = oas.snapshot
   LEFT JOIN default_operator_split_snapshots dos ON (sott.snapshot = dos.snapshot)
 )
-SELECT * from token_breakdowns
+SELECT
+	tb.*,
+	@generatedRewardsSnapshotId as generated_rewards_snapshot_id
+from token_breakdowns as tb
 ORDER BY reward_hash, snapshot, staker, operator
 `
 
 func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate string, generatedSnapshotId uint64, forks config.ForkMap) error {
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_2_StakerRewardAmounts]
+	destTableName := rewardsUtils.FormatTableNameWithGeneratedSnaphotId(allTableNames[rewardsUtils.RewardsTable_2_StakerRewardAmounts], generatedSnapshotId)
 
 	rc.logger.Sugar().Infow("Generating staker reward amounts",
 		zap.String("cutoffDate", snapshotDate),
@@ -161,7 +163,7 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 
 	query, err := rewardsUtils.RenderQueryTemplate(_2_goldStakerRewardAmountsQuery, map[string]interface{}{
 		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
+		"activeRewardsTable": rewardsUtils.FormatTableNameWithGeneratedSnaphotId(allTableNames[rewardsUtils.RewardsTable_1_ActiveRewards], generatedSnapshotId),
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -173,6 +175,7 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 		sql.Named("nileHardforkDate", forks[config.RewardsFork_Nile].Date),
 		sql.Named("arnoHardforkDate", forks[config.RewardsFork_Arno].Date),
 		sql.Named("trinityHardforkDate", forks[config.RewardsFork_Trinity].Date),
+		sql.Named("generatedRewardsSnapshotId", snapshotDate),
 	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_staker_reward_amounts", "error", res.Error)

@@ -78,7 +78,7 @@ func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string
 
 	query, err := rewardsUtils.RenderQueryTemplate(_4_goldRewardsForAllQuery, map[string]interface{}{
 		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
+		"activeRewardsTable": rewardsUtils.FormatTableNameWithGeneratedSnaphotId(allTableNames[rewardsUtils.RewardsTable_1_ActiveRewards], generatedSnapshotId),
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

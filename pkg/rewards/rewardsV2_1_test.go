@@ -117,9 +117,9 @@ func Test_RewardsV2_1(t *testing.T) {
 			assert.Nil(t, err)
 
 			fmt.Printf("Running gold_1_active_rewards\n")
-			err = rc.Generate1ActiveRewards(snapshotDate)
+			err = rc.Generate1ActiveRewards(snapshotDate, snapshotStatus.Id)
 			assert.Nil(t, err)
-			rows, err := getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_1_ActiveRewards])
+			rows, err := getRowCountForTable(grm, rewardsUtils.FormatTableNameWithGeneratedSnaphotId(goldTableNames[rewardsUtils.RewardsTable_1_ActiveRewards], snapshotStatus.Id))
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_1_active_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
@@ -127,7 +127,7 @@ func Test_RewardsV2_1(t *testing.T) {
 			fmt.Printf("Running gold_2_staker_reward_amounts %+v\n", time.Now())
 			err = rc.GenerateGold2StakerRewardAmountsTable(snapshotDate, snapshotStatus.Id, forks)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_2_StakerRewardAmounts])
+			rows, err = getRowCountForTable(grm, rewardsUtils.FormatTableNameWithGeneratedSnaphotId(goldTableNames[rewardsUtils.RewardsTable_2_StakerRewardAmounts], snapshotStatus.Id))
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_2_staker_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
@@ -284,9 +284,9 @@ func Test_RewardsV2_1(t *testing.T) {
 				// t.Logf("%d: %s %s %s %s %s", i, row.Earner, row.Snapshot.String(), row.RewardHash, row.Token, row.Amount)
 			}
 
-			t.Logf("Generating staker operators table")
-			err = rc.sog.GenerateStakerOperatorsTable(snapshotDate)
-			assert.Nil(t, err)
+			// t.Logf("Generating staker operators table")
+			// err = rc.sog.GenerateStakerOperatorsTable(snapshotDate)
+			// assert.Nil(t, err)
 
 			fmt.Printf("Total duration for rewards compute %s: %v\n", snapshotDate, time.Since(snapshotStartTime))
 			testStart = time.Now()

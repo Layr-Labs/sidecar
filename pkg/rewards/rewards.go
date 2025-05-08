@@ -762,7 +762,7 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string, generatedSn
 	if err != nil {
 		return err
 	}
-	if err := rc.Generate1ActiveRewards(snapshotDate); err != nil {
+	if err := rc.Generate1ActiveRewards(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate active rewards", "error", err)
 		return err
 	}
