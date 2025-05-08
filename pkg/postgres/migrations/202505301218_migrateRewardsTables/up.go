@@ -46,6 +46,9 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 		}
 	}
 
+	return nil
+
+	//nolint:all
 	likeTablesQuery := `
 		SELECT table_schema || '.' || table_name
 		FROM information_schema.tables

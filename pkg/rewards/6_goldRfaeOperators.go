@@ -6,7 +6,7 @@ import (
 )
 
 const _6_goldRfaeOperatorsQuery = `
-INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_day_decimal, avs, strategy, multiplier, reward_type, operator, operator_tokens, rn, generated_rewards_snapshot_id) as
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_day_decimal, avs, strategy, multiplier, reward_type, operator, operator_tokens, rn, generated_rewards_snapshot_id)
 WITH operator_token_sums AS (
   SELECT
     reward_hash,
@@ -33,10 +33,10 @@ distinct_operators AS (
   ) t
   WHERE rn = 1
 )
-SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id FROM distinct_operators
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM distinct_operators
 `
 
-func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string, generatedSnapshotId uint64) error {
+func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
 	destTableName := rewardsUtils.RewardsTable_6_RfaeOperators
 
 	rc.logger.Sugar().Infow("Generating rfae operators table",
@@ -47,7 +47,7 @@ func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string
 	query, err := rewardsUtils.RenderQueryTemplate(_6_goldRfaeOperatorsQuery, map[string]interface{}{
 		"destTableName":              destTableName,
 		"rfaeStakersTable":           rewardsUtils.RewardsTable_5_RfaeStakers,
-		"generatedRewardsSnapshotId": generatedSnapshotId,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

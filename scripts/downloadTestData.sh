@@ -6,7 +6,7 @@ if [[ -z $NETWORK ]]; then
     exit 1
 fi
 
-version=$(cat .testdataVersion)
+version=$(cat .testdataVersion | jq -r '.["'$NETWORK'"]')
 bucketName="eigenlayer-sidecar-testdata"
 
 dataUrl="https://${bucketName}.s3.amazonaws.com/${NETWORK}/${version}.tar"
