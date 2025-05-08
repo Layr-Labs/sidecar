@@ -7,6 +7,9 @@ import (
 
 const stakerSharesQuery = `
 	insert into staker_shares(staker, strategy, shares, transaction_hash, log_index, strategy_index, block_time, block_date, block_number)
+	with recent_max_block as (
+	    select coalesce(max(block_number), 0) as block_number from staker_shares
+	)
 	select
 		staker,
 		strategy,
@@ -19,7 +22,11 @@ const stakerSharesQuery = `
 		block_date,
 		block_number
 	from staker_share_deltas
-	where block_date < '{{.cutoffDate}}'
+	where
+		block_date < '{{.cutoffDate}}'
+		-- only need to fetch new records since the last snapshot .
+	  	-- we use a >= in case not all records are inserted for the MAX(block_number)
+	  	and block_number >= (select block_number from recent_max_block)
 	on conflict on constraint uniq_staker_shares do nothing;
 `
 

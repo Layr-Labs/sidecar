@@ -7,6 +7,9 @@ import (
 
 const operatorSharesQuery = `
 	insert into operator_shares (operator, strategy, transaction_hash, log_index, block_number, block_date, block_time, shares)
+	with recent_max_block as (
+	    select coalesce(max(block_number), 0) as block_number from operator_shares
+	)
 	select
 		operator,
 		strategy,
@@ -17,7 +20,11 @@ const operatorSharesQuery = `
 		block_time,
 		SUM(shares) OVER (PARTITION BY operator, strategy ORDER BY block_time, log_index) AS shares
 	from operator_share_deltas
-	where block_date < '{{.cutoffDate}}'
+	where
+	    block_date < '{{.cutoffDate}}'
+	  	-- only need to fetch new records since the last snapshot .
+	  	-- we use a >= in case not all records are inserted for the MAX(block_number)
+	    and block_number >= (select block_number from recent_max_block)
 	on conflict on constraint uniq_operator_shares do nothing;
 `
 
