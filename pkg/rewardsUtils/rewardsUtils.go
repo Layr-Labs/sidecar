@@ -164,6 +164,10 @@ func RenderQueryTemplate(query string, variables map[string]interface{}) (string
 	return dest.String(), nil
 }
 
+func FormatTableNameWithGeneratedSnaphotId(tableName string, generatedSnapshotId uint64) string {
+	return fmt.Sprintf("%s__%d", tableName, generatedSnapshotId)
+}
+
 func FormatTableName(tableName string, snapshotDate string) string {
 	return fmt.Sprintf("%s_%s", tableName, utils.SnakeCase(snapshotDate))
 }
