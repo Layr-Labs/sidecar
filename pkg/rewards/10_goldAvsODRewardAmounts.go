@@ -60,7 +60,7 @@ operator_token_sums AS (
 SELECT * FROM operator_token_sums
 `
 
-func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate string, generatedSnapshotId uint64) error {
 	rewardsV2Enabled, err := rc.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)

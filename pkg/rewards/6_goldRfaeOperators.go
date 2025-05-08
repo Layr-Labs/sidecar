@@ -36,7 +36,7 @@ distinct_operators AS (
 SELECT * FROM distinct_operators
 `
 
-func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string, generatedSnapshotId uint64) error {
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 	destTableName := allTableNames[rewardsUtils.Table_6_RfaeOperators]
 
