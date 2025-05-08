@@ -2,13 +2,15 @@ package rewards
 
 import (
 	"database/sql"
+	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/config"
 
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
 
 var _1_goldActiveRewardsQuery = `
-INSERT INTO {{.destTableName}} (avs, snapshot, token, tokens_per_day, tokens_per_day_decimal, multiplier, strategy, reward_hash, reward_type, reward_submission_date, generated_rewards_snapshot_id)
+create table {{.destTableName}} as
 WITH active_rewards_modified as (
     SELECT *,
            amount/(duration/86400) as tokens_per_day,
@@ -95,7 +97,7 @@ active_rewards_final AS (
 )
 select
     arf.*,
-    @generatedRewardsSnapshotId as generated_rewards_snapshot_id
+    {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id
 from active_rewards_final as arf
 `
 
@@ -104,8 +106,15 @@ from active_rewards_final as arf
 // @param snapshotDate: The upper bound of when to calculate rewards to
 // @param startDate: The lower bound of when to calculate rewards from. If we're running rewards for the first time,
 // this will be "1970-01-01". If this is a subsequent run, this will be the last snapshot date.
-func (r *RewardsCalculator) Generate1ActiveRewards(snapshotDate string, generatedSnapshotId uint64) error {
-	destTableName := rewardsUtils.RewardsTable_1_ActiveRewards
+func (r *RewardsCalculator) Generate1ActiveRewards(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	// destTableName := rewardsUtils.RewardsTable_1_ActiveRewards
+	destTableName := r.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
+
+	// first, drop the table if it already exists
+	if err := r.DropTempActiveRewardsTable(snapshotDate, generatedRewardsSnapshotId); err != nil {
+		r.logger.Sugar().Errorw("Failed to drop existing temp active rewards table", "error", err)
+		return err
+	}
 
 	rewardsStart := "1970-01-01 00:00:00" // This will always start as this date and get's updated later in the query
 
@@ -119,21 +128,72 @@ func (r *RewardsCalculator) Generate1ActiveRewards(snapshotDate string, generate
 		"destTableName":              destTableName,
 		"rewardsStart":               rewardsStart,
 		"cutoffDate":                 snapshotDate,
-		"generatedRewardsSnapshotId": generatedSnapshotId,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
 
-	query = query + " ON CONFLICT (avs, reward_hash, strategy, snapshot) DO NOTHING"
+	// query = query + " ON CONFLICT (avs, reward_hash, strategy, snapshot) DO NOTHING"
 
 	res := r.grm.Exec(query,
 		sql.Named("cutoffDate", snapshotDate),
+		sql.Named("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
 	)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate active rewards", "error", res.Error)
 		return res.Error
 	}
 	return nil
+}
+
+func (rc *RewardsCalculator) getTempActiveRewardsTableName(snapshotDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(snapshotDate)
+	return fmt.Sprintf("tmp_rewards_gold_1_active_rewards_%s_%d", camelDate, generatedRewardSnapshotId)
+}
+
+func (r *RewardsCalculator) DropTempActiveRewardsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	tempTableName := r.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
+
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName)
+	res := r.grm.Exec(query)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to drop temp active rewards table", "error", res.Error)
+		return res.Error
+	}
+	r.logger.Sugar().Infow("Successfully dropped temp active rewards table",
+		zap.String("tempTableName", tempTableName),
+		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
+	)
+	return nil
+}
+
+func (r *RewardsCalculator) CopyTempActiveRewardsToActiveRewards(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	r.logger.Sugar().Infow("Copying temp active rewards to active rewards",
+		zap.String("snapshotDate", snapshotDate),
+		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
+	)
+	tempTableName := r.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
+	destTableName := rewardsUtils.RewardsTable_1_ActiveRewards
+
+	query := `
+		insert into {{.destTableName}} (avs, snapshot, token, tokens_per_day, tokens_per_day_decimal, multiplier, strategy, reward_hash, reward_type, reward_submission_date, generated_rewards_snapshot_id)
+		select avs, snapshot, token, tokens_per_day, tokens_per_day_decimal, multiplier, strategy, reward_hash, reward_type, reward_submission_date, generated_rewards_snapshot_id from {{.tempTableName}}
+		on conflict (avs, reward_hash, strategy, snapshot) do nothing
+	`
+	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
+		"destTableName": destTableName,
+		"tempTableName": tempTableName,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to render query template: %w", err)
+	}
+	res := r.grm.Exec(renderedQuery)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to copy temp active rewards to active rewards", "error", res.Error)
+		return res.Error
+	}
+
+	return r.DropTempActiveRewardsTable(snapshotDate, generatedRewardsSnapshotId)
 }
