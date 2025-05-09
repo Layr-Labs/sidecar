@@ -341,17 +341,16 @@ func (t *TransactionBackfiller) ProcessBlock(ctx context.Context, blockNumber ui
 	for txHash, receipt := range block.TxReceipts {
 		// Process full transactions if we're not only processing logs
 		if !message.BackfillLogsOnly && message.TransactionHandler != nil && message.IsInterestingTransaction != nil {
-			if message.IsInterestingTransaction(receipt) {
-				err = message.TransactionHandler(block.Block, receipt)
-				if err != nil {
-					t.logger.Sugar().Errorw("Error processing transaction",
-						zap.Error(err),
-						zap.String("txHash", txHash),
-						zap.Uint64("blockNumber", blockNumber),
-					)
-					return err
-				}
+			err = message.TransactionHandler(block.Block, receipt)
+			if err != nil {
+				t.logger.Sugar().Errorw("Error processing transaction",
+					zap.Error(err),
+					zap.String("txHash", txHash),
+					zap.Uint64("blockNumber", blockNumber),
+				)
+				return err
 			}
+
 		}
 
 		// Process logs if we're not only processing transactions
@@ -584,15 +583,13 @@ func (t *TransactionBackfiller) processBlockData(
 	// Process transactions if transaction handler is provided and we're not only processing logs
 	if !queueMessage.BackfillLogsOnly && queueMessage.TransactionHandler != nil && queueMessage.IsInterestingTransaction != nil {
 		for txHash, receipt := range fetchedBlock.TxReceipts {
-			if queueMessage.IsInterestingTransaction(receipt) {
-				if err := queueMessage.TransactionHandler(fetchedBlock.Block, receipt); err != nil {
-					t.logger.Sugar().Errorw("Error processing transaction",
-						zap.Error(err),
-						zap.String("txHash", txHash),
-						zap.Uint64("blockNumber", fetchedBlock.Block.Number.Value()),
-					)
-					return err
-				}
+			if err := queueMessage.TransactionHandler(fetchedBlock.Block, receipt); err != nil {
+				t.logger.Sugar().Errorw("Error processing transaction",
+					zap.Error(err),
+					zap.String("txHash", txHash),
+					zap.Uint64("blockNumber", fetchedBlock.Block.Number.Value()),
+				)
+				return err
 			}
 		}
 	}

@@ -89,6 +89,7 @@ func (s *PostgresBlockStore) InsertBlockTransaction(
 	if ignoreOnConflict {
 		clauses = append(clauses, clause.OnConflict{
 			Columns: []clause.Column{
+				{Name: "block_number"},
 				{Name: "transaction_hash"},
 				{Name: "transaction_index"},
 			},
