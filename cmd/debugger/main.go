@@ -138,7 +138,7 @@ func main() {
 	// Create new sidecar instance
 	_ = sidecar.NewSidecar(&sidecar.SidecarConfig{
 		GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
-	}, cfg, mds, p, sm, msm, rc, rcq, rps, l, client)
+	}, cfg, mds, p, sm, msm, rc, rcq, rps, grm, l, client)
 
 	rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 		GrpcPort: cfg.RpcConfig.GrpcPort,
@@ -151,12 +151,12 @@ func main() {
 		l.Sugar().Fatalw("Failed to start RPC server", zap.Error(err))
 	}
 
-	block, err := fetchr.FetchBlock(ctx, 1215893)
+	block, err := fetchr.FetchBlock(ctx, 21432449)
 	if err != nil {
 		l.Sugar().Fatalw("Failed to fetch block", zap.Error(err))
 	}
 
-	transactionHash := "0xf6775c38af1d2802bcbc2b7c8959c0d5b48c63a14bfeda0261ba29d76c68c423"
+	transactionHash := "0x0426297e2aad2a08a42c908649e4888747654a36a2cbc6631946e51641cf11ce"
 	transaction := &ethereum.EthereumTransaction{}
 
 	for _, tx := range block.Block.Transactions {

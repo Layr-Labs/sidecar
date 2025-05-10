@@ -118,3 +118,9 @@ type ActiveAvsOperator struct {
 	Avs      string
 	Operator string
 }
+
+type StartupJob struct {
+	Id        uint64 `gorm:"type:serial"`
+	Name      string
+	CreatedAt time.Time
+}

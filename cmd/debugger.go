@@ -2,69 +2,54 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/version"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
-	"github.com/Layr-Labs/sidecar/pkg/abiSource/ipfs"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
-	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/precommitProcessors"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
+	"github.com/Layr-Labs/sidecar/pkg/logger"
 	"github.com/Layr-Labs/sidecar/pkg/metaState"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/metaStateManager"
-	"github.com/Layr-Labs/sidecar/pkg/metrics/prometheus"
+	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/pipeline"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
-	"github.com/Layr-Labs/sidecar/pkg/proofs"
+	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
-	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
-	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
-	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
-	"github.com/Layr-Labs/sidecar/pkg/service/slashingDataService"
-	"github.com/Layr-Labs/sidecar/pkg/shutdown"
-	"github.com/Layr-Labs/sidecar/pkg/sidecar"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
-
-	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
-	"github.com/Layr-Labs/sidecar/pkg/logger"
-	"github.com/Layr-Labs/sidecar/pkg/metrics"
-	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
-var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "Run the sidecar",
+var runDebuggerCmd = &cobra.Command{
+	Use:   "debugger",
+	Short: "Debugger utility",
 	Run: func(cmd *cobra.Command, args []string) {
-		initRunCmd(cmd)
+		initDebuggerCmd(cmd)
 		cfg := config.NewConfig()
-		cfg.SidecarPrimaryConfig.IsPrimary = true
-
-		ctx := context.Background()
 
 		l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
 		l.Sugar().Infow("sidecar run",
 			zap.String("version", version.GetVersion()),
 			zap.String("commit", version.GetCommit()),
-			zap.String("chain", cfg.Chain.String()),
 		)
 
 		eb := eventBus.NewEventBus(l)
@@ -74,15 +59,14 @@ var runCmd = &cobra.Command{
 			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 		}
 
-		sink, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
+		sdc, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
 		if err != nil {
 			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 		}
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
-		ipfs := ipfs.NewIpfs(ipfs.DefaultHttpClient(), l, cfg)
-		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, []abiSource.AbiSource{ipfs})
+		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, []abiSource.AbiSource{})
 
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
@@ -138,71 +122,39 @@ var runCmd = &cobra.Command{
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 
-		rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, sog, sink, l)
+		rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, sog, sdc, l)
 		if err != nil {
 			l.Sugar().Fatalw("Failed to create rewards calculator", zap.Error(err))
 		}
 
 		rcq := rewardsCalculatorQueue.NewRewardsCalculatorQueue(rc, l)
 
-		rps := proofs.NewRewardsProofsStore(rc, l)
+		_ = pipeline.NewPipeline(fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
-		pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
-		rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
-		sds := slashingDataService.NewSlashingDataService(grm, l, cfg)
-
-		go rcq.Process()
-
-		p := pipeline.NewPipeline(fetchr, idxr, mds, contractStore, cm, sm, msm, rc, rcq, cfg, sink, eb, l)
-
-		scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)
+		block, err := fetchr.FetchBlock(context.Background(), 21432449)
 		if err != nil {
-			l.Sugar().Fatalw("Failed to create sidecar client", zap.Error(err))
+			l.Sugar().Fatalw("Failed to fetch block", zap.Error(err))
 		}
 
-		// Create new sidecar instance
-		sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
-			GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
-		}, cfg, mds, p, sm, msm, rc, rcq, rps, grm, l, client)
+		transactionHash := "0x0426297e2aad2a08a42c908649e4888747654a36a2cbc6631946e51641cf11ce"
 
-		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
-			GrpcPort: cfg.RpcConfig.GrpcPort,
-			HttpPort: cfg.RpcConfig.HttpPort,
-		}, mds, contractStore, cm, rc, rcq, eb, rps, pds, rds, sds, scc, sink, l, cfg)
-
-		// RPC channel to notify the RPC server to shutdown gracefully
-		rpcChannel := make(chan bool)
-		if err := rpc.Start(ctx, rpcChannel); err != nil {
-			l.Sugar().Fatalw("Failed to start RPC server", zap.Error(err))
+		parsedTx, err := idxr.ParseInterestingTransactionsAndLogs(context.Background(), block)
+		if err != nil {
+			l.Sugar().Fatalw("Failed to parse transactions", zap.Error(err))
 		}
 
-		promChan := make(chan bool)
-		if cfg.PrometheusConfig.Enabled {
-			pServer := prometheus.NewPrometheusServer(&prometheus.PrometheusServerConfig{
-				Port: cfg.PrometheusConfig.Port,
-			}, l)
-			if err := pServer.Start(promChan); err != nil {
-				l.Sugar().Fatalw("Failed to start prometheus server", zap.Error(err))
+		for _, tx := range parsedTx {
+			if tx.Transaction.Hash.Value() == transactionHash {
+				for _, log := range tx.Logs {
+					jsonBytes, _ := json.MarshalIndent(log, "", "  ")
+					fmt.Printf("Log: %s\n", string(jsonBytes))
+				}
 			}
 		}
-
-		// Start the sidecar main process in a goroutine so that we can listen for a shutdown signal
-		go sidecar.Start(ctx)
-
-		l.Sugar().Info("Started Sidecar")
-
-		gracefulShutdown := shutdown.CreateGracefulShutdownChannel()
-
-		done := make(chan bool)
-		shutdown.ListenForShutdown(gracefulShutdown, done, func() {
-			l.Sugar().Info("Shutting down...")
-			rpcChannel <- true
-			sidecar.ShutdownChan <- true
-		}, time.Second*5, l)
 	},
 }
 
-func initRunCmd(cmd *cobra.Command) {
+func initDebuggerCmd(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		if err := viper.BindPFlag(config.KebabToSnakeCase(f.Name), f); err != nil {
 			fmt.Printf("Failed to bind flag '%s' - %+v\n", f.Name, err)
