@@ -17,6 +17,7 @@ go-sidecar
 /internal/tests/testdata/*.sql
 !/internal/tests/testdata/**/generateExpectedResults.sql
 !/internal/tests/testdata/**/*generateExpectedResults.sql
+!/internal/tests/testdata/startupJobs/**/*.sql
 !sqlite-extensions
 /*.tar
 /sidecar-data
