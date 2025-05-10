@@ -163,7 +163,7 @@ var runCmd = &cobra.Command{
 		// Create new sidecar instance
 		sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
 			GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
-		}, cfg, mds, p, sm, msm, rc, rcq, rps, l, client)
+		}, cfg, mds, p, sm, msm, rc, rcq, rps, grm, l, client)
 
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,

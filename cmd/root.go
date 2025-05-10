@@ -70,6 +70,7 @@ func init() {
 	rootCmd.AddCommand(restoreSnapshotCmd)
 	rootCmd.AddCommand(rpcCmd)
 	rootCmd.AddCommand(loadContractCmd)
+	rootCmd.AddCommand(runDebuggerCmd)
 
 	// bind any subcommand flags
 	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "(deprecated, use --output) Path to save the snapshot file")
