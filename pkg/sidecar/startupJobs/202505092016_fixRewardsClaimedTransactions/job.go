@@ -45,7 +45,7 @@ func (s *StartupJob) Run(
 	// sort asc
 	slices.Sort(affectedBlocks)
 
-	// group blocks into chunks of 1000
+	// group blocks into chunks of 500
 	chunks := chunkify(affectedBlocks, 500)
 
 	s.logger.Sugar().Infow("Chunked blocks",
