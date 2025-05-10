@@ -58,6 +58,7 @@ func (s *StartupJob) Run(
 		}
 		s.logger.Sugar().Infow("Handled chunk",
 			zap.Int("chunkIndex", i),
+			zap.Int("chunks", len(chunks)),
 			zap.Int("chunkSize", len(chunk)),
 		)
 	}
@@ -191,6 +192,7 @@ func (s *StartupJob) handleChunk(ctx context.Context, blockNumbers []uint64) err
 			continue
 		}
 
+		// fake the receipt since its not really used at all, but we need it to not be nil
 		decodedLog, err := s.indxr.TransactionLogParser.DecodeLogWithAbi(nil, &ethereum.EthereumTransactionReceipt{
 			To:              log.Address,
 			ContractAddress: ethereum.EthereumHexString(""),
