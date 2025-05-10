@@ -9,7 +9,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
-	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"slices"
@@ -47,12 +46,24 @@ func (s *StartupJob) Run(
 	slices.Sort(affectedBlocks)
 
 	// group blocks into chunks of 1000
-	chunks := chunkify(affectedBlocks, 1000)
+	chunks := chunkify(affectedBlocks, 500)
 
-	for _, chunk := range chunks {
+	s.logger.Sugar().Infow("Chunked blocks",
+		zap.Int("chunkCount", len(chunks)),
+	)
+
+	for i, chunk := range chunks {
 		if err = s.handleChunk(ctx, chunk); err != nil {
 			return fmt.Errorf("failed to handle chunk: %v", err)
 		}
+		s.logger.Sugar().Infow("Handled chunk",
+			zap.Int("chunkIndex", i),
+			zap.Int("chunkSize", len(chunk)),
+		)
+	}
+	// rehydrate rewards claimed
+	if err = s.rehydrateRewardsClaimed(); err != nil {
+		return fmt.Errorf("failed to rehydrate rewards claimed: %v", err)
 	}
 	return nil
 }
@@ -96,17 +107,39 @@ func (s *StartupJob) listRewardsClaimedBlocks() ([]uint64, error) {
 	return blocks, nil
 }
 func chunkify(blocks []uint64, chunkSize int) [][]uint64 {
-	numChunks := (len(blocks) / chunkSize) + 1
-	var chunks [][]uint64
-	for i := 0; i < numChunks; i++ {
-		start := i * chunkSize
-		end := start + chunkSize
-		if end > len(blocks) {
-			end = len(blocks)
-		}
-		chunks = append(chunks, blocks[start:end])
+	// take the list of blocks and chunk it into chunks of size chunkSize.
+	// if the distance between the current block and the previous block is greater than 200, start a new chunk.
+
+	maxDiff := uint64(200)
+
+	if len(blocks) == 0 {
+		return [][]uint64{}
 	}
-	return chunks
+
+	result := [][]uint64{}
+	currentBatch := []uint64{blocks[0]}
+
+	for i := 1; i < len(blocks); i++ {
+		current := blocks[i]
+		previous := blocks[i-1]
+
+		// Start a new batch if:
+		// 1. Current batch has reached max size (500), or
+		// 2. Current number > previous number + 200
+		if len(currentBatch) >= chunkSize || current > previous+maxDiff {
+			result = append(result, currentBatch)
+			currentBatch = []uint64{current}
+		} else {
+			currentBatch = append(currentBatch, current)
+		}
+	}
+
+	// Don't forget to add the last batch
+	if len(currentBatch) > 0 {
+		result = append(result, currentBatch)
+	}
+
+	return result
 }
 
 func (s *StartupJob) handleChunk(ctx context.Context, blockNumbers []uint64) error {
@@ -172,28 +205,65 @@ func (s *StartupJob) handleChunk(ctx context.Context, blockNumbers []uint64) err
 			return fmt.Errorf("failed to decode log: %v", err)
 		}
 
-		replacedLog, err := helpers.WrapTxAndCommit(func(tx *gorm.DB) (*storage.TransactionLog, error) {
-			query := `
+		query := `
 				delete from transaction_logs
 				where
 					transaction_hash = @transactionHash
 					and log_index = @logIndex
 					and block_number = @blockNumber
 			`
-			res := s.grm.Exec(query,
-				sql.Named("transactionHash", log.TransactionHash),
-				sql.Named("logIndex", log.LogIndex),
-				sql.Named("blockNumber", blockNumber),
-			)
-			if res.Error != nil {
-				return nil, res.Error
-			}
-			return s.indxr.IndexLog(ctx, log.BlockNumber.Value(), log.TransactionHash.Value(), log.TransactionIndex.Value(), decodedLog)
-		}, s.grm, nil)
+		res := s.grm.Exec(query,
+			sql.Named("transactionHash", log.TransactionHash),
+			sql.Named("logIndex", log.LogIndex),
+			sql.Named("blockNumber", blockNumber),
+		)
+		if res.Error != nil {
+			return res.Error
+		}
+		replacedLog, err := s.indxr.IndexLog(ctx, log.BlockNumber.Value(), log.TransactionHash.Value(), log.TransactionIndex.Value(), decodedLog)
 		if err != nil {
 			return fmt.Errorf("failed to replace log: %v", err)
 		}
 		s.logger.Sugar().Debugw("Replaced log", zap.Any("log", replacedLog))
 	}
 	return nil
+}
+
+func (s *StartupJob) rehydrateRewardsClaimed() error {
+	s.logger.Sugar().Infow("Rehydrating rewards claimed")
+	_, err := helpers.WrapTxAndCommit(func(tx *gorm.DB) (interface{}, error) {
+
+		truncateQuery := `truncate table rewards_claimed cascade`
+		res := tx.Exec(truncateQuery)
+		if res.Error != nil {
+			return nil, res.Error
+		}
+
+		query := `
+			insert into rewards_claimed (root, token, claimed_amount, earner, claimer, recipient, transaction_hash, block_number, log_index)
+			select
+				concat('0x', (
+				  SELECT lower(string_agg(lpad(to_hex(elem::int), 2, '0'), ''))
+				  FROM jsonb_array_elements_text(tl.output_data->'root') AS elem
+				)) AS root,
+				lower(tl.output_data->>'token'::text) as token,
+				cast(tl.output_data->>'claimedAmount' as numeric) as claimed_amount,
+				lower(tl.arguments #>> '{1, Value}') as earner,
+				lower(tl.arguments #>> '{2, Value}') as claimer,
+				lower(tl.arguments #>> '{3, Value}') as recipient,
+				tl.transaction_hash,
+				tl.block_number,
+				tl.log_index
+			from transaction_logs as tl
+			where
+				tl.address = @rewardsCoordinatorAddress
+				and tl.event_name = 'RewardsClaimed'
+			order by tl.block_number asc
+			on conflict do nothing
+		`
+		contractAddresses := s.config.GetContractsMapForChain()
+		res = tx.Exec(query, sql.Named("rewardsCoordinatorAddress", contractAddresses.RewardsCoordinator))
+		return nil, res.Error
+	}, s.grm, nil)
+	return err
 }

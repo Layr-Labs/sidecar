@@ -165,6 +165,15 @@ func Test_FixRewardsClaimedJob(t *testing.T) {
 		assert.Equal(t, []uint64{3, 4}, chunks[1])
 		assert.Equal(t, []uint64{5}, chunks[2])
 	})
+	t.Run("should chunkify large numbers", func(t *testing.T) {
+		chunks := chunkify([]uint64{1, 2, 99, 300, 700, 703}, 2)
+		assert.Equal(t, 4, len(chunks))
+		fmt.Printf("Chunks: %+v\n", chunks)
+		assert.Equal(t, []uint64{1, 2}, chunks[0])
+		assert.Equal(t, []uint64{99}, chunks[1])
+		assert.Equal(t, []uint64{300}, chunks[2])
+		assert.Equal(t, []uint64{700, 703}, chunks[3])
+	})
 
 	t.Run("should list rewards claimed for blocks", func(t *testing.T) {
 		blocks, err := job.listRewardsClaimedBlocks()
@@ -206,6 +215,12 @@ func Test_FixRewardsClaimedJob(t *testing.T) {
 			fmt.Printf("\nLog: %d %d - %s\n", log.BlockNumber, log.LogIndex, log.TransactionHash)
 			fmt.Printf("Original log arguments: %+v\n", log.Arguments)
 			fmt.Printf("Updated log arguments:  %+v\n", updatedLog.Arguments)
+		}
+	})
+
+	t.Run("should truncate and rehydrate rewards_claimed", func(t *testing.T) {
+		if err := job.rehydrateRewardsClaimed(); err != nil {
+			t.Fatalf("Failed to rehydrate rewards claimed: %v", err)
 		}
 	})
 
