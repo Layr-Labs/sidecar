@@ -64,24 +64,52 @@ func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 			return errors.New("Failed to get latest tip")
 		}
 
-		if latestTip < uint64(latestIndexedBlock) {
-			// If the latest tip is behind what we have indexed, this could be due to a reorg
-			// We should check if we need to revert some blocks
+		// Handle potential chain reorganization
+		if latestTip <= uint64(latestIndexedBlock) {
+			// If the latest tip is behind or equal to what we have indexed, this could be due to a reorg
 			if blockType == config.BlockType_Latest {
-				s.Logger.Sugar().Warnw("Latest tip is behind latest indexed block, possible reorg detected",
+				s.Logger.Sugar().Warnw("Latest tip is behind or equal to latest indexed block, possible reorg detected",
 					zap.Uint64("latestTip", latestTip),
 					zap.Int64("latestIndexedBlock", latestIndexedBlock))
 
-				// Delete the corrupted states
-				if err := s.DeleteCorruptedStates(ctx, latestTip+1, uint64(latestIndexedBlock)); err != nil {
-					s.Logger.Sugar().Errorw("Failed to delete corrupted states during reorg handling", zap.Error(err))
-					return err
+				// Get the chain validation starting point (the tip from RPC)
+				tipBlock, err := s.EthereumClient.GetBlockByNumber(ctx, latestTip)
+				if err != nil {
+					s.Logger.Sugar().Errorw("Failed to fetch tip block during reorg detection", zap.Error(err))
+					time.Sleep(BLOCK_POLL_INTERVAL)
+					continue
 				}
 
-				// Update latestIndexedBlock to the latest valid block
-				latestIndexedBlock = int64(latestTip)
-				s.Logger.Sugar().Infow("Reorg handled, reset latest indexed block",
-					zap.Int64("newLatestIndexedBlock", latestIndexedBlock))
+				// Find the divergence point directly using the storage method
+				divergencePoint, err := s.Storage.FindLastCommonAncestor(tipBlock.ParentHash.Value())
+				if err != nil {
+					s.Logger.Sugar().Errorw("Failed to find chain divergence point", zap.Error(err))
+					time.Sleep(BLOCK_POLL_INTERVAL)
+					continue
+				}
+
+				// If divergence is detected, delete corrupted blocks starting from the divergence point
+				if divergencePoint < uint64(latestIndexedBlock) {
+					s.Logger.Sugar().Infow("Chain divergence detected, rolling back to divergence point",
+						zap.Uint64("divergencePoint", divergencePoint),
+						zap.Int64("latestIndexedBlock", latestIndexedBlock))
+
+					// Delete the corrupted states
+					if err := s.DeleteCorruptedStates(ctx, divergencePoint+1, uint64(latestIndexedBlock)); err != nil {
+						s.Logger.Sugar().Errorw("Failed to delete corrupted states during reorg handling", zap.Error(err))
+						return err
+					}
+
+					// Update latestIndexedBlock to the divergence point
+					latestIndexedBlock = int64(divergencePoint)
+					s.Logger.Sugar().Infow("Reorg handled, reset latest indexed block",
+						zap.Int64("newLatestIndexedBlock", latestIndexedBlock))
+				} else {
+					// If the divergence point equals the latest indexed block, there's no actual divergence
+					// This happens when blocks at same height have the same hash
+					s.Logger.Sugar().Infow("No chain divergence detected, blocks match at height",
+						zap.Uint64("blockNumber", divergencePoint))
+				}
 			} else {
 				s.Logger.Sugar().Debugw("Latest safe block is behind latest indexed block, sleeping for a bit")
 				time.Sleep(BLOCK_POLL_INTERVAL)
@@ -221,7 +249,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			// This should tehcnically never happen, but if the latest state root is ahead of the latest block,
 			// something is very wrong and we should fail.
 			if latestStateRoot.EthBlockNumber > uint64(lastIndexedBlock) {
-				return fmt.Errorf("Latest state root (%d) is ahead of latest stored block (%d), which should never happen, so something is very wrong", latestStateRoot.EthBlockNumber, lastIndexedBlock)
+				return fmt.Errorf("latest state root (%d) is ahead of latest stored block (%d), which should never happen, so something is very wrong", latestStateRoot.EthBlockNumber, lastIndexedBlock)
 			}
 			if latestStateRoot.EthBlockNumber == uint64(lastIndexedBlock) {
 				s.Logger.Sugar().Infow("Latest block and latest state root are in sync, starting from latest block + 1",
