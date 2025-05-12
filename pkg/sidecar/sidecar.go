@@ -13,7 +13,8 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/proofs"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
-	_202505092016_fixRewardsClaimedTransactions "github.com/Layr-Labs/sidecar/pkg/sidecar/startupJobs/202505092016_fixRewardsClaimedTransactions"
+	"github.com/Layr-Labs/sidecar/pkg/startupJobs"
+	_202505092016_fixRewardsClaimedTransactions "github.com/Layr-Labs/sidecar/pkg/startupJobs/202505092016_fixRewardsClaimedTransactions"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -132,7 +133,7 @@ func (s *Sidecar) RunStartupJobs(ctx context.Context) error {
 
 		s.Logger.Sugar().Infow("Running startup job", "job", job.Name())
 
-		err = job.Run(ctx, s.GlobalConfig, s.EthereumClient, s.Pipeline.Indexer, s.Pipeline.Fetcher, s.db, s.Logger)
+		err = job.Run(ctx, s.GlobalConfig, s.EthereumClient, s.Pipeline.Indexer, s.Pipeline.Fetcher, s.db, s, s.Logger)
 		if err != nil {
 			return fmt.Errorf("Failed to run startup job: %w", err)
 		}
@@ -155,6 +156,7 @@ type IStartupJob interface {
 		indexer *indexer.Indexer,
 		fetcher *fetcher.Fetcher,
 		grm *gorm.DB,
+		s startupJobs.ISidecar,
 		logger *zap.Logger,
 	) error
 	Name() string

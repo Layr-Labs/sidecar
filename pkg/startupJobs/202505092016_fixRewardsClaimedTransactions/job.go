@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
+	"github.com/Layr-Labs/sidecar/pkg/startupJobs"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"slices"
@@ -30,12 +31,31 @@ func (s *StartupJob) Run(
 	indxr *indexer.Indexer,
 	fetcher *fetcher.Fetcher,
 	grm *gorm.DB,
+	sidecar startupJobs.ISidecar,
 	l *zap.Logger,
 ) error {
 	s.Init(ctx, cfg, ethClient, indxr, fetcher, grm, l)
 
-	// TODO(seanmcgary): if block number > some fork height and this job hasnt been run,
-	// prune back to the fork then run this job and let the indexer catch up
+	forkMap, err := s.config.GetRewardsSqlForkDates()
+	if err != nil {
+		return fmt.Errorf("failed to get fork map: %v", err)
+	}
+
+	latestIndexedBlock, err := s.indxr.MetadataStore.GetLatestBlock()
+	if err != nil {
+		return fmt.Errorf("failed to get latest indexed block: %v", err)
+	}
+	if latestIndexedBlock.Number > forkMap[config.RewardsFork_Pecos].BlockNumber {
+		s.logger.Sugar().Infow("Chain has advanced too far, rolling back to fork block",
+			zap.Uint64("latestIndexedBlock", latestIndexedBlock.Number),
+			zap.Uint64("forkBlock", forkMap[config.RewardsFork_Pecos].BlockNumber),
+		)
+		if err := sidecar.DeleteCorruptedState(forkMap[config.RewardsFork_Pecos].BlockNumber, latestIndexedBlock.Number); err != nil {
+			return fmt.Errorf("failed to delete state %w", err)
+		}
+	} else {
+		s.logger.Sugar().Infow("Chain has not advanced too far, no need to roll back")
+	}
 
 	affectedBlocks, err := s.listRewardsClaimedBlocks()
 	if err != nil {
