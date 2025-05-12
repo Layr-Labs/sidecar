@@ -45,8 +45,8 @@ func (s *StartupJob) Run(
 	// sort asc
 	slices.Sort(affectedBlocks)
 
-	// group blocks into chunks of 500
-	chunks := chunkify(affectedBlocks, 500)
+	// group blocks into chunks of 100
+	chunks := chunkify(affectedBlocks, 100)
 
 	s.logger.Sugar().Infow("Chunked blocks",
 		zap.Int("chunkCount", len(chunks)),
@@ -111,7 +111,7 @@ func chunkify(blocks []uint64, chunkSize int) [][]uint64 {
 	// take the list of blocks and chunk it into chunks of size chunkSize.
 	// if the distance between the current block and the previous block is greater than 200, start a new chunk.
 
-	maxDiff := uint64(200)
+	maxDiff := uint64(100)
 
 	if len(blocks) == 0 {
 		return [][]uint64{}
