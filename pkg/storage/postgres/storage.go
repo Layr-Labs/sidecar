@@ -298,3 +298,42 @@ func (s *PostgresBlockStore) DeleteCorruptedState(startBlockNumber uint64, endBl
 	}
 	return nil
 }
+
+// FindLastCommonAncestor finds the block whose hash matches the provided parent hash
+// This is used during reorganization detection to find the divergence point
+//
+// The algorithm:
+// Find the block whose hash matches the given parent hash, which is the last common ancestor
+//
+// Parameters:
+//   - parentHash: The parent hash of the current block
+//
+// Returns:
+//   - uint64: The block number of the last common ancestor, or 0 if no common ancestor is found
+//   - error: Any error encountered during the search
+func (s *PostgresBlockStore) FindLastCommonAncestor(parentHash string) (uint64, error) {
+	s.Logger.Sugar().Infow("Finding last common ancestor",
+		zap.String("parentHash", parentHash),
+	)
+
+	// Find the block whose hash matches the given parent hash
+	// This is the most precise way to find the divergence point
+	parentHashQuery := `
+		SELECT number FROM blocks WHERE hash = @parentHash LIMIT 1
+	`
+	var parentHashResult struct {
+		Number uint64
+	}
+
+	parentHashQueryResult := s.Db.Raw(parentHashQuery,
+		sql.Named("parentHash", parentHash),
+	).Scan(&parentHashResult)
+
+	if parentHashQueryResult.Error != nil && !errors.Is(parentHashQueryResult.Error, gorm.ErrRecordNotFound) {
+		return 0, fmt.Errorf("failed to search by parent hash: %w", parentHashQueryResult.Error)
+	}
+
+	s.Logger.Sugar().Infow("Found exact divergence point using parent hash",
+		zap.Uint64("divergencePoint", parentHashResult.Number))
+	return parentHashResult.Number, nil
+}

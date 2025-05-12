@@ -23,6 +23,13 @@ type BlockStore interface {
 	// @param startBlockNumber: The block number from which to start (inclusive)
 	// @param endBlockNumber: The block number at which to end (inclusive). If 0, it will delete all the corrupted state from the startBlock
 	DeleteCorruptedState(startBlockNumber uint64, endBlockNumber uint64) error
+
+	// FindLastCommonAncestor finds the block whose hash matches the provided parent hash
+	// This is used during reorganization detection to find the divergence point
+	//
+	// @param parentHash: The parent hash of the current block
+	// @return: The block number of the last common ancestor, or 0 if no common ancestor is found
+	FindLastCommonAncestor(parentHash string) (uint64, error)
 }
 
 // Tables.
