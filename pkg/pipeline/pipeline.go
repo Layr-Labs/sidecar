@@ -25,6 +25,7 @@ import (
 
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"go.uber.org/zap"
+	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 // Pipeline orchestrates the entire data processing workflow, coordinating between
@@ -110,6 +111,13 @@ func NewPipeline(
 func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.FetchedBlock, isBackfill bool) error {
 	blockNumber := block.Block.Number.Value()
 
+	// Create a span for the entire block processing
+	span, ctx := ddTracer.StartSpanFromContext(ctx, "pipeline.RunForFetchedBlock")
+	span.SetTag("block_number", blockNumber)
+	span.SetTag("is_backfill", isBackfill)
+	span.SetTag("timestamp", block.Block.Timestamp.Value())
+	defer span.Finish()
+
 	totalRunTime := time.Now()
 	calculatedRewards := false
 	hasError := false
@@ -120,26 +128,56 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 			{Name: "rewardsCalculated", Value: strconv.FormatBool(calculatedRewards)},
 			{Name: "hasError", Value: strconv.FormatBool(hasError)},
 		})
+		span.SetTag("total_duration_ms", time.Since(totalRunTime).Milliseconds())
+		span.SetTag("rewards_calculated", calculatedRewards)
+		span.SetTag("has_error", hasError)
 	}()
 
 	// Check if we should calculate daily rewards
 	if p.globalConfig.Rewards.CalculateRewardsDaily && !isBackfill {
-		err := p.CalculateRewardsDaily(ctx, block)
+		rewardsSpan, rewardsCtx := ddTracer.StartSpanFromContext(ctx, "pipeline.CalculateRewardsDaily")
+		rewardsSpan.SetTag("block_number", blockNumber)
+
+		err := p.CalculateRewardsDaily(rewardsCtx, block)
 		if err != nil {
 			p.Logger.Sugar().Errorw("Failed to calculate daily rewards", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 			hasError = true
+			rewardsSpan.SetTag("error", true)
+			rewardsSpan.SetTag("error.message", err.Error())
+			rewardsSpan.Finish()
+			span.SetTag("error", true)
+			span.SetTag("error.message", err.Error())
 			return err
 		}
+		rewardsSpan.Finish()
 	}
 
+	// Create a span for indexing the block
+	indexSpan, _ := ddTracer.StartSpanFromContext(ctx, "pipeline.IndexFetchedBlock")
+	indexSpan.SetTag("block_number", blockNumber)
+	indexStartTime := time.Now()
+
 	indexedBlock, found, err := p.Indexer.IndexFetchedBlock(block)
+
+	indexDuration := time.Since(indexStartTime)
+	indexSpan.SetTag("duration_ms", indexDuration.Milliseconds())
+	indexSpan.SetTag("already_found", found)
+
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to index block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		hasError = true
+		indexSpan.SetTag("error", true)
+		indexSpan.SetTag("error.message", err.Error())
+		indexSpan.Finish()
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		return err
 	}
+	indexSpan.Finish()
+
 	if found {
 		p.Logger.Sugar().Infow("Block already indexed", zap.Uint64("blockNumber", blockNumber))
+		span.SetTag("already_indexed", true)
 	}
 	p.Logger.Sugar().Debugw("Indexed block",
 		zap.Uint64("blockNumber", blockNumber),
@@ -148,18 +186,35 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 
 	blockFetchTime = time.Now()
 
+	// Create a span for parsing transactions
+	parseSpan, parseCtx := ddTracer.StartSpanFromContext(ctx, "pipeline.ParseInterestingTransactionsAndLogs")
+	parseSpan.SetTag("block_number", blockNumber)
+	parseStartTime := time.Now()
+
 	// Parse all transactions and logs for the block.
 	// - If a transaction is not calling to a contract, it is ignored
 	// - If a transaction has 0 interesting logs and itself is not interesting, it is ignored
-	parsedTransactions, err := p.Indexer.ParseInterestingTransactionsAndLogs(ctx, block)
+	parsedTransactions, err := p.Indexer.ParseInterestingTransactionsAndLogs(parseCtx, block)
+
+	parseDuration := time.Since(parseStartTime)
+	parseSpan.SetTag("duration_ms", parseDuration.Milliseconds())
+	parseSpan.SetTag("transaction_count", len(parsedTransactions))
+
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to parse transactions and logs",
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Error(err),
 		)
 		hasError = true
+		parseSpan.SetTag("error", true)
+		parseSpan.SetTag("error.message", err.Error())
+		parseSpan.Finish()
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		return err
 	}
+	parseSpan.Finish()
+
 	p.Logger.Sugar().Debugw("Parsed transactions",
 		zap.Uint64("blockNumber", blockNumber),
 		zap.Int("count", len(parsedTransactions)),
@@ -169,13 +224,18 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	if err := p.stateManager.InitProcessingForBlock(blockNumber); err != nil {
 		p.Logger.Sugar().Errorw("Failed to init processing for block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		hasError = true
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		return err
 	}
 	if err := p.metaStateManager.InitProcessingForBlock(blockNumber); err != nil {
 		p.Logger.Sugar().Errorw("MetaStateManager: Failed to init processing for block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		hasError = true
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		return err
 	}
+
 	p.Logger.Sugar().Debugw("Initialized processing for block", zap.Uint64("blockNumber", blockNumber))
 
 	p.Logger.Sugar().Debugw("Handling parsed transactions", zap.Int("count", len(parsedTransactions)), zap.Uint64("blockNumber", blockNumber))
@@ -474,6 +534,8 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 		_ = p.stateManager.CleanupProcessedStateForBlock(blockNumber)
 		_ = p.metaStateManager.CleanupProcessedStateForBlock(blockNumber)
 	}()
+
+	span.SetTag("transactions_processed", len(parsedTransactions))
 	return nil
 }
 
@@ -518,27 +580,93 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64, isBackfi
 // Returns:
 //   - error: Any error encountered during fetching or processing
 func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endBlock uint64, isBackfill bool) error {
+	// Create a span for the entire batch operation
+	span, ctx := ddTracer.StartSpanFromContext(ctx, "pipeline.RunForBlockBatch")
+	span.SetTag("start_block", startBlock)
+	span.SetTag("end_block", endBlock)
+	span.SetTag("block_count", endBlock-startBlock+1)
+	span.SetTag("is_backfill", isBackfill)
+	defer span.Finish()
+
+	batchStartTime := time.Now()
+
 	p.Logger.Sugar().Debugw("Running pipeline for block batch",
 		zap.Uint64("startBlock", startBlock),
 		zap.Uint64("endBlock", endBlock),
 	)
 
-	fetchedBlocks, err := p.Fetcher.FetchBlocksWithRetries(ctx, startBlock, endBlock)
+	// Create a span for the fetch operation
+	fetchSpan, fetchCtx := ddTracer.StartSpanFromContext(ctx, "pipeline.FetchBlocksWithRetries")
+	fetchSpan.SetTag("start_block", startBlock)
+	fetchSpan.SetTag("end_block", endBlock)
+	fetchStartTime := time.Now()
+
+	fetchedBlocks, err := p.Fetcher.FetchBlocksWithRetries(fetchCtx, startBlock, endBlock)
+	fetchDuration := time.Since(fetchStartTime)
+	fetchSpan.SetTag("duration_ms", fetchDuration.Milliseconds())
+
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to fetch blocks", zap.Uint64("startBlock", startBlock), zap.Uint64("endBlock", endBlock), zap.Error(err))
+		fetchSpan.SetTag("error", true)
+		fetchSpan.SetTag("error.message", err.Error())
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
+		fetchSpan.Finish()
 		return err
 	}
+
+	fetchSpan.SetTag("blocks_fetched", len(fetchedBlocks))
+	fetchSpan.Finish()
 
 	// sort blocks ascending
 	slices.SortFunc(fetchedBlocks, func(b1, b2 *fetcher.FetchedBlock) int {
 		return int(b1.Block.Number.Value() - b2.Block.Number.Value())
 	})
 
-	for _, block := range fetchedBlocks {
-		if err := p.RunForFetchedBlock(ctx, block, isBackfill); err != nil {
-			p.Logger.Sugar().Errorw("Failed to run pipeline for fetched block", zap.Uint64("blockNumber", block.Block.Number.Value()), zap.Error(err))
+	processStartTime := time.Now()
+	successfulBlocks := 0
+
+	for i, block := range fetchedBlocks {
+		blockNumber := block.Block.Number.Value()
+
+		// Create a span for processing each block
+		blockSpan, blockCtx := ddTracer.StartSpanFromContext(ctx, "pipeline.ProcessBlock")
+		blockSpan.SetTag("block_number", blockNumber)
+		blockSpan.SetTag("block_index", i)
+		blockSpan.SetTag("is_backfill", isBackfill)
+		blockStartTime := time.Now()
+
+		if err := p.RunForFetchedBlock(blockCtx, block, isBackfill); err != nil {
+			p.Logger.Sugar().Errorw("Failed to run pipeline for fetched block",
+				zap.Uint64("blockNumber", blockNumber),
+				zap.Error(err),
+			)
+			blockSpan.SetTag("error", true)
+			blockSpan.SetTag("error.message", err.Error())
+			blockSpan.SetTag("duration_ms", time.Since(blockStartTime).Milliseconds())
+			blockSpan.Finish()
+			span.SetTag("error", true)
+			span.SetTag("error.message", err.Error())
+			span.SetTag("failed_block", blockNumber)
 			return err
 		}
+
+		successfulBlocks++
+		blockDuration := time.Since(blockStartTime)
+		blockSpan.SetTag("duration_ms", blockDuration.Milliseconds())
+		blockSpan.Finish()
+	}
+
+	totalDuration := time.Since(batchStartTime)
+	processDuration := time.Since(processStartTime)
+
+	span.SetTag("blocks_processed", successfulBlocks)
+	span.SetTag("total_duration_ms", totalDuration.Milliseconds())
+	span.SetTag("process_duration_ms", processDuration.Milliseconds())
+	span.SetTag("fetch_duration_ms", fetchDuration.Milliseconds())
+
+	if successfulBlocks > 0 {
+		span.SetTag("avg_block_time_ms", float64(processDuration.Milliseconds())/float64(successfulBlocks))
 	}
 
 	return nil
