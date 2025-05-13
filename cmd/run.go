@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/tracer"
 	"github.com/Layr-Labs/sidecar/internal/version"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
@@ -49,6 +50,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
+	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 var runCmd = &cobra.Command{
@@ -68,6 +70,10 @@ var runCmd = &cobra.Command{
 			zap.String("commit", version.GetCommit()),
 			zap.String("chain", cfg.Chain.String()),
 		)
+
+		// Initialize DataDog tracer
+		tracer.StartTracer(cfg.DataDogConfig.EnableTracing, cfg.Chain)
+		defer ddTracer.Stop()
 
 		eb := eventBus.NewEventBus(l)
 

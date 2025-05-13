@@ -174,6 +174,7 @@ func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fet
 		}
 
 		parsedTransactionAndLogs, err := idx.ParseTransactionLogs(tx, txReceipt)
+
 		if err != nil {
 			idx.Logger.Sugar().Errorw("failed to process transaction logs",
 				zap.Error(err),
