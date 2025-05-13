@@ -44,6 +44,7 @@ const (
 	RewardsFork_Brazos      ForkName = "brazos"
 	RewardsFork_Colorado    ForkName = "colorado"
 	RewardsFork_Red         ForkName = "red"
+	RewardsFork_Pecos       ForkName = "pecos"
 )
 
 func normalizeFlagName(name string) string {
@@ -464,6 +465,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-03-18",
 				BlockNumber: 3516000,
 			},
+			RewardsFork_Pecos: Fork{
+				Date:        "2025-05-14",
+				BlockNumber: 3840004,
+			},
 		}, nil
 	case Chain_Holesky:
 		return ForkMap{
@@ -498,6 +503,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-03-18",
 				BlockNumber: 3516000,
 			},
+			RewardsFork_Pecos: Fork{
+				Date:        "2025-05-14",
+				BlockNumber: 3840004,
+			},
 		}, nil
 	case Chain_Sepolia:
 		return ForkMap{
@@ -521,6 +530,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 			RewardsFork_Red: Fork{
 				Date:        "1970-01-01",
 				BlockNumber: 0,
+			},
+			RewardsFork_Pecos: Fork{
+				Date:        "2025-05-14",
+				BlockNumber: 8327038,
 			},
 		}, nil
 	case Chain_Mainnet:
@@ -559,6 +572,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				// red fork on mainnet doesnt have a fork date since we didnt need to backfill slashing events
 				Date:        "1970-01-01",
 				BlockNumber: 0,
+			},
+			RewardsFork_Pecos: Fork{
+				Date:        "2025-05-14",
+				BlockNumber: 22483225,
 			},
 		}, nil
 	}

@@ -316,17 +316,9 @@ func (f *Fetcher) FetchInterestingBlocksAndLogsForContractsForBlockRange(ctx con
 	return blockNumbers, collectedLogs, err
 }
 
-// FetchBlocks retrieves a range of blocks and their transaction receipts.
-// It uses batch requests to fetch blocks and parallel processing to fetch receipts.
-// Returns an array of FetchedBlock objects sorted by block number.
-func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64) ([]*FetchedBlock, error) {
-	blockNumbers := make([]uint64, 0)
-	for i := startBlockInclusive; i <= endBlockInclusive; i++ {
-		blockNumbers = append(blockNumbers, i)
-	}
-
+func (f *Fetcher) FetchBlockList(ctx context.Context, blockNumbers []uint64) ([]*ethereum.EthereumBlock, error) {
 	if len(blockNumbers) == 0 {
-		return []*FetchedBlock{}, nil
+		return []*ethereum.EthereumBlock{}, nil
 	}
 
 	blockRequests := make([]*ethereum.RPCRequest, 0)
@@ -364,6 +356,21 @@ func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, e
 		f.Logger.Sugar().Errorw("failed to fetch all blocks",
 			zap.Int("fetched", len(blocks)),
 			zap.Int("expected", len(blockNumbers)),
+		)
+		return nil, err
+	}
+	return blocks, nil
+}
+
+func (f *Fetcher) FetchBlockListWithReceipts(ctx context.Context, blockNumbers []uint64) ([]*FetchedBlock, error) {
+	if len(blockNumbers) == 0 {
+		return []*FetchedBlock{}, nil
+	}
+
+	blocks, err := f.FetchBlockList(ctx, blockNumbers)
+	if err != nil {
+		f.Logger.Sugar().Errorw("failed to fetch block list",
+			zap.Error(err),
 		)
 		return nil, err
 	}
@@ -421,9 +428,21 @@ func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, e
 
 	f.Logger.Sugar().Debugw("Fetched blocks",
 		zap.Int("count", len(fetchedBlocks)),
-		zap.Uint64("startBlock", startBlockInclusive),
-		zap.Uint64("endBlock", endBlockInclusive),
+		zap.Uint64("startBlock", blockNumbers[0]),
+		zap.Uint64("endBlock", blockNumbers[len(blockNumbers)-1]),
 	)
 
 	return fetchedBlocks, nil
+}
+
+// FetchBlocks retrieves a range of blocks and their transaction receipts.
+// It uses batch requests to fetch blocks and parallel processing to fetch receipts.
+// Returns an array of FetchedBlock objects sorted by block number.
+func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64) ([]*FetchedBlock, error) {
+	blockNumbers := make([]uint64, 0)
+	for i := startBlockInclusive; i <= endBlockInclusive; i++ {
+		blockNumbers = append(blockNumbers, i)
+	}
+
+	return f.FetchBlockListWithReceipts(ctx, blockNumbers)
 }
