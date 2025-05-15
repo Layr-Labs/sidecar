@@ -111,7 +111,8 @@ type StatsdConfig struct {
 }
 
 type DataDogConfig struct {
-	StatsdConfig StatsdConfig
+	StatsdConfig  StatsdConfig
+	EnableTracing bool
 }
 
 type PrometheusConfig struct {
@@ -216,6 +217,7 @@ var (
 	DataDogStatsdEnabled    = "datadog.statsd.enabled"
 	DataDogStatsdUrl        = "datadog.statsd.url"
 	DataDogStatsdSampleRate = "datadog.statsd.sample-rate"
+	DataDogEnableTracing    = "datadog.enable-tracing"
 
 	PrometheusEnabled = "prometheus.enabled"
 	PrometheusPort    = "prometheus.port"
@@ -294,6 +296,7 @@ func NewConfig() *Config {
 				Url:        viper.GetString(normalizeFlagName(DataDogStatsdUrl)),
 				SampleRate: viper.GetFloat64(normalizeFlagName(DataDogStatsdSampleRate)),
 			},
+			EnableTracing: viper.GetBool(normalizeFlagName(DataDogEnableTracing)),
 		},
 
 		PrometheusConfig: PrometheusConfig{
