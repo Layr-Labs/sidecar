@@ -150,7 +150,7 @@ func Test_RewardsDataService(t *testing.T) {
 	t.Run("Test GetRewardsByAvsForDistributionRoot", func(t *testing.T) {
 		rootIndex := uint64(189)
 
-		r, err := rds.GetRewardsByAvsForDistributionRoot(context.Background(), rootIndex, nil)
+		r, err := rds.GetRewardsByAvsForDistributionRoot(context.Background(), rootIndex, nil, nil)
 		assert.Nil(t, err)
 		assert.NotNil(t, r)
 		assert.True(t, len(r) > 0)
@@ -158,12 +158,20 @@ func Test_RewardsDataService(t *testing.T) {
 	t.Run("Test GetRewardsByAvsForDistributionRoot with pagination", func(t *testing.T) {
 		rootIndex := uint64(189)
 
-		r, err := rds.GetRewardsByAvsForDistributionRoot(context.Background(), rootIndex, &types.Pagination{
+		r, err := rds.GetRewardsByAvsForDistributionRoot(context.Background(), rootIndex, nil, &types.Pagination{
 			Page:     0,
 			PageSize: 10,
 		})
 		assert.Nil(t, err)
 		assert.NotNil(t, r)
 		assert.Equal(t, len(r), 10)
+	})
+	t.Run("Test GetRewardsByAvsForDistributionRoot with earner address", func(t *testing.T) {
+		rootIndex := uint64(189)
+		earnerAddress := "0x0fb39abd3740d10ac1f698f2796ee200bbdd2065"
+
+		r, err := rds.GetRewardsByAvsForDistributionRoot(context.Background(), rootIndex, []string{earnerAddress}, nil)
+		assert.Nil(t, err)
+		assert.NotNil(t, r)
 	})
 }

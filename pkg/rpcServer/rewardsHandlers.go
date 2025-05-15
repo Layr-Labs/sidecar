@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
+
 	"github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/common"
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/types"
@@ -17,8 +20,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"slices"
-	"strings"
 )
 
 func (rpc *RpcServer) GetRewardsRoot(ctx context.Context, req *rewardsV1.GetRewardsRootRequest) (*rewardsV1.GetRewardsRootResponse, error) {
@@ -490,6 +491,7 @@ const (
 func (rpc *RpcServer) GetRewardsByAvsForDistributionRoot(ctx context.Context, req *rewardsV1.GetRewardsByAvsForDistributionRootRequest) (*rewardsV1.GetRewardsByAvsForDistributionRootResponse, error) {
 	rootIndex := req.GetRootIndex()
 	pagination := req.GetPagination()
+	earnerAddresses := req.GetEarnerAddresses()
 
 	var page *serviceTypes.Pagination
 	if pagination != nil {
@@ -500,7 +502,7 @@ func (rpc *RpcServer) GetRewardsByAvsForDistributionRoot(ctx context.Context, re
 		}
 	}
 
-	rewards, err := rpc.rewardsDataService.GetRewardsByAvsForDistributionRoot(ctx, rootIndex, page)
+	rewards, err := rpc.rewardsDataService.GetRewardsByAvsForDistributionRoot(ctx, rootIndex, earnerAddresses, page)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
