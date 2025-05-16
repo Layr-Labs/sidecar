@@ -1,0 +1,46 @@
+{
+    "core_contracts": [
+        {
+            "contract_address": "",
+            "contract_abi": "",
+            "bytecode_hash": ""
+        },
+        {
+            "contract_address": "",
+            "contract_abi": "",
+            "bytecode_hash": ""
+        }
+    ],
+    "proxy_contracts": [
+        {
+            "contract_address": "0x95a7431400f362f3647a69535c5666ca0133caa0",
+            "proxy_contract_address": "0xa0047a6b4cd97d3929ab8192a31f92b97e078330",
+            "block_number": 0
+        },
+        {
+            "contract_address": "0xd58f6844f79eb1fbd9f7091d05f7cb30d3363926",
+            "proxy_contract_address": "0xd2905b858ca5ded115b61dd9e98f7dcf9aee2d5c",
+            "block_number": 0
+        },
+        {
+            "contract_address": "0x867837a9722c512e0862d8c2e15b8be220e8b87d",
+            "proxy_contract_address": "0xf3bc41ce245f7c20c99e584313cd0b414d5aabe5",
+            "block_number": 0
+        },
+        {
+            "contract_address": "0xcd1442415fc5c29aa848a49d2e232720be07976c",
+            "proxy_contract_address": "0xd523267698c81a372191136e477fdeffa33d9fb4",
+            "block_number": 0
+        },
+        {
+            "contract_address": "0x29e8572678e0c272350aa0b4b8f304e47ebcd5e7",
+            "proxy_contract_address": "0xe786fd0de8a6001772386700318187dc438a2832",
+            "block_number": 0
+        },
+        {
+            "contract_address": "0xee45e76ddbedda2918b8c7e3035cd37eab3b5d41",
+            "proxy_contract_address": "0x19165891b0adae0a69adcd4156e8af80c8cf0eb6",
+            "block_number": 0
+        }
+    ]
+}

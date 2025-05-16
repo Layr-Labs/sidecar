@@ -51,6 +51,8 @@ func (ec *EtherscanClient) getBaseUrl() (string, error) {
 		network = "api-holesky"
 	case config.Chain_Sepolia:
 		network = "sepolia"
+	case config.Chain_Hoodi:
+		network = "api-hoodi"
 	case config.Chain_Preprod:
 		network = "api-holesky"
 	default:
