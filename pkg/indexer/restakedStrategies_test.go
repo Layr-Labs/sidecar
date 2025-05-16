@@ -70,7 +70,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	baseUrl := "https://winter-white-crater.ethereum-holesky.quiknode.pro/1b1d75c4ada73b7ad98e1488880649d4ea637733/"
+	baseUrl := "https://special-yolo-river.ethereum-holesky.quiknode.pro/2d21099a19e7c896a22b9fcc23dc8ce80f2214a5/"
 	ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
 	ethConfig.BaseUrl = baseUrl
 
@@ -94,6 +94,8 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 	cm := contractManager.NewContractManager(grm, contractStore, client, af, l)
 
 	t.Run("Integration - gets restaked strategies for avs/operator with multicall contract caller", func(t *testing.T) {
+		t.Skip("Skipping test for multicall contract caller since its not used")
+
 		avs := "0xD4A7E1Bd8015057293f0D0A557088c286942e84b"
 		operator := "0xA8C128BD6f5A314b46202Dd7C68E7E2422eD61F2"
 

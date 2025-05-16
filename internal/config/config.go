@@ -44,6 +44,7 @@ const (
 	RewardsFork_Brazos      ForkName = "brazos"
 	RewardsFork_Colorado    ForkName = "colorado"
 	RewardsFork_Red         ForkName = "red"
+	RewardsFork_Pecos       ForkName = "pecos"
 )
 
 func normalizeFlagName(name string) string {
@@ -100,6 +101,7 @@ type RpcConfig struct {
 type RewardsConfig struct {
 	ValidateRewardsRoot          bool
 	GenerateStakerOperatorsTable bool
+	CalculateRewardsDaily        bool
 }
 
 type StatsdConfig struct {
@@ -201,6 +203,7 @@ var (
 
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
+	RewardsCalculateRewardsDaily        = "rewards.calculate_rewards_daily"
 
 	EthereumRpcBaseUrl               = "ethereum.rpc_url"
 	EthereumRpcContractCallBatchSize = "ethereum.contract_call_batch_size"
@@ -282,6 +285,7 @@ func NewConfig() *Config {
 		Rewards: RewardsConfig{
 			ValidateRewardsRoot:          viper.GetBool(normalizeFlagName(RewardsValidateRewardsRoot)),
 			GenerateStakerOperatorsTable: viper.GetBool(normalizeFlagName(RewardsGenerateStakerOperatorsTable)),
+			CalculateRewardsDaily:        viper.GetBool(normalizeFlagName(RewardsCalculateRewardsDaily)),
 		},
 
 		DataDogConfig: DataDogConfig{
@@ -461,6 +465,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-03-18",
 				BlockNumber: 3516000,
 			},
+			RewardsFork_Pecos: Fork{
+				Date:        "2025-05-14",
+				BlockNumber: 3840004,
+			},
 		}, nil
 	case Chain_Holesky:
 		return ForkMap{
@@ -495,6 +503,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-03-18",
 				BlockNumber: 3516000,
 			},
+			RewardsFork_Pecos: Fork{
+				Date:        "2025-05-14",
+				BlockNumber: 3840004,
+			},
 		}, nil
 	case Chain_Sepolia:
 		return ForkMap{
@@ -518,6 +530,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 			RewardsFork_Red: Fork{
 				Date:        "1970-01-01",
 				BlockNumber: 0,
+			},
+			RewardsFork_Pecos: Fork{
+				Date:        "2025-05-14",
+				BlockNumber: 8327038,
 			},
 		}, nil
 	case Chain_Mainnet:
@@ -556,6 +572,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				// red fork on mainnet doesnt have a fork date since we didnt need to backfill slashing events
 				Date:        "1970-01-01",
 				BlockNumber: 0,
+			},
+			RewardsFork_Pecos: Fork{
+				Date:        "2025-05-14",
+				BlockNumber: 22483225,
 			},
 		}, nil
 	}

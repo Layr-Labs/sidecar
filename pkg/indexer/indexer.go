@@ -323,6 +323,10 @@ func (idx *Indexer) IndexTransaction(
 		tx.To.Value(),
 		receipt.ContractAddress.Value(),
 		receipt.GetBytecodeHash(),
+		receipt.GasUsed.Value(),
+		receipt.CumulativeGasUsed.Value(),
+		receipt.EffectiveGasPrice.Value(),
+		false,
 	)
 }
 

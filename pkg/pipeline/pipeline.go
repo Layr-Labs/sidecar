@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -120,6 +121,16 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 			{Name: "hasError", Value: strconv.FormatBool(hasError)},
 		})
 	}()
+
+	// Check if we should calculate daily rewards
+	if p.globalConfig.Rewards.CalculateRewardsDaily && !isBackfill {
+		err := p.CalculateRewardsDaily(ctx, block)
+		if err != nil {
+			p.Logger.Sugar().Errorw("Failed to calculate daily rewards", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+			hasError = true
+			return err
+		}
+	}
 
 	indexedBlock, found, err := p.Indexer.IndexFetchedBlock(block)
 	if err != nil {
@@ -378,6 +389,12 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.String("cutoffDate", cutoffDate), zap.Error(err),
 					zap.Uint64("blockNumber", blockNumber),
 				)
+				_ = p.metricsSink.Gauge(metricsTypes.Metric_Incr_RewardsMerkelizationFailed, 1, []metricsTypes.MetricsLabel{
+					{
+						Name:  "block_number",
+						Value: fmt.Sprintf("%d", blockNumber),
+					},
+				})
 				hasError = true
 				return err
 			}
@@ -398,6 +415,12 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 						zap.Int64("rewardsTotalTimeMs", rewardsTotalTimeMs),
 					)
 					hasError = true
+					_ = p.metricsSink.Gauge(metricsTypes.Metric_Incr_RewardsRootInvalid, 1, []metricsTypes.MetricsLabel{
+						{
+							Name:  "block_number",
+							Value: fmt.Sprintf("%d", blockNumber),
+						},
+					})
 					return errors.New("roots do not match")
 				}
 				p.Logger.Sugar().Warnw("Roots do not match, but allowed to ignore",
@@ -408,6 +431,12 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.Int64("rewardsTotalTimeMs", rewardsTotalTimeMs),
 				)
 			} else {
+				_ = p.metricsSink.Gauge(metricsTypes.Metric_Incr_RewardsRootVerified, 1, []metricsTypes.MetricsLabel{
+					{
+						Name:  "block_number",
+						Value: fmt.Sprintf("%d", blockNumber),
+					},
+				})
 				p.Logger.Sugar().Infow("Roots match", zap.String("cutoffDate", cutoffDate), zap.Uint64("blockNumber", blockNumber))
 			}
 		}
@@ -510,6 +539,59 @@ func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endB
 			p.Logger.Sugar().Errorw("Failed to run pipeline for fetched block", zap.Uint64("blockNumber", block.Block.Number.Value()), zap.Error(err))
 			return err
 		}
+	}
+
+	return nil
+}
+
+// CalculateRewardsDaily checks if the current block crosses a day boundary (UTC)
+// and if so, queues a reward calculation request. This allows one rewards calculation
+// per day, even when processing multiple days in a batch.
+func (p *Pipeline) CalculateRewardsDaily(ctx context.Context, block *fetcher.FetchedBlock) error {
+	blockNumber := block.Block.Number.Value()
+
+	blockTime := time.Unix(int64(block.Block.Timestamp), 0).UTC()
+
+	// Fast path: Only blocks between midnight and 1 minute past midnight
+	// have a reasonable chance of crossing day boundaries
+	if blockTime.Hour() != 0 || blockTime.Minute() >= 1 {
+		// Most blocks will take this path and exit quickly
+		return nil
+	}
+
+	// Get previous block
+	prevBlock, err := p.Fetcher.FetchBlock(ctx, blockNumber-1)
+	if err != nil {
+		p.Logger.Sugar().Debugw("Failed to fetch previous block for rewards check",
+			zap.Uint64("blockNumber", blockNumber-1),
+			zap.Error(err))
+		return err
+	}
+
+	// Get previous block time in UTC
+	prevBlockTime := time.Unix(int64(prevBlock.Block.Timestamp), 0).UTC()
+
+	// Check if we've crossed a day boundary
+	if prevBlockTime.Day() != blockTime.Day() {
+
+		// Format today's date as cutoff date (YYYY-MM-DD)
+		cutoffDate := blockTime.Format(time.DateOnly)
+
+		p.Logger.Sugar().Infow("Day boundary crossed, queueing daily rewards calculation",
+			zap.Uint64("blockNumber", blockNumber),
+			zap.String("prevBlockTime", prevBlockTime.Format(time.RFC3339)),
+			zap.String("blockTime", blockTime.Format(time.RFC3339)),
+			zap.String("cutoffDate", cutoffDate),
+		)
+
+		// Queue up a rewards generation request (non-blocking)
+		p.rcq.Enqueue(&rewardsCalculatorQueue.RewardsCalculationMessage{
+			Data: rewardsCalculatorQueue.RewardsCalculationData{
+				CalculationType: rewardsCalculatorQueue.RewardsCalculationType_CalculateRewards,
+				CutoffDate:      cutoffDate,
+			},
+			ResponseChan: make(chan *rewardsCalculatorQueue.RewardsCalculatorResponse),
+		})
 	}
 
 	return nil

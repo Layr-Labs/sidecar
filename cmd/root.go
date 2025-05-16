@@ -49,6 +49,7 @@ func init() {
 
 	rootCmd.PersistentFlags().Bool(config.RewardsValidateRewardsRoot, true, `Validate rewards roots while indexing`)
 	rootCmd.PersistentFlags().Bool(config.RewardsGenerateStakerOperatorsTable, false, `Generate staker operators table while indexing`)
+	rootCmd.PersistentFlags().Bool(config.RewardsCalculateRewardsDaily, false, `Calculate rewards daily while indexing`)
 
 	rootCmd.PersistentFlags().Int("rpc.grpc-port", 7100, `gRPC port`)
 	rootCmd.PersistentFlags().Int("rpc.http-port", 7101, `http rpc port`)
@@ -69,6 +70,7 @@ func init() {
 	rootCmd.AddCommand(restoreSnapshotCmd)
 	rootCmd.AddCommand(rpcCmd)
 	rootCmd.AddCommand(loadContractCmd)
+	rootCmd.AddCommand(runDebuggerCmd)
 
 	// bind any subcommand flags
 	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "(deprecated, use --output) Path to save the snapshot file")

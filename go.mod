@@ -6,7 +6,7 @@ require (
 	github.com/DataDog/datadog-go/v5 v5.6.0
 	github.com/Layr-Labs/eigenlayer-contracts v0.4.1-holesky-pepe.0.20240813143901-00fc4b95e9c1
 	github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13
-	github.com/Layr-Labs/protocol-apis v1.9.0
+	github.com/Layr-Labs/protocol-apis v1.11.0
 	github.com/ProtonMail/go-crypto v1.1.6
 	github.com/agiledragon/gomonkey/v2 v2.13.0
 	github.com/akuity/grpc-gateway-client v0.0.0-20240912082144-55a48e8b4b89
@@ -94,6 +94,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.12.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/supranational/blst v0.3.14 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect

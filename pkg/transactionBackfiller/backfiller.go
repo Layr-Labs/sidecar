@@ -37,6 +37,14 @@ type BackfillerMessage struct {
 	TransactionLogHandler func(block *ethereum.EthereumBlock, receipt *ethereum.EthereumTransactionReceipt, log *ethereum.EthereumEventLog) error
 	// IsInterestingLog determines if a log should be processed
 	IsInterestingLog func(log *ethereum.EthereumEventLog) bool
+	// TransactionHandler is a function called for each interesting transaction
+	TransactionHandler func(block *ethereum.EthereumBlock, receipt *ethereum.EthereumTransactionReceipt) error
+	// IsInterestingTransaction determines if a transaction should be processed
+	IsInterestingTransaction func(receipt *ethereum.EthereumTransactionReceipt) bool
+	// BackfillLogsOnly indicates if only logs should be backfilled (no transactions)
+	BackfillLogsOnly bool
+	// BackfillTransactionsOnly indicates if only transactions should be backfilled (no logs)
+	BackfillTransactionsOnly bool
 	// ResponseChan is a channel to send the backfill response
 	ResponseChan chan *BackfillerResponse
 	// Context is the context for the backfill operation
@@ -215,6 +223,33 @@ func (t *TransactionBackfiller) Process() {
 func (t *TransactionBackfiller) ProcessBlocks(ctx context.Context, queueMessage *BackfillerMessage) *BackfillerResponse {
 	response := &BackfillerResponse{}
 
+	// Validate that proper handlers are provided based on what we're backfilling
+	if !queueMessage.BackfillTransactionsOnly {
+		if queueMessage.TransactionLogHandler == nil {
+			return &BackfillerResponse{
+				Errors: []error{fmt.Errorf("TransactionLogHandler is required when backfilling logs")},
+			}
+		}
+		if queueMessage.IsInterestingLog == nil {
+			return &BackfillerResponse{
+				Errors: []error{fmt.Errorf("IsInterestingLog is required when backfilling logs")},
+			}
+		}
+	}
+
+	if !queueMessage.BackfillLogsOnly {
+		if queueMessage.TransactionHandler == nil {
+			return &BackfillerResponse{
+				Errors: []error{fmt.Errorf("TransactionHandler is required when backfilling transactions")},
+			}
+		}
+		if queueMessage.IsInterestingTransaction == nil {
+			return &BackfillerResponse{
+				Errors: []error{fmt.Errorf("IsInterestingTransaction is required when backfilling transactions")},
+			}
+		}
+	}
+
 	// If addresses are specified, use the optimized method
 	if len(queueMessage.Addresses) > 0 {
 		return t.ProcessBlocksWithAddresses(ctx, queueMessage)
@@ -304,11 +339,12 @@ func (t *TransactionBackfiller) ProcessBlock(ctx context.Context, blockNumber ui
 	)
 
 	for txHash, receipt := range block.TxReceipts {
-		for _, log := range receipt.Logs {
-			if message.IsInterestingLog(log) {
-				err = message.TransactionLogHandler(block.Block, receipt, log)
+		// Process full transactions if we're not only processing logs
+		if !message.BackfillLogsOnly && message.TransactionHandler != nil && message.IsInterestingTransaction != nil {
+			if message.IsInterestingTransaction(receipt) {
+				err = message.TransactionHandler(block.Block, receipt)
 				if err != nil {
-					t.logger.Sugar().Errorw("Error processing transaction log",
+					t.logger.Sugar().Errorw("Error processing transaction",
 						zap.Error(err),
 						zap.String("txHash", txHash),
 						zap.Uint64("blockNumber", blockNumber),
@@ -317,11 +353,28 @@ func (t *TransactionBackfiller) ProcessBlock(ctx context.Context, blockNumber ui
 				}
 			}
 		}
+
+		// Process logs if we're not only processing transactions
+		if !message.BackfillTransactionsOnly && message.TransactionLogHandler != nil && message.IsInterestingLog != nil {
+			for _, log := range receipt.Logs {
+				if message.IsInterestingLog(log) {
+					err = message.TransactionLogHandler(block.Block, receipt, log)
+					if err != nil {
+						t.logger.Sugar().Errorw("Error processing transaction log",
+							zap.Error(err),
+							zap.String("txHash", txHash),
+							zap.Uint64("blockNumber", blockNumber),
+						)
+						return err
+					}
+				}
+			}
+		}
 	}
 	return nil
 }
 
-// ProcessBlocksWithAddresses processes logs for specified addresses within a block range.
+// ProcessBlocksWithAddresses processes logs and transactions for specified addresses within a block range.
 // It uses eth_getLogs RPC call to efficiently fetch logs for specific addresses.
 //
 // Parameters:
@@ -329,7 +382,7 @@ func (t *TransactionBackfiller) ProcessBlock(ctx context.Context, blockNumber ui
 //   - queueMessage: The backfill message containing the block range, addresses, and handlers
 //
 // Returns:
-//   - *BackfillerResponse: The result of processing the logs
+//   - *BackfillerResponse: The result of processing the logs and transactions
 func (t *TransactionBackfiller) ProcessBlocksWithAddresses(ctx context.Context, queueMessage *BackfillerMessage) *BackfillerResponse {
 	response := &BackfillerResponse{}
 
@@ -367,6 +420,19 @@ func (t *TransactionBackfiller) ProcessBlocksWithAddresses(ctx context.Context, 
 
 		// Add this log to the block's logs
 		blockLogs.logs = append(blockLogs.logs, logWithMetadata)
+	}
+
+	// For transaction backfilling, we need to ensure we process all blocks in the range,
+	// not just those with logs if we're also handling transactions
+	if !queueMessage.BackfillLogsOnly {
+		for blockNum := queueMessage.StartBlock; blockNum <= queueMessage.EndBlock; blockNum++ {
+			if _, exists := blockLogsMap[blockNum]; !exists {
+				blockLogsMap[blockNum] = &blockWithLogs{
+					blockNumber: blockNum,
+					logs:        make([]*LogWithMetadata, 0),
+				}
+			}
+		}
 	}
 
 	// If context is already canceled, fail fast
@@ -434,7 +500,7 @@ func (t *TransactionBackfiller) ProcessBlocksWithAddresses(ctx context.Context, 
 					}
 
 					// Process logs for this block
-					if err := t.processLogsForBlock(queueMessage, blockLogs.logs, fetchedBlock); err != nil {
+					if err := t.processBlockData(queueMessage, blockLogs.logs, fetchedBlock); err != nil {
 						errorsRecv <- err
 						cancelProcessing() // Cancel other workers
 						return
@@ -481,33 +547,53 @@ func (t *TransactionBackfiller) ProcessBlocksWithAddresses(ctx context.Context, 
 	return response
 }
 
-// processLogsForBlock processes all logs for a specific block
-// Returns the first error encountered or nil if all logs are processed successfully
-func (t *TransactionBackfiller) processLogsForBlock(
+// processBlockData processes all logs and transactions for a specific block
+// Returns the first error encountered or nil if all data is processed successfully
+func (t *TransactionBackfiller) processBlockData(
 	queueMessage *BackfillerMessage,
 	logs []*LogWithMetadata,
 	fetchedBlock *fetcher.FetchedBlock,
 ) error {
-	for _, logData := range logs {
-		// Get the transaction receipt from the fetched block
-		receipt, exists := fetchedBlock.TxReceipts[logData.TxHash]
-		if !exists {
-			t.logger.Sugar().Warnw("Transaction receipt not found in block",
-				zap.String("txHash", logData.TxHash),
-				zap.Uint64("blockNumber", fetchedBlock.Block.Number.Value()),
-			)
-			continue
-		}
-
-		// Handle the log
-		if err := queueMessage.TransactionLogHandler(fetchedBlock.Block, receipt, logData.Log); err != nil {
-			t.logger.Sugar().Errorw("Error processing transaction log",
-				zap.Error(err),
-				zap.String("txHash", logData.TxHash),
-				zap.Uint64("blockNumber", fetchedBlock.Block.Number.Value()),
-			)
-			return err
+	// Process transactions if transaction handler is provided and we're not only processing logs
+	if !queueMessage.BackfillLogsOnly && queueMessage.TransactionHandler != nil && queueMessage.IsInterestingTransaction != nil {
+		for txHash, receipt := range fetchedBlock.TxReceipts {
+			if queueMessage.IsInterestingTransaction(receipt) {
+				if err := queueMessage.TransactionHandler(fetchedBlock.Block, receipt); err != nil {
+					t.logger.Sugar().Errorw("Error processing transaction",
+						zap.Error(err),
+						zap.String("txHash", txHash),
+						zap.Uint64("blockNumber", fetchedBlock.Block.Number.Value()),
+					)
+					return err
+				}
+			}
 		}
 	}
+
+	// Process logs if log handler is provided and we're not only processing transactions
+	if !queueMessage.BackfillTransactionsOnly && queueMessage.TransactionLogHandler != nil && queueMessage.IsInterestingLog != nil {
+		for _, logData := range logs {
+			// Get the transaction receipt from the fetched block
+			receipt, exists := fetchedBlock.TxReceipts[logData.TxHash]
+			if !exists {
+				t.logger.Sugar().Warnw("Transaction receipt not found in block",
+					zap.String("txHash", logData.TxHash),
+					zap.Uint64("blockNumber", fetchedBlock.Block.Number.Value()),
+				)
+				continue
+			}
+
+			// Handle the log
+			if err := queueMessage.TransactionLogHandler(fetchedBlock.Block, receipt, logData.Log); err != nil {
+				t.logger.Sugar().Errorw("Error processing transaction log",
+					zap.Error(err),
+					zap.String("txHash", logData.TxHash),
+					zap.Uint64("blockNumber", fetchedBlock.Block.Number.Value()),
+				)
+				return err
+			}
+		}
+	}
+
 	return nil
 }
