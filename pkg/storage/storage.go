@@ -1,13 +1,14 @@
 package storage
 
 import (
-	"github.com/Layr-Labs/sidecar/pkg/parser"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/parser"
 )
 
 type BlockStore interface {
 	InsertBlockAtHeight(blockNumber uint64, hash string, parentHash string, blockTime uint64) (*Block, error)
-	InsertBlockTransaction(blockNumber uint64, txHash string, txIndex uint64, from string, to string, contractAddress string, bytecodeHash string) (*Transaction, error)
+	InsertBlockTransaction(blockNumber uint64, txHash string, txIndex uint64, from string, to string, contractAddress string, bytecodeHash string, gasUsed uint64, cumulativeGasUsed uint64, effectiveGasPrice uint64, ignoreOnConflict bool) (*Transaction, error)
 	InsertTransactionLog(txHash string, transactionIndex uint64, blockNumber uint64, log *parser.DecodedLog, outputData map[string]interface{}, ignoreOnConflict bool) (*TransactionLog, error)
 	GetLatestBlock() (*Block, error)
 	GetBlockByNumber(blockNumber uint64) (*Block, error)
@@ -36,16 +37,19 @@ type Block struct {
 }
 
 type Transaction struct {
-	BlockNumber      uint64
-	TransactionHash  string
-	TransactionIndex uint64
-	FromAddress      string
-	ToAddress        string
-	ContractAddress  string
-	BytecodeHash     string
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	DeletedAt        time.Time
+	BlockNumber       uint64
+	TransactionHash   string
+	TransactionIndex  uint64
+	FromAddress       string
+	ToAddress         string
+	ContractAddress   string
+	BytecodeHash      string
+	GasUsed           uint64
+	CumulativeGasUsed uint64
+	EffectiveGasPrice uint64
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	DeletedAt         time.Time
 }
 
 type TransactionLog struct {
@@ -117,4 +121,10 @@ type GeneratedRewardsSnapshots struct {
 type ActiveAvsOperator struct {
 	Avs      string
 	Operator string
+}
+
+type StartupJob struct {
+	Id        uint64 `gorm:"type:serial"`
+	Name      string
+	CreatedAt time.Time
 }

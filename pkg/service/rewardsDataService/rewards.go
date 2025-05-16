@@ -743,6 +743,7 @@ func (rds *RewardsDataService) ListHistoricalRewardsForEarner(
 	if earnerAddress == "" {
 		return nil, fmt.Errorf("earner is required")
 	}
+	earnerAddress = strings.ToLower(earnerAddress)
 	if endBlockHeight != 0 && startBlockHeight > endBlockHeight {
 		return nil, fmt.Errorf("startBlockHeight must be less than or equal to endBlockHeight")
 	}
@@ -806,7 +807,7 @@ func (rds *RewardsDataService) ListHistoricalRewardsForEarner(
 		args = append(args, sql.Named("tokens", tokens))
 	}
 
-	query += "group by 1, 2 order by 1 desc, 2 asc"
+	query += " group by 1, 2 order by 1 desc, 2 asc"
 
 	var historicalRewards []*HistoricalReward
 	res := rds.db.Raw(query, args...).Scan(&historicalRewards)

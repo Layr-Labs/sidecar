@@ -1,6 +1,7 @@
 package stateManager
 
 import (
+	"database/sql"
 	"encoding/binary"
 	"errors"
 	stateMigratorTypes "github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator/types"
@@ -280,6 +281,11 @@ func (e *EigenStateManager) DeleteCorruptedState(startBlock uint64, endBlock uin
 		if err != nil {
 			return err
 		}
+	}
+	query := `delete from state_roots where eth_block_number >= @startBlock`
+	res := e.DB.Exec(query, sql.Named("startBlock", startBlock))
+	if res.Error != nil {
+		return res.Error
 	}
 	return nil
 }

@@ -138,6 +138,22 @@ func (p *Progress) UpdateAndPrintProgress(lastBlockProcessed uint64) {
 	)
 }
 
+func (s *Sidecar) DeleteCorruptedState(startBlock, endBlock uint64) error {
+	if err := s.StateManager.DeleteCorruptedState(startBlock, endBlock); err != nil {
+		s.Logger.Sugar().Errorw("Failed to delete corrupted state", zap.Error(err))
+		return err
+	}
+	if err := s.RewardsCalculator.DeleteCorruptedRewardsFromBlockHeight(startBlock); err != nil {
+		s.Logger.Sugar().Errorw("Failed to purge corrupted rewards", zap.Error(err))
+		return err
+	}
+	if err := s.Storage.DeleteCorruptedState(startBlock, endBlock); err != nil {
+		s.Logger.Sugar().Errorw("Failed to delete corrupted state", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
 func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	lastIndexedBlock, err := s.GetLastIndexedBlock()
 	if err != nil {
@@ -166,15 +182,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 				zap.Uint64("latestStateRoot", latestStateRoot.EthBlockNumber),
 				zap.Int64("lastIndexedBlock", lastIndexedBlock),
 			)
-			if err := s.StateManager.DeleteCorruptedState(latestStateRoot.EthBlockNumber+1, uint64(lastIndexedBlock)); err != nil {
-				s.Logger.Sugar().Errorw("Failed to delete corrupted state", zap.Error(err))
-				return err
-			}
-			if err := s.RewardsCalculator.DeleteCorruptedRewardsFromBlockHeight(uint64(latestStateRoot.EthBlockNumber + 1)); err != nil {
-				s.Logger.Sugar().Errorw("Failed to purge corrupted rewards", zap.Error(err))
-				return err
-			}
-			if err := s.Storage.DeleteCorruptedState(uint64(latestStateRoot.EthBlockNumber+1), uint64(lastIndexedBlock)); err != nil {
+			if err := s.DeleteCorruptedState(latestStateRoot.EthBlockNumber+1, uint64(lastIndexedBlock)); err != nil {
 				s.Logger.Sugar().Errorw("Failed to delete corrupted state", zap.Error(err))
 				return err
 			}

@@ -320,3 +320,16 @@ func GetTestDataSources(projectBase string) (*TestDataSources, error) {
 	}
 	return dataSources, nil
 }
+
+func GetFixClaimedTransactionsJobBlocksSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/startupJobs/fixClaimedTransactions/blocks.sql")
+	return getSqlFile(path)
+}
+func GetFixClaimedTransactionsJobTransactionsSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/startupJobs/fixClaimedTransactions/transactions.sql")
+	return getSqlFile(path)
+}
+func GetFixClaimedTransactionsJobTransactionLogsSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/startupJobs/fixClaimedTransactions/transactionLogs.sql")
+	return getSqlFile(path)
+}
