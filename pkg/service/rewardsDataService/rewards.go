@@ -5,6 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"reflect"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	eigenStateTypes "github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/types"
@@ -18,10 +23,6 @@ import (
 	errors2 "github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"reflect"
-	"strings"
-	"sync"
-	"time"
 )
 
 type RewardsDataService struct {
@@ -649,7 +650,7 @@ type AvsReward struct {
 	RewardType string
 }
 
-func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Context, rootIndex uint64, pagination *serviceTypes.Pagination) ([]*AvsReward, error) {
+func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Context, rootIndex uint64, earnerAddresses []string, pagination *serviceTypes.Pagination) ([]*AvsReward, error) {
 	root, err := rds.getDistributionRootByRootIndex(rootIndex)
 	if err != nil {
 		return nil, err
@@ -690,6 +691,9 @@ func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Co
 		where
 			gt.snapshot <= date '{{.snapshotDate}}'
 			and gt.reward_hash in (select reward_hash from all_combined_rewards)
+		{{ if .filterEarnerAddress }}
+			and gt.earner in @earnerAddresses
+		{{ end }}
 		{{ if .pagination }}
 		order by gt.snapshot, cr.avs, gt.earner, gt.token desc
 		limit @limit
@@ -704,15 +708,20 @@ func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Co
 	cutoffDate := snapshotDateTime.Add(time.Hour * 24).Format(time.DateOnly)
 
 	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
-		"cutoffDate":   cutoffDate,
-		"snapshotDate": snapshotDateTime.Format(time.DateOnly),
-		"pagination":   pagination != nil,
+		"cutoffDate":          cutoffDate,
+		"snapshotDate":        snapshotDateTime.Format(time.DateOnly),
+		"pagination":          pagination != nil,
+		"filterEarnerAddress": len(earnerAddresses) > 0,
 	})
 
 	queryArgs := []interface{}{}
 	if pagination != nil {
 		queryArgs = append(queryArgs, sql.Named("limit", pagination.PageSize))
 		queryArgs = append(queryArgs, sql.Named("offset", pagination.Page))
+	}
+
+	if len(earnerAddresses) > 0 {
+		queryArgs = append(queryArgs, sql.Named("earnerAddresses", earnerAddresses))
 	}
 
 	if err != nil {

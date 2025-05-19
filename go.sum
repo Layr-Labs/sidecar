@@ -12,8 +12,10 @@ github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13 h1:Blb4AE+jC/vddV71w4/MQA
 github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13/go.mod h1:PD/HoyzZjxDw1tAcZw3yD0yGddo+yhmwQAi+lk298r4=
 github.com/Layr-Labs/protobuf-libs v0.0.0-20250305032038-8d1047b56aab h1:O3mHv0TxACM+575aVjPRwPOd7Ygf4CAmZmNWs/2zjaA=
 github.com/Layr-Labs/protobuf-libs v0.0.0-20250305032038-8d1047b56aab/go.mod h1:xc4NKuzjHpf6Xr9EnI7r6Uc99B1it1bkzQH6kJvhtW4=
-github.com/Layr-Labs/protocol-apis v1.11.0 h1:+oK49dTvqZPkVWEPy+JSKqDhwusIs8SfWJc/pqqR6yM=
-github.com/Layr-Labs/protocol-apis v1.11.0/go.mod h1:lG1O1ISQURzbNnNKBEuDgVVBzg39TjJkR27mrI7DgI0=
+github.com/Layr-Labs/protocol-apis v1.13.1 h1:fnknM3bITUZJovTVGdNgjS9NJeZyFoxu39+6SIp4r9w=
+github.com/Layr-Labs/protocol-apis v1.13.1/go.mod h1:tyzQDWHu4/dmBSRKNRXi65wLic3j5B+7YQ8lMQB08aM=
+github.com/Layr-Labs/protocol-apis v1.13.2 h1:WKzw8B0wObbZ9TBb+SuzXsgz+IXIRO2LvNUEkTvtZ0c=
+github.com/Layr-Labs/protocol-apis v1.13.2/go.mod h1:tyzQDWHu4/dmBSRKNRXi65wLic3j5B+7YQ8lMQB08aM=
 github.com/Microsoft/go-winio v0.5.0/go.mod h1:JPGBdM1cNvN/6ISo+n8V5iA4v8pBzdOpzfwIujj1a84=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
@@ -507,8 +509,8 @@ google.golang.org/protobuf v0.0.0-20200228230310-ab0ca4ff8a60/go.mod h1:cfTl7dwQ
 google.golang.org/protobuf v1.20.1-0.20200309200217-e05f789c0967/go.mod h1:A+miEFZTKqfCUM6K7xSMQL9OKL/b6hQv+e19PK+JZNE=
 google.golang.org/protobuf v1.21.0/go.mod h1:47Nbq4nVaFHyn7ilMalzfO3qCViNmqZ2kzikPIcrTAo=
 google.golang.org/protobuf v1.23.0/go.mod h1:EGpADcykh3NcUnDUJcl1+ZksZNG86OlYog2l/sGQquU=
-google.golang.org/protobuf v1.36.5 h1:tPhr+woSbjfYvY6/GPufUoYizxw1cF/yFoxJ2fmpwlM=
-google.golang.org/protobuf v1.36.5/go.mod h1:9fA7Ob0pmnwhb644+1+CVWFRbNajQ6iRojtC/QF5bRE=
+google.golang.org/protobuf v1.36.6 h1:z1NpPI8ku2WgiWnf+t9wTPsn6eP1L7ksHUlkfLvd9xY=
+google.golang.org/protobuf v1.36.6/go.mod h1:jduwjTPXsFjZGTmRluh+L6NjiWu7pchiJ2/5YcXBHnY=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=
