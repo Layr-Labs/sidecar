@@ -24,13 +24,6 @@ const (
 	EIP1967_STORAGE_SLOT = "0x360894A13BA1A3210667C828492DB98DCA3E2076CC3735A920A3CA505D382BBC"
 )
 
-type BlockType string
-
-const (
-	BlockType_Safe   BlockType = "safe"
-	BlockType_Latest BlockType = "latest"
-)
-
 type RequestMethod struct {
 	Name    string
 	Timeout time.Duration
@@ -77,18 +70,7 @@ type EthereumClientConfig struct {
 	UseNativeBatchCall   bool // Use the native eth_call method for batch calls
 	NativeBatchCallSize  int  // Number of calls to put in a single eth_call request
 	ChunkedBatchCallSize int  // Number of calls to make in parallel
-	BlockType            BlockType
-}
-
-func convertStringBlockTypeToBlockType(blockType string) BlockType {
-	switch blockType {
-	case "latest":
-		return BlockType_Latest
-	case "safe":
-	default:
-		return BlockType_Safe
-	}
-	return BlockType_Safe
+	BlockType            config.BlockType
 }
 
 func ConvertGlobalConfigToEthereumConfig(cfg *config.EthereumRpcConfig) *EthereumClientConfig {
@@ -97,7 +79,7 @@ func ConvertGlobalConfigToEthereumConfig(cfg *config.EthereumRpcConfig) *Ethereu
 		UseNativeBatchCall:   cfg.UseNativeBatchCall,
 		NativeBatchCallSize:  cfg.NativeBatchCallSize,
 		ChunkedBatchCallSize: cfg.ChunkedBatchCallSize,
-		BlockType:            convertStringBlockTypeToBlockType(cfg.BlockType),
+		BlockType:            config.ConvertStringToBlockType(cfg.BlockType),
 	}
 }
 
@@ -106,7 +88,7 @@ func DefaultNativeCallEthereumClientConfig() *EthereumClientConfig {
 		UseNativeBatchCall:   true,
 		NativeBatchCallSize:  500,
 		ChunkedBatchCallSize: 25,
-		BlockType:            BlockType_Safe,
+		BlockType:            config.BlockType_Safe,
 	}
 }
 
@@ -115,7 +97,7 @@ func DefaultChunkedCallEthereumClientConfig() *EthereumClientConfig {
 		UseNativeBatchCall:   false,
 		NativeBatchCallSize:  500,
 		ChunkedBatchCallSize: 25,
-		BlockType:            BlockType_Safe,
+		BlockType:            config.BlockType_Safe,
 	}
 }
 
@@ -201,7 +183,7 @@ func (c *Client) GetBlockNumberUint64(ctx context.Context) (uint64, error) {
 
 func (c *Client) GetLatestBlock(ctx context.Context) (uint64, error) {
 	var rpcRequest *RPCRequest
-	if c.clientConfig.BlockType == BlockType_Latest {
+	if c.clientConfig.BlockType == config.BlockType_Latest {
 		rpcRequest = GetLatestBlockRequest(1)
 	} else {
 		rpcRequest = GetSafeBlockRequest(1)

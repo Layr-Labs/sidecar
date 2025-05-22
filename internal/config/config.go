@@ -614,6 +614,35 @@ func (c *Config) GetModelForks() (ModelForkMap, error) {
 
 }
 
+type BlockType string
+
+const (
+	BlockType_Safe   BlockType = "safe"
+	BlockType_Latest BlockType = "latest"
+)
+
+func (c *Config) GetBlockType() BlockType {
+	switch c.EthereumRpcConfig.BlockType {
+	case "latest":
+		return BlockType_Latest
+	case "safe":
+	default:
+		return BlockType_Safe
+	}
+	return BlockType_Safe
+}
+
+func ConvertStringToBlockType(blockType string) BlockType {
+	switch blockType {
+	case "latest":
+		return BlockType_Latest
+	case "safe":
+	default:
+		return BlockType_Safe
+	}
+	return BlockType_Safe
+}
+
 func (c *Config) GetOperatorRestakedStrategiesStartBlock() uint64 {
 	switch c.Chain {
 	case Chain_Preprod:

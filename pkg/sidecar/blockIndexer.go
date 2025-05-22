@@ -3,9 +3,12 @@ package sidecar
 import (
 	"context"
 	"fmt"
-	"github.com/syndtr/goleveldb/leveldb/errors"
 	"sync/atomic"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/internal/config"
+
+	"github.com/syndtr/goleveldb/leveldb/errors"
 
 	"go.uber.org/zap"
 )
@@ -36,6 +39,11 @@ func (s *Sidecar) StartIndexing(ctx context.Context) {
 const BLOCK_POLL_INTERVAL = 6 * time.Second
 
 func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
+	blockType := s.GlobalConfig.GetBlockType()
+
+	s.Logger.Sugar().Infow("Processing new blocks",
+		zap.String("blockType", string(blockType)))
+
 	for {
 		if s.shouldShutdown.Load() {
 			s.Logger.Sugar().Infow("Shutting down block listener...")
@@ -49,18 +57,64 @@ func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 			return errors.New("Failed to get last indexed block")
 		}
 
-		// Get the latest safe block from the Ethereum node
+		// Get the latest safe/latest block from the Ethereum node
 		latestTip, err := s.EthereumClient.GetLatestBlock(ctx)
 		if err != nil {
 			s.Logger.Sugar().Fatalw("Failed to get latest tip", zap.Error(err))
 			return errors.New("Failed to get latest tip")
 		}
 
-		// If the latest tip is behind what we have indexed, sleep for a bit
-		if latestTip < uint64(latestIndexedBlock) {
-			s.Logger.Sugar().Debugw("Latest tip is behind latest indexed block, sleeping for a bit")
-			time.Sleep(BLOCK_POLL_INTERVAL)
-			continue
+		// Handle potential chain reorganization
+		if latestTip <= uint64(latestIndexedBlock) {
+			// If the latest tip is behind or equal to what we have indexed, this could be due to a reorg
+			if blockType == config.BlockType_Latest {
+				s.Logger.Sugar().Warnw("Latest tip is behind or equal to latest indexed block, possible reorg detected",
+					zap.Uint64("latestTip", latestTip),
+					zap.Int64("latestIndexedBlock", latestIndexedBlock))
+
+				// Get the chain validation starting point (the tip from RPC)
+				tipBlock, err := s.EthereumClient.GetBlockByNumber(ctx, latestTip)
+				if err != nil {
+					s.Logger.Sugar().Errorw("Failed to fetch tip block during reorg detection", zap.Error(err))
+					time.Sleep(BLOCK_POLL_INTERVAL)
+					continue
+				}
+
+				// Find the divergence point directly using the storage method
+				divergencePoint, err := s.Storage.FindLastCommonAncestor(tipBlock.ParentHash.Value())
+				if err != nil {
+					s.Logger.Sugar().Errorw("Failed to find chain divergence point", zap.Error(err))
+					time.Sleep(BLOCK_POLL_INTERVAL)
+					continue
+				}
+
+				// If divergence is detected, delete corrupted blocks starting from the divergence point
+				if divergencePoint < uint64(latestIndexedBlock) {
+					s.Logger.Sugar().Infow("Chain divergence detected, rolling back to divergence point",
+						zap.Uint64("divergencePoint", divergencePoint),
+						zap.Int64("latestIndexedBlock", latestIndexedBlock))
+
+					// Delete the corrupted states
+					if err := s.DeleteCorruptedStates(ctx, divergencePoint+1, uint64(latestIndexedBlock)); err != nil {
+						s.Logger.Sugar().Errorw("Failed to delete corrupted states during reorg handling", zap.Error(err))
+						return err
+					}
+
+					// Update latestIndexedBlock to the divergence point
+					latestIndexedBlock = int64(divergencePoint)
+					s.Logger.Sugar().Infow("Reorg handled, reset latest indexed block",
+						zap.Int64("newLatestIndexedBlock", latestIndexedBlock))
+				} else {
+					// If the divergence point equals the latest indexed block, there's no actual divergence
+					// This happens when blocks at same height have the same hash
+					s.Logger.Sugar().Infow("No chain divergence detected, blocks match at height",
+						zap.Uint64("blockNumber", divergencePoint))
+				}
+			} else {
+				s.Logger.Sugar().Debugw("Latest safe block is behind latest indexed block, sleeping for a bit")
+				time.Sleep(BLOCK_POLL_INTERVAL)
+				continue
+			}
 		}
 
 		// If the latest tip is equal to the latest indexed block, sleep for a bit
@@ -195,7 +249,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			// This should tehcnically never happen, but if the latest state root is ahead of the latest block,
 			// something is very wrong and we should fail.
 			if latestStateRoot.EthBlockNumber > uint64(lastIndexedBlock) {
-				return fmt.Errorf("Latest state root (%d) is ahead of latest stored block (%d), which should never happen, so something is very wrong", latestStateRoot.EthBlockNumber, lastIndexedBlock)
+				return fmt.Errorf("latest state root (%d) is ahead of latest stored block (%d), which should never happen, so something is very wrong", latestStateRoot.EthBlockNumber, lastIndexedBlock)
 			}
 			if latestStateRoot.EthBlockNumber == uint64(lastIndexedBlock) {
 				s.Logger.Sugar().Infow("Latest block and latest state root are in sync, starting from latest block + 1",
@@ -308,6 +362,57 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		progress.UpdateAndPrintProgress(uint64(batchEndBlock))
 
 		currentBlock = batchEndBlock + 1
+	}
+
+	return nil
+}
+
+// DeleteCorruptedStates deletes all corrupted state between the given block range
+func (s *Sidecar) DeleteCorruptedStates(ctx context.Context, startBlock uint64, endBlock uint64) (err error) {
+	// Use defer to capture any error and ensure proper logging
+	defer func() {
+		if err != nil {
+			s.Logger.Sugar().Errorw("Failed to complete deletion of corrupted states - operation was aborted",
+				zap.Error(err),
+				zap.Uint64("startBlock", startBlock),
+				zap.Uint64("endBlock", endBlock))
+		} else {
+			s.Logger.Sugar().Infow("Successfully deleted all corrupted states",
+				zap.Uint64("startBlock", startBlock),
+				zap.Uint64("endBlock", endBlock))
+		}
+	}()
+
+	// StateManager
+	stateManagerErr := s.StateManager.DeleteCorruptedState(startBlock, endBlock)
+	if stateManagerErr != nil {
+		s.Logger.Sugar().Errorw("Failed to delete corrupted state from StateManager",
+			zap.Error(stateManagerErr),
+			zap.Uint64("startBlock", startBlock),
+			zap.Uint64("endBlock", endBlock))
+		err = fmt.Errorf("failed to delete corrupted state from StateManager: %w", stateManagerErr)
+		return
+	}
+
+	// RewardsCalculator
+	rewardsErr := s.RewardsCalculator.DeleteCorruptedRewardsFromBlockHeight(startBlock)
+	if rewardsErr != nil {
+		s.Logger.Sugar().Errorw("Failed to delete corrupted rewards",
+			zap.Error(rewardsErr),
+			zap.Uint64("startBlock", startBlock))
+		err = fmt.Errorf("failed to delete corrupted rewards: %w", rewardsErr)
+		return
+	}
+
+	// Storage
+	storageErr := s.Storage.DeleteCorruptedState(startBlock, endBlock)
+	if storageErr != nil {
+		s.Logger.Sugar().Errorw("Failed to delete corrupted state from Storage",
+			zap.Error(storageErr),
+			zap.Uint64("startBlock", startBlock),
+			zap.Uint64("endBlock", endBlock))
+		err = fmt.Errorf("failed to delete corrupted state from Storage: %w", storageErr)
+		return
 	}
 
 	return nil
