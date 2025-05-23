@@ -425,6 +425,14 @@ func setTokenValueInMap(tokenMap map[string]*SummarizedReward, values []*RewardA
 	}
 }
 
+func (rds *RewardsDataService) GetBlockHeightForSnapshotDate(ctx context.Context, snapshotDate string) (uint64, error) {
+	blockHeight, err := rds.BaseDataService.GetBlockHeightForSnapshotDate(ctx, snapshotDate)
+	if err != nil {
+		return 0, err
+	}
+	return blockHeight, nil
+}
+
 // GetSummarizedRewards returns the summarized rewards for a given earner at a given block height.
 // The blockHeight will be used to find the root that is <= the provided blockHeight
 func (rds *RewardsDataService) GetSummarizedRewards(ctx context.Context, earner string, tokens []string, blockHeight uint64) ([]*SummarizedReward, error) {
