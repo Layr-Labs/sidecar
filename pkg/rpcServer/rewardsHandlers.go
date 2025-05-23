@@ -360,9 +360,18 @@ func withDefaultValue(value string, defaultValue string) string {
 func (rpc *RpcServer) GetSummarizedRewardsForEarner(ctx context.Context, req *rewardsV1.GetSummarizedRewardsForEarnerRequest) (*rewardsV1.GetSummarizedRewardsForEarnerResponse, error) {
 	earner := req.GetEarnerAddress()
 	blockHeight := req.GetBlockHeight()
+	snapshotDate := req.GetSnapshotDate()
 
 	if earner == "" {
 		return nil, status.Error(codes.InvalidArgument, "earner address is required")
+	}
+
+	if snapshotDate != "" {
+		var err error
+		blockHeight, err = rpc.rewardsDataService.GetBlockHeightForSnapshotDate(ctx, snapshotDate)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 
 	summarizedRewards, err := rpc.rewardsDataService.GetSummarizedRewards(ctx, earner, nil, blockHeight)
