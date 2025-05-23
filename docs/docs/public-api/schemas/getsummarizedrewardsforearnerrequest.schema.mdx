@@ -6,7 +6,7 @@ sidebar_label: "GetSummarizedRewardsForEarnerRequest"
 hide_title: true
 hide_table_of_contents: true
 schema: true
-sample: {"blockHeight":0,"earnerAddress":"string"}
+sample: {"blockHeight":0,"earnerAddress":"string","snapshotDate":"2023-01-16"}
 custom_edit_url: null
 ---
 
@@ -25,7 +25,7 @@ import Heading from "@theme/Heading";
 
 
 <Schema
-  schema={{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"earnerAddress":{"type":"string"}},"required":["block_height"],"title":"GetSummarizedRewardsForEarnerRequest"}}
+  schema={{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64","description":"Block height to use for calculating rewards. If not provided, the latest block is used."},"earnerAddress":{"type":"string"},"snapshotDate":{"type":"string","description":"Snapshot date in YYYY-MM-DD format. If provided, the minimum block height for that date will be used instead of block_height."}},"required":["block_height"],"title":"GetSummarizedRewardsForEarnerRequest"}}
   schemaType={"response"}
 >
   
