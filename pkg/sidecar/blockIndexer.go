@@ -3,11 +3,13 @@ package sidecar
 import (
 	"context"
 	"fmt"
-	"github.com/syndtr/goleveldb/leveldb/errors"
 	"sync/atomic"
 	"time"
 
+	"github.com/syndtr/goleveldb/leveldb/errors"
+
 	"go.uber.org/zap"
+	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 func (s *Sidecar) GetLastIndexedBlock() (int64, error) {
@@ -20,15 +22,22 @@ func (s *Sidecar) GetLastIndexedBlock() (int64, error) {
 }
 
 func (s *Sidecar) StartIndexing(ctx context.Context) {
+	span, ctx := ddTracer.StartSpanFromContext(ctx, "sidecar.StartIndexing")
+	defer span.Finish()
+
 	// Start indexing from the given block number
 	// Once at tip, begin listening for new blocks
 	if err := s.IndexFromCurrentToTip(ctx); err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		s.Logger.Sugar().Fatalw("Failed to index from current to tip", zap.Error(err))
 	}
 
 	s.Logger.Sugar().Info("Backfill complete, transitioning to listening for new blocks")
 
 	if err := s.ProcessNewBlocks(ctx); err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		s.Logger.Sugar().Fatalw("Failed to process new blocks", zap.Error(err))
 	}
 }
@@ -36,6 +45,9 @@ func (s *Sidecar) StartIndexing(ctx context.Context) {
 const BLOCK_POLL_INTERVAL = 6 * time.Second
 
 func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
+	span, ctx := ddTracer.StartSpanFromContext(ctx, "sidecar.ProcessNewBlocks")
+	defer span.Finish()
+
 	for {
 		if s.shouldShutdown.Load() {
 			s.Logger.Sugar().Infow("Shutting down block listener...")
@@ -155,14 +167,22 @@ func (s *Sidecar) DeleteCorruptedState(startBlock, endBlock uint64) error {
 }
 
 func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
+	// Start a span for the entire indexing from current to tip process
+	span, ctx := ddTracer.StartSpanFromContext(ctx, "sidecar.IndexFromCurrentToTip")
+	defer span.Finish()
+
 	lastIndexedBlock, err := s.GetLastIndexedBlock()
 	if err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		return err
 	}
 
 	latestStateRoot, err := s.StateManager.GetLatestStateRoot()
 	if err != nil {
 		s.Logger.Sugar().Errorw("Failed to get latest state root", zap.Error(err))
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		return err
 	}
 
@@ -184,6 +204,8 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			)
 			if err := s.DeleteCorruptedState(latestStateRoot.EthBlockNumber+1, uint64(lastIndexedBlock)); err != nil {
 				s.Logger.Sugar().Errorw("Failed to delete corrupted state", zap.Error(err))
+				span.SetTag("error", true)
+				span.SetTag("error.message", err.Error())
 				return err
 			}
 			lastIndexedBlock = int64(latestStateRoot.EthBlockNumber + 1)
@@ -195,7 +217,10 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			// This should tehcnically never happen, but if the latest state root is ahead of the latest block,
 			// something is very wrong and we should fail.
 			if latestStateRoot.EthBlockNumber > uint64(lastIndexedBlock) {
-				return fmt.Errorf("Latest state root (%d) is ahead of latest stored block (%d), which should never happen, so something is very wrong", latestStateRoot.EthBlockNumber, lastIndexedBlock)
+				err := fmt.Errorf("Latest state root (%d) is ahead of latest stored block (%d), which should never happen, so something is very wrong", latestStateRoot.EthBlockNumber, lastIndexedBlock)
+				span.SetTag("error", true)
+				span.SetTag("error.message", err.Error())
+				return err
 			}
 			if latestStateRoot.EthBlockNumber == uint64(lastIndexedBlock) {
 				s.Logger.Sugar().Infow("Latest block and latest state root are in sync, starting from latest block + 1",
@@ -210,30 +235,46 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	retryCount := 0
 	var latestSafeBlockNumber uint64
 
+	// Create a child span for the get latest block and retry logic
+	childSpan, childCtx := ddTracer.StartSpanFromContext(ctx, "sidecar.GetLatestBlockWithRetry")
+	defer childSpan.Finish() // This will finish when the loop ends
+
 	for retryCount < 3 {
 		// Get the latest safe block as a starting point
-		latestSafe, err := s.EthereumClient.GetLatestBlock(ctx)
+		latestSafe, err := s.EthereumClient.GetLatestBlock(childCtx) // Use the child context
 		if err != nil {
+			childSpan.SetTag("error", true)
+			childSpan.SetTag("error.message", err.Error())
 			s.Logger.Sugar().Fatalw("Failed to get current tip", zap.Error(err))
 		}
+
+		childSpan.SetTag("currentTip", latestSafe)
+		childSpan.SetTag("retry", retryCount)
 		s.Logger.Sugar().Infow("Current tip", zap.Uint64("currentTip", latestSafe))
 
 		if latestSafe >= uint64(lastIndexedBlock) {
 			s.Logger.Sugar().Infow("Current tip is greater than latest block, starting indexing process", zap.Uint64("currentTip", latestSafe))
 			latestSafeBlockNumber = latestSafe
+			childSpan.SetTag("success", true)
 			break
 		}
 
 		if latestSafe < uint64(lastIndexedBlock) {
 			if retryCount == 2 {
+				childSpan.SetTag("error", true)
+				childSpan.SetTag("error.message", "Max retries reached")
 				s.Logger.Sugar().Fatalw("Current tip is less than latest block, but retry count is 2, exiting")
 				return errors.New("Current tip is less than latest block, but retry count is 2, exiting")
 			}
 			s.Logger.Sugar().Infow("Current tip is less than latest block sleeping for 7 minutes to allow for the node to catch up")
+			childSpan.SetTag("sleeping", true)
+			childSpan.SetTag("sleep_duration_minutes", 7)
 			time.Sleep(7 * time.Minute)
 		}
 		retryCount++
+		childSpan.SetTag("retryCount", retryCount)
 	}
+	childSpan.Finish() // Explicitly finish the span here instead of deferring
 
 	s.Logger.Sugar().Infow("Indexing from current to tip",
 		zap.Uint64("currentTip", latestSafeBlockNumber),
