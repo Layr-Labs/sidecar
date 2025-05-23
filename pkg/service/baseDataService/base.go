@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"gorm.io/gorm"
@@ -48,4 +49,17 @@ func (b *BaseDataService) GetLatestConfirmedBlock(ctx context.Context) (*storage
 	}
 
 	return b.GetBlock(ctx, stateRoot.EthBlockNumber)
+}
+
+func (b *BaseDataService) GetBlockHeightForSnapshotDate(ctx context.Context, snapshotDate string) (uint64, error) {
+	var block storage.Block
+	res := b.DB.Model(&storage.Block{}).
+		Where("to_char(block_time, 'YYYY-MM-DD') = ?", snapshotDate).
+		Order("number ASC").
+		First(&block)
+
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	return block.Number, nil
 }
