@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/tracer"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
@@ -20,7 +19,6 @@ import (
 	_202505092016_fixRewardsClaimedTransactions "github.com/Layr-Labs/sidecar/pkg/startupJobs/202505092016_fixRewardsClaimedTransactions"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
-	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"gorm.io/gorm"
 )
 
@@ -83,17 +81,12 @@ func NewSidecar(
 func (s *Sidecar) Start(ctx context.Context) {
 	s.Logger.Info("Starting sidecar")
 
-	// Initialize tracer at service startup
-	tracer.StartTracer(s.GlobalConfig.DataDogConfig.EnableTracing, s.GlobalConfig.Chain)
-
 	// Spin up a goroutine that listens on a channel for a shutdown signal.
 	// When the signal is received, set shouldShutdown to true and return.
 	go func() {
 		for range s.ShutdownChan {
 			s.Logger.Sugar().Infow("Received shutdown signal")
 			s.shouldShutdown.Store(true)
-			// Clean up tracer when shutting down
-			ddTracer.Stop()
 		}
 	}()
 

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/tracer"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
@@ -80,6 +81,9 @@ func NewPipeline(
 	eb eventBusTypes.IEventBus,
 	l *zap.Logger,
 ) *Pipeline {
+	// Initialize tracer at service startup
+	tracer.StartTracer(gc.DataDogConfig.EnableTracing, gc.Chain)
+
 	return &Pipeline{
 		Fetcher:           f,
 		Indexer:           i,
