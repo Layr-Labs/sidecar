@@ -49,7 +49,6 @@ func Test_Etherscan(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 
-	mockUrl := "https://api.etherscan.io/api?"
 	mockHttpClient := &http.Client{
 		Transport: httpmock.DefaultTransport,
 	}
@@ -64,7 +63,8 @@ func Test_Etherscan(t *testing.T) {
 			"result": "[{\"constant\":true,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
 		}`
 
-		httpmock.RegisterResponder("GET", mockUrl,
+		// Register the responder with a pattern that matches the full URL with query parameters
+		httpmock.RegisterResponder("GET", `=~^https://api\.etherscan\.io/api\?.*address=0x29a954e9e7f12936db89b183ecdf879fbbb99f14.*`,
 			httpmock.NewStringResponder(200, mockAbiResponse))
 
 		address := "0x29a954e9e7f12936db89b183ecdf879fbbb99f14"
@@ -81,7 +81,8 @@ func Test_Etherscan(t *testing.T) {
 			"result": "Error fetching ABI"
 		}`
 
-		httpmock.RegisterResponder("GET", mockUrl,
+		// Register the responder with a pattern that matches the full URL with query parameters
+		httpmock.RegisterResponder("GET", `=~^https://api\.etherscan\.io/api\?.*address=0x29a954e9e7f12936db89b183ecdf879fbbb99f14.*`,
 			httpmock.NewStringResponder(200, mockErrorResponse))
 
 		address := "0x29a954e9e7f12936db89b183ecdf879fbbb99f14"
