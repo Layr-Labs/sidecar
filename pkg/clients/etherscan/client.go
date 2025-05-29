@@ -42,6 +42,12 @@ func NewEtherscanClient(hc *http.Client, l *zap.Logger, cfg *config.Config) *Eth
 	}
 }
 
+func DefaultHttpClient() *http.Client {
+	return &http.Client{
+		Timeout: 5 * time.Second,
+	}
+}
+
 func (ec *EtherscanClient) getBaseUrl() (string, error) {
 	var network string
 	switch ec.Config.Chain {
@@ -50,7 +56,7 @@ func (ec *EtherscanClient) getBaseUrl() (string, error) {
 	case config.Chain_Holesky:
 		network = "api-holesky"
 	case config.Chain_Sepolia:
-		network = "sepolia"
+		network = "api-sepolia"
 	case config.Chain_Preprod:
 		network = "api-holesky"
 	default:
@@ -70,7 +76,9 @@ func (ec *EtherscanClient) makeRequest(values url.Values) (*EtherscanResponse, e
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, fullUrl, http.NoBody)
+	fullUrlWithParams := fullUrl + values.Encode()
+
+	req, err := http.NewRequest(http.MethodGet, fullUrlWithParams, http.NoBody)
 	if err != nil {
 		ec.Logger.Sugar().Errorw("Failed to create the Etherscan HTTP request",
 			zap.Error(err),

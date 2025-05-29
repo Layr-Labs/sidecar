@@ -10,8 +10,10 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/version"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource"
+	"github.com/Layr-Labs/sidecar/pkg/abiSource/etherscan"
 	"github.com/Layr-Labs/sidecar/pkg/abiSource/ipfs"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
+	etherscanClient "github.com/Layr-Labs/sidecar/pkg/clients/etherscan"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
@@ -82,7 +84,10 @@ var runCmd = &cobra.Command{
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
 		ipfs := ipfs.NewIpfs(ipfs.DefaultHttpClient(), l, cfg)
-		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, []abiSource.AbiSource{ipfs})
+		etherscanClient := etherscanClient.NewEtherscanClient(etherscanClient.DefaultHttpClient(), l, cfg)
+		etherscan := etherscan.NewEtherscan(etherscanClient, l)
+
+		af := abiFetcher.NewAbiFetcher(client, abiFetcher.DefaultHttpClient(), l, []abiSource.AbiSource{ipfs, etherscan})
 
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 

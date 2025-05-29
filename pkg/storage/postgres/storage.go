@@ -281,7 +281,39 @@ func (s *PostgresBlockStore) DeleteCorruptedState(startBlockNumber uint64, endBl
 		if res.Error != nil {
 			return fmt.Errorf("Failed to delete corrupted state from table '%s': %w", tableName, res.Error)
 		}
+		s.Logger.Sugar().Infow(fmt.Sprintf("Deleted records from %s", tableName),
+			zap.Uint64("startBlockNumber", startBlockNumber),
+			zap.Uint64("endBlockNumber", endBlockNumber),
+			zap.Int64("rowsAffected", res.RowsAffected),
+		)
 	}
+
+	// Only delete proxy_contracts records that are associated with external contracts
+	proxyContractsQuery := `
+		DELETE FROM proxy_contracts pc
+		WHERE pc.block_number >= @startBlockNumber
+		AND EXISTS (
+			SELECT 1 FROM contracts c
+			WHERE c.contract_address = pc.contract_address
+			AND c.contract_type = 'external'
+		)
+	`
+	if endBlockNumber > 0 {
+		proxyContractsQuery += " AND pc.block_number <= @endBlockNumber"
+	}
+	proxyRes := s.Db.Exec(proxyContractsQuery,
+		sql.Named("startBlockNumber", startBlockNumber),
+		sql.Named("endBlockNumber", endBlockNumber),
+	)
+	if proxyRes.Error != nil {
+		return fmt.Errorf("Failed to delete corrupted state from table 'proxy_contracts': %w", proxyRes.Error)
+	}
+	s.Logger.Sugar().Infow("Deleted records from proxy_contracts for external contracts",
+		zap.Uint64("startBlockNumber", startBlockNumber),
+		zap.Uint64("endBlockNumber", endBlockNumber),
+		zap.Int64("rowsAffected", proxyRes.RowsAffected),
+	)
+
 	blocksQuery := `
 		delete from blocks
 		where number >= @startBlockNumber
