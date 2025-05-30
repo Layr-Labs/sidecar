@@ -6,7 +6,7 @@ import (
 )
 
 const _13_goldStakerODOperatorSetRewardAmountsQuery = `
-INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_registered_snapshot_decimal, avs, operator_set_id, operator, staker, strategy, multiplier, reward_submission_date, shares, staker_weight, rn, total_weight, staker_proportion, staker_tokens, generated_rewards_snapshot_id) AS
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_registered_snapshot_decimal, avs, operator_set_id, operator, strategy, multiplier, reward_submission_date, staker_split, staker, shares, staker_weight, rn, total_weight, staker_proportion, staker_tokens, generated_rewards_snapshot_id) AS
 
 -- Step 1: Get the rows where operators have registered for the operator set
 WITH reward_snapshot_operators AS (
