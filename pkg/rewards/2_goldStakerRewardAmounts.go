@@ -9,7 +9,7 @@ import (
 )
 
 const _2_goldStakerRewardAmountsQuery = `
-create table {{.destTableName}} as
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_day, tokens_per_day_decimal, avs, strategy, multiplier, reward_type, reward_submission_date, operator, staker, shares, staker_weight, rn, total_weight, staker_proportion, total_staker_operator_payout, operator_tokens, staker_tokens, generated_rewards_snapshot_id) as
 WITH reward_snapshot_operators as (
   SELECT
     ap.reward_hash,
@@ -142,13 +142,12 @@ token_breakdowns AS (
   ON sott.operator = oas.operator AND sott.avs = oas.avs AND sott.snapshot = oas.snapshot
   LEFT JOIN default_operator_split_snapshots dos ON (sott.snapshot = dos.snapshot)
 )
-SELECT * from token_breakdowns
+SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
 `
 
 func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate string, generatedSnapshotId uint64, forks config.ForkMap) error {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_2_StakerRewardAmounts]
+	destTableName := rewardsUtils.RewardsTable_2_StakerRewardAmounts
 
 	rc.logger.Sugar().Infow("Generating staker reward amounts",
 		zap.String("cutoffDate", snapshotDate),
@@ -160,13 +159,16 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_2_goldStakerRewardAmountsQuery, map[string]interface{}{
-		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
+		"activeRewardsTable":         rewardsUtils.RewardsTable_1_ActiveRewards,
+		"generatedRewardsSnapshotId": generatedSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
+
+	// Add ON CONFLICT clause to the query
+	query = query + " ON CONFLICT (reward_hash, staker, avs, strategy, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query,
 		sql.Named("amazonHardforkDate", forks[config.RewardsFork_Amazon].Date),

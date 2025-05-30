@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 
 	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
@@ -499,6 +500,36 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 	return nil
 }
 
+// DeleteCorruptedRewardsFromID deletes rewards data based on a generated_rewards_snapshot_id.
+// It will delete all rewards tables for the given snapshot ID and all snapshots with IDs greater than it,
+// as well as delete the corresponding entries from the generated_rewards_snapshots table and
+// remove the data from the gold table.
+func (rc *RewardsCalculator) DeleteCorruptedRewardsFromSnapshotID(generatedRewardsSnapshotId uint64) error {
+	for _, tableName := range rewardsUtils.RewardsTableBaseNames {
+		rc.logger.Sugar().Infow("Deleting rows from rewards table", "tableName", tableName)
+		dropQuery := fmt.Sprintf("delete from %s where generated_rewards_snapshot_id >= @generatedRewardsSnapshotId", tableName)
+		res := rc.grm.Exec(dropQuery, sql.Named("generatedRewardsSnapshotId", generatedRewardsSnapshotId))
+		if res.Error != nil {
+			rc.logger.Sugar().Errorw("Failed to delete rows from rewards table", "error", res.Error, "tableName", tableName)
+			return res.Error
+		}
+		rc.logger.Sugar().Infow("Deleted rows from rewards table",
+			"tableName", tableName,
+			"recordsDeleted", res.RowsAffected)
+	}
+
+	// Also delete from generated_rewards_snapshots table
+	res := rc.grm.Exec("delete from generated_rewards_snapshots where id >= @generatedRewardsSnapshotId",
+		sql.Named("generatedRewardsSnapshotId", generatedRewardsSnapshotId))
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to delete from generated_rewards_snapshots", "error", res.Error)
+		return res.Error
+	}
+	rc.logger.Sugar().Infow("Deleted from generated_rewards_snapshots", "recordsDeleted", res.RowsAffected)
+
+	return nil
+}
+
 func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earners []string, tokens []string) ([]*rewardsTypes.Reward, error) {
 	snapshotDateTime, err := time.Parse(time.DateOnly, snapshotDate)
 	if err != nil {
@@ -740,7 +771,7 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string, generatedSn
 	if err != nil {
 		return err
 	}
-	if err := rc.Generate1ActiveRewards(snapshotDate); err != nil {
+	if err := rc.Generate1ActiveRewards(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate active rewards", "error", err)
 		return err
 	}

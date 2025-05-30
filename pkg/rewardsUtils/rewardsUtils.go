@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"text/template"
 
+	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
+
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -79,23 +81,6 @@ var goldTableBaseNames = map[string]string{
 	Table_15_GoldStaging:                        Table_15_GoldStaging,
 	Table_16_GoldTable:                          Table_16_GoldTable,
 
-	RewardsTable_1_ActiveRewards:                       RewardsTable_1_ActiveRewards,
-	RewardsTable_2_StakerRewardAmounts:                 RewardsTable_2_StakerRewardAmounts,
-	RewardsTable_3_OperatorRewardAmounts:               RewardsTable_3_OperatorRewardAmounts,
-	RewardsTable_4_RewardsForAll:                       RewardsTable_4_RewardsForAll,
-	RewardsTable_5_RfaeStakers:                         RewardsTable_5_RfaeStakers,
-	RewardsTable_6_RfaeOperators:                       RewardsTable_6_RfaeOperators,
-	RewardsTable_7_ActiveODRewards:                     RewardsTable_7_ActiveODRewards,
-	RewardsTable_8_OperatorODRewardAmounts:             RewardsTable_8_OperatorODRewardAmounts,
-	RewardsTable_9_StakerODRewardAmounts:               RewardsTable_9_StakerODRewardAmounts,
-	RewardsTable_10_AvsODRewardAmounts:                 RewardsTable_10_AvsODRewardAmounts,
-	RewardsTable_11_ActiveODOperatorSetRewards:         RewardsTable_11_ActiveODOperatorSetRewards,
-	RewardsTable_12_OperatorODOperatorSetRewardAmounts: RewardsTable_12_OperatorODOperatorSetRewardAmounts,
-	RewardsTable_13_StakerODOperatorSetRewardAmounts:   RewardsTable_13_StakerODOperatorSetRewardAmounts,
-	RewardsTable_14_AvsODOperatorSetRewardAmounts:      RewardsTable_14_AvsODOperatorSetRewardAmounts,
-	RewardsTable_GoldStaging:                           RewardsTable_GoldStaging,
-	RewardsTable_GoldTable:                             RewardsTable_GoldTable,
-
 	Sot_1_StakerStrategyPayouts:                Sot_1_StakerStrategyPayouts,
 	Sot_2_OperatorStrategyPayouts:              Sot_2_OperatorStrategyPayouts,
 	Sot_3_RewardsForAllStrategyPayout:          Sot_3_RewardsForAllStrategyPayout,
@@ -109,6 +94,25 @@ var goldTableBaseNames = map[string]string{
 	Sot_11_AvsODOperatorSetStrategyPayouts:     Sot_11_AvsODOperatorSetStrategyPayouts,
 	Sot_12_StakerOperatorStaging:               Sot_12_StakerOperatorStaging,
 	Sot_13_StakerOperatorTable:                 Sot_13_StakerOperatorTable,
+}
+
+var RewardsTableBaseNames = []string{
+	RewardsTable_1_ActiveRewards,
+	RewardsTable_2_StakerRewardAmounts,
+	RewardsTable_3_OperatorRewardAmounts,
+	RewardsTable_4_RewardsForAll,
+	RewardsTable_5_RfaeStakers,
+	RewardsTable_6_RfaeOperators,
+	RewardsTable_7_ActiveODRewards,
+	RewardsTable_8_OperatorODRewardAmounts,
+	RewardsTable_9_StakerODRewardAmounts,
+	RewardsTable_10_AvsODRewardAmounts,
+	RewardsTable_11_ActiveODOperatorSetRewards,
+	RewardsTable_12_OperatorODOperatorSetRewardAmounts,
+	RewardsTable_13_StakerODOperatorSetRewardAmounts,
+	RewardsTable_14_AvsODOperatorSetRewardAmounts,
+	RewardsTable_GoldStaging,
+	RewardsTable_GoldTable,
 }
 
 var GoldTableNameSearchPattern = map[string]string{
