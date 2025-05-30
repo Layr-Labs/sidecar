@@ -6,7 +6,7 @@ import (
 )
 
 const _4_goldRewardsForAllQuery = `
-create table {{.destTableName}} as
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_day, avs, strategy, multiplier, reward_type, staker, shares, staker_weight, rn, total_staker_weight, staker_proportion, staker_tokens, generated_rewards_snapshot_id) as
 WITH reward_snapshot_stakers AS (
   SELECT
     ap.reward_hash,
@@ -64,12 +64,11 @@ staker_tokens AS (
   (tokens_per_day * staker_proportion)::text::decimal(38,0) as staker_tokens
   FROM staker_proportion
 )
-SELECT * from staker_tokens
+SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id from staker_tokens
 `
 
 func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string, generatedSnapshotId uint64) error {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_4_RewardsForAll]
+	destTableName := rewardsUtils.RewardsTable_4_RewardsForAll
 
 	rc.logger.Sugar().Infow("Generating rewards for all table",
 		zap.String("cutoffDate", snapshotDate),
@@ -77,13 +76,16 @@ func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_4_goldRewardsForAllQuery, map[string]interface{}{
-		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
+		"destTableName":              destTableName,
+		"activeRewardsTable":         rewardsUtils.RewardsTable_1_ActiveRewards,
+		"generatedRewardsSnapshotId": generatedSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
+
+	query = query + " ON CONFLICT (reward_hash, avs, staker, strategy, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
