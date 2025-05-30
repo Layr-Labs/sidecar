@@ -6,7 +6,7 @@ import (
 )
 
 const _10_goldAvsODRewardAmountsQuery = `
-INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_registered_snapshot_decimal, avs, operator, strategy, multiplier, reward_submission_date, rn, split_pct, operator_tokens, avs_tokens, generated_rewards_snapshot_id) AS
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, avs, operator, avs_tokens, generated_rewards_snapshot_id) AS
 
 -- Step 1: Get the rows where operators have not registered for the AVS or if the AVS does not exist
 WITH reward_snapshot_operators AS (
