@@ -8,7 +8,7 @@ import (
 )
 
 const _15_goldStagingQuery = `
-create table {{.destTableName}} as
+INSERT INTO {{.destTableName}} (earner, snapshot, reward_hash, token, amount, generated_rewards_snapshot_id) as
 WITH staker_rewards AS (
   -- We can select DISTINCT here because the staker's tokens are the same for each strategy in the reward hash
   SELECT DISTINCT
@@ -162,13 +162,12 @@ deduped_earners AS (
     reward_hash,
     token
 )
-SELECT *
+SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id
 FROM deduped_earners
 `
 
 func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string, generatedSnapshotId uint64) error {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_15_GoldStaging]
+	destTableName := rewardsUtils.RewardsTable_GoldStaging
 
 	rc.logger.Sugar().Infow("Generating gold staging",
 		zap.String("cutoffDate", snapshotDate),
@@ -191,24 +190,27 @@ func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string, gen
 
 	query, err := rewardsUtils.RenderQueryTemplate(_15_goldStagingQuery, map[string]interface{}{
 		"destTableName":                           destTableName,
-		"stakerRewardAmountsTable":                allTableNames[rewardsUtils.Table_2_StakerRewardAmounts],
-		"operatorRewardAmountsTable":              allTableNames[rewardsUtils.Table_3_OperatorRewardAmounts],
-		"rewardsForAllTable":                      allTableNames[rewardsUtils.Table_4_RewardsForAll],
-		"rfaeStakerTable":                         allTableNames[rewardsUtils.Table_5_RfaeStakers],
-		"rfaeOperatorTable":                       allTableNames[rewardsUtils.Table_6_RfaeOperators],
-		"operatorODRewardAmountsTable":            allTableNames[rewardsUtils.Table_8_OperatorODRewardAmounts],
-		"stakerODRewardAmountsTable":              allTableNames[rewardsUtils.Table_9_StakerODRewardAmounts],
-		"avsODRewardAmountsTable":                 allTableNames[rewardsUtils.Table_10_AvsODRewardAmounts],
+		"stakerRewardAmountsTable":                rewardsUtils.RewardsTable_2_StakerRewardAmounts,
+		"operatorRewardAmountsTable":              rewardsUtils.RewardsTable_3_OperatorRewardAmounts,
+		"rewardsForAllTable":                      rewardsUtils.RewardsTable_4_RewardsForAll,
+		"rfaeStakerTable":                         rewardsUtils.RewardsTable_5_RfaeStakers,
+		"rfaeOperatorTable":                       rewardsUtils.RewardsTable_6_RfaeOperators,
+		"operatorODRewardAmountsTable":            rewardsUtils.RewardsTable_8_OperatorODRewardAmounts,
+		"stakerODRewardAmountsTable":              rewardsUtils.RewardsTable_9_StakerODRewardAmounts,
+		"avsODRewardAmountsTable":                 rewardsUtils.RewardsTable_10_AvsODRewardAmounts,
 		"enableRewardsV2":                         isRewardsV2Enabled,
-		"operatorODOperatorSetRewardAmountsTable": allTableNames[rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts],
-		"stakerODOperatorSetRewardAmountsTable":   allTableNames[rewardsUtils.Table_13_StakerODOperatorSetRewardAmounts],
-		"avsODOperatorSetRewardAmountsTable":      allTableNames[rewardsUtils.Table_14_AvsODOperatorSetRewardAmounts],
+		"operatorODOperatorSetRewardAmountsTable": rewardsUtils.RewardsTable_12_OperatorODOperatorSetRewardAmounts,
+		"stakerODOperatorSetRewardAmountsTable":   rewardsUtils.RewardsTable_13_StakerODOperatorSetRewardAmounts,
+		"avsODOperatorSetRewardAmountsTable":      rewardsUtils.RewardsTable_14_AvsODOperatorSetRewardAmounts,
 		"enableRewardsV2_1":                       isRewardsV2_1Enabled,
+		"generatedRewardsSnapshotId":              generatedSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
+
+	query = query + " ON CONFLICT (earner, token, reward_hash, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {

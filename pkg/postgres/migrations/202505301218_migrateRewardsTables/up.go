@@ -4,11 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
 	"gorm.io/gorm"
-	"regexp"
-	"strings"
 )
 
 type Migration struct {
@@ -46,10 +47,9 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 	}
 
 	likeTablesQuery := `
-		SELECT table_name
+		SELECT table_schema || '.' || table_name
 		FROM information_schema.tables
-		WHERE table_schema = 'public'
-			AND table_type='BASE TABLE'
+		WHERE table_type='BASE TABLE'
 			and table_name ~* @pattern
 	`
 	var tables []string
@@ -484,5 +484,5 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 }
 
 func (m *Migration) GetName() string {
-	return "202505081218_migrateRewardsTables"
+	return "202505301218_migrateRewardsTables"
 }

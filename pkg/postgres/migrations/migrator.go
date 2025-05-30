@@ -77,8 +77,8 @@ import (
 	_202503191610_coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503191610_coreContractMigrations"
 	_202503311108_goldRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503311108_goldRewardHashIndex"
 	_202504240743_fixQueuedSlashingWithdrawalsPk "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202504240743_fixQueuedSlashingWithdrawalsPk"
-	_202505081218_migrateRewardsTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202505081218_migrateRewardsTables"
 	_202505092007_startupJobs "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202505092007_startupJobs"
+	_202505301218_migrateRewardsTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202505301218_migrateRewardsTables"
 	_202506172149_snapshotUniqueConstraintsPartTwo "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202506172149_snapshotUniqueConstraintsPartTwo"
 )
 
@@ -221,9 +221,8 @@ func (m *Migrator) MigrateAll() error {
 		&_202505092007_startupJobs.Migration{},
 		&_202506172149_snapshotUniqueConstraintsPartTwo.Migration{},
 		&_202503191610_coreContractMigrations.Migration{},
-		&_202505081218_migrateRewardsTables.Migration{},
+		&_202505301218_migrateRewardsTables.Migration{},
 	}
-
 	for _, migration := range migrations {
 		err := m.Migrate(migration)
 		if err != nil {

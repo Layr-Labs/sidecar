@@ -259,7 +259,7 @@ func Test_Rewards(t *testing.T) {
 			assert.Nil(t, err)
 
 			fmt.Printf("Running gold_1_active_rewards\n")
-			err = rc.Generate1ActiveRewards(snapshotDate)
+			err = rc.Generate1ActiveRewards(snapshotDate, snapshotStatus.Id)
 			assert.Nil(t, err)
 			rows, err := getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_1_ActiveRewards])
 			assert.Nil(t, err)
