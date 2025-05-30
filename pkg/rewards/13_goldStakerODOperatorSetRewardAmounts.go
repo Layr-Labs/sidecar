@@ -6,7 +6,7 @@ import (
 )
 
 const _13_goldStakerODOperatorSetRewardAmountsQuery = `
-CREATE TABLE {{.destTableName}} AS
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_registered_snapshot_decimal, avs, operator_set_id, operator, staker, strategy, multiplier, reward_submission_date, shares, staker_weight, rn, total_weight, staker_proportion, staker_tokens, generated_rewards_snapshot_id) AS
 
 -- Step 1: Get the rows where operators have registered for the operator set
 WITH reward_snapshot_operators AS (
@@ -127,7 +127,7 @@ staker_reward_amounts AS (
     FROM staker_proportion
 )
 -- Output the final table
-SELECT * FROM staker_reward_amounts
+SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id FROM staker_reward_amounts
 `
 
 func (rc *RewardsCalculator) GenerateGold13StakerODOperatorSetRewardAmountsTable(snapshotDate string, generatedSnapshotId uint64) error {
@@ -141,8 +141,7 @@ func (rc *RewardsCalculator) GenerateGold13StakerODOperatorSetRewardAmountsTable
 		return nil
 	}
 
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_13_StakerODOperatorSetRewardAmounts]
+	destTableName := rewardsUtils.RewardsTable_13_StakerODOperatorSetRewardAmounts
 
 	rc.logger.Sugar().Infow("Generating Staker OD operator set reward amounts",
 		zap.String("cutoffDate", snapshotDate),
@@ -150,13 +149,16 @@ func (rc *RewardsCalculator) GenerateGold13StakerODOperatorSetRewardAmountsTable
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_13_goldStakerODOperatorSetRewardAmountsQuery, map[string]interface{}{
-		"destTableName":        destTableName,
-		"activeODRewardsTable": allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
+		"destTableName":              destTableName,
+		"activeODRewardsTable":       rewardsUtils.RewardsTable_11_ActiveODOperatorSetRewards,
+		"generatedRewardsSnapshotId": generatedSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
+
+	query = query + " ON CONFLICT (reward_hash, snapshot, operator_set_id, operator, strategy) DO NOTHING"
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
