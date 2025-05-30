@@ -8,7 +8,7 @@ import (
 )
 
 var _7_goldActiveODRewardsQuery = `
-CREATE TABLE {{.destTableName}} AS
+INSERT INTO {{.destTableName}} (avs, operator, snapshot, token, amount_decimal, multiplier, strategy, duration, reward_hash, reward_submission_date, num_registered_snapshots, tokens_per_registered_snapshot_decimal, generated_rewards_snapshot_id) AS
 WITH 
 -- Step 2: Modify active rewards and compute tokens per day
 active_rewards_modified AS (
@@ -163,7 +163,7 @@ active_rewards_final AS (
     FROM active_rewards_with_registered_snapshots ar
 )
 
-SELECT * FROM active_rewards_final
+SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id FROM active_rewards_final
 `
 
 // Generate7ActiveODRewards generates active operator-directed rewards for the gold_7_active_od_rewards table
@@ -182,8 +182,7 @@ func (r *RewardsCalculator) Generate7ActiveODRewards(snapshotDate string, genera
 		return nil
 	}
 
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_7_ActiveODRewards]
+	destTableName := rewardsUtils.RewardsTable_7_ActiveODRewards
 
 	rewardsStart := "1970-01-01 00:00:00" // This will always start as this date and get's updated later in the query
 
@@ -194,14 +193,17 @@ func (r *RewardsCalculator) Generate7ActiveODRewards(snapshotDate string, genera
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_7_goldActiveODRewardsQuery, map[string]interface{}{
-		"destTableName": destTableName,
-		"rewardsStart":  rewardsStart,
-		"cutoffDate":    snapshotDate,
+		"destTableName":              destTableName,
+		"rewardsStart":               rewardsStart,
+		"cutoffDate":                 snapshotDate,
+		"generatedRewardsSnapshotId": generatedSnapshotId,
 	})
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
+
+	query = query + " ON CONFLICT (reward_hash, avs, operator, strategy, snapshot) DO NOTHING"
 
 	res := r.grm.Exec(query,
 		sql.Named("cutoffDate", snapshotDate),
