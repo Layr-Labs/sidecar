@@ -9,7 +9,7 @@ import (
 )
 
 const _14_goldAvsODOperatorSetRewardAmountsQuery = `
-CREATE TABLE {{.destTableName}} AS
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_registered_snapshot_decimal, avs, operator_set_id, operator, strategy, multiplier, reward_submission_date, rn, split_pct, operator_tokens, avs_tokens, generated_rewards_snapshot_id) AS
 
 -- Step 1: Get the rows where operators have not registered for the AVS or if the AVS does not exist
 WITH not_registered_operators AS (
@@ -165,7 +165,7 @@ combined_avs_refund_amounts AS (
 )
 
 -- Output the final table
-SELECT * FROM combined_avs_refund_amounts
+SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id FROM combined_avs_refund_amounts
 `
 
 func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate string, generatedSnapshotId uint64, forks config.ForkMap) error {
@@ -179,23 +179,24 @@ func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(sn
 		return nil
 	}
 
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_14_AvsODOperatorSetRewardAmounts]
+	destTableName := rewardsUtils.RewardsTable_14_AvsODOperatorSetRewardAmounts
 
 	rc.logger.Sugar().Infow("Generating Avs OD operator set reward amounts",
 		zap.String("cutoffDate", snapshotDate),
-		zap.String("destTableName", destTableName),
 		zap.String("coloradoHardforkDate", forks[config.RewardsFork_Colorado].Date),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_14_goldAvsODOperatorSetRewardAmountsQuery, map[string]interface{}{
-		"destTableName":        destTableName,
-		"activeODRewardsTable": allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
+		"destTableName":              destTableName,
+		"activeODRewardsTable":       rewardsUtils.RewardsTable_11_ActiveODOperatorSetRewards,
+		"generatedRewardsSnapshotId": generatedSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
+
+	query = query + " ON CONFLICT (reward_hash, snapshot, operator_set_id, operator, token) DO NOTHING"
 
 	res := rc.grm.Exec(query, sql.Named("coloradoHardforkDate", forks[config.RewardsFork_Colorado].Date))
 	if res.Error != nil {
