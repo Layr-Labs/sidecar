@@ -108,6 +108,25 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "block_height",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "uint64"
+            },
+            "description": "Block height to use for calculating rewards. If not provided, the latest block is used."
+          },
+          {
+            "name": "snapshot_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Snapshot date in YYYY-MM-DD format. If provided, the minimum block height for that date will be used instead of block_height."
           }
         ],
         "responses": {

@@ -174,4 +174,17 @@ func Test_RewardsDataService(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, r)
 	})
+	t.Run("Test GetBlockHeightForSnapshotDate", func(t *testing.T) {
+		// Test with a known date that should exist in the database
+		snapshotDate := "2025-01-16"
+		blockHeight, err := rds.GetBlockHeightForSnapshotDate(context.Background(), snapshotDate)
+		assert.Nil(t, err)
+		assert.Greater(t, blockHeight, uint64(0), "Block height should be greater than 0")
+		fmt.Printf("Block height for snapshot date %s: %d\n", snapshotDate, blockHeight)
+
+		// Test with a snapshot date that should not exist
+		nonExistentDate := "1970-01-01"
+		_, err = rds.GetBlockHeightForSnapshotDate(context.Background(), nonExistentDate)
+		assert.NotNil(t, err, "Should return an error for non-existent date")
+	})
 }
