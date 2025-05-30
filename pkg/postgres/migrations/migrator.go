@@ -72,8 +72,8 @@ import (
 	_202503171414_slashingWithdrawals "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503171414_slashingWithdrawals"
 	_202503311108_goldRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503311108_goldRewardHashIndex"
 	_202504240743_fixQueuedSlashingWithdrawalsPk "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202504240743_fixQueuedSlashingWithdrawalsPk"
-	_202505081218_migrateRewardsTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202505081218_migrateRewardsTables"
 	_202505092007_startupJobs "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202505092007_startupJobs"
+	_202505301218_migrateRewardsTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202505301218_migrateRewardsTables"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -215,9 +215,8 @@ func (m *Migrator) MigrateAll() error {
 		&_202503171414_slashingWithdrawals.Migration{},
 		&_202504240743_fixQueuedSlashingWithdrawalsPk.Migration{},
 		&_202505092007_startupJobs.Migration{},
-		&_202505081218_migrateRewardsTables.Migration{},
+		&_202505301218_migrateRewardsTables.Migration{},
 	}
-
 	for _, migration := range migrations {
 		err := m.Migrate(migration)
 		if err != nil {

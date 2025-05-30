@@ -8,7 +8,7 @@ import (
 )
 
 var _11_goldActiveODOperatorSetRewardsQuery = `
-CREATE TABLE {{.destTableName}} AS
+INSERT INTO {{.destTableName}} (avs, operator_set_id, operator, snapshot, token, amount_decimal, multiplier, strategy, duration, reward_hash, reward_submission_date, num_registered_snapshots, tokens_per_registered_snapshot_decimal, generated_rewards_snapshot_id) AS
 WITH 
 -- Step 1: Modify active rewards and compute tokens per day
 active_rewards_modified AS (
@@ -168,7 +168,7 @@ active_rewards_final AS (
     FROM active_rewards_with_registered_snapshots ar
 )
 
-SELECT * FROM active_rewards_final
+SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id FROM active_rewards_final
 `
 
 // Generate11GoldActiveODOperatorSetRewards generates active operator-directed rewards for the gold_11_active_od_operator_set_rewards table
@@ -187,8 +187,7 @@ func (r *RewardsCalculator) GenerateGold11ActiveODOperatorSetRewards(snapshotDat
 		return nil
 	}
 
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards]
+	destTableName := rewardsUtils.RewardsTable_11_ActiveODOperatorSetRewards
 
 	rewardsStart := "1970-01-01 00:00:00" // This will always start as this date and get's updated later in the query
 
@@ -199,14 +198,17 @@ func (r *RewardsCalculator) GenerateGold11ActiveODOperatorSetRewards(snapshotDat
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_11_goldActiveODOperatorSetRewardsQuery, map[string]interface{}{
-		"destTableName": destTableName,
-		"rewardsStart":  rewardsStart,
-		"cutoffDate":    snapshotDate,
+		"destTableName":              destTableName,
+		"rewardsStart":               rewardsStart,
+		"cutoffDate":                 snapshotDate,
+		"generatedRewardsSnapshotId": generatedSnapshotId,
 	})
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
+
+	query = query + " ON CONFLICT (reward_hash, operator_set_id, strategy, snapshot) DO NOTHING"
 
 	res := r.grm.Exec(query,
 		sql.Named("cutoffDate", snapshotDate),
