@@ -249,7 +249,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			// This should tehcnically never happen, but if the latest state root is ahead of the latest block,
 			// something is very wrong and we should fail.
 			if latestStateRoot.EthBlockNumber > uint64(lastIndexedBlock) {
-				return fmt.Errorf("latest state root (%d) is ahead of latest stored block (%d), which should never happen, so something is very wrong", latestStateRoot.EthBlockNumber, lastIndexedBlock)
+				return fmt.Errorf("Latest state root (%d) is ahead of latest stored block (%d), which should never happen, so something is very wrong", latestStateRoot.EthBlockNumber, lastIndexedBlock)
 			}
 			if latestStateRoot.EthBlockNumber == uint64(lastIndexedBlock) {
 				s.Logger.Sugar().Infow("Latest block and latest state root are in sync, starting from latest block + 1",
@@ -270,6 +270,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		if err != nil {
 			s.Logger.Sugar().Fatalw("Failed to get current tip", zap.Error(err))
 		}
+
 		s.Logger.Sugar().Infow("Current tip", zap.Uint64("currentTip", latestSafe))
 
 		if latestSafe >= uint64(lastIndexedBlock) {

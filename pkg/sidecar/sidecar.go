@@ -3,6 +3,8 @@ package sidecar
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -18,7 +20,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"sync/atomic"
 )
 
 type SidecarConfig struct {
