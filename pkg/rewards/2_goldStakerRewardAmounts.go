@@ -9,7 +9,7 @@ import (
 )
 
 const _2_goldStakerRewardAmountsQuery = `
-INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_day, tokens_per_day_decimal, avs, strategy, multiplier, reward_type, reward_submission_date, operator, staker, shares, staker_weight, rn, total_weight, staker_proportion, total_staker_operator_payout, operator_tokens, staker_tokens, generated_rewards_snapshot_id) as
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_day, tokens_per_day_decimal, avs, strategy, multiplier, reward_type, reward_submission_date, operator, staker, shares, staker_weight, rn, total_weight, staker_proportion, total_staker_operator_payout, operator_tokens, staker_tokens, generated_rewards_snapshot_id)
 WITH reward_snapshot_operators as (
   SELECT
     ap.reward_hash,
@@ -144,7 +144,7 @@ token_breakdowns AS (
 )
 SELECT
 	tb.*,
-	@generatedRewardsSnapshotId as generated_rewards_snapshot_id
+	{{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id
 from token_breakdowns as tb
 ORDER BY reward_hash, snapshot, staker, operator
 `
@@ -179,7 +179,7 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 		sql.Named("nileHardforkDate", forks[config.RewardsFork_Nile].Date),
 		sql.Named("arnoHardforkDate", forks[config.RewardsFork_Arno].Date),
 		sql.Named("trinityHardforkDate", forks[config.RewardsFork_Trinity].Date),
-		sql.Named("generatedRewardsSnapshotId", snapshotDate),
+		sql.Named("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
 	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_staker_reward_amounts", "error", res.Error)
