@@ -328,6 +328,8 @@ func (s *PostgresContractStore) loadContractData() (*contractStore.CoreContracts
 		filename = "sepolia.json"
 	case config.Chain_Preprod:
 		filename = "preprod.json"
+	case config.Chain_Hoodi:
+		filename = "hoodi.json"
 	default:
 		return nil, fmt.Errorf("unknown environment")
 	}

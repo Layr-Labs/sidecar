@@ -29,6 +29,7 @@ const (
 	Chain_Holesky Chain = "holesky"
 	Chain_Preprod Chain = "preprod"
 	Chain_Sepolia Chain = "sepolia"
+	Chain_Hoodi   Chain = "hoodi"
 
 	ENV_PREFIX = "SIDECAR"
 )
@@ -334,6 +335,7 @@ var AVSDirectoryAddresses = map[Chain]string{
 	Chain_Holesky: "0x055733000064333CaDDbC92763c58BF0192fFeBf",
 	Chain_Mainnet: "0x135dda560e946695d6f155dacafc6f1f25c1f5af",
 	Chain_Sepolia: "0xa789c91ecddae96865913130b786140ee17af545",
+	Chain_Hoodi:   "0xd58f6844f79eb1fbd9f7091d05f7cb30d3363926",
 }
 
 type ContractAddresses struct {
@@ -377,6 +379,15 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			RewardsCoordinator: "0x5ae8152fb88c26ff9ca5c014c94fca3c68029349",
 			StrategyManager:    "0x2e3d6c0744b10eb0a4e6f679f71554a39ec47a5d",
 		}
+	} else if c.Chain == Chain_Hoodi {
+		return &ContractAddresses{
+			AllocationManager:  "0x95a7431400f362f3647a69535c5666ca0133caa0",
+			AvsDirectory:       "0xd58f6844f79eb1fbd9f7091d05f7cb30d3363926",
+			DelegationManager:  "0x867837a9722c512e0862d8c2e15b8be220e8b87d",
+			EigenpodManager:    "0xcd1442415fc5c29aa848a49d2e232720be07976c",
+			RewardsCoordinator: "0x29e8572678e0c272350aa0b4b8f304e47ebcd5e7",
+			StrategyManager:    "0xee45e76ddbedda2918b8c7e3035cd37eab3b5d41",
+		}
 	} else if c.Chain == Chain_Mainnet {
 		return &ContractAddresses{
 			RewardsCoordinator: "0x7750d328b314effa365a0402ccfd489b80b0adda",
@@ -416,6 +427,8 @@ func (c *Config) GetGenesisBlockNumber() uint64 {
 		return 1167044
 	case Chain_Sepolia:
 		return 8086200
+	case Chain_Hoodi:
+		return 165000
 	case Chain_Mainnet:
 		return 17445563
 	default:
@@ -536,6 +549,34 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 8327038,
 			},
 		}, nil
+	case Chain_Hoodi:
+		return ForkMap{
+			RewardsFork_Amazon:  Fork{Date: "1970-01-01"},
+			RewardsFork_Nile:    Fork{Date: "1970-01-01"},
+			RewardsFork_Panama:  Fork{Date: "1970-01-01"},
+			RewardsFork_Arno:    Fork{Date: "1970-01-01"},
+			RewardsFork_Trinity: Fork{Date: "1970-01-01"},
+			RewardsFork_Mississippi: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Brazos: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Colorado: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Red: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Pecos: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+		}, nil
 	case Chain_Mainnet:
 		return ForkMap{
 			RewardsFork_Amazon: Fork{
@@ -605,6 +646,10 @@ func (c *Config) GetModelForks() (ModelForkMap, error) {
 		return ModelForkMap{
 			ModelFork_Austin: 0, // doesnt apply to sepolia
 		}, nil
+	case Chain_Hoodi:
+		return ModelForkMap{
+			ModelFork_Austin: 0, // doesnt apply to hoodi
+		}, nil
 	case Chain_Mainnet:
 		return ModelForkMap{
 			ModelFork_Austin: 0, // doesnt apply to mainnet
@@ -650,6 +695,8 @@ func (c *Config) GetOperatorRestakedStrategiesStartBlock() uint64 {
 		return 1162800
 	case Chain_Sepolia:
 		return 8086200
+	case Chain_Hoodi:
+		return 165000
 	case Chain_Mainnet:
 		return 19616400
 	}
@@ -716,6 +763,7 @@ func (c *Config) CanIgnoreIncorrectRewardsRoot(blockNumber uint64) bool {
 			return true
 		}
 	case Chain_Sepolia:
+	case Chain_Hoodi:
 	case Chain_Mainnet:
 	}
 	return false
