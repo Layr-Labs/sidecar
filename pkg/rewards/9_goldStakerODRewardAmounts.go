@@ -9,7 +9,7 @@ import (
 )
 
 const _9_goldStakerODRewardAmountsQuery = `
-INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_registered_snapshot_decimal, avs, operator, staker, strategy, multiplier, reward_submission_date, shares, staker_weight, rn, total_weight, staker_proportion, staker_tokens, generated_rewards_snapshot_id) AS
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_registered_snapshot_decimal, avs, operator, strategy, multiplier, reward_submission_date, staker_split, staker, shares, staker_weight, rn, total_weight, staker_proportion, staker_tokens, generated_rewards_snapshot_id)
 
 -- Step 1: Get the rows where operators have registered for the AVS
 WITH reward_snapshot_operators AS (
@@ -119,10 +119,10 @@ staker_reward_amounts AS (
     FROM staker_proportion
 )
 -- Output the final table
-SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id FROM staker_reward_amounts
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM staker_reward_amounts
 `
 
-func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDate string, generatedSnapshotId uint64, forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
 	rewardsV2Enabled, err := rc.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
@@ -144,7 +144,7 @@ func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDat
 	query, err := rewardsUtils.RenderQueryTemplate(_9_goldStakerODRewardAmountsQuery, map[string]interface{}{
 		"destTableName":              destTableName,
 		"activeODRewardsTable":       rewardsUtils.RewardsTable_7_ActiveODRewards,
-		"generatedRewardsSnapshotId": generatedSnapshotId,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

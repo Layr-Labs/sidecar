@@ -6,7 +6,7 @@ import (
 )
 
 const _10_goldAvsODRewardAmountsQuery = `
-INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, avs, operator, avs_tokens, generated_rewards_snapshot_id) AS
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, avs, operator, avs_tokens, generated_rewards_snapshot_id)
 
 -- Step 1: Get the rows where operators have not registered for the AVS or if the AVS does not exist
 WITH reward_snapshot_operators AS (
@@ -57,10 +57,10 @@ operator_token_sums AS (
 )
 
 -- Step 4: Output the final table
-SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id FROM operator_token_sums
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM operator_token_sums
 `
 
-func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate string, generatedSnapshotId uint64) error {
+func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
 	rewardsV2Enabled, err := rc.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
@@ -81,7 +81,7 @@ func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate 
 	query, err := rewardsUtils.RenderQueryTemplate(_10_goldAvsODRewardAmountsQuery, map[string]interface{}{
 		"destTableName":              destTableName,
 		"activeODRewardsTable":       rewardsUtils.RewardsTable_7_ActiveODRewards,
-		"generatedRewardsSnapshotId": generatedSnapshotId,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
