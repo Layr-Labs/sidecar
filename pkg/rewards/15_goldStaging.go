@@ -8,7 +8,7 @@ import (
 )
 
 const _15_goldStagingQuery = `
-INSERT INTO {{.destTableName}} (earner, snapshot, reward_hash, token, amount, generated_rewards_snapshot_id) as
+INSERT INTO {{.destTableName}} (earner, snapshot, reward_hash, token, amount, generated_rewards_snapshot_id)
 WITH staker_rewards AS (
   -- We can select DISTINCT here because the staker's tokens are the same for each strategy in the reward hash
   SELECT DISTINCT
@@ -162,11 +162,11 @@ deduped_earners AS (
     reward_hash,
     token
 )
-SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id
 FROM deduped_earners
 `
 
-func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string, generatedSnapshotId uint64) error {
+func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
 	destTableName := rewardsUtils.RewardsTable_GoldStaging
 
 	rc.logger.Sugar().Infow("Generating gold staging",
@@ -203,7 +203,7 @@ func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string, gen
 		"stakerODOperatorSetRewardAmountsTable":   rewardsUtils.RewardsTable_13_StakerODOperatorSetRewardAmounts,
 		"avsODOperatorSetRewardAmountsTable":      rewardsUtils.RewardsTable_14_AvsODOperatorSetRewardAmounts,
 		"enableRewardsV2_1":                       isRewardsV2_1Enabled,
-		"generatedRewardsSnapshotId":              generatedSnapshotId,
+		"generatedRewardsSnapshotId":              generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
