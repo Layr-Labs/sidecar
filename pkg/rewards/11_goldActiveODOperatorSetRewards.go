@@ -8,7 +8,7 @@ import (
 )
 
 var _11_goldActiveODOperatorSetRewardsQuery = `
-INSERT INTO {{.destTableName}} (avs, operator_set_id, operator, snapshot, token, amount_decimal, multiplier, strategy, duration, reward_hash, reward_submission_date, num_registered_snapshots, tokens_per_registered_snapshot_decimal, generated_rewards_snapshot_id) AS
+INSERT INTO {{.destTableName}} (avs, operator_set_id, operator, snapshot, token, amount_decimal, multiplier, strategy, duration, reward_hash, reward_submission_date, num_registered_snapshots, tokens_per_registered_snapshot_decimal, generated_rewards_snapshot_id)
 WITH 
 -- Step 1: Modify active rewards and compute tokens per day
 active_rewards_modified AS (
@@ -168,7 +168,7 @@ active_rewards_final AS (
     FROM active_rewards_with_registered_snapshots ar
 )
 
-SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id FROM active_rewards_final
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM active_rewards_final
 `
 
 // Generate11GoldActiveODOperatorSetRewards generates active operator-directed rewards for the gold_11_active_od_operator_set_rewards table
@@ -176,7 +176,7 @@ SELECT *, @generatedRewardsSnapshotId as generated_rewards_snapshot_id FROM acti
 // @param snapshotDate: The upper bound of when to calculate rewards to
 // @param startDate: The lower bound of when to calculate rewards from. If we're running rewards for the first time,
 // this will be "1970-01-01". If this is a subsequent run, this will be the last snapshot date.
-func (r *RewardsCalculator) GenerateGold11ActiveODOperatorSetRewards(snapshotDate string, generatedSnapshotId uint64) error {
+func (r *RewardsCalculator) GenerateGold11ActiveODOperatorSetRewards(snapshotDate string, generatedRewardsSnapshotId uint64) error {
 	rewardsV2_1Enabled, err := r.globalConfig.IsRewardsV2_1EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to check if rewards v2.1 is enabled", "error", err)
@@ -201,7 +201,7 @@ func (r *RewardsCalculator) GenerateGold11ActiveODOperatorSetRewards(snapshotDat
 		"destTableName":              destTableName,
 		"rewardsStart":               rewardsStart,
 		"cutoffDate":                 snapshotDate,
-		"generatedRewardsSnapshotId": generatedSnapshotId,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to render query template", "error", err)
