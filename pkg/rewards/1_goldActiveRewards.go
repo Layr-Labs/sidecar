@@ -95,7 +95,7 @@ active_rewards_final AS (
 )
 select
     arf.*,
-    @generatedRewardsSnapshotId as generated_rewards_snapshot_id
+    {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id
 from active_rewards_final as arf
 `
 
