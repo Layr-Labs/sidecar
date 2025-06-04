@@ -23,29 +23,35 @@ type SubMigration struct {
 }
 
 func getMinGeneratedRewardsSnapshotId(grm *gorm.DB) (uint64, error) {
-	var minSnapshotId uint64
+	var minSnapshotId *uint64
 	res := grm.Raw("select min(id) from generated_rewards_snapshots").Scan(&minSnapshotId)
 	if res.Error != nil {
 		return 0, res.Error
 	}
-	return minSnapshotId, nil
+	if minSnapshotId == nil {
+		return 0, nil // Return 0 if no snapshots exist
+	}
+	return *minSnapshotId, nil
 }
 
 func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
+	fmt.Printf("Creating table: %s\n", sm.NewTableName)
 	res := grm.Exec(sm.CreateTableQuery)
 	if res.Error != nil {
-		fmt.Printf("Failed to execute query: %s\n", sm.CreateTableQuery)
+		fmt.Printf("Failed to create table %s: %s\nQuery: %s\n", sm.NewTableName, res.Error, sm.CreateTableQuery)
 		return res.Error
 	}
 
+	fmt.Printf("Adding constraints for table: %s\n", sm.NewTableName)
 	for _, query := range sm.PreDataMigrationQueries {
 		res := grm.Exec(query)
 		if res.Error != nil {
-			fmt.Printf("Failed to execute query: %s\n", query)
+			fmt.Printf("Failed to add constraints for table %s: %s\nQuery: %s\n", sm.NewTableName, res.Error, query)
 			return res.Error
 		}
 	}
 
+	fmt.Printf("Searching for existing tables with pattern: %s\n", sm.ExistingTablePattern)
 	likeTablesQuery := `
 		SELECT table_schema || '.' || table_name
 		FROM information_schema.tables
@@ -58,53 +64,143 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 		fmt.Printf("Failed to find tables: %s\n%s\n", sm.ExistingTablePattern, likeTablesQuery)
 		return res.Error
 	}
+	fmt.Printf("Found %d existing tables to migrate: %v\n", len(tables), tables)
 
-	for _, table := range tables {
-		// find the corresponding generated rewards entry
-		re := regexp.MustCompile(`(202[0-9]_[0-9]{2}_[0-9]{2})$`)
+	if len(tables) == 0 {
+		fmt.Printf("No tables found to migrate for pattern: %s\n", sm.ExistingTablePattern)
+		return nil
+	}
 
-		// Find the first match
-		match := re.FindStringSubmatch(table)
-		if len(match) != 2 {
-			return fmt.Errorf("Failed to find date in table name: %s", table)
-		}
-		date := match[1]
-		kebabDate := strings.ReplaceAll(date, "_", "-")
+	// Optimize PostgreSQL settings for bulk inserts (only settings that can be changed at runtime)
+	fmt.Printf("Optimizing PostgreSQL settings for bulk migration\n")
+	optimizationQueries := []string{
+		"SET work_mem = '256MB'",    // Increase memory for sort operations - can be changed at runtime
+		"SET temp_buffers = '32MB'", // Increase temporary buffer size - can be changed at runtime
+	}
 
-		generatedQuery := `select id from generated_rewards_snapshots where snapshot_date = @snapshot`
-		var snapshotId uint64
-		res = grm.Raw(generatedQuery, sql.Named("snapshot", kebabDate)).Scan(&snapshotId)
-		if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
-			fmt.Printf("Failed to find generated rewards snapshot for date: %s\n", date)
-			return res.Error
-		}
-		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
-			fmt.Printf("No generated rewards snapshot found for date: %s\n", date)
-			var err error
-			snapshotId, err = getMinGeneratedRewardsSnapshotId(grm)
-			if err != nil {
-				snapshotId = 0
-			}
-		}
-
-		query := fmt.Sprintf("insert into %s select * from %s on conflict on constraint uniq_%s do nothing", sm.NewTableName, table, sm.NewTableName)
+	for _, query := range optimizationQueries {
 		res := grm.Exec(query)
 		if res.Error != nil {
-			fmt.Printf("Failed to execute query: %s\n", query)
-			return res.Error
-		}
-
-		if snapshotId == 0 {
-			continue
-		}
-		updateQuery := fmt.Sprintf("update %s set generated_rewards_snapshot_id = %d where generated_rewards_snapshot_id is null", sm.NewTableName, snapshotId)
-		res = grm.Exec(updateQuery)
-		if res.Error != nil {
-			fmt.Printf("Failed to execute query: %s\n", updateQuery)
-			return res.Error
+			fmt.Printf("Warning: Failed to set optimization setting: %s (error: %s)\n", query, res.Error)
+			// Continue anyway, these are just optimizations
+		} else {
+			fmt.Printf("Successfully set: %s\n", query)
 		}
 	}
 
+	// Process tables in smaller batches for better performance and reduced memory usage
+	batchSize := 10 // Process 10 tables at a time
+	for i := 0; i < len(tables); i += batchSize {
+		end := i + batchSize
+		if end > len(tables) {
+			end = len(tables)
+		}
+
+		fmt.Printf("Processing batch %d-%d of %d tables\n", i+1, end, len(tables))
+
+		for j := i; j < end; j++ {
+			table := tables[j]
+			if err := sm.processSingleTable(table, grm); err != nil {
+				return err
+			}
+		}
+
+		fmt.Printf("Completed batch %d-%d\n", i+1, end)
+	}
+
+	fmt.Printf("Migration completed for table: %s\n", sm.NewTableName)
+	return nil
+}
+
+func (sm *SubMigration) processSingleTable(table string, grm *gorm.DB) error {
+	fmt.Printf("Processing table: %s\n", table)
+
+	// find the corresponding generated rewards entry
+	// Try multiple regex patterns for different date formats
+	patterns := []string{
+		`(202[0-9]_[0-9]{2}_[0-9]{2})$`,     // 2024_12_31
+		`(202[0-9]_[0-9]_[0-9]{2})$`,        // 2024_1_31
+		`(202[0-9]_[0-9]{2}_[0-9])$`,        // 2024_12_1
+		`(202[0-9]_[0-9]_[0-9])$`,           // 2024_1_1
+		`([0-9]{4}_[0-9]{1,2}_[0-9]{1,2})$`, // Generic YYYY_M_D or YYYY_MM_DD
+	}
+
+	var match []string
+	date := ""
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		match = re.FindStringSubmatch(table)
+		if len(match) == 2 {
+			date = match[1]
+			break
+		}
+	}
+
+	if len(match) != 2 {
+		fmt.Printf("Failed to find date in table name: %s, tried patterns: %v\n", table, patterns)
+		return fmt.Errorf("Failed to find date in table name: %s", table)
+	}
+	// date := match[1]
+	kebabDate := strings.ReplaceAll(date, "_", "-")
+	fmt.Printf("Extracted date: %s -> %s from table: %s\n", date, kebabDate, table)
+
+	generatedQuery := `select id from generated_rewards_snapshots where snapshot_date = @snapshot`
+	var snapshotId uint64
+	res := grm.Raw(generatedQuery, sql.Named("snapshot", kebabDate)).Scan(&snapshotId)
+	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		fmt.Printf("Failed to find generated rewards snapshot for date: %s\n", date)
+		return res.Error
+	}
+	if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		fmt.Printf("No generated rewards snapshot found for date: %s, getting min snapshot ID\n", date)
+		var err error
+		snapshotId, err = getMinGeneratedRewardsSnapshotId(grm)
+		if err != nil {
+			fmt.Printf("Failed to get min snapshot ID: %v\n", err)
+			snapshotId = 0
+		}
+		fmt.Printf("Using min snapshot ID: %d\n", snapshotId)
+	} else {
+		fmt.Printf("Found snapshot ID %d for date: %s\n", snapshotId, kebabDate)
+	}
+
+	fmt.Printf("Inserting data from %s to %s\n", table, sm.NewTableName)
+
+	// Optimize: Include snapshot_id directly in the INSERT query instead of separate UPDATE
+	var query string
+	if snapshotId == 0 {
+		// If no snapshot ID, insert without it (will be NULL)
+		query = fmt.Sprintf("insert into %s select * from %s on conflict on constraint uniq_%s do nothing", sm.NewTableName, table, sm.NewTableName)
+	} else {
+		// Get column list for the destination table (excluding generated_rewards_snapshot_id)
+		var columns []string
+		columnQuery := `
+			SELECT column_name 
+			FROM information_schema.columns 
+			WHERE table_name = @table_name 
+			AND column_name != 'generated_rewards_snapshot_id'
+			ORDER BY ordinal_position
+		`
+		res := grm.Raw(columnQuery, sql.Named("table_name", sm.NewTableName)).Scan(&columns)
+		if res.Error != nil {
+			fmt.Printf("Failed to get columns for table %s: %s\n", sm.NewTableName, res.Error)
+			return res.Error
+		}
+
+		columnList := strings.Join(columns, ", ")
+		// Include snapshot_id directly in the INSERT
+		query = fmt.Sprintf(
+			"insert into %s (%s, generated_rewards_snapshot_id) select %s, %d from %s on conflict on constraint uniq_%s do nothing",
+			sm.NewTableName, columnList, columnList, snapshotId, table, sm.NewTableName,
+		)
+	}
+
+	res = grm.Exec(query)
+	if res.Error != nil {
+		fmt.Printf("Failed to insert data from %s: %s\nQuery: %s\n", table, res.Error, query)
+		return res.Error
+	}
+	fmt.Printf("Successfully inserted data from %s (affected rows: %d)\n", table, res.RowsAffected)
 	return nil
 }
 
@@ -352,7 +448,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_10_avs_od_reward_amounts add constraint uniq_rewards_gold_10_avs_od_reward_amounts unique (reward_hash, avs, operator, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_10_avs_od_reward_amounts",
-			ExistingTablePattern: "gold_[0-9]+_staker_avs_od_reward_amounts_[0-9_]+$",
+			ExistingTablePattern: "gold_[0-9]+_avs_od_reward_amounts_[0-9_]+$",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_11_active_od_operator_set_rewards (
@@ -463,7 +559,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_staging add constraint uniq_rewards_gold_staging unique (earner, token, reward_hash, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_staging",
-			ExistingTablePattern: "gold_[0-9]+_gold_staging_[0-9_]+$",
+			ExistingTablePattern: "gold_[0-9]+_staging_[0-9_]+$",
 		},
 	}
 
