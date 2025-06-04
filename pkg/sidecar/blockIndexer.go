@@ -3,6 +3,7 @@ package sidecar
 import (
 	"context"
 	"fmt"
+	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"sync/atomic"
 	"time"
 
@@ -249,7 +250,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			// This should tehcnically never happen, but if the latest state root is ahead of the latest block,
 			// something is very wrong and we should fail.
 			if latestStateRoot.EthBlockNumber > uint64(lastIndexedBlock) {
-				return fmt.Errorf("latest state root (%d) is ahead of latest stored block (%d), which should never happen, so something is very wrong", latestStateRoot.EthBlockNumber, lastIndexedBlock)
+				return fmt.Errorf("Latest state root (%d) is ahead of latest stored block (%d), which should never happen, so something is very wrong", latestStateRoot.EthBlockNumber, lastIndexedBlock)
 			}
 			if latestStateRoot.EthBlockNumber == uint64(lastIndexedBlock) {
 				s.Logger.Sugar().Infow("Latest block and latest state root are in sync, starting from latest block + 1",
@@ -270,6 +271,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		if err != nil {
 			s.Logger.Sugar().Fatalw("Failed to get current tip", zap.Error(err))
 		}
+
 		s.Logger.Sugar().Infow("Current tip", zap.Uint64("currentTip", latestSafe))
 
 		if latestSafe >= uint64(lastIndexedBlock) {
@@ -341,8 +343,11 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	s.Logger.Sugar().Infow("Starting indexing process", zap.Int64("currentBlock", currentBlock), zap.Uint64("currentTip", currentTip.Load()))
 
 	for uint64(currentBlock) <= currentTip.Load() {
+		span, spanCtx := ddTracer.StartSpanFromContext(ctx, "IndexingBlockBatch")
+
 		if s.shouldShutdown.Load() {
 			s.Logger.Sugar().Infow("Shutting down block processor")
+			span.Finish()
 			return nil
 		}
 		tip := currentTip.Load()
@@ -351,17 +356,22 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		if batchEndBlock > int64(tip) {
 			batchEndBlock = int64(tip)
 		}
-		if err := s.Pipeline.RunForBlockBatch(ctx, uint64(currentBlock), uint64(batchEndBlock), true); err != nil {
+		span.SetTag("currentBlock", currentBlock)
+		span.SetTag("batchEndBlock", batchEndBlock)
+
+		if err := s.Pipeline.RunForBlockBatch(spanCtx, uint64(currentBlock), uint64(batchEndBlock), true); err != nil {
 			s.Logger.Sugar().Errorw("Failed to run pipeline for block batch",
 				zap.Error(err),
 				zap.Uint64("startBlock", uint64(currentBlock)),
 				zap.Int64("batchEndBlock", batchEndBlock),
 			)
+			span.Finish()
 			return err
 		}
 		progress.UpdateAndPrintProgress(uint64(batchEndBlock))
 
 		currentBlock = batchEndBlock + 1
+		span.Finish()
 	}
 
 	return nil
