@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"text/template"
 
-	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
-
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -162,10 +160,6 @@ func RenderQueryTemplate(query string, variables map[string]interface{}) (string
 		return "", err
 	}
 	return dest.String(), nil
-}
-
-func FormatTableNameWithGeneratedSnaphotId(tableName string, generatedSnapshotId uint64) string {
-	return fmt.Sprintf("%s__%d", tableName, generatedSnapshotId)
 }
 
 func FormatTableName(tableName string, snapshotDate string) string {
