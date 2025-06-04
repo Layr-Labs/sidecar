@@ -413,25 +413,6 @@ func (rc *RewardsCalculator) findGeneratedRewardSnapshotByBlock(blockHeight uint
 	return &generatedRewardSnapshots, nil
 }
 
-func (rc *RewardsCalculator) findRewardsTablesBySnapshotDate(snapshotDate string) ([]string, error) {
-	schemaName := rc.globalConfig.DatabaseConfig.SchemaName
-	if schemaName == "" {
-		schemaName = "public"
-	}
-	snakeCaseSnapshotDate := strings.ReplaceAll(snapshotDate, "-", "_")
-	var rewardsTables []string
-	query := `select table_name from information_schema.tables where table_schema = @tableSchema and table_name like @tableNamePattern`
-	res := rc.grm.Raw(query,
-		sql.Named("tableSchema", schemaName),
-		sql.Named("tableNamePattern", fmt.Sprintf("gold_%%%s", snakeCaseSnapshotDate)),
-	).Scan(&rewardsTables)
-	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to get rewards tables", "error", res.Error)
-		return nil, res.Error
-	}
-	return rewardsTables, nil
-}
-
 func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight uint64) error {
 	generatedSnapshot, err := rc.findGeneratedRewardSnapshotByBlock(blockHeight)
 	if err != nil {
