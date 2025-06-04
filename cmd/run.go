@@ -71,6 +71,11 @@ var runCmd = &cobra.Command{
 			zap.String("chain", cfg.Chain.String()),
 		)
 
+		if cfg.DataDogConfig.EnableTracing {
+			l.Sugar().Info("DataDog tracing is enabled")
+		} else {
+			l.Sugar().Info("DataDog tracing is disabled, using mock tracer")
+		}
 		tracer.StartTracer(cfg.DataDogConfig.EnableTracing, cfg.Chain)
 		defer ddTracer.Stop()
 
