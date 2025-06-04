@@ -592,8 +592,6 @@ func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endB
 	span.SetTag("is_backfill", isBackfill)
 	defer span.Finish()
 
-	batchStartTime := time.Now()
-
 	p.Logger.Sugar().Debugw("Running pipeline for block batch",
 		zap.Uint64("startBlock", startBlock),
 		zap.Uint64("endBlock", endBlock),
@@ -626,52 +624,6 @@ func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endB
 	slices.SortFunc(fetchedBlocks, func(b1, b2 *fetcher.FetchedBlock) int {
 		return int(b1.Block.Number.Value() - b2.Block.Number.Value())
 	})
-
-	processStartTime := time.Now()
-	successfulBlocks := 0
-
-	for i, block := range fetchedBlocks {
-		blockNumber := block.Block.Number.Value()
-
-		// Create a span for processing each block
-		blockSpan, blockCtx := ddTracer.StartSpanFromContext(ctx, "pipeline.ProcessBlock")
-		blockSpan.SetTag("block_number", blockNumber)
-		blockSpan.SetTag("block_index", i)
-		blockSpan.SetTag("is_backfill", isBackfill)
-		blockStartTime := time.Now()
-
-		if err := p.RunForFetchedBlock(blockCtx, block, isBackfill); err != nil {
-			p.Logger.Sugar().Errorw("Failed to run pipeline for fetched block",
-				zap.Uint64("blockNumber", blockNumber),
-				zap.Error(err),
-			)
-			blockSpan.SetTag("error", true)
-			blockSpan.SetTag("error.message", err.Error())
-			blockSpan.SetTag("duration_ms", time.Since(blockStartTime).Milliseconds())
-			blockSpan.Finish()
-			span.SetTag("error", true)
-			span.SetTag("error.message", err.Error())
-			span.SetTag("failed_block", blockNumber)
-			return err
-		}
-
-		successfulBlocks++
-		blockDuration := time.Since(blockStartTime)
-		blockSpan.SetTag("duration_ms", blockDuration.Milliseconds())
-		blockSpan.Finish()
-	}
-
-	totalDuration := time.Since(batchStartTime)
-	processDuration := time.Since(processStartTime)
-
-	span.SetTag("blocks_processed", successfulBlocks)
-	span.SetTag("total_duration_ms", totalDuration.Milliseconds())
-	span.SetTag("process_duration_ms", processDuration.Milliseconds())
-	span.SetTag("fetch_duration_ms", fetchDuration.Milliseconds())
-
-	if successfulBlocks > 0 {
-		span.SetTag("avg_block_time_ms", float64(processDuration.Milliseconds())/float64(successfulBlocks))
-	}
 
 	return nil
 }
