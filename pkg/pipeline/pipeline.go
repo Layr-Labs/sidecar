@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/tracer"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
@@ -81,9 +80,6 @@ func NewPipeline(
 	eb eventBusTypes.IEventBus,
 	l *zap.Logger,
 ) *Pipeline {
-	// Initialize tracer at service startup
-	tracer.StartTracer(gc.DataDogConfig.EnableTracing, gc.Chain)
-
 	return &Pipeline{
 		Fetcher:           f,
 		Indexer:           i,
@@ -139,21 +135,12 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 
 	// Check if we should calculate daily rewards
 	if p.globalConfig.Rewards.CalculateRewardsDaily && !isBackfill {
-		rewardsSpan, rewardsCtx := ddTracer.StartSpanFromContext(ctx, "pipeline.CalculateRewardsDaily")
-		rewardsSpan.SetTag("block_number", blockNumber)
-
-		err := p.CalculateRewardsDaily(rewardsCtx, block)
+		err := p.CalculateRewardsDaily(ctx, block)
 		if err != nil {
 			p.Logger.Sugar().Errorw("Failed to calculate daily rewards", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 			hasError = true
-			rewardsSpan.SetTag("error", true)
-			rewardsSpan.SetTag("error.message", err.Error())
-			rewardsSpan.Finish()
-			span.SetTag("error", true)
-			span.SetTag("error.message", err.Error())
 			return err
 		}
-		rewardsSpan.Finish()
 	}
 
 	// Create a span for indexing the block
@@ -269,6 +256,11 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 		)
 
 		for _, log := range pt.Logs {
+			logSpan, logCtx := ddTracer.StartSpanFromContext(ctx, "pipeline.IndexLog")
+			logSpan.SetTag("block_number", blockNumber)
+			logSpan.SetTag("transaction_hash", indexedTransaction.TransactionHash)
+			logSpan.SetTag("log_index", log.LogIndex)
+
 			indexedLog, err := p.Indexer.IndexLog(
 				ctx,
 				indexedBlock.Number,
@@ -284,6 +276,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.Error(err),
 				)
 				hasError = true
+				logSpan.Finish()
 				return err
 			}
 			indexedTransactionLogs = append(indexedTransactionLogs, indexedLog)
@@ -293,7 +286,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				zap.Uint64("logIndex", log.LogIndex),
 			)
 
-			if err := p.stateManager.HandleLogStateChange(indexedLog, true); err != nil {
+			if err := p.stateManager.HandleLogStateChange(logCtx, indexedLog, true); err != nil {
 				p.Logger.Sugar().Errorw("Failed to handle log state change",
 					zap.Uint64("blockNumber", blockNumber),
 					zap.String("transactionHash", pt.Transaction.Hash.Value()),
@@ -301,6 +294,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.Error(err),
 				)
 				hasError = true
+				logSpan.Finish()
 				return err
 			}
 
@@ -312,12 +306,14 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.Error(err),
 				)
 				hasError = true
+				logSpan.Finish()
 				return err
 			}
 
 			contract, err := p.contractStore.GetContractForAddress(strings.ToLower(log.Address))
 			if err != nil {
 				p.Logger.Sugar().Errorw("Failed to get contract for address", zap.String("address", log.Address), zap.Error(err))
+				logSpan.Finish()
 				return err
 			}
 
@@ -329,9 +325,11 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 						zap.Uint64("logIndex", log.LogIndex),
 						zap.Error(err),
 					)
+					logSpan.Finish()
 					return err
 				}
 			}
+			logSpan.Finish()
 		}
 		p.Logger.Sugar().Debugw("Handled log state changes",
 			zap.Uint64("blockNumber", blockNumber),
@@ -632,6 +630,10 @@ func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endB
 // and if so, queues a reward calculation request. This allows one rewards calculation
 // per day, even when processing multiple days in a batch.
 func (p *Pipeline) CalculateRewardsDaily(ctx context.Context, block *fetcher.FetchedBlock) error {
+	rewardsSpan, _ := ddTracer.StartSpanFromContext(ctx, "pipeline.CalculateRewardsDaily")
+	rewardsSpan.SetTag("block_number", block.Block.Number.Value())
+	defer rewardsSpan.Finish()
+
 	blockNumber := block.Block.Number.Value()
 
 	blockTime := time.Unix(int64(block.Block.Timestamp), 0).UTC()

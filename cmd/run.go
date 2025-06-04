@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/tracer"
+	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"log"
 	"time"
 
@@ -68,6 +70,9 @@ var runCmd = &cobra.Command{
 			zap.String("commit", version.GetCommit()),
 			zap.String("chain", cfg.Chain.String()),
 		)
+
+		tracer.StartTracer(cfg.DataDogConfig.EnableTracing, cfg.Chain)
+		defer ddTracer.Stop()
 
 		eb := eventBus.NewEventBus(l)
 

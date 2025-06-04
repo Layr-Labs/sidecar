@@ -1,6 +1,7 @@
 package _02503171455_withdrawalEvents
 
 import (
+	"context"
 	"database/sql"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
@@ -114,7 +115,7 @@ func (sm *StateMigration) MigrateState(currentBlockNumber uint64) ([][]byte, map
 		}
 
 		for _, tl := range logs {
-			if err := stateMan.HandleLogStateChange(tl, false); err != nil {
+			if err := stateMan.HandleLogStateChange(context.Background(), tl, false); err != nil {
 				sm.logger.Sugar().Errorw("Failed to handle log state change", zap.String("transactionHash", tl.TransactionHash), zap.Uint64("logIndex", tl.LogIndex), zap.Error(err))
 				return nil, nil, err
 			}

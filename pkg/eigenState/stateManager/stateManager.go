@@ -1,6 +1,7 @@
 package stateManager
 
 import (
+	"context"
 	"database/sql"
 	"encoding/binary"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/ethereum/go-ethereum/common"
+	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"slices"
 	"sync"
 	"time"
@@ -61,7 +63,10 @@ func (e *EigenStateManager) RegisterPrecommitProcessor(precommitProcessor types.
 }
 
 // Given a log, allow each state model to determine if/how to process it.
-func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog, requireModelActiveForBlock bool) error {
+func (e *EigenStateManager) HandleLogStateChange(ctx context.Context, log *storage.TransactionLog, requireModelActiveForBlock bool) error {
+	span, ctx := ddTracer.StartSpanFromContext(ctx, "EigenStateManager::HandleLogStateChange")
+	defer span.Finish()
+
 	e.logger.Sugar().Debugw("Handling log state change", zap.String("transactionHash", log.TransactionHash), zap.Uint64("logIndex", log.LogIndex))
 	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
@@ -88,7 +93,11 @@ func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog, re
 				zap.Uint64("logIndex", log.LogIndex),
 				zap.String("eventName", log.EventName),
 			)
+			changeSpan, _ := ddTracer.StartSpanFromContext(ctx, "EigenStateManager::HandleLogStateChange::HandleStateChange")
+			changeSpan.SetTag("model", state.GetModelName())
 			_, err = state.HandleStateChange(log)
+			changeSpan.Finish()
+
 			if err != nil {
 				return err
 			}
