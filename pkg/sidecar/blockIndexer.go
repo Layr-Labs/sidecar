@@ -3,6 +3,7 @@ package sidecar
 import (
 	"context"
 	"fmt"
+	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"sync/atomic"
 	"time"
 
@@ -342,8 +343,11 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	s.Logger.Sugar().Infow("Starting indexing process", zap.Int64("currentBlock", currentBlock), zap.Uint64("currentTip", currentTip.Load()))
 
 	for uint64(currentBlock) <= currentTip.Load() {
+		span, spanCtx := ddTracer.StartSpanFromContext(ctx, "IndexingBlockBatch")
+
 		if s.shouldShutdown.Load() {
 			s.Logger.Sugar().Infow("Shutting down block processor")
+			span.Finish()
 			return nil
 		}
 		tip := currentTip.Load()
@@ -352,17 +356,22 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		if batchEndBlock > int64(tip) {
 			batchEndBlock = int64(tip)
 		}
-		if err := s.Pipeline.RunForBlockBatch(ctx, uint64(currentBlock), uint64(batchEndBlock), true); err != nil {
+		span.SetTag("currentBlock", currentBlock)
+		span.SetTag("batchEndBlock", batchEndBlock)
+
+		if err := s.Pipeline.RunForBlockBatch(spanCtx, uint64(currentBlock), uint64(batchEndBlock), true); err != nil {
 			s.Logger.Sugar().Errorw("Failed to run pipeline for block batch",
 				zap.Error(err),
 				zap.Uint64("startBlock", uint64(currentBlock)),
 				zap.Int64("batchEndBlock", batchEndBlock),
 			)
+			span.Finish()
 			return err
 		}
 		progress.UpdateAndPrintProgress(uint64(batchEndBlock))
 
 		currentBlock = batchEndBlock + 1
+		span.Finish()
 	}
 
 	return nil

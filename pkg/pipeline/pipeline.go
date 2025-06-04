@@ -602,6 +602,7 @@ func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endB
 	fetchStartTime := time.Now()
 
 	fetchedBlocks, err := p.Fetcher.FetchBlocksWithRetries(fetchCtx, startBlock, endBlock)
+
 	fetchDuration := time.Since(fetchStartTime)
 	fetchSpan.SetTag("duration_ms", fetchDuration.Milliseconds())
 
@@ -622,6 +623,13 @@ func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endB
 	slices.SortFunc(fetchedBlocks, func(b1, b2 *fetcher.FetchedBlock) int {
 		return int(b1.Block.Number.Value() - b2.Block.Number.Value())
 	})
+
+	for _, block := range fetchedBlocks {
+		if err := p.RunForFetchedBlock(ctx, block, isBackfill); err != nil {
+			p.Logger.Sugar().Errorw("Failed to run pipeline for fetched block", zap.Uint64("blockNumber", block.Block.Number.Value()), zap.Error(err))
+			return err
+		}
+	}
 
 	return nil
 }
