@@ -25,8 +25,11 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	}
 
 	queries := []string{
-		`create index if not exists idx_staker_shares_block_number on sidecar_mainnet_ethereum.staker_shares(block_number);`,
-		`create index if not exists idx_operator_shares_block_number on sidecar_mainnet_ethereum.operator_shares(block_number);`,
+		`create index if not exists idx_staker_shares_block_number on staker_shares(block_number);`,
+		`create index if not exists idx_operator_shares_block_number on operator_shares(block_number);`,
+		`create index if not exists idx_combined_rewards_block_number on combined_rewards(block_number);`,
+		`alter table rewards_claimed drop constraint rewards_claimed_transaction_hash_log_index_key`,
+		`alter table rewards_claimed add constraint rewards_claimed_transaction_hash_log_index_key unique (transaction_hash, log_index);`,
 	}
 	for _, query := range queries {
 		res := grm.Exec(query)

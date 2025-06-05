@@ -530,7 +530,6 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 	// - tables that have been migrated to the "new" single table format that is never dropped will end up getting backfilled.
 	// - tables that we still drop, dont need to be pruned since they'll get recreated.
 	tablesToPrune := []string{
-		"combined_rewards",
 		"default_operator_split_snapshots",
 		"operator_avs_registration_snapshots",
 		"operator_avs_split_snapshots",
