@@ -14,7 +14,6 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	tableNames := []string{
 		"staker_shares",
 		"operator_shares",
-		"combined_rewards",
 		"disabled_distribution_roots",
 		"operator_directed_rewards",
 	}
