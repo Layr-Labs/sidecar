@@ -43,6 +43,7 @@ func NewFetcher(
 	ilp providers.InterestingContractsProvider,
 	l *zap.Logger,
 ) *Fetcher {
+	l.Sugar().Infow("Created fetcher", zap.Any("config", cfg))
 	return &Fetcher{
 		EthClient:               ethClient,
 		Logger:                  l,
@@ -275,7 +276,7 @@ func (f *Fetcher) FetchLogsForContractsForBlockRange(ctx context.Context, startB
 	wg.Wait()
 	close(logsCollector)
 	close(errorCollector)
-	f.Logger.Sugar().Debugw("Finished fetching logs for contracts",
+	f.Logger.Sugar().Infow("Finished fetching logs for contracts",
 		zap.Uint64("startBlock", startBlockInclusive),
 		zap.Uint64("endBlock", endBlockInclusive),
 		zap.Strings("contracts", contractAddresses),
