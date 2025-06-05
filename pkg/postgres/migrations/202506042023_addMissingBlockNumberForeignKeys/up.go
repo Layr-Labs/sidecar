@@ -23,6 +23,18 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			return fmt.Errorf("failed to add foreign key for table %s: %w", tableName, res.Error)
 		}
 	}
+
+	queries := []string{
+		`create index if not exists idx_staker_shares_block_number on sidecar_mainnet_ethereum.staker_shares(block_number);`,
+		`create index if not exists idx_operator_shares_block_number on sidecar_mainnet_ethereum.operator_shares(block_number);`,
+	}
+	for _, query := range queries {
+		res := grm.Exec(query)
+		if res.Error != nil {
+			return fmt.Errorf("failed to create index: %w", res.Error)
+		}
+	}
+
 	return nil
 }
 
