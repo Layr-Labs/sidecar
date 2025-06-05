@@ -171,7 +171,7 @@ func Test_PostgresContractStore(t *testing.T) {
 		assert.Equal(t, proxyContract.ProxyContractAddress, proxy.ProxyContractAddress)
 	})
 	t.Run("Get all proxy addresses in string", func(t *testing.T) {
-		addresses, err := cs.GetAllProxyAddressesInString()
+		addresses, err := cs.ListInterestingContractAddresses()
 		assert.Nil(t, err)
 		assert.True(t, len(addresses) > 0)
 		assert.Contains(t, addresses, createdContracts[0].ContractAddress)

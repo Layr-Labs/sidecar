@@ -85,7 +85,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 		l.Sugar().Fatalw("Failed to load meta state models", zap.Error(err))
 	}
 
-	fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, l)
+	fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, contractStore, l)
 
 	cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, 10, l)
 
