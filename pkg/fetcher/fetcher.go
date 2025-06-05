@@ -276,11 +276,6 @@ func (f *Fetcher) FetchLogsForContractsForBlockRange(ctx context.Context, startB
 	wg.Wait()
 	close(logsCollector)
 	close(errorCollector)
-	f.Logger.Sugar().Infow("Finished fetching logs for contracts",
-		zap.Uint64("startBlock", startBlockInclusive),
-		zap.Uint64("endBlock", endBlockInclusive),
-		zap.Strings("contracts", contractAddresses),
-	)
 	interestingBlockNumbers := make(map[uint64]bool)
 	// collectedLogs := make([]*ethereum.EthereumEventLog, 0)
 	for logs := range logsCollector {
@@ -289,6 +284,12 @@ func (f *Fetcher) FetchLogsForContractsForBlockRange(ctx context.Context, startB
 			interestingBlockNumbers[log.BlockNumber.Value()] = true
 		}
 	}
+	f.Logger.Sugar().Infow("Finished fetching logs for contracts",
+		zap.Uint64("startBlock", startBlockInclusive),
+		zap.Uint64("endBlock", endBlockInclusive),
+		zap.Strings("contracts", contractAddresses),
+		zap.Int("interestingBlocks", len(interestingBlockNumbers)),
+	)
 	var err error
 	for e := range errorCollector {
 		err = e
