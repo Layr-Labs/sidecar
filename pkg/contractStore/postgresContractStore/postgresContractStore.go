@@ -48,7 +48,7 @@ func (s *PostgresContractStore) GetContractForAddress(address string) (*contract
 	var contract *contractStore.Contract
 
 	address = strings.ToLower(address)
-	result := s.Db.Model(&contractStore.Contract{}).Debug().Find(&contract, "contract_address = ?", address)
+	result := s.Db.Model(&contractStore.Contract{}).Find(&contract, "contract_address = ?", address)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			s.Logger.Sugar().Debugf("Contract not found in store '%s'", address)
@@ -208,7 +208,7 @@ func (s *PostgresContractStore) FindOrCreateProxyContract(
 			and proxy_contract_address = @proxyContractAddress
 		limit 1
 	`
-	result := s.Db.Debug().Raw(query, sql.Named("contractAddress", contractAddress), sql.Named("proxyContractAddress", proxyContractAddress)).Scan(&contract)
+	result := s.Db.Raw(query, sql.Named("contractAddress", contractAddress), sql.Named("proxyContractAddress", proxyContractAddress)).Scan(&contract)
 	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, false, result.Error
 	}
