@@ -154,7 +154,7 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 	}
 
 	// Create a proxy contract
-	_, _, err := cm.ContractStore.FindOrCreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
+	_, found, err := cm.ContractStore.FindOrCreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
 	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to create proxy contract",
 			zap.Error(err),
@@ -162,6 +162,14 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 			zap.String("proxyContractAddress", proxyContractAddress),
 		)
 		return err
+	}
+	// if the proxy exists, no need to create it again
+	if found {
+		cm.Logger.Sugar().Infow("Proxy contract already exists, skipping creation",
+			zap.String("contractAddress", contractAddress),
+			zap.String("proxyContractAddress", proxyContractAddress),
+		)
+		return nil
 	}
 
 	// Fetch bytecode hash
@@ -179,7 +187,8 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to fetch contract abi",
 			zap.Error(err),
-			zap.String("address", proxyContractAddress),
+			zap.String("proxyContractAddress", proxyContractAddress),
+			zap.String("contractAddress", contractAddress),
 		)
 		return err
 	}
