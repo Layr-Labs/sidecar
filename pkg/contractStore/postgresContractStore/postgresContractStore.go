@@ -198,7 +198,16 @@ func (s *PostgresContractStore) FindOrCreateProxyContract(
 
 	contract := &contractStore.ProxyContract{}
 	// Proxy contracts are unique on block_number && contract
-	result := s.Db.Model(&contractStore.ProxyContract{}).Debug().First(&contract, "contract_address = ? and proxy_contract_address = ?", contractAddress, proxyContractAddress)
+	query := `
+		select
+			*
+		from proxy_contracts
+		where
+			contract_address = @contractAddress
+			and proxy_contract_address = @proxyContractAddress
+		limit 1
+	`
+	result := s.Db.Debug().Raw(query, sql.Named("contractAddress", contractAddress), sql.Named("proxyContractAddress", proxyContractAddress)).Scan(&contract)
 	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, false, result.Error
 	}
