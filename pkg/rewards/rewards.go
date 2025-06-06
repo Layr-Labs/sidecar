@@ -193,7 +193,7 @@ func (rc *RewardsCalculator) UpdateRewardSnapshotStatus(snapshotDate string, sta
 
 func (rc *RewardsCalculator) GetRewardSnapshotStatus(snapshotDate string) (*storage.GeneratedRewardsSnapshots, error) {
 	var r = &storage.GeneratedRewardsSnapshots{}
-	res := rc.grm.Model(&storage.GeneratedRewardsSnapshots{}).Where("snapshot_date = ?", snapshotDate).First(&r)
+	res := rc.grm.Model(&storage.GeneratedRewardsSnapshots{}).Where("snapshot_date >= ?", snapshotDate).First(&r)
 	if res.Error != nil {
 		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
 			return nil, nil

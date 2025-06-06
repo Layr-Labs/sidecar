@@ -284,7 +284,7 @@ func (f *Fetcher) FetchLogsForContractsForBlockRange(ctx context.Context, startB
 			interestingBlockNumbers[log.BlockNumber.Value()] = true
 		}
 	}
-	f.Logger.Sugar().Infow("Finished fetching logs for contracts",
+	f.Logger.Sugar().Debugw("Finished fetching logs for contracts",
 		zap.Uint64("startBlock", startBlockInclusive),
 		zap.Uint64("endBlock", endBlockInclusive),
 		zap.Strings("contracts", contractAddresses),
