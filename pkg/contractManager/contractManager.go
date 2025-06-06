@@ -147,6 +147,11 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 	contractAddress string,
 	proxyContractAddress string,
 ) error {
+	cm.Logger.Sugar().Infow("Creating upgraded proxy contract",
+		zap.String("contractAddress", contractAddress),
+		zap.String("proxyContractAddress", proxyContractAddress),
+		zap.Uint64("blockNumber", blockNumber),
+	)
 	// Check if proxy contract already exists
 	proxyContract, _ := cm.ContractStore.GetProxyContractForAddress(blockNumber, contractAddress)
 	if proxyContract != nil {
