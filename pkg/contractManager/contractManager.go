@@ -126,7 +126,11 @@ func (cm *ContractManager) HandleContractUpgrade(ctx context.Context, blockNumbe
 
 	err := cm.CreateUpgradedProxyContract(ctx, blockNumber, upgradedLog.Address, newProxiedAddress)
 	if err != nil {
-		cm.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err))
+		cm.Logger.Sugar().Errorw("Failed to create proxy contract",
+			zap.String("contractAddress", upgradedLog.Address),
+			zap.String("newProxiedAddress", newProxiedAddress),
+			zap.Error(err),
+		)
 		return err
 	}
 	cm.Logger.Sugar().Infow("Upgraded proxy contract", zap.String("contractAddress", upgradedLog.Address), zap.String("proxyContractAddress", newProxiedAddress))
