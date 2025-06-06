@@ -47,7 +47,8 @@ func NewPostgresContractStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *P
 func (s *PostgresContractStore) GetContractForAddress(address string) (*contractStore.Contract, error) {
 	var contract *contractStore.Contract
 
-	result := s.Db.First(&contract, "contract_address = ?", address)
+	address = strings.ToLower(address)
+	result := s.Db.Model(&contractStore.Contract{}).Debug().Find(&contract, "contract_address = ?", address)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			s.Logger.Sugar().Debugf("Contract not found in store '%s'", address)
