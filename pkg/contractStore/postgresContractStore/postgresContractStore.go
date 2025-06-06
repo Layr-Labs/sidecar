@@ -200,16 +200,25 @@ func (s *PostgresContractStore) FindOrCreateProxyContract(
 	upsertedContract, err := helpers.WrapTxAndCommit[*contractStore.ProxyContract](func(tx *gorm.DB) (*contractStore.ProxyContract, error) {
 		contract := &contractStore.ProxyContract{}
 		// Proxy contracts are unique on block_number && contract
-		result := tx.First(&contract, "contract_address = ? and block_number = ?", contractAddress, blockNumber)
+		result := tx.Debug().First(&contract, "contract_address = ? and block_number = ?", contractAddress, blockNumber)
 		if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, result.Error
 		}
 
 		// found contract
 		if contract.ContractAddress == contractAddress {
+			s.Logger.Sugar().Infow("Found existing proxy contract",
+				zap.String("contractAddress", contractAddress),
+				zap.String("proxyContractAddress", proxyContractAddress),
+			)
 			found = true
 			return contract, nil
 		}
+
+		s.Logger.Sugar().Infow("Proxy contract not found, creating new one",
+			zap.String("contractAddress", contractAddress),
+			zap.String("proxyContractAddress", proxyContractAddress),
+		)
 
 		proxyContract, err := s.CreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
 		if err != nil {
