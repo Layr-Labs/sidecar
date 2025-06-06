@@ -238,40 +238,18 @@ func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (
 }
 
 func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) (string, error) {
-	goldStagingTableName := rewardsUtils.GetGoldTableNames(cutoffDate)[rewardsUtils.Table_15_GoldStaging]
-
-	// check to see if there are any rows at all in the staging table
-	var count int64
-	res := rc.grm.Raw(fmt.Sprintf(`select count(*) as count from %s`, goldStagingTableName)).Scan(&count)
-	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to get count of rows in staging table", "error", res.Error)
-		return "", res.Error
+	cutoffDateTime, err := time.Parse(time.DateOnly, cutoffDate)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to parse cutoff date", "error", err)
+		return "", err
 	}
-
-	// if there arent any rows, we need to create what the rewardsCalcEndDate would be
-	if count == 0 {
-		cutoffDateTime, err := time.Parse(time.DateOnly, cutoffDate)
-		if err != nil {
-			rc.logger.Sugar().Errorw("Failed to parse cutoff date", "error", err)
-			return "", err
-		}
-		// since cutoffDate is exclusive, the possible rewardsCalcEndDate is cutoffDate - 1day
-		rewardsCalcEndDate := cutoffDateTime.Add(-24 * time.Hour).Format(time.DateOnly)
-		rc.logger.Sugar().Infow("No rows found in staging table, using cutoff date",
-			zap.String("cutoffDate", cutoffDate),
-			zap.String("rewardsCalcEndDate", rewardsCalcEndDate),
-		)
-		return rewardsCalcEndDate, nil
-	}
-
-	var maxSnapshotStr string
-	query := fmt.Sprintf(`select to_char(max(snapshot), 'YYYY-MM-DD') as snapshot from %s`, goldStagingTableName)
-	res = rc.grm.Raw(query).Scan(&maxSnapshotStr)
-	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to get max snapshot date", "error", res.Error)
-		return "", res.Error
-	}
-	return maxSnapshotStr, nil
+	// since cutoffDate is exclusive, the possible rewardsCalcEndDate is cutoffDate - 1day
+	rewardsCalcEndDate := cutoffDateTime.Add(-24 * time.Hour).Format(time.DateOnly)
+	rc.logger.Sugar().Infow("No rows found in staging table, using cutoff date",
+		zap.String("cutoffDate", cutoffDate),
+		zap.String("rewardsCalcEndDate", rewardsCalcEndDate),
+	)
+	return rewardsCalcEndDate, nil
 }
 
 func (rc *RewardsCalculator) BackfillAllStakerOperators() error {
