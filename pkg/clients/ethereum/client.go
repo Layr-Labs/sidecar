@@ -278,7 +278,7 @@ func (c *Client) GetBlockTransactionReceipts(ctx context.Context, blockNumber ui
 }
 
 func (c *Client) GetLogs(ctx context.Context, address string, fromBlock uint64, toBlock uint64) ([]*EthereumEventLog, error) {
-	c.Logger.Sugar().Infow("GetLogs",
+	c.Logger.Sugar().Debugw("GetLogs",
 		zap.String("address", address),
 		zap.Uint64("fromBlock", fromBlock),
 		zap.Uint64("toBlock", toBlock),

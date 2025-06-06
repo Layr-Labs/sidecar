@@ -212,7 +212,7 @@ var (
 	EthereumRpcUseNativeBatchCall    = "ethereum.use_native_batch_call"
 	EthereumRpcNativeBatchCallSize   = "ethereum.native_batch_call_size"
 	EthereumRpcChunkedBatchCallSize  = "ethereum.chunked_batch_call_size"
-	EthereumUseGetBlockReceipts      = "ethereum.use-get-block-receipts"
+	EthereumUseGetBlockReceipts      = "ethereum.use_get_block_receipts"
 	EthereumLatestBlockType          = "ethereum.latest-block-type"
 
 	DataDogStatsdEnabled    = "datadog.statsd.enabled"

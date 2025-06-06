@@ -47,7 +47,8 @@ func NewPostgresContractStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *P
 func (s *PostgresContractStore) GetContractForAddress(address string) (*contractStore.Contract, error) {
 	var contract *contractStore.Contract
 
-	result := s.Db.First(&contract, "contract_address = ?", address)
+	address = strings.ToLower(address)
+	result := s.Db.Model(&contractStore.Contract{}).Find(&contract, "contract_address = ?", address)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			s.Logger.Sugar().Debugf("Contract not found in store '%s'", address)
@@ -76,8 +77,8 @@ func (s *PostgresContractStore) GetProxyContractForAddress(blockNumber uint64, a
 	return proxyContract, nil
 }
 
-// GetAllProxyAddressesInString returns all proxy addresses in the database as a slice of strings.
-func (s *PostgresContractStore) GetAllProxyAddressesInString() ([]string, error) {
+// ListInterestingContractAddresses returns all proxy addresses in the database as a slice of strings.
+func (s *PostgresContractStore) ListInterestingContractAddresses() ([]string, error) {
 	var addresses []string
 
 	result := s.Db.Raw(`select distinct(contract_address) from proxy_contracts`).Scan(&addresses)
@@ -113,8 +114,14 @@ func (s *PostgresContractStore) CreateContract(
 		MatchingContractAddress: matchingContractAddress,
 		CheckedForAbi:           checkedForAbi,
 	}
-
-	result := s.Db.Create(contract)
+	clauses := []clause.Expression{
+		clause.Returning{},
+		clause.OnConflict{
+			Columns:   []clause.Column{{Name: "contract_address"}},
+			DoNothing: true,
+		},
+	}
+	result := s.Db.Model(&contractStore.Contract{}).Clauses(clauses...).Create(&contract)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -187,33 +194,46 @@ func (s *PostgresContractStore) FindOrCreateProxyContract(
 	contractAddress string,
 	proxyContractAddress string,
 ) (*contractStore.ProxyContract, bool, error) {
-	found := false
 	contractAddress = strings.ToLower(contractAddress)
 	proxyContractAddress = strings.ToLower(proxyContractAddress)
 
-	upsertedContract, err := helpers.WrapTxAndCommit[*contractStore.ProxyContract](func(tx *gorm.DB) (*contractStore.ProxyContract, error) {
-		contract := &contractStore.ProxyContract{}
-		// Proxy contracts are unique on block_number && contract
-		result := tx.First(&contract, "contract_address = ? and block_number = ?", contractAddress, blockNumber)
-		if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, result.Error
-		}
+	contract := &contractStore.ProxyContract{}
+	// Proxy contracts are unique on block_number && contract
+	query := `
+		select
+			*
+		from proxy_contracts
+		where
+			contract_address = @contractAddress
+			and proxy_contract_address = @proxyContractAddress
+		limit 1
+	`
+	result := s.Db.Raw(query, sql.Named("contractAddress", contractAddress), sql.Named("proxyContractAddress", proxyContractAddress)).Scan(&contract)
+	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return nil, false, result.Error
+	}
 
-		// found contract
-		if contract.ContractAddress == contractAddress {
-			found = true
-			return contract, nil
-		}
+	// found contract
+	if contract.ContractAddress == contractAddress {
+		s.Logger.Sugar().Infow("Found existing proxy contract",
+			zap.String("contractAddress", contractAddress),
+			zap.String("proxyContractAddress", proxyContractAddress),
+		)
+		return contract, true, nil
+	}
 
-		proxyContract, err := s.CreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
-		if err != nil {
-			s.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err), zap.String("contractAddress", contractAddress))
-			return nil, err
-		}
+	s.Logger.Sugar().Infow("Proxy contract not found, creating new one",
+		zap.String("contractAddress", contractAddress),
+		zap.String("proxyContractAddress", proxyContractAddress),
+	)
 
-		return proxyContract, nil
-	}, s.Db, nil)
-	return upsertedContract, found, err
+	proxyContract, err := s.CreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
+	if err != nil {
+		s.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err), zap.String("contractAddress", contractAddress))
+		return nil, false, err
+	}
+
+	return proxyContract, false, err
 }
 
 func (s *PostgresContractStore) GetProxyContractWithImplementations(contractAddress string) ([]*contractStore.Contract, error) {

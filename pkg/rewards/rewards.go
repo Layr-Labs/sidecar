@@ -13,7 +13,6 @@ import (
 
 	"sync/atomic"
 
-	"slices"
 	"strings"
 
 	"strconv"
@@ -194,7 +193,7 @@ func (rc *RewardsCalculator) UpdateRewardSnapshotStatus(snapshotDate string, sta
 
 func (rc *RewardsCalculator) GetRewardSnapshotStatus(snapshotDate string) (*storage.GeneratedRewardsSnapshots, error) {
 	var r = &storage.GeneratedRewardsSnapshots{}
-	res := rc.grm.Model(&storage.GeneratedRewardsSnapshots{}).Where("snapshot_date = ?", snapshotDate).First(&r)
+	res := rc.grm.Model(&storage.GeneratedRewardsSnapshots{}).Where("snapshot_date >= ?", snapshotDate).First(&r)
 	if res.Error != nil {
 		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -239,40 +238,18 @@ func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (
 }
 
 func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) (string, error) {
-	goldStagingTableName := rewardsUtils.GetGoldTableNames(cutoffDate)[rewardsUtils.Table_15_GoldStaging]
-
-	// check to see if there are any rows at all in the staging table
-	var count int64
-	res := rc.grm.Raw(fmt.Sprintf(`select count(*) as count from %s`, goldStagingTableName)).Scan(&count)
-	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to get count of rows in staging table", "error", res.Error)
-		return "", res.Error
+	cutoffDateTime, err := time.Parse(time.DateOnly, cutoffDate)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to parse cutoff date", "error", err)
+		return "", err
 	}
-
-	// if there arent any rows, we need to create what the rewardsCalcEndDate would be
-	if count == 0 {
-		cutoffDateTime, err := time.Parse(time.DateOnly, cutoffDate)
-		if err != nil {
-			rc.logger.Sugar().Errorw("Failed to parse cutoff date", "error", err)
-			return "", err
-		}
-		// since cutoffDate is exclusive, the possible rewardsCalcEndDate is cutoffDate - 1day
-		rewardsCalcEndDate := cutoffDateTime.Add(-24 * time.Hour).Format(time.DateOnly)
-		rc.logger.Sugar().Infow("No rows found in staging table, using cutoff date",
-			zap.String("cutoffDate", cutoffDate),
-			zap.String("rewardsCalcEndDate", rewardsCalcEndDate),
-		)
-		return rewardsCalcEndDate, nil
-	}
-
-	var maxSnapshotStr string
-	query := fmt.Sprintf(`select to_char(max(snapshot), 'YYYY-MM-DD') as snapshot from %s`, goldStagingTableName)
-	res = rc.grm.Raw(query).Scan(&maxSnapshotStr)
-	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to get max snapshot date", "error", res.Error)
-		return "", res.Error
-	}
-	return maxSnapshotStr, nil
+	// since cutoffDate is exclusive, the possible rewardsCalcEndDate is cutoffDate - 1day
+	rewardsCalcEndDate := cutoffDateTime.Add(-24 * time.Hour).Format(time.DateOnly)
+	rc.logger.Sugar().Infow("No rows found in staging table, using cutoff date",
+		zap.String("cutoffDate", cutoffDate),
+		zap.String("rewardsCalcEndDate", rewardsCalcEndDate),
+	)
+	return rewardsCalcEndDate, nil
 }
 
 func (rc *RewardsCalculator) BackfillAllStakerOperators() error {
@@ -432,7 +409,42 @@ func (rc *RewardsCalculator) findRewardsTablesBySnapshotDate(snapshotDate string
 	return rewardsTables, nil
 }
 
+// FindRewardHashesToPrune finds all reward hashes that will be pruned when deleting corrupted state.
+func (rc *RewardsCalculator) FindRewardHashesToPrune(blockHeight uint64) ([]string, error) {
+	query := `
+		select
+			distinct(reward_hash) as reward_hash
+		from (
+			select reward_hash from combined_rewards where block_number >= @blockNumber
+			union all
+			select reward_hash from operator_directed_rewards where block_number >= @blockNumber
+			union all
+			select
+				odosrs.reward_hash
+			from operator_directed_operator_set_reward_submissions as odosrs
+			-- operator_directed_operator_set_reward_submissions lacks a block_time column, so we need to join blocks
+			join blocks as b on (b.number = odosrs.block_number)
+			where
+				b.number >= @blockNumber
+		) as t
+	`
+	var rewardHashes []string
+	res := rc.grm.Raw(query, sql.Named("blockNumber", blockHeight)).Scan(&rewardHashes)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to find reward hashes to prune", "error", res.Error)
+		return nil, res.Error
+	}
+	return rewardHashes, nil
+}
+
+// DeleteCorruptedRewardsFromBlockHeight deletes rewards data that is >= the provided block height.
 func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight uint64) error {
+	rewardHashesToPrune, err := rc.FindRewardHashesToPrune(blockHeight)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to find reward hashes to prune", "error", err)
+		return err
+	}
+
 	generatedSnapshot, err := rc.findGeneratedRewardSnapshotByBlock(blockHeight)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to find generated snapshot", "error", err)
@@ -462,9 +474,12 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 		lowerBoundSnapshot = nil
 	}
 
-	snapshotDates := make([]string, 0)
+	// Find all suffixed rewards tables that were generated as part of the rewards calculation process.
+	// e.g. gold_6_rfae_stakers_2024_12_01
+	// We since we're deleting the blocks where these rewards were applicable, we need to drop these tables
+	// so that they can be created again when we run the rewards calculation again.
 	for _, snapshot := range snapshotsToDelete {
-		snapshotDates = append(snapshotDates, snapshot.SnapshotDate)
+		// find and drop tables that were created for this snapshot (e.g. gold_6_rfae_stakers_2024_12_01)
 		tableNames, err := rc.findRewardsTablesBySnapshotDate(snapshot.SnapshotDate)
 		if err != nil {
 			rc.logger.Sugar().Errorw("Failed to find rewards tables", "error", err)
@@ -489,19 +504,48 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 		}
 	}
 
-	// sort all snapshot dates in ascending order to purge from gold table
-	slices.SortFunc(snapshotDates, func(i, j string) int {
-		return strings.Compare(i, j)
-	})
+	// prune snapshot tables based on snapshot dates.
+	// - tables that have been migrated to the "new" single table format that is never dropped will end up getting backfilled.
+	// - tables that we still drop, dont need to be pruned since they'll get recreated.
+	tablesToPrune := []string{
+		"default_operator_split_snapshots",
+		"operator_avs_registration_snapshots",
+		"operator_avs_split_snapshots",
+		"operator_avs_strategy_snapshots",
+		"operator_directed_rewards",
+		"operator_pi_split_snapshots",
+		"operator_share_snapshots",
+		"staker_delegation_snapshots",
+		"staker_share_snapshots",
+	}
+	for _, tableName := range tablesToPrune {
+		var query string
 
-	// purge from gold table
-	if lowerBoundSnapshot != nil {
-		rc.logger.Sugar().Infow("Purging rewards from gold table where snapshot >=", "snapshotDate", lowerBoundSnapshot.SnapshotDate)
-		res = rc.grm.Exec(`delete from gold_table where snapshot >= @snapshotDate`, sql.Named("snapshotDate", lowerBoundSnapshot.SnapshotDate))
-	} else {
-		// if the lower bound is nil, ther we're deleting everything
-		rc.logger.Sugar().Infow("Purging all rewards from gold table")
-		res = rc.grm.Exec(`delete from gold_table`)
+		// if we have no lower bound, that means we're deleting everything
+		if lowerBoundSnapshot == nil {
+			query = fmt.Sprintf(`truncate table %s cascade`, tableName)
+		} else {
+			query = fmt.Sprintf(`delete from %s where snapshot >= '%s'`, tableName, lowerBoundSnapshot.SnapshotDate)
+		}
+
+		res = rc.grm.Exec(query)
+		if res.Error != nil {
+			rc.logger.Sugar().Errorw("Failed to prune snapshot table", "tableName", tableName, "error", res.Error)
+			return res.Error
+		}
+	}
+
+	// Purge rewards from gold_table based on reward_hash.
+	// Since reward submissions are submitted at a block, but can be arbitrarily backwards looking,
+	// we cant just delete by snapshot date. We have to get all reward snapshots that were created by
+	// a specific reward hash that we're deleting.
+	goldPurgeQuery := `
+		delete from gold_table where reward_hash in @rewardHashes
+	`
+	res = rc.grm.Exec(goldPurgeQuery, sql.Named("rewardHashes", rewardHashesToPrune))
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to delete rewards from gold table by reward_hash", "error", res.Error)
+		return res.Error
 	}
 
 	if res.Error != nil {
@@ -510,7 +554,7 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 	}
 	if lowerBoundSnapshot != nil {
 		rc.logger.Sugar().Infow("Deleted rewards from gold table",
-			zap.String("snapshotDate", lowerBoundSnapshot.SnapshotDate),
+			zap.Int("rewardHashCount", len(rewardHashesToPrune)),
 			zap.Int64("recordsDeleted", res.RowsAffected),
 		)
 	} else {
