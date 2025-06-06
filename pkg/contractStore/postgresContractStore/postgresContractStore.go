@@ -113,8 +113,14 @@ func (s *PostgresContractStore) CreateContract(
 		MatchingContractAddress: matchingContractAddress,
 		CheckedForAbi:           checkedForAbi,
 	}
-
-	result := s.Db.Create(contract)
+	clauses := []clause.Expression{
+		clause.Returning{},
+		clause.OnConflict{
+			Columns:   []clause.Column{{Name: "contract_address"}},
+			DoNothing: true,
+		},
+	}
+	result := s.Db.Model(&contractStore.Contract{}).Clauses(clauses...).Create(&contract)
 	if result.Error != nil {
 		return nil, result.Error
 	}
