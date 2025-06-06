@@ -154,7 +154,7 @@ func (cm *ContractManager) CreateUpgradedProxyContract(
 	}
 
 	// Create a proxy contract
-	_, err := cm.ContractStore.CreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
+	_, _, err := cm.ContractStore.FindOrCreateProxyContract(blockNumber, contractAddress, proxyContractAddress)
 	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to create proxy contract",
 			zap.Error(err),
