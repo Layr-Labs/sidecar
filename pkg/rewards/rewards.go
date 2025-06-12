@@ -944,17 +944,3 @@ func (rc *RewardsCalculator) ListDistributionRoots(blockHeight uint64) ([]*Distr
 	}
 	return submittedDistributionRoots, nil
 }
-
-func (rc *RewardsCalculator) generateAndInsertFromQuery(
-	tableName string,
-	query string,
-	variables []interface{},
-) error {
-	return rewardsUtils.GenerateAndInsertFromQuery(
-		rc.grm,
-		tableName,
-		query,
-		variables,
-		rc.logger,
-	)
-}
