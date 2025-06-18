@@ -1,4 +1,4 @@
-package _202503181244_snapshotUniqueConstraintsPartTwo
+package _202506172149_snapshotUniqueConstraintsPartTwo
 
 import (
 	"database/sql"
@@ -37,5 +37,5 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 }
 
 func (m *Migration) GetName() string {
-	return "202503181244_snapshotUniqueConstraintsPartTwo"
+	return "202506172149_snapshotUniqueConstraintsPartTwo"
 }
