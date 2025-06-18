@@ -84,7 +84,7 @@ var runOperatorRestakedStrategiesCmd = &cobra.Command{
 
 		precommitProcessors.LoadPrecommitProcessors(sm, grm, l)
 
-		fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, l)
+		fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, contractStore, l)
 
 		cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, cfg.EthereumRpcConfig.ContractCallBatchSize, l)
 

@@ -52,7 +52,8 @@ jobs:
           echo $PATH
           make lint
   build-container:
-    runs-on: protocol-gha-runners
+    #runs-on: protocol-gha-runners
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
