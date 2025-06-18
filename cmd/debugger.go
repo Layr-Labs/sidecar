@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/pkg/coreContracts"
+	coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations"
 	"log"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -88,6 +90,11 @@ var runDebuggerCmd = &cobra.Command{
 		contractStore := postgresContractStore.NewPostgresContractStore(grm, l)
 
 		cm := contractManager.NewContractManager(grm, contractStore, client, af, l)
+		
+		ccm := coreContracts.NewCoreContractManager(grm, cfg, contractStore, l)
+		if _, err := ccm.MigrateCoreContracts(coreContractMigrations.GetCoreContractMigrations()); err != nil {
+			l.Fatal("Failed to migrate core contracts", zap.Error(err))
+		}
 
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {

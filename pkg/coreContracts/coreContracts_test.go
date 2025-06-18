@@ -99,7 +99,6 @@ func Test_CoreContractManager(t *testing.T) {
 	})
 
 	t.Cleanup(func() {
-		_ = dbname
-		// postgres.TeardownTestDatabase(dbname, cfg, grm, l)
+		postgres.TeardownTestDatabase(dbname, cfg, grm, l)
 	})
 }
