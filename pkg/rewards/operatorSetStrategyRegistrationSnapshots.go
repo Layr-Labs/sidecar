@@ -115,7 +115,7 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorSetStrategyRegistrationSnap
 	res := r.grm.Exec(query)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator_set_strategy_registration_snapshots",
-			zap.Error(err),
+			zap.Error(res.Error),
 			zap.String("snapshotDate", snapshotDate),
 		)
 		return res.Error

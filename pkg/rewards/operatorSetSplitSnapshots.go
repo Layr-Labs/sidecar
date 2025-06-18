@@ -85,7 +85,7 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorSetSplitSnapshots(snapshotD
 	res := r.grm.Exec(query)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator_set_split_snapshots",
-			zap.Error(err),
+			zap.Error(res.Error),
 			zap.String("snapshotDate", snapshotDate),
 		)
 		return res.Error
