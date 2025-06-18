@@ -90,7 +90,7 @@ var runDebuggerCmd = &cobra.Command{
 		contractStore := postgresContractStore.NewPostgresContractStore(grm, l)
 
 		cm := contractManager.NewContractManager(grm, contractStore, client, af, l)
-		
+
 		ccm := coreContracts.NewCoreContractManager(grm, cfg, contractStore, l)
 		if _, err := ccm.MigrateCoreContracts(coreContractMigrations.GetCoreContractMigrations()); err != nil {
 			l.Fatal("Failed to migrate core contracts", zap.Error(err))
