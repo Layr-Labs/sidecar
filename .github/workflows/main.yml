@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 jobs:
   test:
-    runs-on: ubuntu-24.04
+    runs-on: protocol-gha-runners
     services:
       postgres:
         image: postgres:15
