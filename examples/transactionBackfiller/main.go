@@ -163,4 +163,5 @@ func main() {
 	go bf.Process()
 
 	res, err := bf.EnqueueAndWait(context.Background(), message)
+	_ = res
 }
