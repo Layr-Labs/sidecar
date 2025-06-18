@@ -163,6 +163,4 @@ func main() {
 	go bf.Process()
 
 	res, err := bf.EnqueueAndWait(context.Background(), message)
-	fmt.Printf("Error: %v\n", err)
-	fmt.Printf("Response: %v\n", res)
 }

@@ -66,10 +66,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 		log.Fatal(err)
 	}
 
-	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-	if err := contractStore.InitializeCoreContracts(); err != nil {
-		log.Fatalf("Failed to initialize core contracts: %v", err)
-	}
+	contractStore := postgresContractStore.NewPostgresContractStore(grm, l)
 
 	cm := contractManager.NewContractManager(grm, contractStore, client, af, l)
 

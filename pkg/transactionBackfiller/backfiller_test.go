@@ -126,8 +126,8 @@ func Test_TransactionBackfiller(t *testing.T) {
 		defer bf.Close()
 
 		res, err := bf.EnqueueAndWait(context.Background(), message)
-		fmt.Printf("Error: %v\n", err)
-		fmt.Printf("Response: %v\n", res)
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
 		assert.Equal(t, uint64(1), logsHandled.Load())
 	})
 
@@ -166,8 +166,8 @@ func Test_TransactionBackfiller(t *testing.T) {
 		defer bf.Close()
 
 		res, err := bf.EnqueueAndWait(context.Background(), message)
-		fmt.Printf("Error: %v\n", err)
-		fmt.Printf("Response: %v\n", res)
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
 		assert.Equal(t, uint64(1), logsHandled.Load())
 	})
 
@@ -202,8 +202,8 @@ func Test_TransactionBackfiller(t *testing.T) {
 		defer bf.Close()
 
 		res, err := bf.EnqueueAndWait(context.Background(), message)
-		fmt.Printf("Error: %v\n", err)
-		fmt.Printf("Response: %v\n", res)
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
 		// We expect at least one transaction to our target address
 		assert.GreaterOrEqual(t, txsHandled.Load(), uint64(1))
 	})
@@ -257,8 +257,8 @@ func Test_TransactionBackfiller(t *testing.T) {
 		defer bf.Close()
 
 		res, err := bf.EnqueueAndWait(context.Background(), message)
-		fmt.Printf("Error: %v\n", err)
-		fmt.Printf("Response: %v\n", res)
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
 
 		// We expect both logs and transactions to be processed
 		assert.GreaterOrEqual(t, txsHandled.Load(), uint64(1))
@@ -355,8 +355,8 @@ func Test_TransactionBackfiller(t *testing.T) {
 		defer bf.Close()
 
 		res, err := bf.EnqueueAndWait(context.Background(), message)
-		fmt.Printf("Error: %v\n", err)
-		fmt.Printf("Response: %v\n", res)
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
 
 		// We expect logs to be processed
 		assert.Nil(t, err)

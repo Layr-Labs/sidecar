@@ -2,12 +2,12 @@ package coreContracts
 
 import (
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	_02503191547_initializeAllNewContracts "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202503191547_initializeAllNewContracts"
 	"github.com/Layr-Labs/sidecar/pkg/coreContracts/types"
+	"github.com/Layr-Labs/sidecar/pkg/logger"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -91,14 +91,15 @@ func Test_CoreContractManager(t *testing.T) {
 		assert.Nil(t, res.Error)
 
 		coreContractsAdded, _ := migrationRecord.Metadata.Get("CoreContractsAdded")
-		assert.Equal(t, 5, len(coreContractsAdded.([]interface{})))
+		assert.Equal(t, 6, len(coreContractsAdded.([]interface{})))
 
 		implementationContractsAdded, _ := migrationRecord.Metadata.Get("ImplementationContractsAdded")
-		assert.Equal(t, 11, len(implementationContractsAdded.([]interface{})))
+		assert.Equal(t, 18, len(implementationContractsAdded.([]interface{})))
 
 	})
 
 	t.Cleanup(func() {
-		postgres.TeardownTestDatabase(dbname, cfg, grm, l)
+		_ = dbname
+		// postgres.TeardownTestDatabase(dbname, cfg, grm, l)
 	})
 }
