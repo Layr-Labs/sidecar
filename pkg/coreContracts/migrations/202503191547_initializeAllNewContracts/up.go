@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/coreContracts/helpers"
@@ -16,24 +17,7 @@ import (
 //go:embed coreContracts
 var CoreContracts embed.FS
 
-type CoreContract struct {
-	ContractAddress string `json:"contract_address"`
-	ContractAbi     string `json:"contract_abi"`
-	BytecodeHash    string `json:"bytecode_hash"`
-}
-
-type CoreProxyContract struct {
-	ContractAddress      string `json:"contract_address"`
-	ProxyContractAddress string `json:"proxy_contract_address"`
-	BlockNumber          uint64 `json:"block_number"`
-}
-
-type CoreContractsData struct {
-	CoreContracts  []CoreContract      `json:"core_contracts"`
-	ProxyContracts []CoreProxyContract `json:"proxy_contracts"`
-}
-
-func loadContractData(globalConfig *config.Config) (*CoreContractsData, error) {
+func loadContractData(globalConfig *config.Config) (*helpers.CoreContractsData, error) {
 	var filename string
 	switch globalConfig.Chain {
 	case config.Chain_Mainnet:
@@ -55,78 +39,12 @@ func loadContractData(globalConfig *config.Config) (*CoreContractsData, error) {
 	}
 
 	// read entire file and marshal it into a CoreContractsData struct
-	data := &CoreContractsData{}
+	data := &helpers.CoreContractsData{}
 	err = json.Unmarshal(jsonData, &data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode core contracts data: %w", err)
 	}
 	return data, nil
-}
-
-type SingleImplementationContract struct {
-	ProxyContractAddress   string
-	ImplementationContract *helpers.ImplementationContract
-}
-
-func massageContractData(data *CoreContractsData) *helpers.ContractsToImport {
-	proxyContracts := make(map[string]*helpers.ContractImport)
-
-	// implementationAddress -> SingleImplementationContract & proxy
-	implementationContracts := make(map[string]*SingleImplementationContract, 0)
-
-	for _, p := range data.ProxyContracts {
-		// memoize all core proxy contracts
-		// always take the most recent one if there are duplicates (which there arent)
-		proxyContracts[p.ContractAddress] = &helpers.ContractImport{
-			Address:      p.ContractAddress,
-			Abi:          "",
-			BytecodeHash: "",
-		}
-
-		// memoize all implementation contracts
-		// always take the most recent one if there are duplicates (which there are)
-		implementationContracts[p.ProxyContractAddress] = &SingleImplementationContract{
-			ProxyContractAddress: p.ContractAddress,
-			ImplementationContract: &helpers.ImplementationContract{
-				Contract: helpers.ContractImport{
-					Address:      p.ProxyContractAddress,
-					Abi:          "",
-					BytecodeHash: "",
-				},
-				BlockNumber: p.BlockNumber,
-			},
-		}
-	}
-
-	for _, c := range data.CoreContracts {
-		// take each contract abi and pair it to the correct core or implementation contract
-		if _, ok := proxyContracts[c.ContractAddress]; ok {
-			proxyContracts[c.ContractAddress].Abi = c.ContractAbi
-			proxyContracts[c.ContractAddress].BytecodeHash = c.BytecodeHash
-			continue
-		}
-		if _, ok := implementationContracts[c.ContractAddress]; ok {
-			implementationContracts[c.ContractAddress].ImplementationContract.Contract.Abi = c.ContractAbi
-			implementationContracts[c.ContractAddress].ImplementationContract.Contract.BytecodeHash = c.BytecodeHash
-			continue
-		}
-	}
-
-	// compile everything into the expected results
-	return &helpers.ContractsToImport{
-		CoreContracts: utils.Values(proxyContracts),
-		ImplementationContracts: utils.Map(utils.Values(proxyContracts), func(cc *helpers.ContractImport, i uint64) *helpers.ImplementationContractImport {
-			return &helpers.ImplementationContractImport{
-				ProxyContractAddress: cc.Address,
-				ImplementationContracts: utils.Reduce(utils.Values(implementationContracts), func(acc []*helpers.ImplementationContract, ic *SingleImplementationContract) []*helpers.ImplementationContract {
-					if ic.ProxyContractAddress == cc.Address {
-						return append(acc, ic.ImplementationContract)
-					}
-					return acc
-				}, make([]*helpers.ImplementationContract, 0)),
-			}
-		}),
-	}
 }
 
 type ContractMigration struct{}
@@ -137,7 +55,7 @@ func (m *ContractMigration) Up(db *gorm.DB, cs contractStore.ContractStore, l *z
 		return nil, err
 	}
 
-	contracts := massageContractData(data)
+	contracts := helpers.MassageContractData(data)
 
 	for _, c := range contracts.CoreContracts {
 		l.Sugar().Debugw("Core contract", zap.String("address", c.Address))

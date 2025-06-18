@@ -2,9 +2,28 @@
 package helpers
 
 import (
-	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"strings"
+
+	"github.com/Layr-Labs/sidecar/pkg/contractStore"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 )
+
+type CoreContract struct {
+	ContractAddress string `json:"contract_address"`
+	ContractAbi     string `json:"contract_abi"`
+	BytecodeHash    string `json:"bytecode_hash"`
+}
+
+type CoreProxyContract struct {
+	ContractAddress      string `json:"contract_address"`
+	ProxyContractAddress string `json:"proxy_contract_address"`
+	BlockNumber          uint64 `json:"block_number"`
+}
+
+type CoreContractsData struct {
+	CoreContracts  []CoreContract      `json:"core_contracts"`
+	ProxyContracts []CoreProxyContract `json:"proxy_contracts"`
+}
 
 // ContractImport represents a contract to be imported into the system.
 type ContractImport struct {
@@ -123,4 +142,70 @@ func ImportImplementationContracts(
 		}
 	}
 	return importedImplementationContracts, nil
+}
+
+type SingleImplementationContract struct {
+	ProxyContractAddress   string
+	ImplementationContract *ImplementationContract
+}
+
+func MassageContractData(data *CoreContractsData) *ContractsToImport {
+	proxyContracts := make(map[string]*ContractImport)
+
+	// implementationAddress -> SingleImplementationContract & proxy
+	implementationContracts := make(map[string]*SingleImplementationContract, 0)
+
+	for _, p := range data.ProxyContracts {
+		// memoize all core proxy contracts
+		// always take the most recent one if there are duplicates (which there arent)
+		proxyContracts[p.ContractAddress] = &ContractImport{
+			Address:      p.ContractAddress,
+			Abi:          "",
+			BytecodeHash: "",
+		}
+
+		// memoize all implementation contracts
+		// always take the most recent one if there are duplicates (which there are)
+		implementationContracts[p.ProxyContractAddress] = &SingleImplementationContract{
+			ProxyContractAddress: p.ContractAddress,
+			ImplementationContract: &ImplementationContract{
+				Contract: ContractImport{
+					Address:      p.ProxyContractAddress,
+					Abi:          "",
+					BytecodeHash: "",
+				},
+				BlockNumber: p.BlockNumber,
+			},
+		}
+	}
+
+	for _, c := range data.CoreContracts {
+		// take each contract abi and pair it to the correct core or implementation contract
+		if _, ok := proxyContracts[c.ContractAddress]; ok {
+			proxyContracts[c.ContractAddress].Abi = c.ContractAbi
+			proxyContracts[c.ContractAddress].BytecodeHash = c.BytecodeHash
+			continue
+		}
+		if _, ok := implementationContracts[c.ContractAddress]; ok {
+			implementationContracts[c.ContractAddress].ImplementationContract.Contract.Abi = c.ContractAbi
+			implementationContracts[c.ContractAddress].ImplementationContract.Contract.BytecodeHash = c.BytecodeHash
+			continue
+		}
+	}
+
+	// compile everything into the expected results
+	return &ContractsToImport{
+		CoreContracts: utils.Values(proxyContracts),
+		ImplementationContracts: utils.Map(utils.Values(proxyContracts), func(cc *ContractImport, i uint64) *ImplementationContractImport {
+			return &ImplementationContractImport{
+				ProxyContractAddress: cc.Address,
+				ImplementationContracts: utils.Reduce(utils.Values(implementationContracts), func(acc []*ImplementationContract, ic *SingleImplementationContract) []*ImplementationContract {
+					if ic.ProxyContractAddress == cc.Address {
+						return append(acc, ic.ImplementationContract)
+					}
+					return acc
+				}, make([]*ImplementationContract, 0)),
+			}
+		}),
+	}
 }
