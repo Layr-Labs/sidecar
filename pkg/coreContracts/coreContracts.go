@@ -158,6 +158,7 @@ func (ccm *CoreContractManager) MigrateCoreContracts(migrations []types.ICoreCon
 		}
 		if m != nil {
 			ccm.logger.Sugar().Infof("Migration '%s' already applied", migration.GetName())
+			continue
 		}
 		migrationRes, err := migration.Up(ccm.db, ccm.contractStore, ccm.logger, ccm.globalConfig)
 		if err != nil {
@@ -183,7 +184,7 @@ func (ccm *CoreContractManager) MigrateCoreContracts(migrations []types.ICoreCon
 		if migrationRes != nil && len(migrationRes.CoreContractsAdded) > 0 {
 			for _, c := range migrationRes.CoreContractsAdded {
 				if c.Backfill {
-					addedCoreContracts = append(addedCoreContracts, migrationRes.CoreContractsAdded...)
+					addedCoreContracts = append(addedCoreContracts, c)
 				}
 			}
 		}
