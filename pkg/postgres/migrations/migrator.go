@@ -3,6 +3,10 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	_202409061249_bootstrapDb "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061249_bootstrapDb"
 	_202409061250_eigenlayerStateTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061250_eigenlayerStateTables"
@@ -71,9 +75,7 @@ import (
 	_202503311108_goldRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202503311108_goldRewardHashIndex"
 	_202504240743_fixQueuedSlashingWithdrawalsPk "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202504240743_fixQueuedSlashingWithdrawalsPk"
 	_202505092007_startupJobs "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202505092007_startupJobs"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
-	"time"
+	_202506172149_snapshotUniqueConstraintsPartTwo "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202506172149_snapshotUniqueConstraintsPartTwo"
 )
 
 // Migration interface defines the contract for database migrations.
@@ -213,6 +215,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202503171414_slashingWithdrawals.Migration{},
 		&_202504240743_fixQueuedSlashingWithdrawalsPk.Migration{},
 		&_202505092007_startupJobs.Migration{},
+		&_202506172149_snapshotUniqueConstraintsPartTwo.Migration{},
 	}
 
 	for _, migration := range migrations {

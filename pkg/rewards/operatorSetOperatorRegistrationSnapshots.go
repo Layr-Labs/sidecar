@@ -1,6 +1,9 @@
 package rewards
 
-import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+import (
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"go.uber.org/zap"
+)
 
 // Operator Set Operator Registration Windows: Ranges at which an operator has registered for an operator set
 // 1. Marked_statuses: Denote which registration status comes after one another
@@ -17,6 +20,7 @@ import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 // Entry        Exit
 // Since exits (deregistrations) are rounded down, we must only look at the day 2 snapshot on a pipeline run on day 3.
 const operatorSetOperatorRegistrationSnapshotsQuery = `
+insert into operator_set_operator_registration_snapshots (operator, avs, operator_set_id, snapshot)
 WITH state_changes as (
 	select
 		osor.*,
@@ -102,11 +106,10 @@ SELECT
 	d AS snapshot
 FROM cleaned_records
 CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
+on conflict on constraint uniq_operator_set_operator_registration_snapshots do nothing;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorSetOperatorRegistrationSnapshots(snapshotDate string) error {
-	tableName := "operator_set_operator_registration_snapshots"
-
 	query, err := rewardsUtils.RenderQueryTemplate(operatorSetOperatorRegistrationSnapshotsQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
@@ -115,10 +118,13 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorSetOperatorRegistrationSnap
 		return err
 	}
 
-	err = r.generateAndInsertFromQuery(tableName, query, nil)
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate operator_set_operator_registration_snapshots", "error", err)
-		return err
+	res := r.grm.Exec(query)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to generate operator_set_operator_registration_snapshots",
+			zap.Error(res.Error),
+			zap.String("snapshotDate", snapshotDate),
+		)
+		return res.Error
 	}
 	return nil
 }

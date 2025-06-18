@@ -1,6 +1,9 @@
 package rewards
 
-import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+import (
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"go.uber.org/zap"
+)
 
 // Operator Set Strategy Registration Windows: Ranges at which a strategy has been registered for an operator set by an AVS.
 // 1. Marked_statuses: Denote which registration status comes after one another
@@ -11,6 +14,7 @@ import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 // 4. Registration_snapshots: Round up each start_time and end_time to 0 UTC on NEXT DAY.
 // 5. Operator_set_strategy_registration_windows: Ranges that start and end on same day are invalid
 const operatorSetStrategyRegistrationSnapshotsQuery = `
+insert into operator_set_strategy_registration_snapshots (strategy, avs, operator_set_id, snapshot)
 WITH state_changes as (
 	select
 		ossr.*,
@@ -96,11 +100,10 @@ SELECT
 	d AS snapshot
 FROM cleaned_records
 CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
+on conflict on constraint uniq_operator_set_strategy_registration_snapshots do nothing;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorSetStrategyRegistrationSnapshots(snapshotDate string) error {
-	tableName := "operator_set_strategy_registration_snapshots"
-
 	query, err := rewardsUtils.RenderQueryTemplate(operatorSetStrategyRegistrationSnapshotsQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
@@ -109,10 +112,13 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorSetStrategyRegistrationSnap
 		return err
 	}
 
-	err = r.generateAndInsertFromQuery(tableName, query, nil)
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate operator_set_strategy_registration_snapshots", "error", err)
-		return err
+	res := r.grm.Exec(query)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to generate operator_set_strategy_registration_snapshots",
+			zap.Error(res.Error),
+			zap.String("snapshotDate", snapshotDate),
+		)
+		return res.Error
 	}
 	return nil
 }

@@ -1,8 +1,12 @@
 package rewards
 
-import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+import (
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"go.uber.org/zap"
+)
 
 const operatorSetSplitSnapshotQuery = `
+insert into operator_set_split_snapshots (operator, avs, operator_set_id, split, snapshot)
 WITH operator_set_splits_with_block_info as (
 	select
 		oss.operator,
@@ -66,11 +70,10 @@ final_results as (
 		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
 )
 select * from final_results
+on conflict on constraint uniq_operator_set_split_snapshots do nothing;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorSetSplitSnapshots(snapshotDate string) error {
-	tableName := "operator_set_split_snapshots"
-
 	query, err := rewardsUtils.RenderQueryTemplate(operatorSetSplitSnapshotQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
@@ -79,10 +82,13 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorSetSplitSnapshots(snapshotD
 		return err
 	}
 
-	err = r.generateAndInsertFromQuery(tableName, query, nil)
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate operator_set_split_snapshots", "error", err)
-		return err
+	res := r.grm.Exec(query)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to generate operator_set_split_snapshots",
+			zap.Error(res.Error),
+			zap.String("snapshotDate", snapshotDate),
+		)
+		return res.Error
 	}
 	return nil
 }
