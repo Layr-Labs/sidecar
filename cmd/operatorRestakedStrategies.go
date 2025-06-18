@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/pkg/coreContracts"
+	coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations"
 	"log"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -59,9 +61,11 @@ var runOperatorRestakedStrategiesCmd = &cobra.Command{
 			l.Fatal("Failed to migrate", zap.Error(err))
 		}
 
-		contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-		if err := contractStore.InitializeCoreContracts(); err != nil {
-			log.Fatalf("Failed to initialize core contracts: %v", err)
+		contractStore := postgresContractStore.NewPostgresContractStore(grm, l)
+
+		ccm := coreContracts.NewCoreContractManager(grm, cfg, contractStore, l)
+		if _, err := ccm.MigrateCoreContracts(coreContractMigrations.GetCoreContractMigrations()); err != nil {
+			l.Fatal("Failed to migrate core contracts", zap.Error(err))
 		}
 
 		cm := contractManager.NewContractManager(grm, contractStore, client, af, l)

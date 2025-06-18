@@ -18,6 +18,8 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
+	"github.com/Layr-Labs/sidecar/pkg/coreContracts"
+	coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/logger"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
@@ -62,9 +64,11 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 		log.Fatal(err)
 	}
 
-	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-	if err := contractStore.InitializeCoreContracts(); err != nil {
-		log.Fatalf("Failed to initialize core contracts: %v", err)
+	contractStore := postgresContractStore.NewPostgresContractStore(grm, l)
+
+	ccm := coreContracts.NewCoreContractManager(grm, cfg, contractStore, l)
+	if _, err := ccm.MigrateCoreContracts(coreContractMigrations.GetCoreContractMigrations()); err != nil {
+		l.Fatal("Failed to migrate core contracts", zap.Error(err))
 	}
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
@@ -122,8 +126,8 @@ func Test_TransactionBackfiller(t *testing.T) {
 		defer bf.Close()
 
 		res, err := bf.EnqueueAndWait(context.Background(), message)
-		fmt.Printf("Error: %v\n", err)
-		fmt.Printf("Response: %v\n", res)
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
 		assert.Equal(t, uint64(1), logsHandled.Load())
 	})
 
@@ -162,8 +166,8 @@ func Test_TransactionBackfiller(t *testing.T) {
 		defer bf.Close()
 
 		res, err := bf.EnqueueAndWait(context.Background(), message)
-		fmt.Printf("Error: %v\n", err)
-		fmt.Printf("Response: %v\n", res)
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
 		assert.Equal(t, uint64(1), logsHandled.Load())
 	})
 
@@ -198,8 +202,8 @@ func Test_TransactionBackfiller(t *testing.T) {
 		defer bf.Close()
 
 		res, err := bf.EnqueueAndWait(context.Background(), message)
-		fmt.Printf("Error: %v\n", err)
-		fmt.Printf("Response: %v\n", res)
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
 		// We expect at least one transaction to our target address
 		assert.GreaterOrEqual(t, txsHandled.Load(), uint64(1))
 	})
@@ -253,8 +257,8 @@ func Test_TransactionBackfiller(t *testing.T) {
 		defer bf.Close()
 
 		res, err := bf.EnqueueAndWait(context.Background(), message)
-		fmt.Printf("Error: %v\n", err)
-		fmt.Printf("Response: %v\n", res)
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
 
 		// We expect both logs and transactions to be processed
 		assert.GreaterOrEqual(t, txsHandled.Load(), uint64(1))
@@ -351,8 +355,8 @@ func Test_TransactionBackfiller(t *testing.T) {
 		defer bf.Close()
 
 		res, err := bf.EnqueueAndWait(context.Background(), message)
-		fmt.Printf("Error: %v\n", err)
-		fmt.Printf("Response: %v\n", res)
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
 
 		// We expect logs to be processed
 		assert.Nil(t, err)

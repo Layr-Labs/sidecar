@@ -92,7 +92,6 @@ func runRegressionTest(t *testing.T, dbName string) {
 		generatedRoot := utils.ConvertBytesToString(accountTree.Root())
 		fmt.Printf("Generated root: %v\n", generatedRoot)
 		fmt.Printf("Existing root: %v\n", distRoot.Root)
-
 		assert.Equal(t, distRoot.Root, generatedRoot)
 	}
 }

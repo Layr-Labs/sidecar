@@ -44,52 +44,10 @@ func Test_PostgresContractStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cs := NewPostgresContractStore(db, l, cfg)
+	cs := NewPostgresContractStore(db, l)
 
 	createdContracts := make([]*contractStore.Contract, 0)
 	createdProxyContracts := make([]*contractStore.ProxyContract, 0)
-
-	t.Run("Read core contracts from disk", func(t *testing.T) {
-		contracts, err := cs.loadContractData()
-		assert.Nil(t, err)
-		assert.NotEmpty(t, contracts)
-	})
-	t.Run("Initialize core contracts", func(t *testing.T) {
-		err := cs.InitializeCoreContracts()
-		assert.Nil(t, err)
-
-		contracts, err := cs.loadContractData()
-		assert.Nil(t, err)
-
-		assert.True(t, len(contracts.CoreContracts) > 0)
-		for _, contract := range contracts.CoreContracts {
-			c, err := cs.GetContractForAddress(contract.ContractAddress)
-			assert.Nil(t, err)
-			assert.Equal(t, contract.ContractAddress, c.ContractAddress)
-			assert.Equal(t, contract.ContractAbi, c.ContractAbi)
-			assert.Equal(t, true, c.Verified)
-			assert.Equal(t, contract.BytecodeHash, c.BytecodeHash)
-		}
-
-		assert.True(t, len(contracts.ProxyContracts) > 0)
-		for _, proxy := range contracts.ProxyContracts {
-			tree, err := cs.GetContractWithProxyContract(proxy.ContractAddress, uint64(proxy.BlockNumber))
-			assert.Nil(t, err)
-			assert.NotNil(t, tree)
-			assert.Equal(t, proxy.ContractAddress, tree.BaseAddress)
-			assert.Equal(t, proxy.ProxyContractAddress, tree.BaseProxyAddress)
-			assert.True(t, len(tree.BaseAbi) > 0)
-			assert.True(t, len(tree.BaseProxyAbi) > 0)
-		}
-
-		contractAddress := "0x055733000064333caddbc92763c58bf0192ffebf"
-		proxyContractAddress := "0xef5ba995bc7722fd1e163edf8dc09375de3d3e3a"
-		blockNumber := uint64(1167044)
-		tree, err := cs.GetContractWithProxyContract(contractAddress, blockNumber)
-		assert.Nil(t, err)
-		assert.Equal(t, contractAddress, tree.BaseAddress)
-		assert.Equal(t, proxyContractAddress, tree.BaseProxyAddress)
-	})
 
 	t.Run("Create contract", func(t *testing.T) {
 		contract := &contractStore.Contract{
