@@ -1,4 +1,4 @@
-package _02503191547_initializeAllNewContracts
+package _202503191547_initializeAllNewContracts
 
 import (
 	"embed"
