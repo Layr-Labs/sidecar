@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/common"
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
@@ -110,16 +111,16 @@ func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *rewardsV1.Ge
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	rpc.Logger.Sugar().Infow("Getting max snapshot for cutoff date",
-		zap.String("cutoffDate", cutoffDate),
-	)
-	rewardsCalcEndDate, err := rpc.rewardsCalculator.GetMaxSnapshotDateForCutoffDate(cutoffDate)
+	cutoffDateTime, err := time.Parse(time.DateOnly, cutoffDate)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		rpc.Logger.Sugar().Errorw("failed to parse cutoff date",
+			zap.Error(err),
+			zap.String("cutoffDate", cutoffDate),
+		)
+		return nil, status.Error(codes.InvalidArgument, "invalid cutoff date format")
 	}
-	if rewardsCalcEndDate == "" {
-		return nil, status.Error(codes.NotFound, "no rewards calculated for the given snapshot date")
-	}
+	rewardsCalcEndDate := cutoffDateTime.Add(time.Hour * 24 * -1).Format(time.DateOnly)
+
 	rpc.Logger.Sugar().Infow("Merkelizing rewards for snapshot date",
 		zap.String("cutoffDate", cutoffDate),
 		zap.String("rewardsCalcEndDate", rewardsCalcEndDate),
