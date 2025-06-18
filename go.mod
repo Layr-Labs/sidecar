@@ -6,7 +6,7 @@ require (
 	github.com/DataDog/datadog-go/v5 v5.6.0
 	github.com/Layr-Labs/eigenlayer-contracts v0.4.1-holesky-pepe.0.20240813143901-00fc4b95e9c1
 	github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13
-	github.com/Layr-Labs/protocol-apis v1.14.1-0.20250523180146-9ebe4230a014
+	github.com/Layr-Labs/protocol-apis v1.15.0
 	github.com/ProtonMail/go-crypto v1.1.6
 	github.com/agiledragon/gomonkey/v2 v2.13.0
 	github.com/akuity/grpc-gateway-client v0.0.0-20240912082144-55a48e8b4b89
@@ -50,7 +50,7 @@ require (
 	github.com/DataDog/go-tuf v1.1.0-0.5.2 // indirect
 	github.com/DataDog/sketches-go v1.4.7 // indirect
 	github.com/DataDog/zstd v1.5.6 // indirect
-	github.com/Layr-Labs/protobuf-libs v0.0.0-20250305032038-8d1047b56aab // indirect
+	github.com/Layr-Labs/protobuf-libs v0.1.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/alevinval/sse v1.0.1 // indirect
