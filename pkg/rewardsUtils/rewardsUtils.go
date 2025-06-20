@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"text/template"
 
-	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
-
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
