@@ -11,22 +11,22 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/defaultOperatorSplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/disabledDistributionRoots"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/encumberedMagnitudes"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAVSSplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAllocationDelays"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAllocations"
-	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorAVSSplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorDirectedOperatorSetRewardSubmissions"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorDirectedRewardSubmissions"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorMaxMagnitudes"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorPISplits"
-	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSets"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetOperatorRegistrations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetSplits"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSetStrategyRegistrations"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorSets"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/operatorShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/queuedSlashingWithdrawals"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/rewardSubmissions"
-	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperators"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperatorShares"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/slashedOperators"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerDelegations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/submittedDistributionRoots"
@@ -774,12 +774,12 @@ func Test_Helpers(t *testing.T) {
 		// Test with EncumberedMagnitude model
 		t.Run("Encumbered Magnitude Model", func(t *testing.T) {
 			encumberedMagnitude := &encumberedMagnitudes.EncumberedMagnitude{
-				Operator:             "test_operator",
-				Strategy:             "test_strategy",
-				EncumberedMagnitude:  "15000",
-				TransactionHash:      "0xfgh",
-				LogIndex:             23,
-				BlockNumber:          2300,
+				Operator:            "test_operator",
+				Strategy:            "test_strategy",
+				EncumberedMagnitude: "15000",
+				TransactionHash:     "0xfgh",
+				LogIndex:            23,
+				BlockNumber:         2300,
 			}
 
 			result, err := rpc.parseCommittedChanges(map[string][]interface{}{
