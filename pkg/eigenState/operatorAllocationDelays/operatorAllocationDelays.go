@@ -1,4 +1,4 @@
-package operatorAllocationDelayDelays
+package operatorAllocationDelays
 
 import (
 	"encoding/json"
