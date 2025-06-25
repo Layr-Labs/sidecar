@@ -211,6 +211,12 @@ func (rc *RewardsCalculator) GetRewardSnapshotStatus(snapshotDate string) (*stor
 		}
 		return nil, res.Error
 	}
+
+	// Check if any rows were actually found
+	if res.RowsAffected == 0 {
+		return nil, nil
+	}
+
 	return r, nil
 }
 

@@ -3,9 +3,10 @@ package sidecar
 import (
 	"context"
 	"fmt"
-	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"sync/atomic"
 	"time"
+
+	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 
