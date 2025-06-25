@@ -1,4 +1,4 @@
-package operatorAllocationDelayDelays
+package operatorAllocationDelays
 
 import (
 	"github.com/Layr-Labs/sidecar/internal/config"
