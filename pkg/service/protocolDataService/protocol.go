@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -364,38 +365,85 @@ func (aa *AvsAddresses) Scan(value interface{}) error {
 }
 
 type StakerShares struct {
-	Staker       string
-	Strategy     string
-	Shares       string
-	BlockHeight  uint64
-	Operator     *string
-	Delegated    bool
-	AvsAddresses AvsAddresses `gorm:"type:jsonb"`
+	Staker          string
+	Strategy        string
+	Shares          string
+	BlockHeight     uint64
+	BlockTime       *time.Time
+	TransactionHash *string
+	LogIndex        *uint64
+	Operator        *string
+	Delegated       bool
+	AvsAddresses    AvsAddresses `gorm:"type:jsonb"`
 }
 
 // ListStakerShares returns the shares of a staker at a given block height, including the operator they were delegated to
 // and the addresses of the AVSs the operator was registered to.
 //
 // If not blockHeight is provided, the most recently indexed block will be used.
-func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker string, blockHeight uint64) ([]*StakerShares, error) {
+// If showHistorical is true, returns all historical share records; otherwise returns aggregated current state.
+// For historical results, startBlock and endBlock can be used to filter the block range.
+func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker string, strategy string, blockHeight uint64, showHistorical bool, startBlock uint64, endBlock uint64) ([]*StakerShares, error) {
+	// Validate that start and end blocks are required when historical is true
+	if showHistorical {
+		if startBlock == 0 {
+			return nil, errors.New("startBlock is required when showHistorical is true")
+		}
+		if endBlock == 0 {
+			return nil, errors.New("endBlock is required when showHistorical is true")
+		}
+		if startBlock > endBlock {
+			return nil, errors.New("startBlock cannot be greater than endBlock")
+		}
+	}
 
 	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
 		return nil, err
 	}
 
-	query := `
-		with distinct_staker_strategies as (
-			select
-				ssd.staker,
-				ssd.strategy,
-				sum(ssd.shares) as shares
+	var query string
+
+	if showHistorical {
+		query = `
+			with distinct_staker_strategies as (
+				select
+					ssd.staker,
+					ssd.strategy,
+					ssd.shares,
+					ssd.block_number,
+					ssd.block_time,
+				ssd.transaction_hash,
+				ssd.log_index
 			from staker_share_deltas as ssd
-			where
-				ssd.staker = @staker
-				and block_number <= @blockHeight
-			group by ssd.staker, ssd.strategy
-		)
+			where ssd.block_number >= @startBlock
+				and ssd.block_number <= @endBlock
+		`
+		if strategy != "" {
+			query += `
+				and ssd.strategy = @strategy
+				)`
+		} else {
+			query += `
+				and ssd.staker = @staker
+				)`
+		}
+	} else {
+		query = `
+		    with distinct_staker_strategies as (
+				select
+					ssd.staker,
+					ssd.strategy,
+					sum(ssd.shares) as shares
+				from staker_share_deltas as ssd
+				where
+					ssd.staker = @staker
+					and block_number <= @blockHeight
+				group by ssd.staker, ssd.strategy
+			)`
+	}
+
+	query += `
 		select
 			dss.*,
 			dsc.operator,
@@ -424,11 +472,25 @@ func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker str
 				and aosc.registered = true
 		) as aosc on true
 	`
+
 	shares := make([]*StakerShares, 0)
-	res := pds.db.Raw(query,
+
+	// Prepare query parameters
+	queryParams := []interface{}{
 		sql.Named("staker", staker),
 		sql.Named("blockHeight", bh),
-	).Scan(&shares)
+	}
+
+	if strategy != "" {
+		queryParams = append(queryParams, sql.Named("strategy", strategy))
+	}
+
+	if showHistorical {
+		queryParams = append(queryParams, sql.Named("startBlock", startBlock))
+		queryParams = append(queryParams, sql.Named("endBlock", endBlock))
+	}
+
+	res := pds.db.Raw(query, queryParams...).Scan(&shares)
 	if res.Error != nil {
 		return nil, res.Error
 	}
