@@ -30,6 +30,8 @@ github.com/Layr-Labs/protobuf-libs v0.1.0 h1:hfawlutriLq1i7cI2kXH8o2N+mx02cJTVlK
 github.com/Layr-Labs/protobuf-libs v0.1.0/go.mod h1:Om3Qb39NrWwald+08yTIj/VexKmocIMsMXXIM/iRcW8=
 github.com/Layr-Labs/protocol-apis v1.16.0 h1:JXchrhqdwVjmNHXV/l70n32n9/hvzDaVxlX1bzv7V1Q=
 github.com/Layr-Labs/protocol-apis v1.16.0/go.mod h1:0w24becRYehW1AbwIFRF6wsfOlFJAcqBPAMAinB0y+c=
+github.com/Layr-Labs/protocol-apis v1.16.1-0.20250626192844-97c1494a771c h1:RXr7ENZP7UkJD97D+CpICQV3OTPITGsci0I3IjePbBw=
+github.com/Layr-Labs/protocol-apis v1.16.1-0.20250626192844-97c1494a771c/go.mod h1:0w24becRYehW1AbwIFRF6wsfOlFJAcqBPAMAinB0y+c=
 github.com/Microsoft/go-winio v0.5.0/go.mod h1:JPGBdM1cNvN/6ISo+n8V5iA4v8pBzdOpzfwIujj1a84=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
