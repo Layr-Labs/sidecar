@@ -896,11 +896,22 @@
           },
           "stakerAddress": {
             "type": "string"
+          },
+          "strategy": {
+            "type": "string"
+          },
+          "showHistorical": {
+            "type": "boolean"
+          },
+          "startBlock": {
+            "type": "integer",
+            "format": "uint64"
+          },
+          "endBlock": {
+            "type": "integer",
+            "format": "uint64"
           }
-        },
-        "required": [
-          "block_height"
-        ]
+        }
       },
       "GetStakerSharesResponse": {
         "type": "object",
