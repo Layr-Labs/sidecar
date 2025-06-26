@@ -221,6 +221,10 @@ func getPostgresConnectionString(cfg *PostgresConfig) (string, error) {
 		sslMode,
 	)
 
+	if cfg.SchemaName != "" {
+		baseString = fmt.Sprintf("%s search_path=%s", baseString, cfg.SchemaName)
+	}
+
 	if sslMode != defaultSSLMode {
 		if cfg.SSLCert != "" {
 			baseString = fmt.Sprintf("%s sslcert=%s", baseString, cfg.SSLCert)
@@ -230,9 +234,6 @@ func getPostgresConnectionString(cfg *PostgresConfig) (string, error) {
 		}
 		if cfg.SSLRootCert != "" {
 			baseString = fmt.Sprintf("%s sslrootcert=%s", baseString, cfg.SSLRootCert)
-		}
-		if cfg.SchemaName != "" {
-			baseString = fmt.Sprintf("%s search_path=%s", baseString, cfg.SchemaName)
 		}
 	}
 	return baseString, nil
