@@ -2,10 +2,6 @@ package snapshot
 
 import (
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/snapshot/snapshotManifest"
-	"github.com/pkg/errors"
-	"github.com/schollz/progressbar/v3"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,6 +10,11 @@ import (
 	"path"
 	"slices"
 	"strings"
+
+	"github.com/Layr-Labs/sidecar/pkg/snapshot/snapshotManifest"
+	"github.com/pkg/errors"
+	"github.com/schollz/progressbar/v3"
+	"go.uber.org/zap"
 )
 
 // defaultRestoreOptions returns the default command-line options for pg_restore.
@@ -24,6 +25,7 @@ func defaultRestoreOptions() []string {
 		"--no-owner",
 		"--no-privileges",
 		"--if-exists",
+		"--disable-triggers",
 	}
 }
 
@@ -239,6 +241,66 @@ func (ss *SnapshotService) performRestore(snapshotFile *SnapshotFile, cfg *Resto
 	return res, nil
 }
 
+// preCleanupRewardsTables drops rewards tables that have foreign key dependencies
+// to prevent conflicts during snapshot restoration
+func (ss *SnapshotService) preCleanupRewardsTables(cfg *RestoreSnapshotConfig) error {
+	ss.logger.Sugar().Infow("Pre-cleaning rewards tables with foreign key dependencies")
+
+	cleanupSQL := `
+		-- Drop all rewards gold tables that have foreign key dependencies
+		DROP TABLE IF EXISTS rewards_gold_1_active_rewards CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_2_staker_reward_amounts CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_3_operator_reward_amounts CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_4_rewards_for_all CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_5_rfae_stakers CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_6_rfae_operators CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_7_active_od_rewards CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_8_operator_od_reward_amounts CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_9_staker_od_reward_amounts CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_10_avs_od_reward_amounts CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_11_active_od_operator_set_rewards CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_12_operator_od_operator_set_reward_amounts CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_13_staker_od_operator_set_reward_amounts CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_14_avs_od_operator_set_reward_amounts CASCADE;
+		DROP TABLE IF EXISTS rewards_gold_staging CASCADE;
+		DROP TABLE IF EXISTS gold_table CASCADE;
+		
+		-- Now drop the main table and type
+		DROP TABLE IF EXISTS generated_rewards_snapshots CASCADE;
+		DROP TYPE IF EXISTS reward_snapshot_status CASCADE;
+	`
+
+	// Build psql command to execute cleanup
+	cmdFlags := []string{
+		"-h", cfg.DBConfig.Host,
+		"-p", fmt.Sprintf("%d", cfg.DBConfig.Port),
+		"-U", cfg.DBConfig.User,
+		"-d", cfg.DBConfig.DbName,
+		"-c", cleanupSQL,
+	}
+
+	fullCmdPath, err := getCmdPath("psql")
+	if err != nil {
+		return fmt.Errorf("error getting psql path: %w", err)
+	}
+
+	cmd := exec.Command(fullCmdPath, cmdFlags...)
+	cmd.Env = append(cmd.Env, ss.buildPostgresEnvVars(cfg.DBConfig)...)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		ss.logger.Sugar().Warnw("Pre-cleanup encountered some errors (this is often expected)",
+			zap.String("output", string(output)),
+			zap.Error(err),
+		)
+		// Don't fail on cleanup errors as some tables might not exist
+	} else {
+		ss.logger.Sugar().Infow("Pre-cleanup completed successfully")
+	}
+
+	return nil
+}
+
 // RestoreFromSnapshot restores a database from a snapshot according to the provided configuration.
 // It can download a snapshot from a URL or use a local snapshot file.
 // If no input is provided, it attempts to find a compatible snapshot in the manifest.
@@ -305,6 +367,10 @@ func (ss *SnapshotService) RestoreFromSnapshot(cfg *RestoreSnapshotConfig) error
 			return errors.Wrap(err, "error validating snapshot signature")
 		}
 		ss.logger.Sugar().Infow("snapshot signature validated, signed by", zap.Any("signer", signer.Identities))
+	}
+
+	if err := ss.preCleanupRewardsTables(cfg); err != nil {
+		return err
 	}
 
 	res, err := ss.performRestore(snapshotFile, cfg)
