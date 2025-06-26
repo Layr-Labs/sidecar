@@ -382,7 +382,7 @@ type StakerShares struct {
 //
 // If not blockHeight is provided, the most recently indexed block will be used.
 // If showHistorical is true, returns all historical share records; otherwise returns aggregated current state.
-func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker string, blockHeight uint64, showHistorical bool) ([]*StakerShares, error) {
+func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker string, strategy string, blockHeight uint64, showHistorical bool) ([]*StakerShares, error) {
 
 	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
@@ -393,21 +393,27 @@ func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker str
 
 	if showHistorical {
 		query = `
-		    with distinct_staker_strategies as (
+			with distinct_staker_strategies as (
 				select
 					ssd.staker,
 					ssd.strategy,
 					ssd.shares,
 					ssd.block_number,
 					ssd.block_time,
-					ssd.transaction_hash,
-					ssd.log_index
-				from staker_share_deltas as ssd
-				where
-					ssd.staker = @staker
-					and ssd.block_number <= @blockHeight
-				order by ssd.block_number desc, ssd.log_index desc
-			)`
+				ssd.transaction_hash,
+				ssd.log_index
+			from staker_share_deltas as ssd
+			where ssd.block_number <= @blockHeight
+		`
+		if strategy != "" {
+			query += `
+				and ssd.strategy = @strategy
+				)`
+		} else {
+			query += `
+				and ssd.staker = @staker
+				)`
+		}
 	} else {
 		query = `
 		    with distinct_staker_strategies as (
@@ -454,10 +460,18 @@ func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker str
 	`
 
 	shares := make([]*StakerShares, 0)
-	res := pds.db.Raw(query,
+
+	// Prepare query parameters
+	queryParams := []interface{}{
 		sql.Named("staker", staker),
 		sql.Named("blockHeight", bh),
-	).Scan(&shares)
+	}
+
+	if strategy != "" {
+		queryParams = append(queryParams, sql.Named("strategy", strategy))
+	}
+
+	res := pds.db.Raw(query, queryParams...).Scan(&shares)
 	if res.Error != nil {
 		return nil, res.Error
 	}
