@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/types"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (rpc *RpcServer) GetRegisteredAvsForOperator(ctx context.Context, request *protocolV1.GetRegisteredAvsForOperatorRequest) (*protocolV1.GetRegisteredAvsForOperatorResponse, error) {
@@ -102,19 +103,32 @@ func (rpc *RpcServer) GetDelegatedStakersForOperator(ctx context.Context, reques
 }
 
 func (rpc *RpcServer) GetStakerShares(ctx context.Context, request *protocolV1.GetStakerSharesRequest) (*protocolV1.GetStakerSharesResponse, error) {
-	shares, err := rpc.protocolDataService.ListStakerShares(ctx, request.GetStakerAddress(), request.GetBlockHeight())
+	showHistorical := request.GetShowHistorical()
+	shares, err := rpc.protocolDataService.ListStakerShares(ctx, request.GetStakerAddress(), request.GetBlockHeight(), showHistorical)
 	if err != nil {
 		return nil, err
 	}
 
 	stakerShares := make([]*protocolV1.StakerShare, 0, len(shares))
 	for _, share := range shares {
-		stakerShares = append(stakerShares, &protocolV1.StakerShare{
+		stakerShare := &protocolV1.StakerShare{
 			Strategy:        share.Strategy,
 			Shares:          share.Shares,
 			OperatorAddress: share.Operator,
 			AvsAddresses:    share.AvsAddresses,
-		})
+		}
+
+		// Add historical fields if requested
+		if showHistorical {
+			stakerShare.BlockHeight = &share.BlockHeight
+			if share.BlockTime != nil {
+				stakerShare.BlockTime = timestamppb.New(*share.BlockTime)
+			}
+			stakerShare.TransactionHash = share.TransactionHash
+			stakerShare.LogIndex = share.LogIndex
+		}
+
+		stakerShares = append(stakerShares, stakerShare)
 	}
 
 	return &protocolV1.GetStakerSharesResponse{

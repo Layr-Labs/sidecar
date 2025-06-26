@@ -2,6 +2,10 @@ package protocolDataService
 
 import (
 	"context"
+	"log"
+	"os"
+	"testing"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -11,9 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"log"
-	"os"
-	"testing"
 )
 
 func setup(dataSourceName string) (
@@ -117,7 +118,7 @@ func Test_ProtocolDataService(t *testing.T) {
 			staker := "0x130c646e1224d979ff23523308abb6012ce04b0a"
 			blockNumber := uint64(3204391)
 
-			shares, err := pds.ListStakerShares(context.Background(), staker, blockNumber)
+			shares, err := pds.ListStakerShares(context.Background(), staker, blockNumber, false)
 			assert.Nil(t, err)
 			assert.True(t, len(shares) > 0)
 			for _, share := range shares {
@@ -128,7 +129,7 @@ func Test_ProtocolDataService(t *testing.T) {
 			staker := "0xbc9dec48f305167bb8ee593e44893acf65ad3f36"
 			blockNumber := uint64(3240224)
 
-			shares, err := pds.ListStakerShares(context.Background(), staker, blockNumber)
+			shares, err := pds.ListStakerShares(context.Background(), staker, blockNumber, false)
 			assert.Nil(t, err)
 			assert.True(t, len(shares) > 0)
 			for _, share := range shares {
