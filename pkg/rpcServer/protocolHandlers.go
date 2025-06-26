@@ -104,7 +104,10 @@ func (rpc *RpcServer) GetDelegatedStakersForOperator(ctx context.Context, reques
 
 func (rpc *RpcServer) GetStakerShares(ctx context.Context, request *protocolV1.GetStakerSharesRequest) (*protocolV1.GetStakerSharesResponse, error) {
 	showHistorical := request.GetShowHistorical()
-	shares, err := rpc.protocolDataService.ListStakerShares(ctx, request.GetStakerAddress(), request.GetStrategy(), request.GetBlockHeight(), showHistorical)
+	startBlock := request.GetStartBlock()
+	endBlock := request.GetEndBlock()
+
+	shares, err := rpc.protocolDataService.ListStakerShares(ctx, request.GetStakerAddress(), request.GetStrategy(), request.GetBlockHeight(), showHistorical, startBlock, endBlock)
 	if err != nil {
 		return nil, err
 	}
