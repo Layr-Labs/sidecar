@@ -6,7 +6,7 @@ sidebar_label: "GetStakerSharesRequest"
 hide_title: true
 hide_table_of_contents: true
 schema: true
-sample: {"blockHeight":0,"stakerAddress":"string","strategy":"string","showHistorical":false,"startBlock":0,"endBlock":0}
+sample: {"stakerAddress":"string","strategy":"string","startBlock":0,"endBlock":0}
 custom_edit_url: null
 ---
 
@@ -25,7 +25,7 @@ import Heading from "@theme/Heading";
 
 
 <Schema
-  schema={{"type":"object","properties":{"blockHeight":{"type":"integer","format":"uint64"},"stakerAddress":{"type":"string"},"strategy":{"type":"string"},"showHistorical":{"type":"boolean"},"startBlock":{"type":"integer","format":"uint64"},"endBlock":{"type":"integer","format":"uint64"}},"title":"GetStakerSharesRequest"}}
+  schema={{"type":"object","properties":{"stakerAddress":{"type":"string"},"strategy":{"type":"string"},"startBlock":{"type":"integer","format":"uint64"},"endBlock":{"type":"integer","format":"uint64"}},"title":"GetStakerSharesRequest"}}
   schemaType={"response"}
 >
   

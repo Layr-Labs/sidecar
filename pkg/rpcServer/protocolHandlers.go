@@ -103,11 +103,23 @@ func (rpc *RpcServer) GetDelegatedStakersForOperator(ctx context.Context, reques
 }
 
 func (rpc *RpcServer) GetStakerShares(ctx context.Context, request *protocolV1.GetStakerSharesRequest) (*protocolV1.GetStakerSharesResponse, error) {
-	showHistorical := request.GetShowHistorical()
+	// Validate required fields
+	stakerAddress := request.GetStakerAddress()
+	if stakerAddress == "" {
+		return nil, errors.New("staker address is required")
+	}
+
 	startBlock := request.GetStartBlock()
 	endBlock := request.GetEndBlock()
+	if (startBlock > 0 && endBlock == 0) || (startBlock == 0 && endBlock > 0) {
+		return nil, errors.New("start_block and end_block must be provided together")
+	}
+	if startBlock > endBlock {
+		return nil, errors.New("start_block cannot be greater than end_block")
+	}
 
-	shares, err := rpc.protocolDataService.ListStakerShares(ctx, request.GetStakerAddress(), request.GetStrategy(), request.GetBlockHeight(), showHistorical, startBlock, endBlock)
+	// Use start_block and end_block parameters
+	shares, err := rpc.protocolDataService.ListStakerShares(ctx, stakerAddress, request.GetStrategy(), startBlock, endBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -121,8 +133,7 @@ func (rpc *RpcServer) GetStakerShares(ctx context.Context, request *protocolV1.G
 			AvsAddresses:    share.AvsAddresses,
 		}
 
-		// Add historical fields if requested
-		if showHistorical {
+		if startBlock > 0 && endBlock > 0 {
 			stakerShare.BlockHeight = &share.BlockHeight
 			if share.BlockTime != nil {
 				stakerShare.BlockTime = timestamppb.New(*share.BlockTime)

@@ -381,30 +381,16 @@ type StakerShares struct {
 // and the addresses of the AVSs the operator was registered to.
 //
 // If not blockHeight is provided, the most recently indexed block will be used.
-// If showHistorical is true, returns all historical share records; otherwise returns aggregated current state.
 // For historical results, startBlock and endBlock can be used to filter the block range.
-func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker string, strategy string, blockHeight uint64, showHistorical bool, startBlock uint64, endBlock uint64) ([]*StakerShares, error) {
-	// Validate that start and end blocks are required when historical is true
-	if showHistorical {
-		if startBlock == 0 {
-			return nil, errors.New("startBlock is required when showHistorical is true")
-		}
-		if endBlock == 0 {
-			return nil, errors.New("endBlock is required when showHistorical is true")
-		}
-		if startBlock > endBlock {
-			return nil, errors.New("startBlock cannot be greater than endBlock")
-		}
-	}
-
-	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
+func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker string, strategy string, startBlock uint64, endBlock uint64) ([]*StakerShares, error) {
+	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, endBlock)
 	if err != nil {
 		return nil, err
 	}
 
 	var query string
 
-	if showHistorical {
+	if startBlock > 0 && endBlock > 0 {
 		query = `
 			with distinct_staker_strategies as (
 				select
@@ -478,16 +464,10 @@ func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker str
 	// Prepare query parameters
 	queryParams := []interface{}{
 		sql.Named("staker", staker),
+		sql.Named("strategy", strategy),
 		sql.Named("blockHeight", bh),
-	}
-
-	if strategy != "" {
-		queryParams = append(queryParams, sql.Named("strategy", strategy))
-	}
-
-	if showHistorical {
-		queryParams = append(queryParams, sql.Named("startBlock", startBlock))
-		queryParams = append(queryParams, sql.Named("endBlock", endBlock))
+		sql.Named("startBlock", startBlock),
+		sql.Named("endBlock", endBlock),
 	}
 
 	res := pds.db.Raw(query, queryParams...).Scan(&shares)
