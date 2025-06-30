@@ -917,3 +917,63 @@ func (rc *RewardsCalculator) ListDistributionRoots(blockHeight uint64) ([]*Distr
 	}
 	return submittedDistributionRoots, nil
 }
+
+func (rc *RewardsCalculator) PurgeCorruptRewardsGeneration() error {
+	query := `
+		select
+			*
+		from generated_rewards_snapshots
+		order by id desc
+		limit 1
+	`
+	var lastGeneratedSnapshot *storage.GeneratedRewardsSnapshots
+	res := rc.grm.Raw(query).Scan(&lastGeneratedSnapshot)
+	if res.Error != nil {
+		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+			rc.logger.Sugar().Infow("No generated rewards snapshots found")
+			return nil
+		}
+		rc.logger.Sugar().Errorw("Failed to get last generated rewards snapshot", "error", res.Error)
+		return res.Error
+	}
+	if lastGeneratedSnapshot == nil {
+		rc.logger.Sugar().Infow("No generated rewards snapshots found")
+		return nil
+	}
+
+	if lastGeneratedSnapshot.Status == storage.RewardSnapshotStatusCompleted.String() {
+		rc.logger.Sugar().Infow("Last generated rewards snapshot is already completed, no need to purge")
+		return nil
+	}
+
+	rc.logger.Sugar().Infow("found corrupt generated rewards snapshot, purging",
+		zap.Any("generatedSnapshot", lastGeneratedSnapshot),
+	)
+
+	tableNames, err := rc.findRewardsTablesBySnapshotDate(lastGeneratedSnapshot.SnapshotDate)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to find rewards tables", "error", err)
+		return err
+	}
+	// drop tables
+	for _, tableName := range tableNames {
+		rc.logger.Sugar().Infow("Dropping rewards table", "tableName", tableName)
+		dropQuery := fmt.Sprintf(`drop table %s`, tableName)
+		res := rc.grm.Exec(dropQuery)
+		if res.Error != nil {
+			rc.logger.Sugar().Errorw("Failed to drop rewards table", "error", res.Error)
+			return res.Error
+		}
+	}
+
+	// delete from generated_rewards_snapshots
+	res = rc.grm.Delete(&storage.GeneratedRewardsSnapshots{}, lastGeneratedSnapshot.Id)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to delete generated snapshot", "error", res.Error)
+		return res.Error
+	}
+	rc.logger.Sugar().Infow("purged corrupt generated rewards snapshot",
+		zap.Any("generatedSnapshot", lastGeneratedSnapshot),
+	)
+	return nil
+}

@@ -90,6 +90,10 @@ func (s *Sidecar) Start(ctx context.Context) {
 		}
 	}()
 
+	if err := s.RewardsCalculator.PurgeCorruptRewardsGeneration(); err != nil {
+		s.Logger.Sugar().Fatalw("Failed to purge corrupt rewards generation", zap.Error(err))
+	}
+
 	if err := s.RunStartupJobs(ctx); err != nil {
 		s.Logger.Sugar().Fatalw("Failed to run startup jobs", zap.Error(err))
 	}
