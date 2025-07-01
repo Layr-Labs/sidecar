@@ -198,7 +198,7 @@ func (rc *RewardsCalculator) UpdateRewardSnapshotStatus(snapshotDate string, sta
 }
 
 func (rc *RewardsCalculator) GetRewardSnapshotStatus(snapshotDate string) (*storage.GeneratedRewardsSnapshots, error) {
-	var r = &storage.GeneratedRewardsSnapshots{}
+	var r *storage.GeneratedRewardsSnapshots
 	query := `
 		select
 			*
