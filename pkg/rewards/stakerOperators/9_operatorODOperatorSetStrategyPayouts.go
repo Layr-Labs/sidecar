@@ -44,17 +44,9 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert9OperatorODOperatorSetStra
 		return err
 	}
 
-	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
-		rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts],
-	}, cutoffDate)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
-		return err
-	}
-
 	query, err := rewardsUtils.RenderQueryTemplate(_9_operatorODOperatorSetStrategyPayoutQuery, map[string]interface{}{
 		"destTableName": destTableName,
-		"operatorODOperatorSetRewardAmountsTable": rewardsTables[rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts],
+		"operatorODOperatorSetRewardAmountsTable": rewardsUtils.RewardsTable_12_OperatorODOperatorSetRewardAmounts,
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 9_operatorODOperatorSetStrategyPayouts query", "error", err)
