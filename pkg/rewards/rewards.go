@@ -209,7 +209,7 @@ func (rc *RewardsCalculator) GetRewardSnapshotStatus(snapshotDate string) (*stor
 		limit 1
 	`
 
-	res := rc.grm.Raw(query, sql.Named("snapshotDate", snapshotDate)).Scan(r)
+	res := rc.grm.Raw(query, sql.Named("snapshotDate", snapshotDate)).Scan(&r)
 	if res.Error != nil {
 		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
