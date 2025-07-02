@@ -164,14 +164,9 @@ func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fet
 	for i, tx := range fetchedBlock.Block.Transactions {
 		txReceipt, ok := fetchedBlock.TxReceipts[tx.Hash.Value()]
 		if !ok {
+			// When fetching blocks, we only get the receipts that are interesting to us
+			// so its entirely expected that some transactions will not have a receipt.
 			continue
-			// idx.Logger.Sugar().Errorw("Receipt not found for transaction",
-			// 	zap.String("txHash", tx.Hash.Value()),
-			// 	zap.Uint64("block", tx.BlockNumber.Value()),
-			// )
-			// return nil, NewIndexError(IndexError_ReceiptNotFound, fmt.Errorf("receipt not found for transaction")).
-			// 	WithBlockNumber(tx.BlockNumber.Value()).
-			// 	WithTransactionHash(tx.Hash.Value())
 		}
 
 		parsedTransactionAndLogs, err := idx.ParseTransactionLogs(tx, txReceipt)
