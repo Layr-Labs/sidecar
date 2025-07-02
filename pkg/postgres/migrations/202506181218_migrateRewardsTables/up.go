@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -35,14 +34,12 @@ func getMinGeneratedRewardsSnapshotId(grm *gorm.DB) (uint64, error) {
 }
 
 func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
-	fmt.Printf("Creating table: %s\n", sm.NewTableName)
 	res := grm.Exec(sm.CreateTableQuery)
 	if res.Error != nil {
 		fmt.Printf("Failed to create table %s: %s\nQuery: %s\n", sm.NewTableName, res.Error, sm.CreateTableQuery)
 		return res.Error
 	}
 
-	fmt.Printf("Adding constraints for table: %s\n", sm.NewTableName)
 	for _, query := range sm.PreDataMigrationQueries {
 		res := grm.Exec(query)
 		if res.Error != nil {
@@ -51,41 +48,17 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 		}
 	}
 
-	fmt.Printf("Searching for existing tables with pattern: %s\n", sm.ExistingTablePattern)
 	likeTablesQuery := `
 		SELECT table_schema || '.' || table_name
 		FROM information_schema.tables
 		WHERE table_type='BASE TABLE'
-			and table_name ~* @pattern
+			and table_name LIKE @pattern
 	`
 	var tables []string
 	res = grm.Raw(likeTablesQuery, sql.Named("pattern", sm.ExistingTablePattern)).Scan(&tables)
 	if res.Error != nil {
 		fmt.Printf("Failed to find tables: %s\n%s\n", sm.ExistingTablePattern, likeTablesQuery)
 		return res.Error
-	}
-	fmt.Printf("Found %d existing tables to migrate: %v\n", len(tables), tables)
-
-	if len(tables) == 0 {
-		fmt.Printf("No tables found to migrate for pattern: %s\n", sm.ExistingTablePattern)
-		return nil
-	}
-
-	// Optimize PostgreSQL settings for bulk inserts (only settings that can be changed at runtime)
-	fmt.Printf("Optimizing PostgreSQL settings for bulk migration\n")
-	optimizationQueries := []string{
-		"SET work_mem = '256MB'",    // Increase memory for sort operations - can be changed at runtime
-		"SET temp_buffers = '32MB'", // Increase temporary buffer size - can be changed at runtime
-	}
-
-	for _, query := range optimizationQueries {
-		res := grm.Exec(query)
-		if res.Error != nil {
-			fmt.Printf("Warning: Failed to set optimization setting: %s (error: %s)\n", query, res.Error)
-			// Continue anyway, these are just optimizations
-		} else {
-			fmt.Printf("Successfully set: %s\n", query)
-		}
 	}
 
 	// Process tables in smaller batches for better performance and reduced memory usage
@@ -96,16 +69,12 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 			end = len(tables)
 		}
 
-		fmt.Printf("Processing batch %d-%d of %d tables\n", i+1, end, len(tables))
-
 		for j := i; j < end; j++ {
 			table := tables[j]
 			if err := sm.processSingleTable(table, grm); err != nil {
 				return err
 			}
 		}
-
-		fmt.Printf("Completed batch %d-%d\n", i+1, end)
 	}
 
 	fmt.Printf("Migration completed for table: %s\n", sm.NewTableName)
@@ -113,36 +82,8 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 }
 
 func (sm *SubMigration) processSingleTable(table string, grm *gorm.DB) error {
-	fmt.Printf("Processing table: %s\n", table)
-
-	// find the corresponding generated rewards entry
-	// Try multiple regex patterns for different date formats
-	patterns := []string{
-		`(202[0-9]_[0-9]{2}_[0-9]{2})$`,     // 2024_12_31
-		`(202[0-9]_[0-9]_[0-9]{2})$`,        // 2024_1_31
-		`(202[0-9]_[0-9]{2}_[0-9])$`,        // 2024_12_1
-		`(202[0-9]_[0-9]_[0-9])$`,           // 2024_1_1
-		`([0-9]{4}_[0-9]{1,2}_[0-9]{1,2})$`, // Generic YYYY_M_D or YYYY_MM_DD
-	}
-
-	var match []string
-	date := ""
-	for _, pattern := range patterns {
-		re := regexp.MustCompile(pattern)
-		match = re.FindStringSubmatch(table)
-		if len(match) == 2 {
-			date = match[1]
-			break
-		}
-	}
-
-	if len(match) != 2 {
-		fmt.Printf("Failed to find date in table name: %s, tried patterns: %v\n", table, patterns)
-		return fmt.Errorf("Failed to find date in table name: %s", table)
-	}
-	// date := match[1]
+	date := table[len(table)-10:] // Get last 10 characters: YYYY_MM_DD
 	kebabDate := strings.ReplaceAll(date, "_", "-")
-	fmt.Printf("Extracted date: %s -> %s from table: %s\n", date, kebabDate, table)
 
 	generatedQuery := `select id from generated_rewards_snapshots where snapshot_date = @snapshot`
 	var snapshotId uint64
@@ -164,34 +105,15 @@ func (sm *SubMigration) processSingleTable(table string, grm *gorm.DB) error {
 		fmt.Printf("Found snapshot ID %d for date: %s\n", snapshotId, kebabDate)
 	}
 
-	fmt.Printf("Inserting data from %s to %s\n", table, sm.NewTableName)
-
-	// Optimize: Include snapshot_id directly in the INSERT query instead of separate UPDATE
+	// Simple INSERT: source tables have same columns as destination (except generated_rewards_snapshot_id)
 	var query string
 	if snapshotId == 0 {
 		// If no snapshot ID, insert without it (will be NULL)
 		query = fmt.Sprintf("insert into %s select * from %s on conflict on constraint uniq_%s do nothing", sm.NewTableName, table, sm.NewTableName)
 	} else {
-		// Get column list for the destination table (excluding generated_rewards_snapshot_id)
-		var columns []string
-		columnQuery := `
-			SELECT column_name 
-			FROM information_schema.columns 
-			WHERE table_name = @table_name 
-			AND column_name != 'generated_rewards_snapshot_id'
-			ORDER BY ordinal_position
-		`
-		res := grm.Raw(columnQuery, sql.Named("table_name", sm.NewTableName)).Scan(&columns)
-		if res.Error != nil {
-			fmt.Printf("Failed to get columns for table %s: %s\n", sm.NewTableName, res.Error)
-			return res.Error
-		}
-
-		columnList := strings.Join(columns, ", ")
-		// Include snapshot_id directly in the INSERT
 		query = fmt.Sprintf(
-			"insert into %s (%s, generated_rewards_snapshot_id) select %s, %d from %s on conflict on constraint uniq_%s do nothing",
-			sm.NewTableName, columnList, columnList, snapshotId, table, sm.NewTableName,
+			"insert into %s select *, %d from %s on conflict on constraint uniq_%s do nothing",
+			sm.NewTableName, snapshotId, table, sm.NewTableName,
 		)
 	}
 
@@ -200,7 +122,7 @@ func (sm *SubMigration) processSingleTable(table string, grm *gorm.DB) error {
 		fmt.Printf("Failed to insert data from %s: %s\nQuery: %s\n", table, res.Error, query)
 		return res.Error
 	}
-	fmt.Printf("Successfully inserted data from %s (affected rows: %d)\n", table, res.RowsAffected)
+
 	return nil
 }
 
@@ -225,7 +147,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_1_active_rewards add constraint uniq_rewards_gold_1_active_rewards unique (avs, reward_hash, strategy, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_1_active_rewards",
-			ExistingTablePattern: "gold_[0-9]+_active_rewards_[0-9_]+$",
+			ExistingTablePattern: "gold_%_active_rewards_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_2_staker_reward_amounts (
@@ -256,7 +178,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_2_staker_reward_amounts add constraint uniq_rewards_gold_2_staker_reward_amounts unique (reward_hash, staker, avs, strategy, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_2_staker_reward_amounts",
-			ExistingTablePattern: "gold_[0-9]+_staker_reward_amounts_[0-9_]+$",
+			ExistingTablePattern: "gold_%_staker_reward_amounts_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_3_operator_reward_amounts (
@@ -278,7 +200,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_3_operator_reward_amounts add constraint uniq_rewards_gold_3_operator_reward_amounts unique (reward_hash, avs, operator, strategy, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_3_operator_reward_amounts",
-			ExistingTablePattern: "gold_[0-9]+_operator_reward_amounts_[0-9_]+$",
+			ExistingTablePattern: "gold_%_operator_reward_amounts_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_4_rewards_for_all (
@@ -304,7 +226,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_4_rewards_for_all add constraint uniq_rewards_gold_4_rewards_for_all unique (reward_hash, avs, staker, strategy, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_4_rewards_for_all",
-			ExistingTablePattern: "gold_[0-9]+_rewards_for_all_[0-9_]+$",
+			ExistingTablePattern: "gold_%_rewards_for_all_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_5_rfae_stakers (
@@ -335,7 +257,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_5_rfae_stakers add constraint uniq_rewards_gold_5_rfae_stakers unique (reward_hash, avs, staker, operator, strategy, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_5_rfae_stakers",
-			ExistingTablePattern: "gold_[0-9]+_rfae_stakers_[0-9_]+$",
+			ExistingTablePattern: "gold_%_rfae_stakers_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_6_rfae_operators (
@@ -357,7 +279,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_6_rfae_operators add constraint uniq_rewards_gold_6_rfae_operators unique (reward_hash, avs, operator, strategy, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_6_rfae_operators",
-			ExistingTablePattern: "gold_[0-9]+_rfae_operators_[0-9_]+$",
+			ExistingTablePattern: "gold_%_rfae_operators_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_7_active_od_rewards (
@@ -380,7 +302,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_7_active_od_rewards add constraint uniq_rewards_gold_7_active_od_rewards unique (reward_hash, avs, operator, strategy, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_7_active_od_rewards",
-			ExistingTablePattern: "gold_[0-9]+_active_od_rewards_[0-9_]+$",
+			ExistingTablePattern: "gold_%_active_od_rewards_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_8_operator_od_reward_amounts (
@@ -403,7 +325,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_8_operator_od_reward_amounts add constraint uniq_rewards_gold_8_operator_od_reward_amounts unique (reward_hash, avs, operator, strategy, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_8_operator_od_reward_amounts",
-			ExistingTablePattern: "gold_[0-9]+_operator_od_reward_amounts_[0-9_]+$",
+			ExistingTablePattern: "gold_%_operator_od_reward_amounts_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_9_staker_od_reward_amounts (
@@ -431,7 +353,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_9_staker_od_reward_amounts add constraint uniq_rewards_gold_9_staker_od_reward_amounts unique (reward_hash, avs, operator, staker, strategy, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_9_staker_od_reward_amounts",
-			ExistingTablePattern: "gold_[0-9]+_staker_od_reward_amounts_[0-9_]+$",
+			ExistingTablePattern: "gold_%_staker_od_reward_amounts_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_10_avs_od_reward_amounts (
@@ -448,7 +370,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_10_avs_od_reward_amounts add constraint uniq_rewards_gold_10_avs_od_reward_amounts unique (reward_hash, avs, operator, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_10_avs_od_reward_amounts",
-			ExistingTablePattern: "gold_[0-9]+_avs_od_reward_amounts_[0-9_]+$",
+			ExistingTablePattern: "gold_%_avs_od_reward_amounts_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_11_active_od_operator_set_rewards (
@@ -472,7 +394,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_11_active_od_operator_set_rewards add constraint uniq_rewards_gold_11_active_od_operator_set_rewards unique (reward_hash, operator_set_id, strategy, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_11_active_od_operator_set_rewards",
-			ExistingTablePattern: "gold_[0-9]+_active_od_operator_set_rewards_[0-9_]+$",
+			ExistingTablePattern: "gold_%_active_od_operator_set_rewards_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_12_operator_od_operator_set_reward_amounts (
@@ -496,7 +418,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_12_operator_od_operator_set_reward_amounts add constraint uniq_rewards_gold_12_operator_od_operator_set_reward_amounts unique (reward_hash, operator_set_id, operator, strategy, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_12_operator_od_operator_set_reward_amounts",
-			ExistingTablePattern: "gold_[0-9]+_operator_od_operator_set_reward_amounts_[0-9_]+$",
+			ExistingTablePattern: "gold_%_operator_od_operator_set_reward_amounts_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_13_staker_od_operator_set_reward_amounts (
@@ -525,7 +447,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_13_staker_od_operator_set_reward_amounts add constraint uniq_rewards_gold_13_staker_od_operator_set_reward_amounts unique (reward_hash, snapshot, operator_set_id, operator, strategy);`,
 			},
 			NewTableName:         "rewards_gold_13_staker_od_operator_set_reward_amounts",
-			ExistingTablePattern: "gold_[0-9]+_staker_od_operator_set_reward_amounts_[0-9_]+$",
+			ExistingTablePattern: "gold_%_staker_od_operator_set_reward_amounts_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_14_avs_od_operator_set_reward_amounts (
@@ -543,7 +465,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_14_avs_od_operator_set_reward_amounts add constraint uniq_rewards_gold_14_avs_od_operator_set_reward_amounts unique (reward_hash, snapshot, operator_set_id, operator, token);`,
 			},
 			NewTableName:         "rewards_gold_14_avs_od_operator_set_reward_amounts",
-			ExistingTablePattern: "gold_[0-9]+_avs_od_operator_set_reward_amounts_[0-9_]+$",
+			ExistingTablePattern: "gold_%_avs_od_operator_set_reward_amounts_%",
 		},
 		{
 			CreateTableQuery: `create table if not exists rewards_gold_staging (
@@ -559,7 +481,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				`alter table rewards_gold_staging add constraint uniq_rewards_gold_staging unique (earner, token, reward_hash, snapshot);`,
 			},
 			NewTableName:         "rewards_gold_staging",
-			ExistingTablePattern: "gold_[0-9]+_staging_[0-9_]+$",
+			ExistingTablePattern: "gold_%_staging_%",
 		},
 	}
 
