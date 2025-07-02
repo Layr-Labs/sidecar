@@ -1,8 +1,9 @@
 package stakerOperators
 
 import (
-	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 )
 
 const _2_operatorStrategyRewardsQuery = `
@@ -111,19 +112,10 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert2OperatorStrategyRewards(c
 		return err
 	}
 
-	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
-		rewardsUtils.Table_1_ActiveRewards:         rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_1_ActiveRewards],
-		rewardsUtils.Table_3_OperatorRewardAmounts: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_3_OperatorRewardAmounts],
-	}, cutoffDate)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
-		return err
-	}
-
 	query, err := rewardsUtils.RenderQueryTemplate(_2_operatorStrategyRewardsQuery, map[string]interface{}{
 		"destTableName":              destTableName,
-		"activeRewardsTable":         rewardsTables[rewardsUtils.Table_1_ActiveRewards],
-		"operatorRewardAmountsTable": rewardsTables[rewardsUtils.Table_3_OperatorRewardAmounts],
+		"activeRewardsTable":         rewardsUtils.RewardsTable_1_ActiveRewards,
+		"operatorRewardAmountsTable": rewardsUtils.RewardsTable_3_OperatorRewardAmounts,
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 2_operatorStrategyRewards query", "error", err)

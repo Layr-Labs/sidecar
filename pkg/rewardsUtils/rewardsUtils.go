@@ -2,7 +2,6 @@ package rewardsUtils
 
 import (
 	"bytes"
-	"database/sql"
 	"fmt"
 	"text/template"
 
@@ -174,49 +173,4 @@ func DropTableIfExists(grm *gorm.DB, tableName string, l *zap.Logger) error {
 		return res.Error
 	}
 	return nil
-}
-
-func FindTableByLikeName(likeName string, grm *gorm.DB, schemaName string) (string, error) {
-	if schemaName == "" {
-		schemaName = "public"
-	}
-	query := `
-			SELECT table_name
-			FROM information_schema.tables
-			WHERE table_schema = @schemaName
-				AND table_type='BASE TABLE'
-				and table_name like @pattern
-			limit 1
-		`
-	var tname string
-	res := grm.Debug().Raw(query,
-		sql.Named("schemaName", schemaName),
-		sql.Named("pattern", likeName)).
-		Scan(&tname)
-	if res.Error != nil {
-		return "", res.Error
-	}
-	if tname == "" {
-		return "", fmt.Errorf("table not found for key %s", likeName)
-	}
-	return tname, nil
-}
-
-// FindRewardsTableNamesForSearchPatterns finds the table names for the given search patterns
-//
-// As table names evolve over time due to adding more, the numerical index might change in the constants
-// in this file. This makes finding past table names difficult. This function helps to find the table names
-// using the base table name and the cutoff date with a wildcard at the front.
-func FindRewardsTableNamesForSearchPatterns(patterns map[string]string, cutoffDate string, schemaName string, grm *gorm.DB) (map[string]string, error) {
-	results := make(map[string]string)
-	for key, pattern := range patterns {
-		snakeCaseCutoffDate := utils.SnakeCase(cutoffDate)
-		p := fmt.Sprintf("%s_%s", pattern, snakeCaseCutoffDate)
-		tname, err := FindTableByLikeName(p, grm, schemaName)
-		if err != nil {
-			return nil, err
-		}
-		results[key] = tname
-	}
-	return results, nil
 }
