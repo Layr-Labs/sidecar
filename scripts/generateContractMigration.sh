@@ -11,7 +11,7 @@ timestamp=$(date +"%Y%m%d%H%M")
 
 migration_name="${timestamp}_${name}"
 
-migrations_dir="./pkg/postgres/migrations/${migration_name}"
+migrations_dir="./pkg/coreContracts/migrations/${migration_name}"
 migration_file="${migrations_dir}/up.go"
 
 mkdir -p $migrations_dir || true
@@ -22,14 +22,15 @@ package _${timestamp}_${name}
 
 import (
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/pkg/contractManager"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
+    "github.com/Layr-Labs/sidecar/pkg/contractStore"
+    "github.com/Layr-Labs/sidecar/pkg/coreContracts/types"
+    "go.uber.org/zap"
+    "gorm.io/gorm"
 )
 
 type ContractMigration struct{}
 
-func (m *ContractMigration) Up(db *gorm.DB, cm contractManager.ContractManager, l *zap.Logger, cfg *config.Config) ([]string, error) {
+func (m *ContractMigration) Up(db *gorm.DB, cs contractStore.ContractStore, l *zap.Logger, cfg *config.Config) (*types.MigrationResult, error) {
 	return nil, nil
 }
 
