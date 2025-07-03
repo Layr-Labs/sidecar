@@ -164,7 +164,7 @@ var runCmd = &cobra.Command{
 
 		rcq := rewardsCalculatorQueue.NewRewardsCalculatorQueue(rc, l)
 
-		rps := proofs.NewRewardsProofsStore(rc, l)
+		rps := proofs.NewRewardsProofsStore(rc, sink, l)
 
 		pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 		rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
