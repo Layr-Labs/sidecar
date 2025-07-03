@@ -120,7 +120,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	rcq := rewardsCalculatorQueue.NewRewardsCalculatorQueue(rc, l)
 
-	fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, l)
+	fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, contractStore, l)
 
 	cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, 10, l)
 

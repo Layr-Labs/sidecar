@@ -33,7 +33,9 @@ func init() {
 	rootCmd.PersistentFlags().Bool(config.EthereumRpcUseNativeBatchCall, true, `Use the native eth_call method for batch calls`)
 	rootCmd.PersistentFlags().Int(config.EthereumRpcNativeBatchCallSize, 500, `The number of calls to batch together when using the native eth_call method`)
 	rootCmd.PersistentFlags().Int(config.EthereumRpcChunkedBatchCallSize, 10, `The number of calls to make in parallel when using the chunked batch call method`)
-	rootCmd.PersistentFlags().Bool(config.EthereumUseGetBlockReceipts, false, `Use the eth_getBlockReceipts method to fetch transaction receipts. Requires geth, erigon or other compatible node`)
+
+	// TODO(seanmcgary): if we ever expand the sidecar to more than just ethereum, we'll need to check and see if this flag is supported by the target chain
+	rootCmd.PersistentFlags().Bool(config.EthereumUseGetBlockReceipts, true, `Use the eth_getBlockReceipts method to fetch transaction receipts. Requires geth, erigon or other compatible node`)
 	rootCmd.PersistentFlags().String(config.EthereumLatestBlockType, "safe", `The type of latest block to use (safe, latest)`)
 
 	rootCmd.PersistentFlags().String(config.DatabaseHost, "localhost", `PostgreSQL host`)

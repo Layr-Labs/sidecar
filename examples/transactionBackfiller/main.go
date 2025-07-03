@@ -70,7 +70,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	cm := contractManager.NewContractManager(grm, contractStore, client, af, l)
 
-	fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, l)
+	fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, contractStore, l)
 
 	return cfg, l, fetchr, mds, cm, nil
 

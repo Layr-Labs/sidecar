@@ -352,7 +352,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		}
 		tip := currentTip.Load()
 
-		batchEndBlock := int64(currentBlock + 100)
+		batchEndBlock := int64(currentBlock + 200)
 		if batchEndBlock > int64(tip) {
 			batchEndBlock = int64(tip)
 		}
