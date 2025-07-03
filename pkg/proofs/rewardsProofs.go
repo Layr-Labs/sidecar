@@ -5,23 +5,30 @@ import (
 	rewardsCoordinator "github.com/Layr-Labs/eigenlayer-contracts/pkg/bindings/IRewardsCoordinator"
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/claimgen"
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
+	"github.com/Layr-Labs/sidecar/pkg/metrics"
+	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-merkletree/v2"
 	"go.uber.org/zap"
+	"sync"
+	"time"
 )
 
 // RewardsProofsStore manages the generation and caching of Merkle proofs
 // for rewards distributions. It provides functionality to generate proofs
 // that can be used by earners to claim their rewards.
 type RewardsProofsStore struct {
+	mu sync.Mutex // Mutex to protect concurrent access to rewardsData
 	// rewardsCalculator is used to calculate and merkelize rewards
 	rewardsCalculator *rewards.RewardsCalculator
 	// logger for logging operations and errors
 	logger *zap.Logger
 	// rewardsData caches proof data by snapshot date to avoid recalculation
 	rewardsData map[string]*ProofData
+
+	metricsSink *metrics.MetricsSink
 }
 
 // ProofData contains all the Merkle trees and distribution data needed
@@ -35,6 +42,8 @@ type ProofData struct {
 	TokenTree map[gethcommon.Address]*merkletree.MerkleTree
 	// Distribution contains the complete rewards distribution data
 	Distribution *distribution.Distribution
+
+	LastAccessed *time.Time
 }
 
 // NewRewardsProofsStore creates a new RewardsProofsStore instance.
@@ -47,11 +56,13 @@ type ProofData struct {
 //   - *RewardsProofsStore: A new RewardsProofsStore instance
 func NewRewardsProofsStore(
 	rc *rewards.RewardsCalculator,
+	ms *metrics.MetricsSink,
 	l *zap.Logger,
 ) *RewardsProofsStore {
 	return &RewardsProofsStore{
 		rewardsCalculator: rc,
 		logger:            l,
+		metricsSink:       ms,
 		rewardsData:       make(map[string]*ProofData),
 	}
 }
@@ -67,8 +78,19 @@ func NewRewardsProofsStore(
 //   - *ProofData: The proof data for the specified snapshot
 //   - error: Any error encountered during data retrieval or generation
 func (rps *RewardsProofsStore) getRewardsDataForSnapshot(snapshot string) (*ProofData, error) {
+	rps.mu.Lock()
+	defer rps.mu.Unlock()
+
+	now := time.Now()
+
 	data, ok := rps.rewardsData[snapshot]
-	if !ok {
+	if !ok || data == nil {
+		_ = rps.metricsSink.Incr(metricsTypes.Metric_Incr_ProofDataCacheMiss, []metricsTypes.MetricsLabel{
+			{Name: "snapshot", Value: snapshot},
+		}, 1)
+		rps.logger.Sugar().Infow("rewards data cache miss",
+			zap.String("snapshot", snapshot),
+		)
 		accountTree, tokenTree, distro, err := rps.rewardsCalculator.MerkelizeRewardsForSnapshot(snapshot)
 		if err != nil {
 			rps.logger.Sugar().Errorw("Failed to fetch rewards for snapshot",
@@ -83,10 +105,41 @@ func (rps *RewardsProofsStore) getRewardsDataForSnapshot(snapshot string) (*Proo
 			AccountTree:  accountTree,
 			TokenTree:    tokenTree,
 			Distribution: distro,
+			LastAccessed: &now,
 		}
 		rps.rewardsData[snapshot] = data
+	} else {
+		rps.logger.Sugar().Infow("rewards data cache hit",
+			zap.String("snapshot", snapshot),
+		)
+		_ = rps.metricsSink.Incr(metricsTypes.Metric_Incr_ProofDataCacheHit, []metricsTypes.MetricsLabel{
+			{Name: "snapshot", Value: snapshot},
+		}, 1)
 	}
+	rps.rewardsData[snapshot].LastAccessed = &now
+
+	rps.evictOldRewards()
+
 	return data, nil
+}
+
+func (rps *RewardsProofsStore) evictOldRewards() {
+	for snapshot, data := range rps.rewardsData {
+		if data.LastAccessed == nil {
+			continue
+		}
+		// if the data hasnt been accessed in 3 days, evict it
+		if time.Since(*data.LastAccessed) > 24*time.Hour*3 {
+			rps.logger.Sugar().Infow("Evicting old rewards data",
+				zap.String("snapshot", snapshot),
+				zap.Time("lastAccessed", *data.LastAccessed),
+			)
+			delete(rps.rewardsData, snapshot)
+			_ = rps.metricsSink.Incr(metricsTypes.Metric_Incr_ProofDataCacheEvicted, []metricsTypes.MetricsLabel{
+				{Name: "snapshot", Value: snapshot},
+			}, 1)
+		}
+	}
 }
 
 // GenerateRewardsClaimProof generates a Merkle proof for an earner to claim rewards

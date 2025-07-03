@@ -34,6 +34,9 @@ var (
 	Metric_Incr_RewardsRootVerified        = "indexer.rewardsRootVerified"
 	Metric_Incr_RewardsRootInvalid         = "indexer.rewardsRootInvalid"
 	Metric_Incr_RewardsMerkelizationFailed = "indexer.rewardsWerkelizationFailed"
+	Metric_Incr_ProofDataCacheHit          = "proofData.cache.hit"
+	Metric_Incr_ProofDataCacheMiss         = "proofData.cache.miss"
+	Metric_Incr_ProofDataCacheEvicted      = "proofData.cache.evicted"
 
 	Metric_Gauge_CurrentBlockHeight = "currentBlockHeight"
 	Metric_Gauge_SnapshotSize       = "snapshots.create.size"
@@ -94,6 +97,24 @@ var MetricTypes = map[MetricsType][]MetricsTypeConfig{
 			Name: Metric_Incr_RewardsMerkelizationFailed,
 			Labels: []string{
 				"block_number",
+			},
+		},
+		MetricsTypeConfig{
+			Name: Metric_Incr_ProofDataCacheHit,
+			Labels: []string{
+				"snapshot",
+			},
+		},
+		MetricsTypeConfig{
+			Name: Metric_Incr_ProofDataCacheMiss,
+			Labels: []string{
+				"snapshot",
+			},
+		},
+		MetricsTypeConfig{
+			Name: Metric_Incr_ProofDataCacheEvicted,
+			Labels: []string{
+				"snapshot",
 			},
 		},
 	},
