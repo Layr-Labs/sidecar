@@ -303,8 +303,8 @@ func (f *Fetcher) FetchLogsForContractsForBlockRange(ctx context.Context, startB
 	return blockNumbers, err
 }
 
-func (f *Fetcher) FetchFilteredBlocksWithRetries(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64) ([]*FetchedBlock, error) {
-	f.Logger.Sugar().Debugw("Fetching filtered blocks with retries",
+func (f *Fetcher) FetchFilteredBlocks(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64) ([]*FetchedBlock, error) {
+	f.Logger.Sugar().Debugw("Fetching filtered blocks",
 		zap.Uint64("startBlock", startBlockInclusive),
 		zap.Uint64("endBlock", endBlockInclusive),
 	)

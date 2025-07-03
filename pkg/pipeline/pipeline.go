@@ -601,7 +601,7 @@ func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endB
 	fetchSpan.SetTag("end_block", endBlock)
 	fetchStartTime := time.Now()
 
-	fetchedBlocks, err := p.Fetcher.FetchFilteredBlocksWithRetries(fetchCtx, startBlock, endBlock)
+	fetchedBlocks, err := p.Fetcher.FetchFilteredBlocks(fetchCtx, startBlock, endBlock)
 
 	fetchDuration := time.Since(fetchStartTime)
 	fetchSpan.SetTag("duration_ms", fetchDuration.Milliseconds())
