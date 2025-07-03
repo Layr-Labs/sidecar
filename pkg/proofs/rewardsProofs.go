@@ -88,6 +88,9 @@ func (rps *RewardsProofsStore) getRewardsDataForSnapshot(snapshot string) (*Proo
 		_ = rps.metricsSink.Incr(metricsTypes.Metric_Incr_ProofDataCacheMiss, []metricsTypes.MetricsLabel{
 			{Name: "snapshot", Value: snapshot},
 		}, 1)
+		rps.logger.Sugar().Infow("rewards data cache miss",
+			zap.String("snapshot", snapshot),
+		)
 		accountTree, tokenTree, distro, err := rps.rewardsCalculator.MerkelizeRewardsForSnapshot(snapshot)
 		if err != nil {
 			rps.logger.Sugar().Errorw("Failed to fetch rewards for snapshot",
@@ -106,6 +109,9 @@ func (rps *RewardsProofsStore) getRewardsDataForSnapshot(snapshot string) (*Proo
 		}
 		rps.rewardsData[snapshot] = data
 	} else {
+		rps.logger.Sugar().Infow("rewards data cache hit",
+			zap.String("snapshot", snapshot),
+		)
 		_ = rps.metricsSink.Incr(metricsTypes.Metric_Incr_ProofDataCacheHit, []metricsTypes.MetricsLabel{
 			{Name: "snapshot", Value: snapshot},
 		}, 1)
