@@ -9,7 +9,7 @@ import (
 )
 
 const _9_goldStakerODRewardAmountsQuery = `
-CREATE TABLE {{.destTableName}} AS
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_registered_snapshot_decimal, avs, operator, strategy, multiplier, reward_submission_date, staker_split, staker, shares, staker_weight, rn, total_weight, staker_proportion, staker_tokens, generated_rewards_snapshot_id)
 
 -- Step 1: Get the rows where operators have registered for the AVS
 WITH reward_snapshot_operators AS (
@@ -119,10 +119,10 @@ staker_reward_amounts AS (
     FROM staker_proportion
 )
 -- Output the final table
-SELECT * FROM staker_reward_amounts
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM staker_reward_amounts
 `
 
-func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDate string, forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
 	rewardsV2Enabled, err := rc.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
@@ -133,8 +133,7 @@ func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDat
 		return nil
 	}
 
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_9_StakerODRewardAmounts]
+	destTableName := rewardsUtils.RewardsTable_9_StakerODRewardAmounts
 
 	rc.logger.Sugar().Infow("Generating Staker OD reward amounts",
 		zap.String("cutoffDate", snapshotDate),
@@ -143,13 +142,16 @@ func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDat
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_9_goldStakerODRewardAmountsQuery, map[string]interface{}{
-		"destTableName":        destTableName,
-		"activeODRewardsTable": allTableNames[rewardsUtils.Table_7_ActiveODRewards],
+		"destTableName":              destTableName,
+		"activeODRewardsTable":       rewardsUtils.RewardsTable_7_ActiveODRewards,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
+
+	query = query + " ON CONFLICT (reward_hash, avs, operator, staker, strategy, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query, sql.Named("trinityHardforkDate", forks[config.RewardsFork_Trinity].Date))
 	if res.Error != nil {

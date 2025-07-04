@@ -1,9 +1,10 @@
 package stakerOperators
 
 import (
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
-	"time"
 )
 
 const _4_rfaeStakerStrategyPayoutsQuery = `
@@ -123,19 +124,10 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert4RfaeStakerStrategyPayout(
 		return err
 	}
 
-	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
-		rewardsUtils.Table_1_ActiveRewards: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_1_ActiveRewards],
-		rewardsUtils.Table_5_RfaeStakers:   rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_5_RfaeStakers],
-	}, cutoffDate)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
-		return err
-	}
-
 	query, err := rewardsUtils.RenderQueryTemplate(_4_rfaeStakerStrategyPayoutsQuery, map[string]interface{}{
 		"destTableName":      destTableName,
-		"activeRewardsTable": rewardsTables[rewardsUtils.Table_1_ActiveRewards],
-		"rfaeStakersTable":   rewardsTables[rewardsUtils.Table_5_RfaeStakers],
+		"activeRewardsTable": rewardsUtils.RewardsTable_1_ActiveRewards,
+		"rfaeStakersTable":   rewardsUtils.RewardsTable_5_RfaeStakers,
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 4_rfaeStakerStrategyPayouts query", "error", err)
