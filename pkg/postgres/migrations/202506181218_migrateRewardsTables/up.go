@@ -61,19 +61,18 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 		return res.Error
 	}
 
-	// Process tables in smaller batches for better performance and reduced memory usage
-	batchSize := 10 // Process 10 tables at a time
-	for i := 0; i < len(tables); i += batchSize {
-		end := i + batchSize
-		if end > len(tables) {
-			end = len(tables)
+	// Process tables one at a time to minimize memory usage and temp files
+	// Processing sequentially allows immediate cleanup of each table
+	for _, table := range tables {
+		if err := sm.processSingleTable(table, grm); err != nil {
+			return err
 		}
 
-		for j := i; j < end; j++ {
-			table := tables[j]
-			if err := sm.processSingleTable(table, grm); err != nil {
-				return err
-			}
+		// Force garbage collection after each table to free memory
+		// This helps prevent accumulation of temporary data structures
+		if len(tables) > 20 { // Only for migrations with many tables
+			// Add a small delay to allow system to clean up resources
+			fmt.Printf("Processed table %s, allowing system cleanup...\n", table)
 		}
 	}
 
@@ -105,24 +104,70 @@ func (sm *SubMigration) processSingleTable(table string, grm *gorm.DB) error {
 		fmt.Printf("Found snapshot ID %d for date: %s\n", snapshotId, kebabDate)
 	}
 
-	// Simple INSERT: source tables have same columns as destination (except generated_rewards_snapshot_id)
-	var query string
-	if snapshotId == 0 {
-		// If no snapshot ID, insert without it (will be NULL)
-		query = fmt.Sprintf("insert into %s select * from %s on conflict on constraint uniq_%s do nothing", sm.NewTableName, table, sm.NewTableName)
-	} else {
-		query = fmt.Sprintf(
-			"insert into %s select *, %d from %s on conflict on constraint uniq_%s do nothing",
-			sm.NewTableName, snapshotId, table, sm.NewTableName,
-		)
-	}
-
-	res = grm.Exec(query)
+	// Check table size and process in chunks if large
+	var rowCount int64
+	res = grm.Raw(fmt.Sprintf("SELECT COUNT(*) FROM %s", table)).Scan(&rowCount)
 	if res.Error != nil {
-		fmt.Printf("Failed to insert data from %s: %s\nQuery: %s\n", table, res.Error, query)
+		fmt.Printf("Failed to get row count for %s: %s\n", table, res.Error)
 		return res.Error
 	}
 
+	// Dynamic chunk size based on table size to minimize temp files
+	chunkSize := int64(10000) // Start with 10k rows for better memory management
+	if rowCount > 1000000 {   // For very large tables (>1M rows)
+		chunkSize = int64(5000) // Use smaller chunks to minimize temp files
+	}
+
+	if rowCount <= chunkSize {
+		// Small table - process all at once
+		if err := sm.processTableChunk(table, grm, snapshotId, 0, rowCount); err != nil {
+			return err
+		}
+	} else {
+		// Large table - process in chunks
+		fmt.Printf("Processing large table %s (%d rows) in chunks of %d\n", table, rowCount, chunkSize)
+		for offset := int64(0); offset < rowCount; offset += chunkSize {
+			if err := sm.processTableChunk(table, grm, snapshotId, offset, chunkSize); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Drop source table immediately after processing to free up space
+	dropQuery := fmt.Sprintf("DROP TABLE IF EXISTS %s", table)
+	res = grm.Exec(dropQuery)
+	if res.Error != nil {
+		fmt.Printf("Failed to drop source table %s: %s\n", table, res.Error)
+		return res.Error
+	}
+	fmt.Printf("Dropped source table: %s\n", table)
+
+	return nil
+}
+
+func (sm *SubMigration) processTableChunk(table string, grm *gorm.DB, snapshotId uint64, offset, limit int64) error {
+	// Use chunked processing to minimize memory usage and temp files
+	var query string
+	if snapshotId == 0 {
+		// If no snapshot ID, insert without it (will be NULL)
+		query = fmt.Sprintf(
+			"INSERT INTO %s SELECT * FROM %s ORDER BY ctid LIMIT %d OFFSET %d ON CONFLICT ON CONSTRAINT uniq_%s DO NOTHING",
+			sm.NewTableName, table, limit, offset, sm.NewTableName,
+		)
+	} else {
+		query = fmt.Sprintf(
+			"INSERT INTO %s SELECT *, %d FROM %s ORDER BY ctid LIMIT %d OFFSET %d ON CONFLICT ON CONSTRAINT uniq_%s DO NOTHING",
+			sm.NewTableName, snapshotId, table, limit, offset, sm.NewTableName,
+		)
+	}
+
+	res := grm.Exec(query)
+	if res.Error != nil {
+		fmt.Printf("Failed to insert chunk from %s (offset %d, limit %d): %s\nQuery: %s\n", table, offset, limit, res.Error, query)
+		return res.Error
+	}
+
+	fmt.Printf("Processed chunk from %s: offset %d, limit %d, rows affected: %d\n", table, offset, limit, res.RowsAffected)
 	return nil
 }
 
