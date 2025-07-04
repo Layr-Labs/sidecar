@@ -10,7 +10,7 @@ import (
 
 const _1_stakerStrategyPayoutsQuery = `
 create table {{.destTableName}} as
-WITH reward_snapshot_operators as (
+WITH base_data AS (
   SELECT
     ap.reward_hash,
     ap.snapshot,
@@ -22,93 +22,63 @@ WITH reward_snapshot_operators as (
     ap.multiplier,
     ap.reward_type,
     oar.operator,
-    ap.reward_submission_date
+    ap.reward_submission_date,
+    sds.staker,
+    sss.shares,
+    spa.staker_tokens
   FROM {{.activeRewardsTable}} ap
   JOIN operator_avs_registration_snapshots oar
-  ON ap.avs = oar.avs and ap.snapshot = oar.snapshot
-  WHERE ap.reward_type = 'avs'
-),
--- Get the strategies that the operator is restaking on the snapshot
-operator_restaked_strategies AS (
-  SELECT
-    rso.*
-  FROM reward_snapshot_operators rso
+    ON ap.avs = oar.avs AND ap.snapshot = oar.snapshot
   JOIN operator_avs_strategy_snapshots oas
-  ON
-    rso.operator = oas.operator AND
-    rso.avs = oas.avs AND
-    rso.strategy = oas.strategy AND
-    rso.snapshot = oas.snapshot
-),
--- Get the stakers that were delegated to the operator for the snapshot
-staker_delegated_operators AS (
-  SELECT
-    ors.*,
-    sds.staker
-  FROM operator_restaked_strategies ors
+    ON oar.operator = oas.operator 
+    AND ap.avs = oas.avs 
+    AND ap.strategy = oas.strategy 
+    AND ap.snapshot = oas.snapshot
   JOIN staker_delegation_snapshots sds
-  ON
-    ors.operator = sds.operator AND
-    ors.snapshot = sds.snapshot
-),
--- Get the shares for staker delegated to the operator
-staker_avs_strategy_shares AS (
-  SELECT
-    sdo.*,
-    sss.shares
-  FROM staker_delegated_operators sdo
+    ON oas.operator = sds.operator AND ap.snapshot = sds.snapshot
   JOIN staker_share_snapshots sss
-  ON
-    sdo.staker = sss.staker AND
-    sdo.snapshot = sss.snapshot AND
-    sdo.strategy = sss.strategy
-),
--- Join the strategies that were not included in staker_rewards originally
-rejoined_staker_strategies AS (
-  SELECT
-    sas.*,
-    spa.staker_tokens
-  FROM staker_avs_strategy_shares sas
+    ON sds.staker = sss.staker 
+    AND ap.snapshot = sss.snapshot 
+    AND ap.strategy = sss.strategy
   JOIN {{.stakerRewardAmountsTable}} spa
-  ON
-    sas.snapshot = spa.snapshot AND
-    sas.reward_hash = spa.reward_hash AND
-    sas.staker = spa.staker
-  WHERE sas.shares > 0 AND sas.multiplier != 0
+    ON ap.snapshot = spa.snapshot 
+    AND ap.reward_hash = spa.reward_hash 
+    AND sds.staker = spa.staker
+  WHERE ap.reward_type = 'avs'
+    AND sss.shares > 0 
+    AND ap.multiplier != 0
 ),
--- Calculate the weight of a staker for each of their strategies
-staker_strategy_weights AS (
-  SELECT *,
-    multiplier * shares AS staker_strategy_weight
-  FROM rejoined_staker_strategies
-  ORDER BY reward_hash, snapshot, staker, strategy
+staker_totals AS (
+  SELECT 
+    staker,
+    reward_hash,
+    snapshot,
+    SUM(multiplier * shares) as staker_total_strategy_weight
+  FROM base_data
+  GROUP BY staker, reward_hash, snapshot
 ),
--- Calculate sum of all staker_strategy_weight for each reward and snapshot across all relevant strategies and stakers
-staker_strategy_weights_sum AS (
-  SELECT *,
-    SUM(staker_strategy_weight) OVER (PARTITION BY staker, reward_hash, snapshot) as staker_total_strategy_weight
-  FROM staker_strategy_weights
-),
--- Calculate staker strategy proportion of tokens for each reward and snapshot
-staker_strategy_proportions AS (
-  SELECT *,
-    FLOOR((staker_strategy_weight / staker_total_strategy_weight) * 1000000000000000) / 1000000000000000 as staker_strategy_proportion
-  FROM staker_strategy_weights_sum
-),
-staker_operator_total_tokens AS (
-  SELECT *,
-    CASE
-      -- For snapshots that are before the hard fork AND submitted before the hard fork, we use the old calc method
-      WHEN snapshot < @amazonHardforkDate AND reward_submission_date < @amazonHardforkDate THEN
-        cast(staker_strategy_proportion * staker_tokens AS DECIMAL(38,0))
-      WHEN snapshot < @nileHardforkDate AND reward_submission_date < @nileHardforkDate THEN
-        (staker_strategy_proportion * staker_tokens)::text::decimal(38,0)
-      ELSE
-        FLOOR(staker_strategy_proportion * staker_tokens)
-    END as staker_strategy_tokens
-  FROM staker_strategy_proportions
+final_calculation AS (
+  SELECT 
+    bd.*,
+    bd.multiplier * bd.shares AS staker_strategy_weight,
+    st.staker_total_strategy_weight,
+    FLOOR((bd.multiplier * bd.shares / st.staker_total_strategy_weight) * 1000000000000000) / 1000000000000000 as staker_strategy_proportion
+  FROM base_data bd
+  JOIN staker_totals st 
+    ON bd.staker = st.staker 
+    AND bd.reward_hash = st.reward_hash 
+    AND bd.snapshot = st.snapshot
 )
-select * from staker_operator_total_tokens
+SELECT *,
+  CASE
+    WHEN snapshot < @amazonHardforkDate AND reward_submission_date < @amazonHardforkDate THEN
+      cast(staker_strategy_proportion * staker_tokens AS DECIMAL(38,0))
+    WHEN snapshot < @nileHardforkDate AND reward_submission_date < @nileHardforkDate THEN
+      (staker_strategy_proportion * staker_tokens)::text::decimal(38,0)
+    ELSE
+      FLOOR(staker_strategy_proportion * staker_tokens)
+  END as staker_strategy_tokens
+FROM final_calculation
 `
 
 type StakerStrategyPayout struct {
