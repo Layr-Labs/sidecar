@@ -2,7 +2,6 @@ package rewardsUtils
 
 import (
 	"bytes"
-	"database/sql"
 	"fmt"
 	"text/template"
 
@@ -28,6 +27,23 @@ var (
 	Table_14_AvsODOperatorSetRewardAmounts      = "gold_14_avs_od_operator_set_reward_amounts"
 	Table_15_GoldStaging                        = "gold_15_staging"
 	Table_16_GoldTable                          = "gold_table"
+
+	RewardsTable_1_ActiveRewards                       = "rewards_gold_1_active_rewards"
+	RewardsTable_2_StakerRewardAmounts                 = "rewards_gold_2_staker_reward_amounts"
+	RewardsTable_3_OperatorRewardAmounts               = "rewards_gold_3_operator_reward_amounts"
+	RewardsTable_4_RewardsForAll                       = "rewards_gold_4_rewards_for_all"
+	RewardsTable_5_RfaeStakers                         = "rewards_gold_5_rfae_stakers"
+	RewardsTable_6_RfaeOperators                       = "rewards_gold_6_rfae_operators"
+	RewardsTable_7_ActiveODRewards                     = "rewards_gold_7_active_od_rewards"
+	RewardsTable_8_OperatorODRewardAmounts             = "rewards_gold_8_operator_od_reward_amounts"
+	RewardsTable_9_StakerODRewardAmounts               = "rewards_gold_9_staker_od_reward_amounts"
+	RewardsTable_10_AvsODRewardAmounts                 = "rewards_gold_10_avs_od_reward_amounts"
+	RewardsTable_11_ActiveODOperatorSetRewards         = "rewards_gold_11_active_od_operator_set_rewards"
+	RewardsTable_12_OperatorODOperatorSetRewardAmounts = "rewards_gold_12_operator_od_operator_set_reward_amounts"
+	RewardsTable_13_StakerODOperatorSetRewardAmounts   = "rewards_gold_13_staker_od_operator_set_reward_amounts"
+	RewardsTable_14_AvsODOperatorSetRewardAmounts      = "rewards_gold_14_avs_od_operator_set_reward_amounts"
+	RewardsTable_GoldStaging                           = "rewards_gold_staging"
+	RewardsTable_GoldTable                             = "gold_table"
 
 	Sot_1_StakerStrategyPayouts                = "sot_1_staker_strategy_payouts"
 	Sot_2_OperatorStrategyPayouts              = "sot_2_operator_strategy_payouts"
@@ -75,6 +91,25 @@ var goldTableBaseNames = map[string]string{
 	Sot_11_AvsODOperatorSetStrategyPayouts:     Sot_11_AvsODOperatorSetStrategyPayouts,
 	Sot_12_StakerOperatorStaging:               Sot_12_StakerOperatorStaging,
 	Sot_13_StakerOperatorTable:                 Sot_13_StakerOperatorTable,
+}
+
+var RewardsTableBaseNames = []string{
+	RewardsTable_1_ActiveRewards,
+	RewardsTable_2_StakerRewardAmounts,
+	RewardsTable_3_OperatorRewardAmounts,
+	RewardsTable_4_RewardsForAll,
+	RewardsTable_5_RfaeStakers,
+	RewardsTable_6_RfaeOperators,
+	RewardsTable_7_ActiveODRewards,
+	RewardsTable_8_OperatorODRewardAmounts,
+	RewardsTable_9_StakerODRewardAmounts,
+	RewardsTable_10_AvsODRewardAmounts,
+	RewardsTable_11_ActiveODOperatorSetRewards,
+	RewardsTable_12_OperatorODOperatorSetRewardAmounts,
+	RewardsTable_13_StakerODOperatorSetRewardAmounts,
+	RewardsTable_14_AvsODOperatorSetRewardAmounts,
+	RewardsTable_GoldStaging,
+	RewardsTable_GoldTable,
 }
 
 var GoldTableNameSearchPattern = map[string]string{
@@ -138,49 +173,4 @@ func DropTableIfExists(grm *gorm.DB, tableName string, l *zap.Logger) error {
 		return res.Error
 	}
 	return nil
-}
-
-func FindTableByLikeName(likeName string, grm *gorm.DB, schemaName string) (string, error) {
-	if schemaName == "" {
-		schemaName = "public"
-	}
-	query := `
-			SELECT table_name
-			FROM information_schema.tables
-			WHERE table_schema = @schemaName
-				AND table_type='BASE TABLE'
-				and table_name like @pattern
-			limit 1
-		`
-	var tname string
-	res := grm.Debug().Raw(query,
-		sql.Named("schemaName", schemaName),
-		sql.Named("pattern", likeName)).
-		Scan(&tname)
-	if res.Error != nil {
-		return "", res.Error
-	}
-	if tname == "" {
-		return "", fmt.Errorf("table not found for key %s", likeName)
-	}
-	return tname, nil
-}
-
-// FindRewardsTableNamesForSearchPatterns finds the table names for the given search patterns
-//
-// As table names evolve over time due to adding more, the numerical index might change in the constants
-// in this file. This makes finding past table names difficult. This function helps to find the table names
-// using the base table name and the cutoff date with a wildcard at the front.
-func FindRewardsTableNamesForSearchPatterns(patterns map[string]string, cutoffDate string, schemaName string, grm *gorm.DB) (map[string]string, error) {
-	results := make(map[string]string)
-	for key, pattern := range patterns {
-		snakeCaseCutoffDate := utils.SnakeCase(cutoffDate)
-		p := fmt.Sprintf("%s_%s", pattern, snakeCaseCutoffDate)
-		tname, err := FindTableByLikeName(p, grm, schemaName)
-		if err != nil {
-			return nil, err
-		}
-		results[key] = tname
-	}
-	return results, nil
 }
