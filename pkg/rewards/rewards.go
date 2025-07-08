@@ -440,8 +440,19 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 
 	for _, tableName := range rewardsUtils.RewardsTableBaseNames {
 		rc.logger.Sugar().Infow("Deleting rows from rewards table", "tableName", tableName)
-		dropQuery := fmt.Sprintf("delete from %s where generated_rewards_snapshot_id >= @generatedRewardsSnapshotId", tableName)
-		res := rc.grm.Exec(dropQuery, sql.Named("generatedRewardsSnapshotId", previousSnapshot.Id))
+
+		var dropQuery string
+		var res *gorm.DB
+
+		// gold_table has a different structure and needs to be deleted based on snapshot date
+		if tableName == rewardsUtils.RewardsTable_GoldTable {
+			dropQuery = fmt.Sprintf("delete from %s where snapshot >= @snapshotDate", tableName)
+			res = rc.grm.Exec(dropQuery, sql.Named("snapshotDate", previousSnapshot.SnapshotDate))
+		} else {
+			dropQuery = fmt.Sprintf("delete from %s where generated_rewards_snapshot_id >= @generatedRewardsSnapshotId", tableName)
+			res = rc.grm.Exec(dropQuery, sql.Named("generatedRewardsSnapshotId", previousSnapshot.Id))
+		}
+
 		if res.Error != nil {
 			rc.logger.Sugar().Errorw("Failed to delete rows from rewards table", "error", res.Error, "tableName", tableName)
 			return res.Error
@@ -451,7 +462,6 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 			"recordsDeleted", res.RowsAffected)
 	}
 
-	// Also delete from generated_rewards_snapshots table
 	res = rc.grm.Exec("delete from generated_rewards_snapshots where id >= @generatedRewardsSnapshotId",
 		sql.Named("generatedRewardsSnapshotId", previousSnapshot.Id))
 	if res.Error != nil {
