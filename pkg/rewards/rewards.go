@@ -440,7 +440,7 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 
 	for _, tableName := range rewardsUtils.RewardsTableBaseNames {
 		rc.logger.Sugar().Infow("Deleting rows from rewards table", "tableName", tableName)
-		dropQuery := fmt.Sprintf("delete from %s where generated_rewards_snapshot_id >= {{.generatedRewardsSnapshotId}}", tableName)
+		dropQuery := fmt.Sprintf("delete from %s where generated_rewards_snapshot_id >= @generatedRewardsSnapshotId", tableName)
 		res := rc.grm.Exec(dropQuery, sql.Named("generatedRewardsSnapshotId", previousSnapshot.Id))
 		if res.Error != nil {
 			rc.logger.Sugar().Errorw("Failed to delete rows from rewards table", "error", res.Error, "tableName", tableName)
@@ -452,7 +452,7 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 	}
 
 	// Also delete from generated_rewards_snapshots table
-	res = rc.grm.Exec("delete from generated_rewards_snapshots where id >= {{.generatedRewardsSnapshotId}}",
+	res = rc.grm.Exec("delete from generated_rewards_snapshots where id >= @generatedRewardsSnapshotId",
 		sql.Named("generatedRewardsSnapshotId", previousSnapshot.Id))
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to delete from generated_rewards_snapshots", "error", res.Error)
