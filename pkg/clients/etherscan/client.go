@@ -49,22 +49,22 @@ func DefaultHttpClient() *http.Client {
 }
 
 func (ec *EtherscanClient) getBaseUrl() (string, error) {
-	var network string
+	var chainId string
 	switch ec.Config.Chain {
 	case config.Chain_Mainnet:
-		network = "api"
+		chainId = "1"
 	case config.Chain_Holesky:
-		network = "api-holesky"
+		chainId = "17000"
 	case config.Chain_Sepolia:
-		network = "api-sepolia"
+		chainId = "11155111"
 	case config.Chain_Hoodi:
-		network = "api-hoodi"
+		chainId = "560048"
 	case config.Chain_Preprod:
-		network = "api-holesky"
+		chainId = "17000"
 	default:
 		return "", fmt.Errorf("unknown environment when making a request using the Etherscan client")
 	}
-	return fmt.Sprintf("https://%s.etherscan.io/api?", network), nil
+	return fmt.Sprintf("https://api.etherscan.io/v2/api?chainid=%s&", chainId), nil
 }
 
 func (ec *EtherscanClient) makeRequest(values url.Values) (*EtherscanResponse, error) {
@@ -88,8 +88,7 @@ func (ec *EtherscanClient) makeRequest(values url.Values) (*EtherscanResponse, e
 		return nil, err
 	}
 
-	req.Header.Set("User-Agent", "etherscan-api(Go)")
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; etherscan-api/1.0)")
 
 	res, err := ec.httpClient.Do(req)
 	if err != nil {
@@ -107,6 +106,7 @@ func (ec *EtherscanClient) makeRequest(values url.Values) (*EtherscanResponse, e
 		)
 		return nil, err
 	}
+
 	parsedbody := &EtherscanResponse{}
 	if err := json.Unmarshal(bodyBytes, &parsedbody); err != nil {
 		ec.Logger.Sugar().Errorw("Failed to parse json from the Etherscan URL content",
