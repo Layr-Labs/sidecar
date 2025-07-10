@@ -349,6 +349,7 @@ type ContractAddresses struct {
 	AvsDirectory       string
 	AllocationManager  string
 	CrossChainRegistry string
+	TaskMailbox        string
 }
 
 func (c *Config) ChainIsOneOf(chains ...Chain) bool {
@@ -365,6 +366,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			AvsDirectory:       "0x141d6995556135d4997b2ff72eb443be300353bc",
 			AllocationManager:  "0xfdd5749e11977d60850e06bf5b13221ad95eb6b4",
 			CrossChainRegistry: "0x275a472bf5569a9241d1b3dbed830a0d9e1f9c47",
+			TaskMailbox:        "0x0000000000000000000000000000000000000000", // TODO: Add actual TaskManager address
 		}
 	} else if c.Chain == Chain_Holesky {
 		return &ContractAddresses{
@@ -374,6 +376,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			DelegationManager:  "0xa44151489861fe9e3055d95adc98fbd462b948e7",
 			AvsDirectory:       "0x055733000064333caddbc92763c58bf0192ffebf",
 			AllocationManager:  "0x78469728304326cbc65f8f95fa756b0b73164462",
+			TaskMailbox:        "0x0000000000000000000000000000000000000000", // TODO: Add actual TaskManager address
 		}
 	} else if c.Chain == Chain_Sepolia {
 		return &ContractAddresses{
@@ -384,6 +387,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			RewardsCoordinator: "0x5ae8152fb88c26ff9ca5c014c94fca3c68029349",
 			StrategyManager:    "0x2e3d6c0744b10eb0a4e6f679f71554a39ec47a5d",
 			CrossChainRegistry: "0x287381b1570d9048c4b4c7ec94d21ddb8aa1352a",
+			TaskMailbox:        "0x0000000000000000000000000000000000000000", // TODO: Add actual TaskManager address
 		}
 	} else if c.Chain == Chain_Hoodi {
 		return &ContractAddresses{
@@ -393,6 +397,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			EigenpodManager:    "0xcd1442415fc5c29aa848a49d2e232720be07976c",
 			RewardsCoordinator: "0x29e8572678e0c272350aa0b4b8f304e47ebcd5e7",
 			StrategyManager:    "0xee45e76ddbedda2918b8c7e3035cd37eab3b5d41",
+			TaskMailbox:        "0x0000000000000000000000000000000000000000", // TODO: Add actual TaskManager address
 		}
 	} else if c.Chain == Chain_Mainnet {
 		return &ContractAddresses{
@@ -402,6 +407,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			DelegationManager:  "0x39053d51b77dc0d36036fc1fcc8cb819df8ef37a",
 			AvsDirectory:       "0x135dda560e946695d6f155dacafc6f1f25c1f5af",
 			AllocationManager:  "0x948a420b8cc1d6bfd0b6087c2e7c344a2cd0bc39",
+			TaskMailbox:        "0x0000000000000000000000000000000000000000", // TODO: Add actual TaskManager address
 		}
 	} else {
 		return nil
@@ -423,6 +429,7 @@ func (c *Config) GetInterestingAddressForConfigEnv() []string {
 		addresses.AvsDirectory,
 		addresses.AllocationManager,
 		addresses.CrossChainRegistry,
+		addresses.TaskMailbox,
 	}
 }
 
