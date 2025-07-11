@@ -165,7 +165,7 @@ func (ss *SnapshotService) performDump(snapshotFile *SnapshotFile, cfg *CreateSn
 
 	flags = append(flags, kindFlags[cfg.Kind](cfg.DBConfig.SchemaName)...)
 
-	cmdFlags := ss.buildCommand(flags, cfg.SnapshotConfig)
+	cmdFlags := ss.buildCommand(flags, cfg.SnapshotConfig, false) // false for create operation
 
 	res := &Result{}
 	fullCmdPath, err := getCmdPath(PgDump)
@@ -176,7 +176,7 @@ func (ss *SnapshotService) performDump(snapshotFile *SnapshotFile, cfg *CreateSn
 	res.FullCommand = fmt.Sprintf("%s %s", fullCmdPath, strings.Join(cmdFlags, " "))
 
 	cmd := exec.Command(fullCmdPath, cmdFlags...)
-	cmd.Env = append(cmd.Env, ss.buildPostgresEnvVars(cfg.DBConfig)...)
+	cmd.Env = append(cmd.Env, ss.buildPostgresEnvVars(cfg.DBConfig, false)...) // false for create operation
 
 	ss.logger.Sugar().Infow("Starting snapshot dump",
 		zap.String("fullCommand", res.FullCommand),

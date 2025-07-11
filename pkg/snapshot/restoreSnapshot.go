@@ -2,10 +2,6 @@ package snapshot
 
 import (
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/snapshot/snapshotManifest"
-	"github.com/pkg/errors"
-	"github.com/schollz/progressbar/v3"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,6 +10,11 @@ import (
 	"path"
 	"slices"
 	"strings"
+
+	"github.com/Layr-Labs/sidecar/pkg/snapshot/snapshotManifest"
+	"github.com/pkg/errors"
+	"github.com/schollz/progressbar/v3"
+	"go.uber.org/zap"
 )
 
 // defaultRestoreOptions returns the default command-line options for pg_restore.
@@ -194,7 +195,7 @@ func (ss *SnapshotService) isUrl(input string) bool {
 func (ss *SnapshotService) performRestore(snapshotFile *SnapshotFile, cfg *RestoreSnapshotConfig) (*Result, error) {
 	flags := defaultRestoreOptions()
 
-	cmdFlags := ss.buildCommand(flags, cfg.SnapshotConfig)
+	cmdFlags := ss.buildCommand(flags, cfg.SnapshotConfig, true) // true for restore operation
 	cmdFlags = append(cmdFlags, snapshotFile.FullPath())
 
 	res := &Result{}
@@ -206,7 +207,7 @@ func (ss *SnapshotService) performRestore(snapshotFile *SnapshotFile, cfg *Resto
 	res.FullCommand = fmt.Sprintf("%s %s", fullCmdPath, strings.Join(cmdFlags, " "))
 
 	cmd := exec.Command(fullCmdPath, cmdFlags...)
-	cmd.Env = append(cmd.Env, ss.buildPostgresEnvVars(cfg.DBConfig)...)
+	cmd.Env = append(cmd.Env, ss.buildPostgresEnvVars(cfg.DBConfig, true)...) // true for restore operation
 
 	ss.logger.Sugar().Infow("Starting snapshot restore",
 		zap.String("fullCommand", res.FullCommand),
