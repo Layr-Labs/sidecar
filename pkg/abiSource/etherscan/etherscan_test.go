@@ -63,8 +63,8 @@ func Test_Etherscan(t *testing.T) {
 			"result": "[{\"constant\":true,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
 		}`
 
-		// Register the responder with a pattern that matches the full URL with query parameters
-		httpmock.RegisterResponder("GET", `=~^https://api\.etherscan\.io/api\?.*address=0x29a954e9e7f12936db89b183ecdf879fbbb99f14.*`,
+		// Register the responder with a pattern that matches the v2 API URL with chainid parameter
+		httpmock.RegisterResponder("GET", `=~^https://api\.etherscan\.io/v2/api\?chainid=1&.*address=0x29a954e9e7f12936db89b183ecdf879fbbb99f14.*`,
 			httpmock.NewStringResponder(200, mockAbiResponse))
 
 		address := "0x29a954e9e7f12936db89b183ecdf879fbbb99f14"
@@ -81,8 +81,8 @@ func Test_Etherscan(t *testing.T) {
 			"result": "Error fetching ABI"
 		}`
 
-		// Register the responder with a pattern that matches the full URL with query parameters
-		httpmock.RegisterResponder("GET", `=~^https://api\.etherscan\.io/api\?.*address=0x29a954e9e7f12936db89b183ecdf879fbbb99f14.*`,
+		// Register the responder with a pattern that matches the v2 API URL with chainid parameter
+		httpmock.RegisterResponder("GET", `=~^https://api\.etherscan\.io/v2/api\?chainid=1&.*address=0x29a954e9e7f12936db89b183ecdf879fbbb99f14.*`,
 			httpmock.NewStringResponder(200, mockErrorResponse))
 
 		address := "0x29a954e9e7f12936db89b183ecdf879fbbb99f14"
