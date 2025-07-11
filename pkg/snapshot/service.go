@@ -173,8 +173,9 @@ func NewSnapshotService(l *zap.Logger, ms *metrics.MetricsSink) *SnapshotService
 
 // buildCommand constructs a command with the appropriate flags based on the configuration.
 // It combines database connection flags with operation-specific flags.
-func (ss *SnapshotService) buildCommand(flags []string, cfg SnapshotConfig) []string {
-	cmd := append(ss.pgConnectFlags(cfg.DBConfig), flags...)
+// The isRestore parameter controls whether to include the schema flag (false for restore, true for create).
+func (ss *SnapshotService) buildCommand(flags []string, cfg SnapshotConfig, isRestore bool) []string {
+	cmd := append(ss.pgConnectFlags(cfg.DBConfig, isRestore), flags...)
 
 	if cfg.Verbose {
 		cmd = append(cmd, "--verbose")
@@ -184,16 +185,21 @@ func (ss *SnapshotService) buildCommand(flags []string, cfg SnapshotConfig) []st
 }
 
 // pgConnectFlags returns the command-line flags needed to connect to a PostgreSQL database.
-func (ss *SnapshotService) pgConnectFlags(cfg SnapshotDatabaseConfig) []string {
-	schema := cfg.SchemaName
-	if schema == "" {
-		schema = "public"
-	}
+// The isRestore parameter controls whether to include the schema flag (false for restore, true for create).
+func (ss *SnapshotService) pgConnectFlags(cfg SnapshotDatabaseConfig, isRestore bool) []string {
 	flags := []string{
 		"--host", cfg.Host,
 		"--port", fmt.Sprintf("%d", cfg.Port),
 		"--dbname", cfg.DbName,
-		"--schema", schema,
+	}
+
+	// Only add schema flag for create operations (pg_dump), not restore operations (pg_restore)
+	if !isRestore {
+		schema := cfg.SchemaName
+		if schema == "" {
+			schema = "public"
+		}
+		flags = append(flags, "--schema", schema)
 	}
 
 	if cfg.User != "" {
@@ -205,10 +211,17 @@ func (ss *SnapshotService) pgConnectFlags(cfg SnapshotDatabaseConfig) []string {
 
 // buildPostgresEnvVars returns environment variables needed for PostgreSQL operations.
 // It includes password and SSL configuration variables.
-func (ss *SnapshotService) buildPostgresEnvVars(cfg SnapshotDatabaseConfig) []string {
+// The isRestore parameter controls whether to include search_path redirection.
+func (ss *SnapshotService) buildPostgresEnvVars(cfg SnapshotDatabaseConfig, isRestore bool) []string {
 	vars := []string{}
 
 	vars = append(vars, fmt.Sprintf("PGPASSWORD=%s", cfg.Password))
+
+	// For restore operations, add search_path redirection
+	if isRestore && cfg.SchemaName != "" && cfg.SchemaName != "public" {
+		searchPath := fmt.Sprintf("%s,public", cfg.SchemaName)
+		vars = append(vars, fmt.Sprintf("PGOPTIONS=--search_path=%s", searchPath))
+	}
 
 	if cfg.SSLMode == "" || cfg.SSLMode == "disable" {
 		return vars
