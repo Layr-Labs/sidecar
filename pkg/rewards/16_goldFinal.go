@@ -8,13 +8,13 @@ import (
 )
 
 const _16_goldFinalQuery = `
-insert into gold_table
+INSERT INTO {{.destTableName}} (earner, snapshot, token, amount, reward_hash)
 SELECT
     earner,
     snapshot,
-    reward_hash,
     token,
-    amount
+    amount,
+    reward_hash
 FROM {{.goldStagingTable}}
 `
 
@@ -26,15 +26,15 @@ type GoldRow struct {
 	Amount     string
 }
 
-func (rc *RewardsCalculator) GenerateGold16FinalTable(snapshotDate string) error {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
+func (rc *RewardsCalculator) GenerateGold16FinalTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
 
 	rc.logger.Sugar().Infow("Generating gold final table",
 		zap.String("cutoffDate", snapshotDate),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_16_goldFinalQuery, map[string]interface{}{
-		"goldStagingTable": allTableNames[rewardsUtils.Table_15_GoldStaging],
+		"destTableName":    rewardsUtils.RewardsTable_GoldTable,
+		"goldStagingTable": rewardsUtils.RewardsTable_GoldStaging,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

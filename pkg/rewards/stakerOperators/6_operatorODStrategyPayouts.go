@@ -1,8 +1,9 @@
 package stakerOperators
 
 import (
-	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 )
 
 // _6_operatorODStrategyPayoutQuery is the query that generates the operator OD strategy payouts.
@@ -61,17 +62,10 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert6OperatorODStrategyPayouts
 		return err
 	}
 
-	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
-		rewardsUtils.Table_8_OperatorODRewardAmounts: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_8_OperatorODRewardAmounts],
-	}, cutoffDate)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
-		return err
-	}
-
 	query, err := rewardsUtils.RenderQueryTemplate(_6_operatorODStrategyPayoutQuery, map[string]interface{}{
 		"destTableName":                destTableName,
-		"operatorODRewardAmountsTable": rewardsTables[rewardsUtils.Table_8_OperatorODRewardAmounts],
+		"activeODRewardsTable":         rewardsUtils.RewardsTable_7_ActiveODRewards,
+		"operatorODRewardAmountsTable": rewardsUtils.RewardsTable_8_OperatorODRewardAmounts,
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 6_operatorODStrategyPayouts query", "error", err)

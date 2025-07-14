@@ -6,7 +6,7 @@ import (
 )
 
 const _3_goldOperatorRewardAmountsQuery = `
-create table {{.destTableName}} as
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_day, avs, strategy, multiplier, reward_type, operator, operator_tokens, rn, generated_rewards_snapshot_id)
 WITH operator_token_sums AS (
   SELECT
     reward_hash,
@@ -33,26 +33,29 @@ distinct_operators AS (
   ) t
   WHERE rn = 1
 )
-SELECT * FROM distinct_operators
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM distinct_operators
 `
 
-func (rc *RewardsCalculator) GenerateGold3OperatorRewardAmountsTable(snapshotDate string) error {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_3_OperatorRewardAmounts]
+func (rc *RewardsCalculator) GenerateGold3OperatorRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	destTableName := rewardsUtils.RewardsTable_3_OperatorRewardAmounts
 
-	rc.logger.Sugar().Infow("Generating staker reward amounts",
+	rc.logger.Sugar().Infow("Generating operator reward amounts",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_3_goldOperatorRewardAmountsQuery, map[string]interface{}{
-		"destTableName":            destTableName,
-		"stakerRewardAmountsTable": allTableNames[rewardsUtils.Table_2_StakerRewardAmounts],
+		"destTableName":              destTableName,
+		"stakerRewardAmountsTable":   rewardsUtils.RewardsTable_2_StakerRewardAmounts,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
+
+	// Add ON CONFLICT clause to the query
+	query = query + " ON CONFLICT (reward_hash, avs, operator, strategy, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
