@@ -109,11 +109,15 @@ func NewCoreContractManager(
 //   - *CoreContractMigrations: The migration record if found, nil if not found
 //   - error: Any error that occurred during the database query
 func (ccm *CoreContractManager) getMigrationByName(name string) (*CoreContractMigrations, error) {
-	migration := &CoreContractMigrations{}
-	res := ccm.db.Where("name = ?", name).First(migration)
+	var migration *CoreContractMigrations
+	res := ccm.db.Model(&CoreContractMigrations{}).Where("name = ?", name).First(&migration)
 	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
 		return nil, res.Error
 	}
+	ccm.logger.Sugar().Infow("Migration lookup",
+		zap.String("name", name),
+		zap.Any("migration", migration),
+	)
 	if errors.Is(res.Error, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -149,9 +153,11 @@ func resultToMetadata(res *types.MigrationResult) (*Metadata, error) {
 //   - []types.CoreContractAdded: A list of core contracts that were added and require backfilling
 //   - error: Any error that occurred during migration
 func (ccm *CoreContractManager) MigrateCoreContracts(migrations []types.ICoreContractMigration) ([]types.CoreContractAdded, error) {
+	ccm.logger.Sugar().Infof("Starting core contract migrations, total: %d", len(migrations))
 	addedCoreContracts := make([]types.CoreContractAdded, 0)
 
 	for _, migration := range migrations {
+		ccm.logger.Sugar().Infof("Checking migration '%s'", migration.GetName())
 		m, err := ccm.getMigrationByName(migration.GetName())
 		if err != nil {
 			return nil, err
@@ -160,6 +166,8 @@ func (ccm *CoreContractManager) MigrateCoreContracts(migrations []types.ICoreCon
 			ccm.logger.Sugar().Infof("Migration '%s' already applied", migration.GetName())
 			continue
 		}
+
+		ccm.logger.Sugar().Infof("Applying migration '%s'", migration.GetName())
 		migrationRes, err := migration.Up(ccm.db, ccm.contractStore, ccm.logger, ccm.globalConfig)
 		if err != nil {
 			ccm.logger.Sugar().Errorf("Failed to apply migration '%s': %v", migration.GetName(), err)
@@ -173,6 +181,7 @@ func (ccm *CoreContractManager) MigrateCoreContracts(migrations []types.ICoreCon
 			}
 		}
 
+		ccm.logger.Sugar().Infof("Migration '%s' applied successfully", migration.GetName())
 		res := ccm.db.Model(&CoreContractMigrations{}).Create(&CoreContractMigrations{
 			Name:     migration.GetName(),
 			Metadata: metadata,

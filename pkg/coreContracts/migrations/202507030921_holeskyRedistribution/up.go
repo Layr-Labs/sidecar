@@ -79,7 +79,7 @@ func (m *ContractMigration) Up(db *gorm.DB, cs contractStore.ContractStore, l *z
 		},
 	}
 
-	importedImplementationContracts, err := helpers.ImportImplementationContracts(contractsToImport.ImplementationContracts, cs)
+	importedImplementationContracts, err := helpers.ImportImplementationContracts(contractsToImport.ImplementationContracts, cs, l)
 	if err != nil {
 		return nil, err
 	}
