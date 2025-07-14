@@ -151,6 +151,7 @@ ORDER BY reward_hash, snapshot, staker, operator
 
 func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
 	destTableName := rewardsUtils.RewardsTable_2_StakerRewardAmounts
+	activeRewardsTable := rc.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
 	rc.logger.Sugar().Infow("Generating staker reward amounts",
 		zap.String("cutoffDate", snapshotDate),
@@ -163,7 +164,7 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 
 	query, err := rewardsUtils.RenderQueryTemplate(_2_goldStakerRewardAmountsQuery, map[string]interface{}{
 		"destTableName":              destTableName,
-		"activeRewardsTable":         rewardsUtils.RewardsTable_1_ActiveRewards,
+		"activeRewardsTable":         activeRewardsTable,
 		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {

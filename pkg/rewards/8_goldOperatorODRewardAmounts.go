@@ -90,6 +90,7 @@ func (rc *RewardsCalculator) GenerateGold8OperatorODRewardAmountsTable(snapshotD
 	}
 
 	destTableName := rewardsUtils.RewardsTable_8_OperatorODRewardAmounts
+	activeOdRewardsTableName := rc.getTempActiveODRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
 	rc.logger.Sugar().Infow("Generating Operator OD reward amounts",
 		zap.String("cutoffDate", snapshotDate),
@@ -99,7 +100,7 @@ func (rc *RewardsCalculator) GenerateGold8OperatorODRewardAmountsTable(snapshotD
 
 	query, err := rewardsUtils.RenderQueryTemplate(_8_goldOperatorODRewardAmountsQuery, map[string]interface{}{
 		"destTableName":              destTableName,
-		"activeODRewardsTable":       rewardsUtils.RewardsTable_7_ActiveODRewards,
+		"activeODRewardsTable":       activeOdRewardsTableName,
 		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {

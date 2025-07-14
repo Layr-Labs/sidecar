@@ -69,6 +69,7 @@ SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id from 
 
 func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
 	destTableName := rewardsUtils.RewardsTable_4_RewardsForAll
+	activeRewardsTable := rc.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
 	rc.logger.Sugar().Infow("Generating rewards for all table",
 		zap.String("cutoffDate", snapshotDate),
@@ -77,7 +78,7 @@ func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string
 
 	query, err := rewardsUtils.RenderQueryTemplate(_4_goldRewardsForAllQuery, map[string]interface{}{
 		"destTableName":              destTableName,
-		"activeRewardsTable":         rewardsUtils.RewardsTable_1_ActiveRewards,
+		"activeRewardsTable":         activeRewardsTable,
 		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {

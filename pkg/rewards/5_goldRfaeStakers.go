@@ -154,6 +154,7 @@ ORDER BY reward_hash, snapshot, staker, operator
 
 func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
 	destTableName := rewardsUtils.RewardsTable_5_RfaeStakers
+	activeRewardsTable := rc.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
 	rc.logger.Sugar().Infow("Generating rfae stakers table",
 		zap.String("cutoffDate", snapshotDate),
@@ -165,7 +166,7 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 
 	query, err := rewardsUtils.RenderQueryTemplate(_5_goldRfaeStakersQuery, map[string]interface{}{
 		"destTableName":              destTableName,
-		"activeRewardsTable":         rewardsUtils.RewardsTable_1_ActiveRewards,
+		"activeRewardsTable":         activeRewardsTable,
 		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {

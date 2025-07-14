@@ -117,7 +117,8 @@ func Test_RewardsV2_1(t *testing.T) {
 			fmt.Printf("Running gold_1_active_rewards\n")
 			err = rc.Generate1ActiveRewards(snapshotDate, snapshotStatus.Id)
 			assert.Nil(t, err)
-			rows, err := getRowCountForTable(grm, rewardsUtils.RewardsTable_1_ActiveRewards)
+			activeRewardsTable := rc.getTempActiveRewardsTableName(snapshotDate, snapshotStatus.Id)
+			rows, err := getRowCountForTable(grm, activeRewardsTable)
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_1_active_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
@@ -172,7 +173,8 @@ func Test_RewardsV2_1(t *testing.T) {
 			err = rc.Generate7ActiveODRewards(snapshotDate, snapshotStatus.Id)
 			assert.Nil(t, err)
 			if rewardsV2Enabled {
-				rows, err = getRowCountForTable(grm, rewardsUtils.RewardsTable_7_ActiveODRewards)
+				activeOdRewardsTableName := rc.getTempActiveODRewardsTableName(snapshotDate, snapshotStatus.Id)
+				rows, err = getRowCountForTable(grm, activeOdRewardsTableName)
 				assert.Nil(t, err)
 				fmt.Printf("\tRows in gold_7_active_od_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
 			}
@@ -219,7 +221,8 @@ func Test_RewardsV2_1(t *testing.T) {
 			err = rc.GenerateGold11ActiveODOperatorSetRewards(snapshotDate, snapshotStatus.Id)
 			assert.Nil(t, err)
 			if rewardsV2_1Enabled {
-				rows, err = getRowCountForTable(grm, rewardsUtils.RewardsTable_11_ActiveODOperatorSetRewards)
+				activeODOSRewardsTable := rc.getTempActiveODOperatorSetRewardsTableName(snapshotDate, snapshotStatus.Id)
+				rows, err = getRowCountForTable(grm, activeODOSRewardsTable)
 				assert.Nil(t, err)
 				fmt.Printf("\tRows in gold_11_active_od_operator_set_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
 			}

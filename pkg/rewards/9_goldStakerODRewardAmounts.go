@@ -134,6 +134,7 @@ func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDat
 	}
 
 	destTableName := rewardsUtils.RewardsTable_9_StakerODRewardAmounts
+	activeOdRewardsTableName := rc.getTempActiveODRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
 	rc.logger.Sugar().Infow("Generating Staker OD reward amounts",
 		zap.String("cutoffDate", snapshotDate),
@@ -143,7 +144,7 @@ func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDat
 
 	query, err := rewardsUtils.RenderQueryTemplate(_9_goldStakerODRewardAmountsQuery, map[string]interface{}{
 		"destTableName":              destTableName,
-		"activeODRewardsTable":       rewardsUtils.RewardsTable_7_ActiveODRewards,
+		"activeODRewardsTable":       activeOdRewardsTableName,
 		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
