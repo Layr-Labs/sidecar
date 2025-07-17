@@ -37,7 +37,7 @@ func (s *Sidecar) StartIndexing(ctx context.Context) {
 	}
 }
 
-const BLOCK_POLL_INTERVAL = 6 * time.Second
+const BLOCK_POLL_INTERVAL = 100 * time.Millisecond
 
 func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 	blockType := s.GlobalConfig.GetBlockType()
