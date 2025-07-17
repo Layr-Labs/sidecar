@@ -75,12 +75,7 @@ jobs:
         uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911
         with:
           egress-policy: block
-          allowed-endpoints: >
-            azure.archive.ubuntu.com:80
-            esm.ubuntu.com:443
-            github.com:443
-            packages.microsoft.com:443
-            proxy.golang.org:443
+          allowed-endpoints: >+
           
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
