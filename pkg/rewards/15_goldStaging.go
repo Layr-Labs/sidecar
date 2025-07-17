@@ -164,6 +164,7 @@ deduped_earners AS (
 )
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id
 FROM deduped_earners
+ON CONFLICT (earner, token, reward_hash, snapshot) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
@@ -209,8 +210,6 @@ func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string, gen
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
-
-	query = query + " ON CONFLICT (earner, token, reward_hash, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
