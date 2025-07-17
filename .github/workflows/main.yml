@@ -67,6 +67,7 @@ jobs:
           export PATH=$PATH:$(go env GOPATH)/bin
           echo $PATH
           make lint
+          
   build-container:
     runs-on: protocol-gha-runners
     steps:
@@ -111,6 +112,7 @@ jobs:
           else
             docker buildx build --platform "linux/amd64" -t $REGISTRY/$REPOSITORY:$VERSION --push .
           fi
+          
   build-binaries:
     runs-on: ubuntu-latest
     steps:
@@ -120,6 +122,7 @@ jobs:
           egress-policy: block
           allowed-endpoints: >
             github.com:443
+            registry-1.docker.io:443
           
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
