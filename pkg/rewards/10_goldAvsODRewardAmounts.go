@@ -58,6 +58,7 @@ operator_token_sums AS (
 
 -- Step 4: Output the final table
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM operator_token_sums
+ON CONFLICT (reward_hash, avs, operator, snapshot) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
@@ -88,8 +89,6 @@ func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate 
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
-
-	query = query + " ON CONFLICT (reward_hash, avs, operator, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
