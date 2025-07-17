@@ -3,6 +3,7 @@ package rewards
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
@@ -212,8 +213,6 @@ func (r *RewardsCalculator) Generate7ActiveODRewards(snapshotDate string, genera
 		r.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
-
-	// query = query + " ON CONFLICT (reward_hash, avs, operator, strategy, snapshot) DO NOTHING"
 
 	res := r.grm.Exec(query,
 		sql.Named("cutoffDate", snapshotDate),

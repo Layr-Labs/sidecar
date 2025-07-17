@@ -16,6 +16,7 @@ SELECT
     amount,
     reward_hash
 FROM {{.goldStagingTable}}
+ON CONFLICT (earner, snapshot, token, reward_hash) DO NOTHING
 `
 
 type GoldRow struct {

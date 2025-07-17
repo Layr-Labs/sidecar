@@ -34,6 +34,7 @@ distinct_operators AS (
   WHERE rn = 1
 )
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM distinct_operators
+ON CONFLICT (reward_hash, avs, operator, strategy, snapshot) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold3OperatorRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
@@ -53,9 +54,6 @@ func (rc *RewardsCalculator) GenerateGold3OperatorRewardAmountsTable(snapshotDat
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
-
-	// Add ON CONFLICT clause to the query
-	query = query + " ON CONFLICT (reward_hash, avs, operator, strategy, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {

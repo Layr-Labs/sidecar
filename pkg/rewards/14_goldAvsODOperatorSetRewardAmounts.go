@@ -166,6 +166,7 @@ combined_avs_refund_amounts AS (
 
 -- Output the final table
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM combined_avs_refund_amounts
+ON CONFLICT (reward_hash, snapshot, operator_set_id, operator, token) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
@@ -196,8 +197,6 @@ func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(sn
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
-
-	query = query + " ON CONFLICT (reward_hash, snapshot, operator_set_id, operator, token) DO NOTHING"
 
 	res := rc.grm.Exec(query, sql.Named("coloradoHardforkDate", forks[config.RewardsFork_Colorado].Date))
 	if res.Error != nil {

@@ -147,6 +147,7 @@ SELECT
 	{{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id
 from token_breakdowns as tb
 ORDER BY reward_hash, snapshot, staker, operator
+ON CONFLICT (reward_hash, staker, avs, strategy, snapshot) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
@@ -171,9 +172,6 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
-
-	// Add ON CONFLICT clause to the query
-	query = query + " ON CONFLICT (reward_hash, staker, avs, strategy, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query,
 		sql.Named("amazonHardforkDate", forks[config.RewardsFork_Amazon].Date),
