@@ -119,12 +119,12 @@ jobs:
       - name: Harden Runner
         uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911
         with:
-          egress-policy: block
-          allowed-endpoints: >
-            github.com:443
-            registry-1.docker.io:443
-            auth.docker.io:443
-            docker.io:443
+          egress-policy: audit
+          # allowed-endpoints: >
+          #   github.com:443
+          #   registry-1.docker.io:443
+          #   auth.docker.io:443
+          #   docker.io:443
           
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -140,6 +140,7 @@ jobs:
           make release-with-docker
           sudo chown -R $USER:$USER .
           ./scripts/bundleReleases.sh $VERSION
+          
   build-create-release:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -194,6 +195,7 @@ jobs:
               --data-binary @"$asset" \
               "${upload_url}?name=$asset_name"
           done
+          
   release-helm-chart:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master'
