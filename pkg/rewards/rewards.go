@@ -431,23 +431,64 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 		rc.logger.Sugar().Errorw("Failed to find lower bound snapshot", "error", res.Error)
 		return res.Error
 	}
+	
+	// If no previous snapshot found, we'll delete all data from the tables
+	var previousSnapshotId uint64 = 0
+	if previousSnapshot != nil {
+		previousSnapshotId = previousSnapshot.Id
+	}
 
 	for _, tableName := range rewardsUtils.RewardsTableBaseNames {
 		rc.logger.Sugar().Infow("Deleting rows from rewards table", "tableName", tableName)
-		dropQuery := fmt.Sprintf("delete from %s where generated_rewards_snapshot_id >= {{.generatedRewardsSnapshotId}}", tableName)
-		res := rc.grm.Exec(dropQuery, sql.Named("generatedRewardsSnapshotId", previousSnapshot.Id))
-		if res.Error != nil {
-			rc.logger.Sugar().Errorw("Failed to delete rows from rewards table", "error", res.Error, "tableName", tableName)
-			return res.Error
+		
+		var dropQuery string
+		if tableName == rewardsUtils.RewardsTable_GoldTable {
+			// gold_table doesn't have generated_rewards_snapshot_id, use snapshot date instead
+			dropQuery = fmt.Sprintf("delete from %s where snapshot >= @snapshotDate", tableName)
+			res := rc.grm.Exec(dropQuery, sql.Named("snapshotDate", generatedSnapshot.SnapshotDate))
+			if res.Error != nil {
+				rc.logger.Sugar().Errorw("Failed to delete rows from rewards table", "error", res.Error, "tableName", tableName)
+				return res.Error
+			}
+			rc.logger.Sugar().Infow("Deleted rows from rewards table",
+				"tableName", tableName,
+				"recordsDeleted", res.RowsAffected)
+		} else {
+			// Regular tables use generated_rewards_snapshot_id
+			if previousSnapshotId == 0 {
+				// No previous snapshot, delete all data
+				dropQuery = fmt.Sprintf("delete from %s", tableName)
+				res := rc.grm.Exec(dropQuery)
+				if res.Error != nil {
+					rc.logger.Sugar().Errorw("Failed to delete rows from rewards table", "error", res.Error, "tableName", tableName)
+					return res.Error
+				}
+				rc.logger.Sugar().Infow("Deleted all rows from rewards table",
+					"tableName", tableName,
+					"recordsDeleted", res.RowsAffected)
+			} else {
+				dropQuery = fmt.Sprintf("delete from %s where generated_rewards_snapshot_id >= @generatedRewardsSnapshotId", tableName)
+				res := rc.grm.Exec(dropQuery, sql.Named("generatedRewardsSnapshotId", previousSnapshotId))
+				if res.Error != nil {
+					rc.logger.Sugar().Errorw("Failed to delete rows from rewards table", "error", res.Error, "tableName", tableName)
+					return res.Error
+				}
+				rc.logger.Sugar().Infow("Deleted rows from rewards table",
+					"tableName", tableName,
+					"recordsDeleted", res.RowsAffected)
+			}
 		}
-		rc.logger.Sugar().Infow("Deleted rows from rewards table",
-			"tableName", tableName,
-			"recordsDeleted", res.RowsAffected)
 	}
 
 	// Also delete from generated_rewards_snapshots table
-	res = rc.grm.Exec("delete from generated_rewards_snapshots where id >= {{.generatedRewardsSnapshotId}}",
-		sql.Named("generatedRewardsSnapshotId", previousSnapshot.Id))
+	if previousSnapshotId == 0 {
+		// No previous snapshot, delete all snapshots from the generated one onwards
+		res = rc.grm.Exec("delete from generated_rewards_snapshots where id >= @generatedRewardsSnapshotId",
+			sql.Named("generatedRewardsSnapshotId", generatedSnapshot.Id))
+	} else {
+		res = rc.grm.Exec("delete from generated_rewards_snapshots where id >= @generatedRewardsSnapshotId",
+			sql.Named("generatedRewardsSnapshotId", previousSnapshotId))
+	}
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to delete from generated_rewards_snapshots", "error", res.Error)
 		return res.Error
