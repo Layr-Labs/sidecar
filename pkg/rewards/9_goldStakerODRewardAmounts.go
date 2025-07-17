@@ -120,6 +120,7 @@ staker_reward_amounts AS (
 )
 -- Output the final table
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM staker_reward_amounts
+ON CONFLICT (reward_hash, avs, operator, staker, strategy, snapshot) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
@@ -151,8 +152,6 @@ func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDat
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
-
-	query = query + " ON CONFLICT (reward_hash, avs, operator, staker, strategy, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query, sql.Named("trinityHardforkDate", forks[config.RewardsFork_Trinity].Date))
 	if res.Error != nil {

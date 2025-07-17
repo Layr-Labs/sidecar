@@ -66,6 +66,7 @@ operator_splits AS (
 
 -- Step 4: Output the final table with operator splits
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM operator_splits
+ON CONFLICT (reward_hash, operator_set_id, operator, strategy, snapshot) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
@@ -96,8 +97,6 @@ func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTab
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
-
-	query = query + " ON CONFLICT (reward_hash, operator_set_id, operator, strategy, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
