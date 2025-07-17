@@ -46,7 +46,7 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 		}
 	}
 
-	return nil
+	// return nil
 
 	//nolint:all
 	likeTablesQuery := `
@@ -90,21 +90,44 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 			}
 		}
 
-		query := fmt.Sprintf("insert into %s select * from %s on conflict on constraint uniq_%s do nothing", sm.NewTableName, table, sm.NewTableName)
-		res := grm.Exec(query)
-		if res.Error != nil {
-			fmt.Printf("Failed to execute query: %s\n", query)
-			return res.Error
+		// Process INSERT in batches to avoid timeout
+		insertBatchSize := 10000
+		offset := 0
+
+		for {
+			query := fmt.Sprintf("insert into %s select * from %s order by ctid limit %d offset %d on conflict on constraint uniq_%s do nothing", sm.NewTableName, table, insertBatchSize, offset, sm.NewTableName)
+			res := grm.Exec(query)
+			if res.Error != nil {
+				fmt.Printf("Failed to execute query: %s\n", query)
+				return res.Error
+			}
+
+			// If no rows were affected, we're done
+			if res.RowsAffected == 0 {
+				break
+			}
+
+			offset += insertBatchSize
 		}
 
 		if snapshotId == 0 {
 			continue
 		}
-		updateQuery := fmt.Sprintf("update %s set generated_rewards_snapshot_id = %d where generated_rewards_snapshot_id is null", sm.NewTableName, snapshotId)
-		res = grm.Exec(updateQuery)
-		if res.Error != nil {
-			fmt.Printf("Failed to execute query: %s\n", updateQuery)
-			return res.Error
+
+		// Process updates in batches to avoid timeout
+		batchSize := 10000
+		for {
+			updateQuery := fmt.Sprintf("update %s set generated_rewards_snapshot_id = %d where generated_rewards_snapshot_id is null and ctid in (select ctid from %s where generated_rewards_snapshot_id is null limit %d)", sm.NewTableName, snapshotId, sm.NewTableName, batchSize)
+			res = grm.Exec(updateQuery)
+			if res.Error != nil {
+				fmt.Printf("Failed to execute query: %s\n", updateQuery)
+				return res.Error
+			}
+
+			// If no rows were affected, we're done
+			if res.RowsAffected == 0 {
+				break
+			}
 		}
 	}
 
