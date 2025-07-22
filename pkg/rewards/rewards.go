@@ -431,7 +431,7 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 		rc.logger.Sugar().Errorw("Failed to find lower bound snapshot", "error", res.Error)
 		return res.Error
 	}
-	
+
 	// If no previous snapshot found, we'll delete all data from the tables
 	var previousSnapshotId uint64 = 0
 	if previousSnapshot != nil {
@@ -440,7 +440,7 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 
 	for _, tableName := range rewardsUtils.RewardsTableBaseNames {
 		rc.logger.Sugar().Infow("Deleting rows from rewards table", "tableName", tableName)
-		
+
 		var dropQuery string
 		if tableName == rewardsUtils.RewardsTable_GoldTable {
 			// gold_table doesn't have generated_rewards_snapshot_id, use snapshot date instead
@@ -814,6 +814,16 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string, generatedSn
 		rc.logger.Sugar().Errorw("Failed to generate gold staging", "error", err)
 		return err
 	}
+
+	// Clear gold_table before populating with new calculation results
+	// This ensures the merkle tree only uses data from the current calculation run
+	rc.logger.Sugar().Infow("Clearing gold_table before populating with new data")
+	res := rc.grm.Exec("DELETE FROM gold_table")
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to clear gold_table", "error", res.Error)
+		return res.Error
+	}
+	rc.logger.Sugar().Infow("Cleared gold_table", "deletedRows", res.RowsAffected)
 
 	if err := rc.GenerateGold16FinalTable(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate final table", "error", err)

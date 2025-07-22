@@ -65,6 +65,19 @@ staker_tokens AS (
   FROM staker_proportion
 )
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id from staker_tokens
+ON CONFLICT (reward_hash, avs, staker, strategy, snapshot)
+DO UPDATE SET
+    token = EXCLUDED.token,
+    tokens_per_day = EXCLUDED.tokens_per_day,
+    multiplier = EXCLUDED.multiplier,
+    reward_type = EXCLUDED.reward_type,
+    shares = EXCLUDED.shares,
+    staker_weight = EXCLUDED.staker_weight,
+    rn = EXCLUDED.rn,
+    total_staker_weight = EXCLUDED.total_staker_weight,
+    staker_proportion = EXCLUDED.staker_proportion,
+    staker_tokens = EXCLUDED.staker_tokens,
+    generated_rewards_snapshot_id = EXCLUDED.generated_rewards_snapshot_id
 `
 
 func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
@@ -85,8 +98,6 @@ func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
-
-	query = query + " ON CONFLICT (reward_hash, avs, staker, strategy, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {

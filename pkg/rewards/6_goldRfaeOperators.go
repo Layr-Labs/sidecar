@@ -34,6 +34,15 @@ distinct_operators AS (
   WHERE rn = 1
 )
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM distinct_operators
+ON CONFLICT (reward_hash, avs, operator, strategy, snapshot)
+DO UPDATE SET
+    token = EXCLUDED.token,
+    tokens_per_day_decimal = EXCLUDED.tokens_per_day_decimal,
+    multiplier = EXCLUDED.multiplier,
+    reward_type = EXCLUDED.reward_type,
+    operator_tokens = EXCLUDED.operator_tokens,
+    rn = EXCLUDED.rn,
+    generated_rewards_snapshot_id = EXCLUDED.generated_rewards_snapshot_id
 `
 
 func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
@@ -53,8 +62,6 @@ func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
-
-	query = query + " ON CONFLICT (reward_hash, avs, operator, strategy, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {

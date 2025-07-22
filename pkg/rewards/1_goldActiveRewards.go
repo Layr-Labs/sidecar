@@ -3,6 +3,7 @@ package rewards
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
@@ -135,8 +136,6 @@ func (r *RewardsCalculator) Generate1ActiveRewards(snapshotDate string, generate
 		return err
 	}
 
-	// query = query + " ON CONFLICT (avs, reward_hash, strategy, snapshot) DO NOTHING"
-
 	res := r.grm.Exec(query,
 		sql.Named("cutoffDate", snapshotDate),
 		sql.Named("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
@@ -180,7 +179,14 @@ func (r *RewardsCalculator) CopyTempActiveRewardsToActiveRewards(snapshotDate st
 	query := `
 		insert into {{.destTableName}} (avs, snapshot, token, tokens_per_day, tokens_per_day_decimal, multiplier, strategy, reward_hash, reward_type, reward_submission_date, generated_rewards_snapshot_id)
 		select avs, snapshot, token, tokens_per_day, tokens_per_day_decimal, multiplier, strategy, reward_hash, reward_type, reward_submission_date, generated_rewards_snapshot_id from {{.tempTableName}}
-		on conflict (avs, reward_hash, strategy, snapshot) do nothing
+		on conflict (avs, reward_hash, strategy, snapshot) do update set
+			tokens_per_day = excluded.tokens_per_day,
+			tokens_per_day_decimal = excluded.tokens_per_day_decimal,
+			token = excluded.token,
+			multiplier = excluded.multiplier,
+			reward_type = excluded.reward_type,
+			reward_submission_date = excluded.reward_submission_date,
+			generated_rewards_snapshot_id = excluded.generated_rewards_snapshot_id
 	`
 	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
 		"destTableName": destTableName,

@@ -3,6 +3,7 @@ package rewards
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
@@ -259,7 +260,17 @@ func (rc *RewardsCalculator) CopyTempActiveODOperatorSetRewardsToActiveODOperato
 	query := `
 		insert into {{.destTableName}} (avs, operator_set_id, operator, snapshot, token, amount_decimal, multiplier, strategy, duration, reward_hash, reward_submission_date, num_registered_snapshots, tokens_per_registered_snapshot_decimal, generated_rewards_snapshot_id)
 		select avs, operator_set_id, operator, snapshot, token, amount_decimal, multiplier, strategy, duration, reward_hash, reward_submission_date, num_registered_snapshots, tokens_per_registered_snapshot_decimal, generated_rewards_snapshot_id from {{.tempTableName}}
-		on conflict (reward_hash, operator_set_id, strategy, snapshot) do nothing
+		on conflict (reward_hash, operator_set_id, strategy, snapshot) do update set
+			avs = excluded.avs,
+			operator = excluded.operator,
+			token = excluded.token,
+			amount_decimal = excluded.amount_decimal,
+			multiplier = excluded.multiplier,
+			duration = excluded.duration,
+			reward_submission_date = excluded.reward_submission_date,
+			num_registered_snapshots = excluded.num_registered_snapshots,
+			tokens_per_registered_snapshot_decimal = excluded.tokens_per_registered_snapshot_decimal,
+			generated_rewards_snapshot_id = excluded.generated_rewards_snapshot_id
 	`
 	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
 		"destTableName": destTableName,

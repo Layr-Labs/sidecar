@@ -150,6 +150,23 @@ token_breakdowns AS (
 )
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
+ON CONFLICT (reward_hash, avs, staker, operator, strategy, snapshot)
+DO UPDATE SET
+    token = EXCLUDED.token,
+    tokens_per_day_decimal = EXCLUDED.tokens_per_day_decimal,
+    multiplier = EXCLUDED.multiplier,
+    reward_type = EXCLUDED.reward_type,
+    reward_submission_date = EXCLUDED.reward_submission_date,
+    shares = EXCLUDED.shares,
+    excluded_address = EXCLUDED.excluded_address,
+    staker_weight = EXCLUDED.staker_weight,
+    rn = EXCLUDED.rn,
+    total_weight = EXCLUDED.total_weight,
+    staker_proportion = EXCLUDED.staker_proportion,
+    total_staker_operator_payout = EXCLUDED.total_staker_operator_payout,
+    operator_tokens = EXCLUDED.operator_tokens,
+    staker_tokens = EXCLUDED.staker_tokens,
+    generated_rewards_snapshot_id = EXCLUDED.generated_rewards_snapshot_id
 `
 
 func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
@@ -173,8 +190,6 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
-
-	query = query + " ON CONFLICT (reward_hash, avs, staker, operator, strategy, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query,
 		sql.Named("panamaForkDate", forks[config.RewardsFork_Panama].Date),

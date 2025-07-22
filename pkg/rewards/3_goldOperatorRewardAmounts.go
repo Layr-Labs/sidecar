@@ -34,6 +34,15 @@ distinct_operators AS (
   WHERE rn = 1
 )
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM distinct_operators
+ON CONFLICT (reward_hash, avs, operator, strategy, snapshot) 
+DO UPDATE SET 
+    tokens_per_day = EXCLUDED.tokens_per_day,
+    token = EXCLUDED.token,
+    multiplier = EXCLUDED.multiplier,
+    reward_type = EXCLUDED.reward_type,
+    operator_tokens = EXCLUDED.operator_tokens,
+    rn = EXCLUDED.rn,
+    generated_rewards_snapshot_id = EXCLUDED.generated_rewards_snapshot_id
 `
 
 func (rc *RewardsCalculator) GenerateGold3OperatorRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
@@ -55,7 +64,6 @@ func (rc *RewardsCalculator) GenerateGold3OperatorRewardAmountsTable(snapshotDat
 	}
 
 	// Add ON CONFLICT clause to the query
-	query = query + " ON CONFLICT (reward_hash, avs, operator, strategy, snapshot) DO NOTHING"
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
