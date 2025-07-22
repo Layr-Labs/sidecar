@@ -342,7 +342,8 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 		zap.Int64("indexTime", time.Since(blockFetchTime).Milliseconds()),
 	)
 
-	if block.Block.Number.Value()%3600 == 0 {
+	// Only process OperatorRestakedStrategies for Ethereum chains (not L2s like Base)
+	if block.Block.Number.Value()%3600 == 0 && p.globalConfig.ChainIsOneOf(config.Chain_Mainnet, config.Chain_Holesky, config.Chain_Preprod, config.Chain_Sepolia, config.Chain_Hoodi) {
 		p.Logger.Sugar().Infow("Indexing OperatorRestakedStrategies", zap.Uint64("blockNumber", block.Block.Number.Value()))
 		if err := p.Indexer.ProcessRestakedStrategiesForBlock(ctx, block.Block.Number.Value()); err != nil {
 			p.Logger.Sugar().Errorw("Failed to process restaked strategies", zap.Uint64("blockNumber", block.Block.Number.Value()), zap.Error(err))
@@ -375,7 +376,8 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	p.Logger.Sugar().Debugw("Checking for rewards to validate", zap.Uint64("blockNumber", blockNumber))
 
 	distributionRoots, err := p.stateManager.GetSubmittedDistributionRoots(blockNumber)
-	if err == nil && distributionRoots != nil {
+	// Only validate rewards for Ethereum chains (not L2s like Base) where RewardsCoordinator contracts exist
+	if err == nil && distributionRoots != nil && p.globalConfig.ChainIsOneOf(config.Chain_Mainnet, config.Chain_Holesky, config.Chain_Preprod, config.Chain_Sepolia, config.Chain_Hoodi) {
 		for _, rs := range distributionRoots {
 
 			rewardStartTime := time.Now()
