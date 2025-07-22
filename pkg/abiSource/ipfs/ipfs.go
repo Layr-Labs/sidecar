@@ -37,7 +37,7 @@ func NewIpfs(hc *http.Client, l *zap.Logger, cfg *config.Config) *Ipfs {
 
 func DefaultHttpClient() *http.Client {
 	return &http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: 60 * time.Second,
 	}
 }
 
