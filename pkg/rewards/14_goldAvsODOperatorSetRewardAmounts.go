@@ -166,11 +166,7 @@ combined_avs_refund_amounts AS (
 
 -- Output the final table
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM combined_avs_refund_amounts
-ON CONFLICT (reward_hash, snapshot, operator_set_id, operator, token)
-DO UPDATE SET
-    avs = EXCLUDED.avs,
-    avs_tokens = EXCLUDED.avs_tokens,
-    generated_rewards_snapshot_id = EXCLUDED.generated_rewards_snapshot_id
+ON CONFLICT (reward_hash, snapshot, operator_set_id, operator, token) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {

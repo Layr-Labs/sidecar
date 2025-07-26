@@ -815,16 +815,6 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string, generatedSn
 		return err
 	}
 
-	// Clear gold_table before populating with new calculation results
-	// This ensures the merkle tree only uses data from the current calculation run
-	rc.logger.Sugar().Infow("Clearing gold_table before populating with new data")
-	res := rc.grm.Exec("DELETE FROM gold_table")
-	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to clear gold_table", "error", res.Error)
-		return res.Error
-	}
-	rc.logger.Sugar().Infow("Cleared gold_table", "deletedRows", res.RowsAffected)
-
 	if err := rc.GenerateGold16FinalTable(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate final table", "error", err)
 		return err

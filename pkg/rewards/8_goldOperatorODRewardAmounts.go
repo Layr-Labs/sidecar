@@ -76,16 +76,7 @@ operator_splits AS (
 
 -- Step 4: Output the final table with operator splits
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM operator_splits
-ON CONFLICT (reward_hash, avs, operator, strategy, snapshot)
-DO UPDATE SET
-    token = EXCLUDED.token,
-    tokens_per_registered_snapshot_decimal = EXCLUDED.tokens_per_registered_snapshot_decimal,
-    multiplier = EXCLUDED.multiplier,
-    reward_submission_date = EXCLUDED.reward_submission_date,
-    rn = EXCLUDED.rn,
-    split_pct = EXCLUDED.split_pct,
-    operator_tokens = EXCLUDED.operator_tokens,
-    generated_rewards_snapshot_id = EXCLUDED.generated_rewards_snapshot_id
+ON CONFLICT (reward_hash, avs, operator, strategy, snapshot) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold8OperatorODRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {

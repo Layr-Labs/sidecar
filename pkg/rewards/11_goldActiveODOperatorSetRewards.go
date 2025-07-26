@@ -219,8 +219,6 @@ func (r *RewardsCalculator) GenerateGold11ActiveODOperatorSetRewards(snapshotDat
 		return err
 	}
 
-	// query = query + " ON CONFLICT (reward_hash, operator_set_id, strategy, snapshot) DO NOTHING"
-
 	res := r.grm.Exec(query,
 		sql.Named("cutoffDate", snapshotDate),
 	)
@@ -260,17 +258,7 @@ func (rc *RewardsCalculator) CopyTempActiveODOperatorSetRewardsToActiveODOperato
 	query := `
 		insert into {{.destTableName}} (avs, operator_set_id, operator, snapshot, token, amount_decimal, multiplier, strategy, duration, reward_hash, reward_submission_date, num_registered_snapshots, tokens_per_registered_snapshot_decimal, generated_rewards_snapshot_id)
 		select avs, operator_set_id, operator, snapshot, token, amount_decimal, multiplier, strategy, duration, reward_hash, reward_submission_date, num_registered_snapshots, tokens_per_registered_snapshot_decimal, generated_rewards_snapshot_id from {{.tempTableName}}
-		on conflict (reward_hash, operator_set_id, strategy, snapshot) do update set
-			avs = excluded.avs,
-			operator = excluded.operator,
-			token = excluded.token,
-			amount_decimal = excluded.amount_decimal,
-			multiplier = excluded.multiplier,
-			duration = excluded.duration,
-			reward_submission_date = excluded.reward_submission_date,
-			num_registered_snapshots = excluded.num_registered_snapshots,
-			tokens_per_registered_snapshot_decimal = excluded.tokens_per_registered_snapshot_decimal,
-			generated_rewards_snapshot_id = excluded.generated_rewards_snapshot_id
+		on conflict (reward_hash, operator_set_id, strategy, snapshot) do nothing
 	`
 	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
 		"destTableName": destTableName,

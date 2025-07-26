@@ -41,10 +41,11 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 
 	// Find matching tables
 	likeTablesQuery := `
-		SELECT table_schema || '.' || table_name
+		SELECT table_name
 		FROM information_schema.tables
 		WHERE table_type='BASE TABLE'
 			and table_name ~* @pattern
+			and table_schema = 'public'
 	`
 	var tables []string
 	res = grm.Raw(likeTablesQuery, sql.Named("pattern", sm.ExistingTablePattern)).Scan(&tables)
@@ -58,17 +59,6 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 	var totalMigratedRecords int64
 
 	for _, table := range tables {
-		fmt.Printf("Processing table: %s\n", table)
-
-		// Count source records for validation
-		var sourceCount int64
-		countRes := grm.Raw("SELECT COUNT(*) FROM " + table).Scan(&sourceCount)
-		if countRes.Error != nil {
-			return fmt.Errorf("failed to count source records in %s: %w", table, countRes.Error)
-		}
-		totalSourceRecords += sourceCount
-		fmt.Printf("Source table %s has %d records\n", table, sourceCount)
-
 		// Extract date from table name
 		re := regexp.MustCompile(`(202[0-9]_[0-9]{2}_[0-9]{2})$`)
 		match := re.FindStringSubmatch(table)
@@ -92,39 +82,70 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 			return fmt.Errorf("CRITICAL: Invalid snapshot ID (0) found for date: %s. Migration cannot proceed safely", kebabDate)
 		}
 
-		fmt.Printf("Using snapshot ID %d for date %s\n", snapshotId, kebabDate)
-
 		// Migrate data in batches with proper conflict resolution
-		insertBatchSize := 10000
+		insertBatchSize := 300000
 		offset := 0
 		var tableMigratedRecords int64
 
+		// Create a single temp table for this source table to handle ON CONFLICT properly
+		tempTableName := fmt.Sprintf("temp_mig_%d", snapshotId)
+
+		// Create temp table with same structure as SOURCE table + generated_rewards_snapshot_id column
+		createTempQuery := fmt.Sprintf(`
+			CREATE TEMP TABLE %s AS 
+			SELECT *, 0::bigint as generated_rewards_snapshot_id
+			FROM %s WHERE false
+		`, tempTableName, table)
+
+		res := grm.Exec(createTempQuery)
+		if res.Error != nil {
+			return fmt.Errorf("Failed to create temp table for migration: %w", res.Error)
+		}
+
+		// Ensure temp table cleanup on exit
+		defer grm.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName))
+
 		for {
-			// Use INSERT ... ON CONFLICT DO UPDATE to handle duplicates properly
-			// This ensures we don't lose data and maintain consistency
-			query := fmt.Sprintf(`
+			// Insert batch into temp table first
+			insertTempQuery := fmt.Sprintf(`
 				INSERT INTO %s 
-				SELECT *, %d as generated_rewards_snapshot_id 
+				SELECT *, %d 
 				FROM %s 
 				ORDER BY ctid 
-				LIMIT %d OFFSET %d 
-				ON CONFLICT ON CONSTRAINT uniq_%s 
-				DO UPDATE SET 
-					generated_rewards_snapshot_id = EXCLUDED.generated_rewards_snapshot_id
-			`, sm.NewTableName, snapshotId, table, insertBatchSize, offset, sm.NewTableName)
+				LIMIT %d OFFSET %d
+			`, tempTableName, snapshotId, table, insertBatchSize, offset)
 
-			res := grm.Exec(query)
+			res := grm.Exec(insertTempQuery)
 			if res.Error != nil {
-				fmt.Printf("Failed to execute migration query: %s\n", query)
-				return fmt.Errorf("Migration failed for table %s at offset %d: %w", table, offset, res.Error)
+				return fmt.Errorf("Failed to insert batch into temp table: %w", res.Error)
 			}
 
 			rowsAffected := res.RowsAffected
+			if rowsAffected == 0 {
+				break
+			}
+
+			// Move from temp table to final table with conflict resolution
+			moveQuery := fmt.Sprintf(`
+				INSERT INTO %s 
+				SELECT * FROM %s
+				ON CONFLICT ON CONSTRAINT uniq_%s 
+				DO NOTHING
+			`, sm.NewTableName, tempTableName, sm.NewTableName)
+
+			res = grm.Exec(moveQuery)
+			if res.Error != nil {
+				return fmt.Errorf("Migration failed for table %s at offset %d: %w", table, offset, res.Error)
+			}
+
+			// Clear temp table for next batch
+			grm.Exec(fmt.Sprintf("DELETE FROM %s", tempTableName))
+
 			tableMigratedRecords += rowsAffected
 			fmt.Printf("Migrated %d records from %s (offset %d)\n", rowsAffected, table, offset)
 
-			// If no rows were affected, we're done with this table
-			if rowsAffected == 0 {
+			// If we got fewer rows than batch size, we're done
+			if rowsAffected < int64(insertBatchSize) {
 				break
 			}
 
@@ -185,7 +206,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			);`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_1_active_rewards add constraint uniq_rewards_gold_1_active_rewards unique (avs, reward_hash, strategy, snapshot);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_1_active_rewards') THEN
+						ALTER TABLE rewards_gold_1_active_rewards ADD CONSTRAINT uniq_rewards_gold_1_active_rewards UNIQUE (avs, reward_hash, strategy, snapshot);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_1_active_rewards",
 			ExistingTablePattern: "gold_[0-9]+_active_rewards_[0-9_]+$",
@@ -216,7 +242,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			);`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_2_staker_reward_amounts add constraint uniq_rewards_gold_2_staker_reward_amounts unique (reward_hash, staker, avs, strategy, snapshot);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_2_staker_reward_amounts') THEN
+						ALTER TABLE rewards_gold_2_staker_reward_amounts ADD CONSTRAINT uniq_rewards_gold_2_staker_reward_amounts UNIQUE (reward_hash, staker, avs, strategy, snapshot);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_2_staker_reward_amounts",
 			ExistingTablePattern: "gold_[0-9]+_staker_reward_amounts_[0-9_]+$",
@@ -238,7 +269,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			)`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_3_operator_reward_amounts add constraint uniq_rewards_gold_3_operator_reward_amounts unique (reward_hash, avs, operator, strategy, snapshot);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_3_operator_reward_amounts') THEN
+						ALTER TABLE rewards_gold_3_operator_reward_amounts ADD CONSTRAINT uniq_rewards_gold_3_operator_reward_amounts UNIQUE (reward_hash, avs, operator, strategy, snapshot);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_3_operator_reward_amounts",
 			ExistingTablePattern: "gold_[0-9]+_operator_reward_amounts_[0-9_]+$",
@@ -264,7 +300,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			)`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_4_rewards_for_all add constraint uniq_rewards_gold_4_rewards_for_all unique (reward_hash, avs, staker, strategy, snapshot);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_4_rewards_for_all') THEN
+						ALTER TABLE rewards_gold_4_rewards_for_all ADD CONSTRAINT uniq_rewards_gold_4_rewards_for_all UNIQUE (reward_hash, avs, staker, strategy, snapshot);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_4_rewards_for_all",
 			ExistingTablePattern: "gold_[0-9]+_rewards_for_all_[0-9_]+$",
@@ -295,7 +336,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			)`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_5_rfae_stakers add constraint uniq_rewards_gold_5_rfae_stakers unique (reward_hash, avs, staker, operator, strategy, snapshot);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_5_rfae_stakers') THEN
+						ALTER TABLE rewards_gold_5_rfae_stakers ADD CONSTRAINT uniq_rewards_gold_5_rfae_stakers UNIQUE (reward_hash, avs, staker, operator, strategy, snapshot);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_5_rfae_stakers",
 			ExistingTablePattern: "gold_[0-9]+_rfae_stakers_[0-9_]+$",
@@ -317,7 +363,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			);`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_6_rfae_operators add constraint uniq_rewards_gold_6_rfae_operators unique (reward_hash, avs, operator, strategy, snapshot);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_6_rfae_operators') THEN
+						ALTER TABLE rewards_gold_6_rfae_operators ADD CONSTRAINT uniq_rewards_gold_6_rfae_operators UNIQUE (reward_hash, avs, operator, strategy, snapshot);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_6_rfae_operators",
 			ExistingTablePattern: "gold_[0-9]+_rfae_operators_[0-9_]+$",
@@ -340,7 +391,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			);`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_7_active_od_rewards add constraint uniq_rewards_gold_7_active_od_rewards unique (reward_hash, avs, operator, strategy, snapshot);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_7_active_od_rewards') THEN
+						ALTER TABLE rewards_gold_7_active_od_rewards ADD CONSTRAINT uniq_rewards_gold_7_active_od_rewards UNIQUE (reward_hash, avs, operator, strategy, snapshot);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_7_active_od_rewards",
 			ExistingTablePattern: "gold_[0-9]+_active_od_rewards_[0-9_]+$",
@@ -363,7 +419,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			);`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_8_operator_od_reward_amounts add constraint uniq_rewards_gold_8_operator_od_reward_amounts unique (reward_hash, avs, operator, strategy, snapshot);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_8_operator_od_reward_amounts') THEN
+						ALTER TABLE rewards_gold_8_operator_od_reward_amounts ADD CONSTRAINT uniq_rewards_gold_8_operator_od_reward_amounts UNIQUE (reward_hash, avs, operator, strategy, snapshot);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_8_operator_od_reward_amounts",
 			ExistingTablePattern: "gold_[0-9]+_operator_od_reward_amounts_[0-9_]+$",
@@ -391,7 +452,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			);`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_9_staker_od_reward_amounts add constraint uniq_rewards_gold_9_staker_od_reward_amounts unique (reward_hash, avs, operator, staker, strategy, snapshot);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_9_staker_od_reward_amounts') THEN
+						ALTER TABLE rewards_gold_9_staker_od_reward_amounts ADD CONSTRAINT uniq_rewards_gold_9_staker_od_reward_amounts UNIQUE (reward_hash, avs, operator, staker, strategy, snapshot);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_9_staker_od_reward_amounts",
 			ExistingTablePattern: "gold_[0-9]+_staker_od_reward_amounts_[0-9_]+$",
@@ -408,7 +474,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			);`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_10_avs_od_reward_amounts add constraint uniq_rewards_gold_10_avs_od_reward_amounts unique (reward_hash, avs, operator, snapshot);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_10_avs_od_reward_amounts') THEN
+						ALTER TABLE rewards_gold_10_avs_od_reward_amounts ADD CONSTRAINT uniq_rewards_gold_10_avs_od_reward_amounts UNIQUE (reward_hash, avs, operator, snapshot);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_10_avs_od_reward_amounts",
 			ExistingTablePattern: "gold_[0-9]+_avs_od_reward_amounts_[0-9_]+$",
@@ -432,7 +503,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			);`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_11_active_od_operator_set_rewards add constraint uniq_rewards_gold_11_active_od_operator_set_rewards unique (reward_hash, operator_set_id, strategy, snapshot);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_11_active_od_operator_set_rewards') THEN
+						ALTER TABLE rewards_gold_11_active_od_operator_set_rewards ADD CONSTRAINT uniq_rewards_gold_11_active_od_operator_set_rewards UNIQUE (reward_hash, operator_set_id, strategy, snapshot);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_11_active_od_operator_set_rewards",
 			ExistingTablePattern: "gold_[0-9]+_active_od_operator_set_rewards_[0-9_]+$",
@@ -456,7 +532,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			);`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_12_operator_od_operator_set_reward_amounts add constraint uniq_rewards_gold_12_operator_od_operator_set_reward_amounts unique (reward_hash, operator_set_id, operator, strategy, snapshot);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_12_operator_od_operator_set_reward_amounts') THEN
+						ALTER TABLE rewards_gold_12_operator_od_operator_set_reward_amounts ADD CONSTRAINT uniq_rewards_gold_12_operator_od_operator_set_reward_amounts UNIQUE (reward_hash, operator_set_id, operator, strategy, snapshot);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_12_operator_od_operator_set_reward_amounts",
 			ExistingTablePattern: "gold_[0-9]+_operator_od_operator_set_reward_amounts_[0-9_]+$",
@@ -485,7 +566,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			);`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_13_staker_od_operator_set_reward_amounts add constraint uniq_rewards_gold_13_staker_od_operator_set_reward_amounts unique (reward_hash, snapshot, operator_set_id, operator, strategy);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_13_staker_od_operator_set_reward_amounts') THEN
+						ALTER TABLE rewards_gold_13_staker_od_operator_set_reward_amounts ADD CONSTRAINT uniq_rewards_gold_13_staker_od_operator_set_reward_amounts UNIQUE (reward_hash, snapshot, operator_set_id, operator, strategy);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_13_staker_od_operator_set_reward_amounts",
 			ExistingTablePattern: "gold_[0-9]+_staker_od_operator_set_reward_amounts_[0-9_]+$",
@@ -503,7 +589,12 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			);`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_14_avs_od_operator_set_reward_amounts add constraint uniq_rewards_gold_14_avs_od_operator_set_reward_amounts unique (reward_hash, snapshot, operator_set_id, operator, token);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_14_avs_od_operator_set_reward_amounts') THEN
+						ALTER TABLE rewards_gold_14_avs_od_operator_set_reward_amounts ADD CONSTRAINT uniq_rewards_gold_14_avs_od_operator_set_reward_amounts UNIQUE (reward_hash, snapshot, operator_set_id, operator, token);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_14_avs_od_operator_set_reward_amounts",
 			ExistingTablePattern: "gold_[0-9]+_avs_od_operator_set_reward_amounts_[0-9_]+$",
@@ -519,9 +610,37 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
     			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
 			);`,
 			PreDataMigrationQueries: []string{
-				`alter table rewards_gold_staging add constraint uniq_rewards_gold_staging unique (earner, token, reward_hash, snapshot);`,
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_staging') THEN
+						ALTER TABLE rewards_gold_staging ADD CONSTRAINT uniq_rewards_gold_staging UNIQUE (earner, token, reward_hash, snapshot);
+					END IF;
+				END $$;`,
 			},
 			NewTableName:         "rewards_gold_staging",
+			ExistingTablePattern: "^$",
+		},
+		{
+			CreateTableQuery: `
+				DROP TABLE IF EXISTS gold_table;
+				CREATE TABLE gold_table (
+					earner      varchar,
+					snapshot    date,
+					reward_hash varchar,
+					token       varchar,
+					amount      numeric,
+					generated_rewards_snapshot_id bigint,
+					FOREIGN KEY (generated_rewards_snapshot_id) REFERENCES generated_rewards_snapshots (id) ON DELETE CASCADE
+				);`,
+			PreDataMigrationQueries: []string{
+				`DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_gold_table') THEN
+						ALTER TABLE gold_table ADD CONSTRAINT uniq_gold_table UNIQUE (earner, token, reward_hash, snapshot);
+					END IF;
+				END $$;`,
+			},
+			NewTableName:         "gold_table",
 			ExistingTablePattern: "gold_[0-9]+_staging_[0-9_]+$",
 		},
 	}
@@ -538,29 +657,6 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
-
-	// CRITICAL: Populate gold_table from consolidated staging data
-	// This is the final step that enables merkle tree calculation
-	fmt.Printf("Populating gold_table from consolidated staging data\n")
-	populateGoldTableQuery := `
-		INSERT INTO gold_table (earner, snapshot, token, amount, reward_hash)
-		SELECT
-			earner,
-			snapshot,
-			token,
-			amount,
-			reward_hash
-		FROM rewards_gold_staging
-		ON CONFLICT (earner, snapshot, token, reward_hash) DO UPDATE SET
-			amount = EXCLUDED.amount
-	`
-
-	res := grm.Exec(populateGoldTableQuery)
-	if res.Error != nil {
-		return fmt.Errorf("Failed to populate gold_table from staging data: %w", res.Error)
-	}
-
-	fmt.Printf("Successfully populated gold_table with %d records\n", res.RowsAffected)
 
 	return nil
 }

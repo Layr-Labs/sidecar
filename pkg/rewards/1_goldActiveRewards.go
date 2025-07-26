@@ -179,14 +179,7 @@ func (r *RewardsCalculator) CopyTempActiveRewardsToActiveRewards(snapshotDate st
 	query := `
 		insert into {{.destTableName}} (avs, snapshot, token, tokens_per_day, tokens_per_day_decimal, multiplier, strategy, reward_hash, reward_type, reward_submission_date, generated_rewards_snapshot_id)
 		select avs, snapshot, token, tokens_per_day, tokens_per_day_decimal, multiplier, strategy, reward_hash, reward_type, reward_submission_date, generated_rewards_snapshot_id from {{.tempTableName}}
-		on conflict (avs, reward_hash, strategy, snapshot) do update set
-			tokens_per_day = excluded.tokens_per_day,
-			tokens_per_day_decimal = excluded.tokens_per_day_decimal,
-			token = excluded.token,
-			multiplier = excluded.multiplier,
-			reward_type = excluded.reward_type,
-			reward_submission_date = excluded.reward_submission_date,
-			generated_rewards_snapshot_id = excluded.generated_rewards_snapshot_id
+		on conflict (avs, reward_hash, strategy, snapshot) do nothing
 	`
 	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
 		"destTableName": destTableName,

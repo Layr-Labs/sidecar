@@ -120,20 +120,7 @@ staker_reward_amounts AS (
 )
 -- Output the final table
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM staker_reward_amounts
-ON CONFLICT (reward_hash, avs, operator, staker, strategy, snapshot)
-DO UPDATE SET
-    token = EXCLUDED.token,
-    tokens_per_registered_snapshot_decimal = EXCLUDED.tokens_per_registered_snapshot_decimal,
-    multiplier = EXCLUDED.multiplier,
-    reward_submission_date = EXCLUDED.reward_submission_date,
-    staker_split = EXCLUDED.staker_split,
-    shares = EXCLUDED.shares,
-    staker_weight = EXCLUDED.staker_weight,
-    rn = EXCLUDED.rn,
-    total_weight = EXCLUDED.total_weight,
-    staker_proportion = EXCLUDED.staker_proportion,
-    staker_tokens = EXCLUDED.staker_tokens,
-    generated_rewards_snapshot_id = EXCLUDED.generated_rewards_snapshot_id
+ON CONFLICT (reward_hash, avs, operator, staker, strategy, snapshot) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold9StakerODRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {

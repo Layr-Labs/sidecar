@@ -14,10 +14,10 @@ SELECT
     snapshot,
     token,
     amount,
-    reward_hash
+    reward_hash,
+	generated_rewards_snapshot_id
 FROM {{.goldStagingTable}}
-ON CONFLICT (earner, snapshot, token, reward_hash) DO UPDATE SET
-    amount = EXCLUDED.amount
+ON CONFLICT (earner, snapshot, token, reward_hash) DO NOTHING
 `
 
 type GoldRow struct {

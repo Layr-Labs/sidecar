@@ -58,11 +58,7 @@ operator_token_sums AS (
 
 -- Step 4: Output the final table
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM operator_token_sums
-ON CONFLICT (reward_hash, avs, operator, snapshot)
-DO UPDATE SET
-    token = EXCLUDED.token,
-    avs_tokens = EXCLUDED.avs_tokens,
-    generated_rewards_snapshot_id = EXCLUDED.generated_rewards_snapshot_id
+ON CONFLICT (reward_hash, avs, operator, snapshot) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
