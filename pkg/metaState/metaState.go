@@ -3,6 +3,8 @@ package metaState
 import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/executorOperatorSetRegistered"
+	"github.com/Layr-Labs/sidecar/pkg/metaState/generationReservationCreated"
+	"github.com/Layr-Labs/sidecar/pkg/metaState/generationReservationRemoved"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/metaStateManager"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/rewardsClaimed"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/taskCreated"
@@ -34,6 +36,16 @@ func LoadMetaStateModels(
 
 	if _, err := taskVerified.NewTaskVerifiedModel(db, l, cfg, msm); err != nil {
 		l.Sugar().Errorw("Failed to create TaskVerifiedModel", zap.Error(err))
+		return err
+	}
+
+	if _, err := generationReservationCreated.NewGenerationReservationCreatedModel(db, l, cfg, msm); err != nil {
+		l.Sugar().Errorw("Failed to create GenerationReservationCreatedModel", zap.Error(err))
+		return err
+	}
+
+	if _, err := generationReservationRemoved.NewGenerationReservationRemovedModel(db, l, cfg, msm); err != nil {
+		l.Sugar().Errorw("Failed to create GenerationReservationRemovedModel", zap.Error(err))
 		return err
 	}
 
