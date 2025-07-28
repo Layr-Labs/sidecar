@@ -19,7 +19,7 @@ func (*RewardsClaimed) TableName() string {
 type ExecutorOperatorSetRegistered struct {
 	Caller                string
 	Avs                   string
-	ExecutorOperatorSetId string
+	ExecutorOperatorSetId uint32
 	IsRegistered          bool
 	TransactionHash       string
 	BlockNumber           uint64
