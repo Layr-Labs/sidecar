@@ -15,7 +15,6 @@ SELECT
     token,
     amount,
     reward_hash,
-	generated_rewards_snapshot_id
 FROM {{.goldStagingTable}}
 ON CONFLICT (earner, snapshot, token, reward_hash) DO NOTHING
 `

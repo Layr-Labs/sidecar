@@ -215,6 +215,12 @@ func (rc *RewardsCalculator) GetRewardSnapshotStatus(snapshotDate string) (*stor
 		}
 		return nil, res.Error
 	}
+
+	// Check if any rows were returned - if not, return nil
+	if res.RowsAffected == 0 {
+		return nil, nil
+	}
+
 	return r, nil
 }
 
@@ -390,7 +396,6 @@ func (rc *RewardsCalculator) findGeneratedRewardSnapshotByBlock(blockHeight uint
 	return &generatedRewardSnapshots, nil
 }
 
-//nolint:unused
 func (rc *RewardsCalculator) findRewardsTablesBySnapshotDate(snapshotDate string) ([]string, error) {
 	schemaName := rc.globalConfig.DatabaseConfig.SchemaName
 	if schemaName == "" {
@@ -432,63 +437,32 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 		return res.Error
 	}
 
-	// If no previous snapshot found, we'll delete all data from the tables
-	var previousSnapshotId uint64 = 0
-	if previousSnapshot != nil {
-		previousSnapshotId = previousSnapshot.Id
-	}
-
 	for _, tableName := range rewardsUtils.RewardsTableBaseNames {
 		rc.logger.Sugar().Infow("Deleting rows from rewards table", "tableName", tableName)
 
 		var dropQuery string
+		var res *gorm.DB
+
+		// gold_table has a different structure and needs to be deleted based on snapshot date
 		if tableName == rewardsUtils.RewardsTable_GoldTable {
-			// gold_table doesn't have generated_rewards_snapshot_id, use snapshot date instead
 			dropQuery = fmt.Sprintf("delete from %s where snapshot >= @snapshotDate", tableName)
-			res := rc.grm.Exec(dropQuery, sql.Named("snapshotDate", generatedSnapshot.SnapshotDate))
-			if res.Error != nil {
-				rc.logger.Sugar().Errorw("Failed to delete rows from rewards table", "error", res.Error, "tableName", tableName)
-				return res.Error
-			}
-			rc.logger.Sugar().Infow("Deleted rows from rewards table",
-				"tableName", tableName,
-				"recordsDeleted", res.RowsAffected)
+			res = rc.grm.Exec(dropQuery, sql.Named("snapshotDate", previousSnapshot.SnapshotDate))
 		} else {
-			// Regular tables use generated_rewards_snapshot_id
-			if previousSnapshotId == 0 {
-				// No previous snapshot, delete all data
-				dropQuery = fmt.Sprintf("delete from %s", tableName)
-				res := rc.grm.Exec(dropQuery)
-				if res.Error != nil {
-					rc.logger.Sugar().Errorw("Failed to delete rows from rewards table", "error", res.Error, "tableName", tableName)
-					return res.Error
-				}
-				rc.logger.Sugar().Infow("Deleted all rows from rewards table",
-					"tableName", tableName,
-					"recordsDeleted", res.RowsAffected)
-			} else {
-				dropQuery = fmt.Sprintf("delete from %s where generated_rewards_snapshot_id >= @generatedRewardsSnapshotId", tableName)
-				res := rc.grm.Exec(dropQuery, sql.Named("generatedRewardsSnapshotId", previousSnapshotId))
-				if res.Error != nil {
-					rc.logger.Sugar().Errorw("Failed to delete rows from rewards table", "error", res.Error, "tableName", tableName)
-					return res.Error
-				}
-				rc.logger.Sugar().Infow("Deleted rows from rewards table",
-					"tableName", tableName,
-					"recordsDeleted", res.RowsAffected)
-			}
+			dropQuery = fmt.Sprintf("delete from %s where generated_rewards_snapshot_id >= @generatedRewardsSnapshotId", tableName)
+			res = rc.grm.Exec(dropQuery, sql.Named("generatedRewardsSnapshotId", previousSnapshot.Id))
 		}
+
+		if res.Error != nil {
+			rc.logger.Sugar().Errorw("Failed to delete rows from rewards table", "error", res.Error, "tableName", tableName)
+			return res.Error
+		}
+		rc.logger.Sugar().Infow("Deleted rows from rewards table",
+			"tableName", tableName,
+			"recordsDeleted", res.RowsAffected)
 	}
 
-	// Also delete from generated_rewards_snapshots table
-	if previousSnapshotId == 0 {
-		// No previous snapshot, delete all snapshots from the generated one onwards
-		res = rc.grm.Exec("delete from generated_rewards_snapshots where id >= @generatedRewardsSnapshotId",
-			sql.Named("generatedRewardsSnapshotId", generatedSnapshot.Id))
-	} else {
-		res = rc.grm.Exec("delete from generated_rewards_snapshots where id >= @generatedRewardsSnapshotId",
-			sql.Named("generatedRewardsSnapshotId", previousSnapshotId))
-	}
+	res = rc.grm.Exec("delete from generated_rewards_snapshots where id >= @generatedRewardsSnapshotId",
+		sql.Named("generatedRewardsSnapshotId", previousSnapshot.Id))
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to delete from generated_rewards_snapshots", "error", res.Error)
 		return res.Error
@@ -628,109 +602,106 @@ func (rc *RewardsCalculator) isValidSnapshotDate(snapshotDate time.Time) bool {
 func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	var err error
 
-	rc.logger.Sugar().Infow("Generating combined rewards", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertCombinedRewards(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate combined rewards", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated combined rewards")
 
-	rc.logger.Sugar().Infow("Generating staker shares", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertStakerShares(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker shares", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated staker shares")
 
-	rc.logger.Sugar().Infow("Generating operator shares", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertOperatorShares(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator shares", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated operator shares")
 
-	rc.logger.Sugar().Infow("Generating operator AVS registration snapshots", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator AVS registration snapshots", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated operator AVS registration snapshots")
 
-	rc.logger.Sugar().Infow("Generating operator AVS strategy snapshots", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertOperatorAvsStrategySnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator AVS strategy snapshots", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated operator AVS strategy snapshots")
 
-	rc.logger.Sugar().Infow("Generating operator share snapshots", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertOperatorShareSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated operator share snapshots")
 
-	rc.logger.Sugar().Infow("Generating staker share snapshots", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertStakerShareSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated staker share snapshots")
 
-	rc.logger.Sugar().Infow("Generating staker delegation snapshots", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertStakerDelegationSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated staker delegation snapshots")
 
 	// ------------------------------------------------------------------------
 	// Rewards V2 snapshots
 	// ------------------------------------------------------------------------
-
-	rc.logger.Sugar().Infow("Generating operator directed rewards", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertOperatorDirectedRewards(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator directed rewards", "error", err)
 		return err
 	}
-
-	rc.logger.Sugar().Infow("Generating operator avs split snapshots", zap.String("snapshotDate", snapshotDate))
+	rc.logger.Sugar().Debugw("Generated operator directed rewards")
 	if err = rc.GenerateAndInsertOperatorAvsSplitSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator avs split snapshots", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated operator avs split snapshots")
 
-	rc.logger.Sugar().Infow("Generating operator PI split snapshots", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertOperatorPISplitSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator pi snapshots", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated operator pi snapshots")
 
-	rc.logger.Sugar().Infow("Generating default operator split snapshots", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertDefaultOperatorSplitSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate default operator split snapshots", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated default operator split snapshots")
 
 	// ------------------------------------------------------------------------
 	// Rewards V2.1 snapshots
 	// ------------------------------------------------------------------------
-
-	rc.logger.Sugar().Infow("Generating operator directed operator set rewards", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertOperatorDirectedOperatorSetRewards(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator directed operator set rewards", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated operator directed operator set rewards")
 
-	rc.logger.Sugar().Infow("Generating operator set split snapshots", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertOperatorSetSplitSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator set split snapshots", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated operator set split snapshots")
 
-	rc.logger.Sugar().Infow("Generating operator set operator registration snapshots", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertOperatorSetOperatorRegistrationSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator set operator registration snapshots", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated operator set operator registration snapshots")
 
-	rc.logger.Sugar().Infow("Generating operator set strategy registration snapshots", zap.String("snapshotDate", snapshotDate))
 	if err = rc.GenerateAndInsertOperatorSetStrategyRegistrationSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator set strategy registration snapshots", "error", err)
 		return err
 	}
+	rc.logger.Sugar().Debugw("Generated operator set strategy registration snapshots")
 
 	return nil
 }
@@ -817,22 +788,6 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string, generatedSn
 
 	if err := rc.GenerateGold16FinalTable(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate final table", "error", err)
-		return err
-	}
-
-	// handle temp tables
-	if err := rc.CopyTempActiveRewardsToActiveRewards(snapshotDate, generatedSnapshotId); err != nil {
-		rc.logger.Sugar().Errorw("Failed to copy temp active rewards to active rewards", "error", err)
-		return err
-	}
-
-	if err := rc.CopyTempActiveODRewardsToActiveODRewards(snapshotDate, generatedSnapshotId); err != nil {
-		rc.logger.Sugar().Errorw("Failed to copy temp od active rewards to active od rewards", "error", err)
-		return err
-	}
-
-	if err := rc.CopyTempActiveODOperatorSetRewardsToActiveODOperatorSetRewards(snapshotDate, generatedSnapshotId); err != nil {
-		rc.logger.Sugar().Errorw("Failed to copy temp active od operator set rewards to active od operator set rewards", "error", err)
 		return err
 	}
 
