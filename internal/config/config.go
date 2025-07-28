@@ -364,7 +364,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			DelegationManager:  "0x75dfe5b44c2e530568001400d3f704bc8ae350cc",
 			AvsDirectory:       "0x141d6995556135d4997b2ff72eb443be300353bc",
 			AllocationManager:  "0xfdd5749e11977d60850e06bf5b13221ad95eb6b4",
-			TaskMailbox:        "0x0000000000000000000000000000000000000000", // TODO: Add actual TaskManager address
+			TaskMailbox:        "0xf4a4765121119552ccaabb8ae5e6997e83b3b96d",
 		}
 	} else if c.Chain == Chain_Holesky {
 		return &ContractAddresses{
@@ -384,7 +384,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			EigenpodManager:    "0x56bfeb94879f4543e756d26103976c567256034a",
 			RewardsCoordinator: "0x5ae8152fb88c26ff9ca5c014c94fca3c68029349",
 			StrategyManager:    "0x2e3d6c0744b10eb0a4e6f679f71554a39ec47a5d",
-			TaskMailbox:        "0x0000000000000000000000000000000000000000", // TODO: Add actual TaskManager address
+			TaskMailbox:        "0xb99cc53e8db7018f557606c2a5b066527bf96b26",
 		}
 	} else if c.Chain == Chain_Hoodi {
 		return &ContractAddresses{
