@@ -85,7 +85,7 @@ func (eosrm *ExecutorOperatorSetRegisteredModel) HandleTransactionLog(log *stora
 	registered := &types.ExecutorOperatorSetRegistered{
 		Caller:                strings.ToLower(arguments[0].Value.(string)),
 		Avs:                   strings.ToLower(arguments[1].Value.(string)),
-		ExecutorOperatorSetId: strings.ToLower(arguments[2].Value.(string)),
+		ExecutorOperatorSetId: uint32(arguments[2].Value.(float64)),
 		IsRegistered:          outputData.IsRegistered,
 		BlockNumber:           log.BlockNumber,
 		TransactionHash:       log.TransactionHash,
