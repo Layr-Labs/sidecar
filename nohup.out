@@ -803,3 +803,4 @@ created by net/http.(*Server).Serve in goroutine 56
 {"level":"info","ts":"2025-08-05T11:00:02.039-0400","caller":"sidecar/blockIndexer.go:329","msg":"New tip found, updating","latestTip":23075584,"currentTip":23075552}
 {"level":"info","ts":"2025-08-05T11:06:02.682-0400","caller":"sidecar/blockIndexer.go:329","msg":"New tip found, updating","latestTip":23075616,"currentTip":23075584}
 {"level":"info","ts":"2025-08-05T11:12:33.254-0400","caller":"sidecar/blockIndexer.go:329","msg":"New tip found, updating","latestTip":23075648,"currentTip":23075616}
+{"level":"info","ts":"2025-08-05T11:19:03.780-0400","caller":"sidecar/blockIndexer.go:329","msg":"New tip found, updating","latestTip":23075680,"currentTip":23075648}
