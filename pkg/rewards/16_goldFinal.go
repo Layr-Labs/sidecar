@@ -14,7 +14,7 @@ SELECT
     snapshot,
     token,
     amount,
-    reward_hash,
+    reward_hash
 FROM {{.goldStagingTable}}
 ON CONFLICT (earner, snapshot, token, reward_hash) DO NOTHING
 `
