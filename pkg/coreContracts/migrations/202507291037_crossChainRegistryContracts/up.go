@@ -2,6 +2,7 @@ package _202507291037_crossChainRegistryContracts
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
@@ -15,7 +16,7 @@ import (
 type ContractMigration struct{}
 
 func (m *ContractMigration) Up(db *gorm.DB, cs contractStore.ContractStore, l *zap.Logger, cfg *config.Config) (*types.MigrationResult, error) {
-	if cfg.Chain != config.Chain_Preprod && cfg.Chain != config.Chain_Sepolia {
+	if !slices.Contains([]config.Chain{config.Chain_Preprod, config.Chain_Sepolia}, cfg.Chain) {
 		return nil, nil
 	}
 
