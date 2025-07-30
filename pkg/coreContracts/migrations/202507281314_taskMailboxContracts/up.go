@@ -15,6 +15,11 @@ import (
 type ContractMigration struct{}
 
 func (m *ContractMigration) Up(db *gorm.DB, cs contractStore.ContractStore, l *zap.Logger, cfg *config.Config) (*types.MigrationResult, error) {
+	// Only migrate TaskMailbox contracts for preprod and sepolia chains
+	if cfg.Chain != config.Chain_Preprod && cfg.Chain != config.Chain_Sepolia {
+		return nil, nil
+	}
+
 	contractsMap := cfg.GetContractsMapForChain()
 	if contractsMap == nil {
 		l.Sugar().Errorw("No contracts map found for chain", zap.String("chain", cfg.Chain.String()))
@@ -29,8 +34,8 @@ func (m *ContractMigration) Up(db *gorm.DB, cs contractStore.ContractStore, l *z
 
 	implementationAddress, exists := taskMailboxImplementationAddresses[cfg.Chain]
 	if !exists {
-		l.Sugar().Errorw("No TaskMailbox implementation address found for chain", zap.String("chain", cfg.Chain.String()))
-		return nil, fmt.Errorf("no TaskMailbox implementation address found for chain: %s", cfg.Chain.String())
+		l.Sugar().Infow("No TaskMailbox implementation address found for chain, skipping migration", zap.String("chain", cfg.Chain.String()))
+		return nil, nil
 	}
 
 	contractsToImport := &helpers.ContractsToImport{
