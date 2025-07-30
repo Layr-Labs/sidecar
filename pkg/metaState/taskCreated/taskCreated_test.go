@@ -64,7 +64,7 @@ func Test_TaskCreated(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856801",
 			TransactionIndex: 77,
-			Address:          "0x0000000000000000000000000000000000000000", // TaskManager address
+			Address:          "0x0000000000000000000000000000000000000000", // TaskMailbox address
 			Arguments:        `[{"Name": "creator", "Type": "address", "Value": "0x3449fe2810b0a5f6dffc62b8b6ee6b732dfe4438", "Indexed": true}, {"Name": "taskHash", "Type": "bytes32", "Value": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0x1234567890abcdef1234567890abcdef12345678", "Indexed": true}]`,
 			EventName:        "TaskCreated",
 			OutputData:       `{"executorOperatorSetId": 123, "refundCollector": "0x9876543210fedcba9876543210fedcba98765432", "avsFee": 1000000000000000000, "taskDeadline": 1640995200, "payload": "0x48656c6c6f20576f726c64"}`,
@@ -122,7 +122,7 @@ func Test_TaskCreated(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856802",
 			TransactionIndex: 78,
-			Address:          "0x0000000000000000000000000000000000000000", // TaskManager address
+			Address:          "0x0000000000000000000000000000000000000000", // TaskMailbox address
 			Arguments:        `[{"Name": "creator", "Type": "address", "Value": "0x1111111111111111111111111111111111111111", "Indexed": true}, {"Name": "taskHash", "Type": "bytes32", "Value": "0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0x2222222222222222222222222222222222222222", "Indexed": true}]`,
 			EventName:        "TaskCreated",
 			OutputData:       `{"executorOperatorSetId": 456, "refundCollector": "0x3333333333333333333333333333333333333333", "avsFee": 500000000000000000, "taskDeadline": 1640999999, "payload": "0x"}`,

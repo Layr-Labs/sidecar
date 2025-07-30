@@ -64,7 +64,7 @@ func Test_TaskVerified(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856801",
 			TransactionIndex: 77,
-			Address:          "0x0000000000000000000000000000000000000000", // TaskManager address
+			Address:          "0x0000000000000000000000000000000000000000", // TaskMailbox address
 			Arguments:        `[{"Name": "aggregator", "Type": "address", "Value": "0x3449fe2810b0a5f6dffc62b8b6ee6b732dfe4438", "Indexed": true}, {"Name": "taskHash", "Type": "bytes32", "Value": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0x1234567890abcdef1234567890abcdef12345678", "Indexed": true}]`,
 			EventName:        "TaskVerified",
 			OutputData:       `{"executorOperatorSetId": 123, "executorCert": "0x546573742063657274696669636174652064617461", "result": "0x5465737420726573756c742064617461"}`,
@@ -120,7 +120,7 @@ func Test_TaskVerified(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856802",
 			TransactionIndex: 78,
-			Address:          "0x0000000000000000000000000000000000000000", // TaskManager address
+			Address:          "0x0000000000000000000000000000000000000000", // TaskMailbox address
 			Arguments:        `[{"Name": "aggregator", "Type": "address", "Value": "0x1111111111111111111111111111111111111111", "Indexed": true}, {"Name": "taskHash", "Type": "bytes32", "Value": "0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0x2222222222222222222222222222222222222222", "Indexed": true}]`,
 			EventName:        "TaskVerified",
 			OutputData:       `{"executorOperatorSetId": 456, "executorCert": "0x", "result": "0x"}`,
@@ -176,7 +176,7 @@ func Test_TaskVerified(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856803",
 			TransactionIndex: 79,
-			Address:          "0x0000000000000000000000000000000000000000", // TaskManager address
+			Address:          "0x0000000000000000000000000000000000000000", // TaskMailbox address
 			Arguments:        `[{"Name": "aggregator", "Type": "address", "Value": "0x5555555555555555555555555555555555555555", "Indexed": true}, {"Name": "taskHash", "Type": "bytes32", "Value": "0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0x6666666666666666666666666666666666666666", "Indexed": true}]`,
 			EventName:        "TaskVerified",
 			OutputData:       `{"executorOperatorSetId": 789, "executorCert": "0x4c6f6e67206578656375746f722063657274696669636174652064617461207769746820612076657279206c6f6e67206465736372697074696f6e20746f2074657374206c6172676520646174612068616e646c696e67", "result": "0x4c6f6e67207461736b20726573756c742064617461207769746820612076657279206c6f6e67206465736372697074696f6e20746f2074657374206c6172676520646174612068616e646c696e67"}`,
