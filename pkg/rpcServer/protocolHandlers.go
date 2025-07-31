@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/types"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (rpc *RpcServer) GetRegisteredAvsForOperator(ctx context.Context, request *protocolV1.GetRegisteredAvsForOperatorRequest) (*protocolV1.GetRegisteredAvsForOperatorResponse, error) {
@@ -102,19 +103,46 @@ func (rpc *RpcServer) GetDelegatedStakersForOperator(ctx context.Context, reques
 }
 
 func (rpc *RpcServer) GetStakerShares(ctx context.Context, request *protocolV1.GetStakerSharesRequest) (*protocolV1.GetStakerSharesResponse, error) {
-	shares, err := rpc.protocolDataService.ListStakerShares(ctx, request.GetStakerAddress(), request.GetBlockHeight())
+	// Validate required fields
+	stakerAddress := request.GetStakerAddress()
+	if stakerAddress == "" {
+		return nil, errors.New("staker address is required")
+	}
+
+	startBlock := request.GetStartBlock()
+	endBlock := request.GetEndBlock()
+	if (startBlock > 0 && endBlock == 0) || (startBlock == 0 && endBlock > 0) {
+		return nil, errors.New("start_block and end_block must be provided together")
+	}
+	if startBlock > endBlock {
+		return nil, errors.New("start_block cannot be greater than end_block")
+	}
+
+	// Use start_block and end_block parameters
+	shares, err := rpc.protocolDataService.ListStakerShares(ctx, stakerAddress, request.GetStrategy(), startBlock, endBlock)
 	if err != nil {
 		return nil, err
 	}
 
 	stakerShares := make([]*protocolV1.StakerShare, 0, len(shares))
 	for _, share := range shares {
-		stakerShares = append(stakerShares, &protocolV1.StakerShare{
+		stakerShare := &protocolV1.StakerShare{
 			Strategy:        share.Strategy,
 			Shares:          share.Shares,
 			OperatorAddress: share.Operator,
 			AvsAddresses:    share.AvsAddresses,
-		})
+		}
+
+		if startBlock > 0 && endBlock > 0 {
+			stakerShare.BlockHeight = &share.BlockHeight
+			if share.BlockTime != nil {
+				stakerShare.BlockTime = timestamppb.New(*share.BlockTime)
+			}
+			stakerShare.TransactionHash = share.TransactionHash
+			stakerShare.LogIndex = share.LogIndex
+		}
+
+		stakerShares = append(stakerShares, stakerShare)
 	}
 
 	return &protocolV1.GetStakerSharesResponse{
