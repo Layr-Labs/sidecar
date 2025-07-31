@@ -25,7 +25,7 @@ func setup() (
 	error,
 ) {
 	cfg := config.NewConfig()
-	cfg.Chain = config.Chain_Mainnet
+	cfg.Chain = config.Chain_Sepolia
 	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
@@ -64,7 +64,7 @@ func Test_GenerationReservationRemoved(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856801",
 			TransactionIndex: 77,
-			Address:          "0x7750d328b314effa365a0402ccfd489b80b0adda",
+			Address:          "0x287381b1570d9048c4b4c7ec94d21ddb8aa1352a", // CrossChainRegistry address (Sepolia)
 			Arguments:        `[{"Name": "operatorSet", "Type": "tuple", "Value": {"avs": "0x3449fe2810b0a5f6dffc62b8b6ee6b732dfe4438", "id": 12345}, "Indexed": false}]`,
 			EventName:        "GenerationReservationRemoved",
 			OutputData:       `{"operatorSet": {"avs": "0x3449fe2810b0a5f6dffc62b8b6ee6b732dfe4438", "id": 12345}}`,
@@ -117,7 +117,7 @@ func Test_GenerationReservationRemoved(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856802",
 			TransactionIndex: 42,
-			Address:          "0x7750d328b314effa365a0402ccfd489b80b0adda",
+			Address:          "0x287381b1570d9048c4b4c7ec94d21ddb8aa1352a", // CrossChainRegistry address (Sepolia)
 			Arguments:        `[{"Name": "operatorSet", "Type": "tuple", "Value": {"avs": "0x769e73da377876dd688b23d51ed01b7c7b154c65", "id": 67890}, "Indexed": false}]`,
 			EventName:        "GenerationReservationRemoved",
 			OutputData:       `{"operatorSet": {"avs": "0x769e73da377876dd688b23d51ed01b7c7b154c65", "id": 67890}}`,
