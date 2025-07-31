@@ -25,7 +25,7 @@ func setup() (
 	error,
 ) {
 	cfg := config.NewConfig()
-	cfg.Chain = config.Chain_Mainnet
+	cfg.Chain = config.Chain_Sepolia
 	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
@@ -64,10 +64,10 @@ func Test_TaskVerified(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856801",
 			TransactionIndex: 77,
-			Address:          "0x0000000000000000000000000000000000000000", // TaskMailbox address
+			Address:          "0xb99cc53e8db7018f557606c2a5b066527bf96b26", // TaskMailbox address (Sepolia)
 			Arguments:        `[{"Name": "aggregator", "Type": "address", "Value": "0x3449fe2810b0a5f6dffc62b8b6ee6b732dfe4438", "Indexed": true}, {"Name": "taskHash", "Type": "bytes32", "Value": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0x1234567890abcdef1234567890abcdef12345678", "Indexed": true}]`,
 			EventName:        "TaskVerified",
-			OutputData:       `{"executorOperatorSetId": 123, "executorCert": "0x546573742063657274696669636174652064617461", "result": "0x5465737420726573756c742064617461"}`,
+			OutputData:       `{"executorOperatorSetId": 123, "executorCert": [84, 101, 115, 116, 32, 99, 101, 114, 116, 105, 102, 105, 99, 97, 116, 101, 32, 100, 97, 116, 97], "result": [84, 101, 115, 116, 32, 114, 101, 115, 117, 108, 116, 32, 100, 97, 116, 97]}`,
 			LogIndex:         270,
 			BlockNumber:      block.Number,
 			CreatedAt:        time.Time{},
@@ -89,8 +89,8 @@ func Test_TaskVerified(t *testing.T) {
 		assert.Equal(t, "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", typedState.TaskHash)
 		assert.Equal(t, "0x1234567890abcdef1234567890abcdef12345678", typedState.Avs)
 		assert.Equal(t, uint32(123), typedState.ExecutorOperatorSetId)
-		assert.Equal(t, []byte{0x54, 0x65, 0x73, 0x74, 0x20, 0x63, 0x65, 0x72, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x65, 0x20, 0x64, 0x61, 0x74, 0x61}, typedState.ExecutorCert)
-		assert.Equal(t, []byte{0x54, 0x65, 0x73, 0x74, 0x20, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x20, 0x64, 0x61, 0x74, 0x61}, typedState.Result)
+		assert.Equal(t, "0x546573742063657274696669636174652064617461", typedState.ExecutorCert)
+		assert.Equal(t, "0x5465737420726573756c742064617461", typedState.Result)
 		assert.Equal(t, block.Number, typedState.BlockNumber)
 		assert.Equal(t, log.TransactionHash, typedState.TransactionHash)
 		assert.Equal(t, log.LogIndex, typedState.LogIndex)
@@ -120,10 +120,10 @@ func Test_TaskVerified(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856802",
 			TransactionIndex: 78,
-			Address:          "0x0000000000000000000000000000000000000000", // TaskMailbox address
+			Address:          "0xb99cc53e8db7018f557606c2a5b066527bf96b26", // TaskMailbox address (Sepolia)
 			Arguments:        `[{"Name": "aggregator", "Type": "address", "Value": "0x1111111111111111111111111111111111111111", "Indexed": true}, {"Name": "taskHash", "Type": "bytes32", "Value": "0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0x2222222222222222222222222222222222222222", "Indexed": true}]`,
 			EventName:        "TaskVerified",
-			OutputData:       `{"executorOperatorSetId": 456, "executorCert": "0x", "result": "0x"}`,
+			OutputData:       `{"executorOperatorSetId": 456, "executorCert": [], "result": []}`,
 			LogIndex:         271,
 			BlockNumber:      block.Number,
 			CreatedAt:        time.Time{},
@@ -145,8 +145,8 @@ func Test_TaskVerified(t *testing.T) {
 		assert.Equal(t, "0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321", typedState.TaskHash)
 		assert.Equal(t, "0x2222222222222222222222222222222222222222", typedState.Avs)
 		assert.Equal(t, uint32(456), typedState.ExecutorOperatorSetId)
-		assert.Equal(t, []byte{}, typedState.ExecutorCert)
-		assert.Equal(t, []byte{}, typedState.Result)
+		assert.Equal(t, "0x", typedState.ExecutorCert)
+		assert.Equal(t, "0x", typedState.Result)
 		assert.Equal(t, block.Number, typedState.BlockNumber)
 		assert.Equal(t, log.TransactionHash, typedState.TransactionHash)
 		assert.Equal(t, log.LogIndex, typedState.LogIndex)
@@ -176,10 +176,10 @@ func Test_TaskVerified(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856803",
 			TransactionIndex: 79,
-			Address:          "0x0000000000000000000000000000000000000000", // TaskMailbox address
+			Address:          "0xb99cc53e8db7018f557606c2a5b066527bf96b26", // TaskMailbox address (Sepolia)
 			Arguments:        `[{"Name": "aggregator", "Type": "address", "Value": "0x5555555555555555555555555555555555555555", "Indexed": true}, {"Name": "taskHash", "Type": "bytes32", "Value": "0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0x6666666666666666666666666666666666666666", "Indexed": true}]`,
 			EventName:        "TaskVerified",
-			OutputData:       `{"executorOperatorSetId": 789, "executorCert": "0x4c6f6e67206578656375746f722063657274696669636174652064617461207769746820612076657279206c6f6e67206465736372697074696f6e20746f2074657374206c6172676520646174612068616e646c696e67", "result": "0x4c6f6e67207461736b20726573756c742064617461207769746820612076657279206c6f6e67206465736372697074696f6e20746f2074657374206c6172676520646174612068616e646c696e67"}`,
+			OutputData:       `{"executorOperatorSetId": 789, "executorCert": [76, 111, 110, 103, 32, 101, 120, 101, 99, 117, 116, 111, 114, 32, 99, 101, 114, 116, 105, 102, 105, 99, 97, 116, 101, 32, 100, 97, 116, 97, 32, 119, 105, 116, 104, 32, 97, 32, 118, 101, 114, 121, 32, 108, 111, 110, 103, 32, 100, 101, 115, 99, 114, 105, 112, 116, 105, 111, 110, 32, 116, 111, 32, 116, 101, 115, 116, 32, 108, 97, 114, 103, 101, 32, 100, 97, 116, 97, 32, 104, 97, 110, 100, 108, 105, 110, 103], "result": [76, 111, 110, 103, 32, 116, 97, 115, 107, 32, 114, 101, 115, 117, 108, 116, 32, 100, 97, 116, 97, 32, 119, 105, 116, 104, 32, 97, 32, 118, 101, 114, 121, 32, 108, 111, 110, 103, 32, 100, 101, 115, 99, 114, 105, 112, 116, 105, 111, 110, 32, 116, 111, 32, 116, 101, 115, 116, 32, 108, 97, 114, 103, 101, 32, 100, 97, 116, 97, 32, 104, 97, 110, 100, 108, 105, 110, 103]}`,
 			LogIndex:         272,
 			BlockNumber:      block.Number,
 			CreatedAt:        time.Time{},
@@ -201,9 +201,9 @@ func Test_TaskVerified(t *testing.T) {
 		assert.Equal(t, "0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", typedState.TaskHash)
 		assert.Equal(t, "0x6666666666666666666666666666666666666666", typedState.Avs)
 		assert.Equal(t, uint32(789), typedState.ExecutorOperatorSetId)
-		// Long executor certificate and result data
-		expectedCert := []byte("Long executor certificate data with a very long description to test large data handling")
-		expectedResult := []byte("Long task result data with a very long description to test large data handling")
+		// Long executor certificate and result data as hex strings
+		expectedCert := "0x4c6f6e67206578656375746f722063657274696669636174652064617461207769746820612076657279206c6f6e67206465736372697074696f6e20746f2074657374206c6172676520646174612068616e646c696e67"
+		expectedResult := "0x4c6f6e67207461736b20726573756c742064617461207769746820612076657279206c6f6e67206465736372697074696f6e20746f2074657374206c6172676520646174612068616e646c696e67"
 		assert.Equal(t, expectedCert, typedState.ExecutorCert)
 		assert.Equal(t, expectedResult, typedState.Result)
 		assert.Equal(t, block.Number, typedState.BlockNumber)

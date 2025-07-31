@@ -25,7 +25,7 @@ func setup() (
 	error,
 ) {
 	cfg := config.NewConfig()
-	cfg.Chain = config.Chain_Mainnet
+	cfg.Chain = config.Chain_Sepolia
 	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
@@ -64,10 +64,10 @@ func Test_TaskCreated(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856801",
 			TransactionIndex: 77,
-			Address:          "0x0000000000000000000000000000000000000000", // TaskMailbox address
+			Address:          "0xb99cc53e8db7018f557606c2a5b066527bf96b26", // TaskMailbox address (Sepolia)
 			Arguments:        `[{"Name": "creator", "Type": "address", "Value": "0x3449fe2810b0a5f6dffc62b8b6ee6b732dfe4438", "Indexed": true}, {"Name": "taskHash", "Type": "bytes32", "Value": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0x1234567890abcdef1234567890abcdef12345678", "Indexed": true}]`,
 			EventName:        "TaskCreated",
-			OutputData:       `{"executorOperatorSetId": 123, "refundCollector": "0x9876543210fedcba9876543210fedcba98765432", "avsFee": 1000000000000000000, "taskDeadline": 1640995200, "payload": "0x48656c6c6f20576f726c64"}`,
+			OutputData:       `{"executorOperatorSetId": 123, "operatorTableReferenceTimestamp": 1640995100, "refundCollector": "0x9876543210fedcba9876543210fedcba98765432", "avsFee": 1000000000000000000, "taskDeadline": 1640995200, "payload": [72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100]}`,
 			LogIndex:         270,
 			BlockNumber:      block.Number,
 			CreatedAt:        time.Time{},
@@ -91,8 +91,8 @@ func Test_TaskCreated(t *testing.T) {
 		assert.Equal(t, uint32(123), typedState.ExecutorOperatorSetId)
 		assert.Equal(t, "0x9876543210fedcba9876543210fedcba98765432", typedState.RefundCollector)
 		assert.Equal(t, "1000000000000000000", typedState.AvsFee)
-		assert.Equal(t, uint64(1640995200), typedState.TaskDeadline)
-		assert.Equal(t, []byte{0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64}, typedState.Payload)
+		assert.Equal(t, "1640995200", typedState.TaskDeadline)
+		assert.Equal(t, "0x48656c6c6f20576f726c64", typedState.Payload)
 		assert.Equal(t, block.Number, typedState.BlockNumber)
 		assert.Equal(t, log.TransactionHash, typedState.TransactionHash)
 		assert.Equal(t, log.LogIndex, typedState.LogIndex)
@@ -122,10 +122,10 @@ func Test_TaskCreated(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856802",
 			TransactionIndex: 78,
-			Address:          "0x0000000000000000000000000000000000000000", // TaskMailbox address
+			Address:          "0xb99cc53e8db7018f557606c2a5b066527bf96b26", // TaskMailbox address (Sepolia)
 			Arguments:        `[{"Name": "creator", "Type": "address", "Value": "0x1111111111111111111111111111111111111111", "Indexed": true}, {"Name": "taskHash", "Type": "bytes32", "Value": "0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0x2222222222222222222222222222222222222222", "Indexed": true}]`,
 			EventName:        "TaskCreated",
-			OutputData:       `{"executorOperatorSetId": 456, "refundCollector": "0x3333333333333333333333333333333333333333", "avsFee": 500000000000000000, "taskDeadline": 1640999999, "payload": "0x"}`,
+			OutputData:       `{"executorOperatorSetId": 456, "operatorTableReferenceTimestamp": 1640999900, "refundCollector": "0x3333333333333333333333333333333333333333", "avsFee": 500000000000000000, "taskDeadline": 1640999999, "payload": []}`,
 			LogIndex:         271,
 			BlockNumber:      block.Number,
 			CreatedAt:        time.Time{},
@@ -149,8 +149,8 @@ func Test_TaskCreated(t *testing.T) {
 		assert.Equal(t, uint32(456), typedState.ExecutorOperatorSetId)
 		assert.Equal(t, "0x3333333333333333333333333333333333333333", typedState.RefundCollector)
 		assert.Equal(t, "500000000000000000", typedState.AvsFee)
-		assert.Equal(t, uint64(1640999999), typedState.TaskDeadline)
-		assert.Equal(t, []byte{}, typedState.Payload)
+		assert.Equal(t, "1640999999", typedState.TaskDeadline)
+		assert.Equal(t, "0x", typedState.Payload)
 		assert.Equal(t, block.Number, typedState.BlockNumber)
 		assert.Equal(t, log.TransactionHash, typedState.TransactionHash)
 		assert.Equal(t, log.LogIndex, typedState.LogIndex)
