@@ -2,6 +2,7 @@ package _202501151039_rewardsClaimed
 
 import (
 	"database/sql"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"gorm.io/gorm"
 )
