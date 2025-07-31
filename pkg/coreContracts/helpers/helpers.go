@@ -3,6 +3,7 @@ package helpers
 
 import (
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
+	"go.uber.org/zap"
 	"strings"
 )
 
@@ -91,6 +92,7 @@ func ImportCoreContracts(coreContracts []*ContractImport, cs contractStore.Contr
 func ImportImplementationContracts(
 	implementationContracts []*ImplementationContractImport,
 	cs contractStore.ContractStore,
+	l *zap.Logger,
 ) ([]string, error) {
 	importedImplementationContracts := make([]string, 0)
 	for _, i := range implementationContracts {
@@ -105,10 +107,21 @@ func ImportImplementationContracts(
 				contractStore.ContractType_Core,
 			)
 			if err != nil {
+				l.Sugar().Infow("failed to create implementation contract",
+					zap.String("address", c.Contract.Address),
+					zap.Error(err),
+				)
 				return nil, err
 			}
 			if !found {
+				l.Sugar().Infow("created implementation contract",
+					zap.String("address", contract.ContractAddress),
+				)
 				importedImplementationContracts = append(importedImplementationContracts, contract.ContractAddress)
+			} else {
+				l.Sugar().Infow("found existing implementation contract",
+					zap.String("address", contract.ContractAddress),
+				)
 			}
 
 			_, err = cs.SetContractCheckedForProxy(contract.ContractAddress)
@@ -116,9 +129,24 @@ func ImportImplementationContracts(
 				return nil, err
 			}
 
-			_, _, err = cs.FindOrCreateProxyContract(c.BlockNumber, i.ProxyContractAddress, contract.ContractAddress)
+			_, found, err = cs.FindOrCreateProxyContract(c.BlockNumber, i.ProxyContractAddress, contract.ContractAddress)
 			if err != nil {
+				l.Sugar().Errorw("failed to create proxy contract",
+					zap.String("proxyAddress", i.ProxyContractAddress),
+					zap.String("implementationAddress", contract.ContractAddress),
+				)
 				return nil, err
+			}
+			if !found {
+				l.Sugar().Infow("created proxy contract",
+					zap.String("proxyAddress", i.ProxyContractAddress),
+					zap.String("implementationAddress", contract.ContractAddress),
+				)
+			} else {
+				l.Sugar().Infow("found existing proxy contract",
+					zap.String("proxyAddress", i.ProxyContractAddress),
+					zap.String("implementationAddress", contract.ContractAddress),
+				)
 			}
 		}
 	}

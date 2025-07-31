@@ -3,8 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/coreContracts"
-	coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations"
 	"log"
 	"time"
 
@@ -100,11 +98,6 @@ var rpcCmd = &cobra.Command{
 		}
 
 		cs := postgresContractStore.NewPostgresContractStore(grm, l)
-
-		ccm := coreContracts.NewCoreContractManager(grm, cfg, cs, l)
-		if _, err := ccm.MigrateCoreContracts(coreContractMigrations.GetCoreContractMigrations()); err != nil {
-			l.Fatal("Failed to migrate core contracts", zap.Error(err))
-		}
 
 		cm := contractManager.NewContractManager(grm, cs, client, af, l)
 
