@@ -55,17 +55,18 @@ func (*ExecutorOperatorSetRegistered) TableName() string {
 }
 
 type TaskCreated struct {
-	Creator               string
-	TaskHash              string
-	Avs                   string
-	ExecutorOperatorSetId uint32
-	RefundCollector       string
-	AvsFee                string
-	TaskDeadline          string
-	Payload               string
-	TransactionHash       string
-	BlockNumber           uint64
-	LogIndex              uint64
+	Creator                         string
+	TaskHash                        string
+	Avs                             string
+	ExecutorOperatorSetId           uint32
+	OperatorTableReferenceTimestamp uint32
+	RefundCollector                 string
+	AvsFee                          string
+	TaskDeadline                    string
+	Payload                         string
+	TransactionHash                 string
+	BlockNumber                     uint64
+	LogIndex                        uint64
 }
 
 func (*TaskCreated) TableName() string {

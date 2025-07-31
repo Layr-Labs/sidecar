@@ -25,7 +25,7 @@ func setup() (
 	error,
 ) {
 	cfg := config.NewConfig()
-	cfg.Chain = config.Chain_Mainnet
+	cfg.Chain = config.Chain_Sepolia
 	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
@@ -64,7 +64,7 @@ func Test_ExecutorOperatorSetRegistered(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856801",
 			TransactionIndex: 77,
-			Address:          "0x0000000000000000000000000000000000000000", // TaskMailbox address
+			Address:          "0xb99cc53e8db7018f557606c2a5b066527bf96b26", // TaskMailbox address (Sepolia)
 			Arguments:        `[{"Name": "caller", "Type": "address", "Value": "0x3449fe2810b0a5f6dffc62b8b6ee6b732dfe4438", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0x1234567890abcdef1234567890abcdef12345678", "Indexed": true}, {"Name": "executorOperatorSetId", "Type": "uint32", "Value": 123, "Indexed": true}]`,
 			EventName:        "ExecutorOperatorSetRegistered",
 			OutputData:       `{"executorOperatorSetId": 123, "isRegistered": true}`,
@@ -118,7 +118,7 @@ func Test_ExecutorOperatorSetRegistered(t *testing.T) {
 		log := &storage.TransactionLog{
 			TransactionHash:  "0x767e002f6f3a7942b22e38f2434ecd460fb2111b7ea584d16adb71692b856802",
 			TransactionIndex: 78,
-			Address:          "0x0000000000000000000000000000000000000000", // TaskMailbox address
+			Address:          "0xb99cc53e8db7018f557606c2a5b066527bf96b26", // TaskMailbox address (Sepolia)
 			Arguments:        `[{"Name": "caller", "Type": "address", "Value": "0x1111111111111111111111111111111111111111", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0x2222222222222222222222222222222222222222", "Indexed": true}, {"Name": "executorOperatorSetId", "Type": "uint32", "Value": 456, "Indexed": true}]`,
 			EventName:        "ExecutorOperatorSetRegistered",
 			OutputData:       `{"executorOperatorSetId": 456, "isRegistered": false}`,

@@ -69,7 +69,7 @@ func (m *ContractMigration) Up(db *gorm.DB, cs contractStore.ContractStore, l *z
 	}
 	l.Sugar().Infow("Imported core contracts", zap.Int("count", len(coreContracts)))
 
-	implementationContracts, err := helpers.ImportImplementationContracts(contractsToImport.ImplementationContracts, cs)
+	implementationContracts, err := helpers.ImportImplementationContracts(contractsToImport.ImplementationContracts, cs, l)
 	if err != nil {
 		return nil, err
 	}

@@ -85,13 +85,12 @@ func (tvm *TaskVerifiedModel) HandleTransactionLog(log *storage.TransactionLog) 
 		return nil, err
 	}
 
-	taskHashString := utils.ConvertBytesToString(arguments[1].Value.([]byte))
 	executorCertString := utils.ConvertBytesToString(outputData.ExecutorCert)
 	resultString := utils.ConvertBytesToString(outputData.Result)
 
 	taskVerified := &types.TaskVerified{
 		Aggregator:            strings.ToLower(arguments[0].Value.(string)),
-		TaskHash:              taskHashString,
+		TaskHash:              strings.ToLower(arguments[1].Value.(string)),
 		Avs:                   strings.ToLower(arguments[2].Value.(string)),
 		ExecutorOperatorSetId: outputData.ExecutorOperatorSetId,
 		ExecutorCert:          executorCertString,

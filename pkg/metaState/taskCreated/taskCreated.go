@@ -71,11 +71,12 @@ func (tcm *TaskCreatedModel) IsInterestingLog(log *storage.TransactionLog) bool 
 }
 
 type LogOutput struct {
-	ExecutorOperatorSetId uint32      `json:"executorOperatorSetId"`
-	RefundCollector       string      `json:"refundCollector"`
-	AvsFee                json.Number `json:"avsFee"`
-	TaskDeadline          json.Number `json:"taskDeadline"`
-	Payload               []byte      `json:"payload"`
+	ExecutorOperatorSetId           uint32      `json:"executorOperatorSetId"`
+	OperatorTableReferenceTimestamp uint32      `json:"operatorTableReferenceTimestamp"`
+	RefundCollector                 string      `json:"refundCollector"`
+	AvsFee                          json.Number `json:"avsFee"`
+	TaskDeadline                    json.Number `json:"taskDeadline"`
+	Payload                         []byte      `json:"payload"`
 }
 
 func (tcm *TaskCreatedModel) HandleTransactionLog(log *storage.TransactionLog) (interface{}, error) {
@@ -88,21 +89,21 @@ func (tcm *TaskCreatedModel) HandleTransactionLog(log *storage.TransactionLog) (
 		return nil, err
 	}
 
-	taskHashString := utils.ConvertBytesToString(arguments[1].Value.([]byte))
 	payloadString := utils.ConvertBytesToString(outputData.Payload)
 
 	taskCreated := &types.TaskCreated{
-		Creator:               strings.ToLower(arguments[0].Value.(string)),
-		TaskHash:              taskHashString,
-		Avs:                   strings.ToLower(arguments[2].Value.(string)),
-		ExecutorOperatorSetId: outputData.ExecutorOperatorSetId,
-		RefundCollector:       strings.ToLower(outputData.RefundCollector),
-		AvsFee:                outputData.AvsFee.String(),
-		TaskDeadline:          outputData.TaskDeadline.String(),
-		Payload:               payloadString,
-		BlockNumber:           log.BlockNumber,
-		TransactionHash:       log.TransactionHash,
-		LogIndex:              log.LogIndex,
+		Creator:                         strings.ToLower(arguments[0].Value.(string)),
+		TaskHash:                        strings.ToLower(arguments[1].Value.(string)),
+		Avs:                             strings.ToLower(arguments[2].Value.(string)),
+		ExecutorOperatorSetId:           outputData.ExecutorOperatorSetId,
+		OperatorTableReferenceTimestamp: outputData.OperatorTableReferenceTimestamp,
+		RefundCollector:                 strings.ToLower(outputData.RefundCollector),
+		AvsFee:                          outputData.AvsFee.String(),
+		TaskDeadline:                    outputData.TaskDeadline.String(),
+		Payload:                         payloadString,
+		BlockNumber:                     log.BlockNumber,
+		TransactionHash:                 log.TransactionHash,
+		LogIndex:                        log.LogIndex,
 	}
 
 	tcm.accumulatedState[log.BlockNumber] = append(tcm.accumulatedState[log.BlockNumber], taskCreated)
