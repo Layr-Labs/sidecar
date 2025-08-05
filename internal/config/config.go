@@ -342,14 +342,18 @@ var AVSDirectoryAddresses = map[Chain]string{
 }
 
 type ContractAddresses struct {
-	RewardsCoordinator string
-	EigenpodManager    string
-	StrategyManager    string
-	DelegationManager  string
-	AvsDirectory       string
-	AllocationManager  string
-	CrossChainRegistry string
-	TaskMailbox        string
+	RewardsCoordinator       string
+	EigenpodManager          string
+	StrategyManager          string
+	DelegationManager        string
+	AvsDirectory             string
+	AllocationManager        string
+	CrossChainRegistry       string
+	TaskMailbox              string
+	ECDSACertificateVerifier string
+	BN254CertificateVerifier string
+	OperatorTableUpdater     string
+	ReleaseManager           string
 }
 
 func (c *Config) ChainIsOneOf(chains ...Chain) bool {
@@ -359,14 +363,18 @@ func (c *Config) ChainIsOneOf(chains ...Chain) bool {
 func (c *Config) GetContractsMapForChain() *ContractAddresses {
 	if c.Chain == Chain_Preprod {
 		return &ContractAddresses{
-			RewardsCoordinator: "0xb22ef643e1e067c994019a4c19e403253c05c2b0",
-			EigenpodManager:    "0xb8d8952f572e67b11e43bc21250967772fa883ff",
-			StrategyManager:    "0xf9fbf2e35d8803273e214c99bf15174139f4e67a",
-			DelegationManager:  "0x75dfe5b44c2e530568001400d3f704bc8ae350cc",
-			AvsDirectory:       "0x141d6995556135d4997b2ff72eb443be300353bc",
-			AllocationManager:  "0xfdd5749e11977d60850e06bf5b13221ad95eb6b4",
-			CrossChainRegistry: "0x275a472bf5569a9241d1b3dbed830a0d9e1f9c47",
-			TaskMailbox:        "0xf4a4765121119552ccaabb8ae5e6997e83b3b96d",
+			RewardsCoordinator:       "0xb22ef643e1e067c994019a4c19e403253c05c2b0",
+			EigenpodManager:          "0xb8d8952f572e67b11e43bc21250967772fa883ff",
+			StrategyManager:          "0xf9fbf2e35d8803273e214c99bf15174139f4e67a",
+			DelegationManager:        "0x75dfe5b44c2e530568001400d3f704bc8ae350cc",
+			AvsDirectory:             "0x141d6995556135d4997b2ff72eb443be300353bc",
+			AllocationManager:        "0xfdd5749e11977d60850e06bf5b13221ad95eb6b4",
+			CrossChainRegistry:       "0x275a472bf5569a9241d1b3dbed830a0d9e1f9c47",
+			TaskMailbox:              "0xf4a4765121119552ccaabb8ae5e6997e83b3b96d",
+			ECDSACertificateVerifier: "0x80cccce85569c753ade331c0749b59ca45f710c0",
+			BN254CertificateVerifier: "0x2a147b325f3eae5a2c2d752e8988407f9efedd75",
+			OperatorTableUpdater:     "0xd35d262f8de519513590f94d9b197262ce322a58",
+			ReleaseManager:           "0x7da89a7d9767edceeb6ade3d7f0f9ba4b6872944",
 		}
 	} else if c.Chain == Chain_Holesky {
 		return &ContractAddresses{
@@ -379,14 +387,18 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 		}
 	} else if c.Chain == Chain_Sepolia {
 		return &ContractAddresses{
-			AllocationManager:  "0x42583067658071247ec8ce0a516a58f682002d07",
-			AvsDirectory:       "0xa789c91ecddae96865913130b786140ee17af545",
-			DelegationManager:  "0xd4a7e1bd8015057293f0d0a557088c286942e84b",
-			EigenpodManager:    "0x56bfeb94879f4543e756d26103976c567256034a",
-			RewardsCoordinator: "0x5ae8152fb88c26ff9ca5c014c94fca3c68029349",
-			StrategyManager:    "0x2e3d6c0744b10eb0a4e6f679f71554a39ec47a5d",
-			CrossChainRegistry: "0x287381b1570d9048c4b4c7ec94d21ddb8aa1352a",
-			TaskMailbox:        "0xb99cc53e8db7018f557606c2a5b066527bf96b26",
+			AllocationManager:        "0x42583067658071247ec8ce0a516a58f682002d07",
+			AvsDirectory:             "0xa789c91ecddae96865913130b786140ee17af545",
+			DelegationManager:        "0xd4a7e1bd8015057293f0d0a557088c286942e84b",
+			EigenpodManager:          "0x56bfeb94879f4543e756d26103976c567256034a",
+			RewardsCoordinator:       "0x5ae8152fb88c26ff9ca5c014c94fca3c68029349",
+			StrategyManager:          "0x2e3d6c0744b10eb0a4e6f679f71554a39ec47a5d",
+			CrossChainRegistry:       "0x287381b1570d9048c4b4c7ec94d21ddb8aa1352a",
+			TaskMailbox:              "0xb99cc53e8db7018f557606c2a5b066527bf96b26",
+			ECDSACertificateVerifier: "0xb3cd1a457dea9a9a6f6406c6419b1c326670a96f",
+			BN254CertificateVerifier: "0xff58a373c18268f483c1f5ca03cf885c0c43373a",
+			OperatorTableUpdater:     "0xb02a15c6bd0882b35e9936a9579f35fb26e11476",
+			ReleaseManager:           "0x59c8d715dca616e032b744a753c017c9f3e16bf4",
 		}
 	} else if c.Chain == Chain_Hoodi {
 		return &ContractAddresses{
@@ -427,6 +439,10 @@ func (c *Config) GetInterestingAddressForConfigEnv() []string {
 		addresses.AllocationManager,
 		addresses.CrossChainRegistry,
 		addresses.TaskMailbox,
+		addresses.ECDSACertificateVerifier,
+		addresses.BN254CertificateVerifier,
+		addresses.OperatorTableUpdater,
+		addresses.ReleaseManager,
 	}
 }
 
