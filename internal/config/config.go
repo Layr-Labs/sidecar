@@ -348,6 +348,7 @@ type ContractAddresses struct {
 	DelegationManager  string
 	AvsDirectory       string
 	AllocationManager  string
+	CrossChainRegistry string
 }
 
 func (c *Config) ChainIsOneOf(chains ...Chain) bool {
@@ -363,6 +364,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			DelegationManager:  "0x75dfe5b44c2e530568001400d3f704bc8ae350cc",
 			AvsDirectory:       "0x141d6995556135d4997b2ff72eb443be300353bc",
 			AllocationManager:  "0xfdd5749e11977d60850e06bf5b13221ad95eb6b4",
+			CrossChainRegistry: "0x275a472bf5569a9241d1b3dbed830a0d9e1f9c47",
 		}
 	} else if c.Chain == Chain_Holesky {
 		return &ContractAddresses{
@@ -381,6 +383,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			EigenpodManager:    "0x56bfeb94879f4543e756d26103976c567256034a",
 			RewardsCoordinator: "0x5ae8152fb88c26ff9ca5c014c94fca3c68029349",
 			StrategyManager:    "0x2e3d6c0744b10eb0a4e6f679f71554a39ec47a5d",
+			CrossChainRegistry: "0x287381b1570d9048c4b4c7ec94d21ddb8aa1352a",
 		}
 	} else if c.Chain == Chain_Hoodi {
 		return &ContractAddresses{
@@ -419,6 +422,7 @@ func (c *Config) GetInterestingAddressForConfigEnv() []string {
 		addresses.DelegationManager,
 		addresses.AvsDirectory,
 		addresses.AllocationManager,
+		addresses.CrossChainRegistry,
 	}
 }
 
