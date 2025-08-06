@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+type OperatorSet struct {
+	Operator      string
+	OperatorSetId uint64
+}
+
 // ListOperatorsForStaker returns operators that a staker has delegated to
 func (pds *ProtocolDataService) ListOperatorsForStaker(ctx context.Context, staker string, blockHeight uint64) ([]string, error) {
 	staker = strings.ToLower(staker)
@@ -36,7 +41,7 @@ func (pds *ProtocolDataService) ListOperatorsForStaker(ctx context.Context, stak
 	return operators, nil
 }
 
-// ListOperatorsForStrategy returns operators that support a specific strategy
+// ListOperatorsForStrategy returns operators that have delegated stakers in the specified strategy
 func (pds *ProtocolDataService) ListOperatorsForStrategy(ctx context.Context, strategy string, blockHeight uint64) ([]string, error) {
 	strategy = strings.ToLower(strategy)
 	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
@@ -44,29 +49,28 @@ func (pds *ProtocolDataService) ListOperatorsForStrategy(ctx context.Context, st
 		return nil, err
 	}
 
+	// First get the block time for the given block height
+	var blockTime string
+	blockTimeRes := pds.db.Raw("select block_time::date from blocks where number <= @blockHeight limit 1",
+		sql.Named("blockHeight", blockHeight)).Scan(&blockTime)
+	if blockTimeRes.Error != nil {
+		return nil, blockTimeRes.Error
+	}
+
+	// Then use the block time to filter staker_operator
 	query := `
-		select distinct osors.operator
-		from operator_set_strategy_registration_snapshots ossrs
-		join operator_set_operator_registration_snapshots osors
-			on ossrs.avs = osors.avs 
-			and ossrs.operator_set_id = osors.operator_set_id
-			and ossrs.snapshot_block_number = osors.snapshot_block_number
-		where 
-			ossrs.strategy = @strategy
-			and ossrs.is_active = true
-			and osors.is_active = true
-			and ossrs.snapshot_block_number = (
-				select max(snapshot_block_number) 
-				from operator_set_strategy_registration_snapshots 
-				where snapshot_block_number <= @blockHeight
-			)
-		order by osors.operator
+		select distinct operator
+		from staker_operator
+		where
+			strategy = @strategy
+			and snapshot <= @blockTime
+		order by operator
 	`
 
 	var operators []string
 	res := pds.db.Raw(query,
 		sql.Named("strategy", strategy),
-		sql.Named("blockHeight", blockHeight),
+		sql.Named("blockTime", blockTime),
 	).Scan(&operators)
 	if res.Error != nil {
 		return nil, res.Error
@@ -74,8 +78,8 @@ func (pds *ProtocolDataService) ListOperatorsForStrategy(ctx context.Context, st
 	return operators, nil
 }
 
-// ListOperatorsForAvs returns operators registered to an AVS
-func (pds *ProtocolDataService) ListOperatorsForAvs(ctx context.Context, avs string, blockHeight uint64) ([]string, error) {
+// ListOperatorsForAvs returns operators registered to an AVS (both registered and unregistered)
+func (pds *ProtocolDataService) ListOperatorsForAvs(ctx context.Context, avs string, blockHeight uint64) ([]OperatorSet, error) {
 	avs = strings.ToLower(avs)
 	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
@@ -83,100 +87,86 @@ func (pds *ProtocolDataService) ListOperatorsForAvs(ctx context.Context, avs str
 	}
 
 	query := `
-		select distinct osors.operator
-		from operator_set_operator_registration_snapshots osors
-		where 
-			osors.avs = @avs
-			and osors.is_active = true
-			and osors.snapshot_block_number = (
-				select max(snapshot_block_number) 
-				from operator_set_operator_registration_snapshots 
-				where snapshot_block_number <= @blockHeight
-			)
-		order by osors.operator
+		with latest_registrations as (
+			select distinct on (operator)
+				operator,
+				registered
+			from avs_operator_state_changes
+			where
+				avs = @avs
+				and block_number <= @blockHeight
+		)
+		select 
+			lr.operator,
+			case 
+				when lr.registered = true then os.operator_set_id
+				else null
+			end as operator_set_id
+		from latest_registrations lr
+		left join operator_sets os on (
+			os.avs = @avs
+			and lr.registered = true
+			and os.block_number <= @blockHeight
+		)
+		order by operator
 	`
 
-	var operators []string
+	var operatorSets []OperatorSet
 	res := pds.db.Raw(query,
 		sql.Named("avs", avs),
 		sql.Named("blockHeight", blockHeight),
-	).Scan(&operators)
+	).Scan(&operatorSets)
 	if res.Error != nil {
 		return nil, res.Error
 	}
-	return operators, nil
+
+	return operatorSets, nil
 }
 
 // ListOperatorsForBlockRange returns operators across a block range with optional filters
+// Uses staker_operator as the main table and adds WHERE clauses based on filters
 func (pds *ProtocolDataService) ListOperatorsForBlockRange(ctx context.Context, startBlock, endBlock uint64, avsAddress string, strategyAddress string, stakerAddress string) ([]string, error) {
-	// Build query based on filters
-	var query string
-	var params []interface{}
+	// Base query using staker_operator table
+	query := `
+		select distinct operator
+		from staker_operator
+		where
+			snapshot::date >= (
+				select block_time::date
+				from blocks
+				where number >= @startBlock
+				limit 1
+			)
+			snapshot::date <= (
+				select block_time::date
+				from blocks
+				where number <= @endBlock
+				limit 1
+			)
+	`
 
-	if stakerAddress != "" {
-		// Query for staker operators across block range
-		query = `
-			SELECT DISTINCT operator
-			FROM staker_delegation_changes
-			WHERE delegated = true
-				AND block_number BETWEEN @startBlock AND @endBlock
-				AND staker = @staker
-			ORDER BY operator
-		`
-		params = []interface{}{
-			sql.Named("startBlock", startBlock),
-			sql.Named("endBlock", endBlock),
-			sql.Named("staker", strings.ToLower(stakerAddress)),
-		}
-	} else if strategyAddress != "" {
-		// Query for strategy operators across block range
-		query = `
-			SELECT DISTINCT osors.operator
-			FROM operator_set_strategy_registration_snapshots ossrs
-			JOIN operator_set_operator_registration_snapshots osors
-				ON ossrs.avs = osors.avs 
-				AND ossrs.operator_set_id = osors.operator_set_id
-				AND ossrs.snapshot_block_number = osors.snapshot_block_number
-			WHERE ossrs.is_active = true
-				AND osors.is_active = true
-				AND ossrs.snapshot_block_number BETWEEN @startBlock AND @endBlock
-				AND ossrs.strategy = @strategy
-			ORDER BY osors.operator
-		`
-		params = []interface{}{
-			sql.Named("startBlock", startBlock),
-			sql.Named("endBlock", endBlock),
-			sql.Named("strategy", strings.ToLower(strategyAddress)),
-		}
-	} else if avsAddress != "" {
-		// Query for AVS operators across block range
-		query = `
-			SELECT DISTINCT osors.operator
-			FROM operator_set_operator_registration_snapshots osors
-			WHERE osors.is_active = true
-				AND osors.snapshot_block_number BETWEEN @startBlock AND @endBlock
-				AND osors.avs = @avs
-			ORDER BY osors.operator
-		`
-		params = []interface{}{
-			sql.Named("startBlock", startBlock),
-			sql.Named("endBlock", endBlock),
-			sql.Named("avs", strings.ToLower(avsAddress)),
-		}
-	} else {
-		// Query for all operators across block range (no filter)
-		query = `
-			SELECT DISTINCT osors.operator
-			FROM operator_set_operator_registration_snapshots osors
-			WHERE osors.is_active = true
-				AND osors.snapshot_block_number BETWEEN @startBlock AND @endBlock
-			ORDER BY osors.operator
-		`
-		params = []interface{}{
-			sql.Named("startBlock", startBlock),
-			sql.Named("endBlock", endBlock),
-		}
+	params := []interface{}{
+		sql.Named("startBlock", startBlock),
+		sql.Named("endBlock", endBlock),
 	}
+
+	// Add WHERE clauses based on filters
+	if stakerAddress != "" {
+		query += ` and earner = @staker`
+		params = append(params, sql.Named("staker", strings.ToLower(stakerAddress)))
+	}
+
+	if strategyAddress != "" {
+		query += ` and strategy = @strategy`
+		params = append(params, sql.Named("strategy", strings.ToLower(strategyAddress)))
+	}
+
+	if avsAddress != "" {
+		query += ` and avs = @avs`
+		params = append(params, sql.Named("avs", strings.ToLower(avsAddress)))
+	}
+
+	query += ` order by operator`
 
 	var operators []string
 	res := pds.db.Raw(query, params...).Scan(&operators)
