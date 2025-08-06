@@ -12,6 +12,7 @@ import (
 
 	eventsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/events"
 	healthV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/health"
+	operatorSetsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/operatorSets"
 	protocolV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/protocol"
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
 	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/sidecar"
@@ -49,6 +50,7 @@ type RpcServerConfig struct {
 type RpcServer struct {
 	rewardsV1.UnimplementedRewardsServer
 	slashingV1.UnimplementedSlashingServer
+	operatorSetsV1.UnimplementedOperatorSetsServer
 	protocolV1.UnimplementedProtocolServer
 	sidecarV1.UnimplementedRpcServer
 	Logger              *zap.Logger
@@ -125,9 +127,15 @@ func (s *RpcServer) registerHandlers(ctx context.Context, grpcServer *grpc.Serve
 		return err
 	}
 
+	operatorSetsV1.RegisterOperatorSetsServer(grpcServer, s)
+	if err := operatorSetsV1.RegisterOperatorSetsHandlerServer(ctx, mux, s); err != nil {
+		s.Logger.Sugar().Errorw("Failed to register OperatorSets server", zap.Error(err))
+		return err
+	}
+
 	protocolV1.RegisterProtocolServer(grpcServer, s)
 	if err := protocolV1.RegisterProtocolHandlerServer(ctx, mux, s); err != nil {
-		s.Logger.Sugar().Errorw("Failed to register Rewards server", zap.Error(err))
+		s.Logger.Sugar().Errorw("Failed to register Protocol server", zap.Error(err))
 		return err
 	}
 
