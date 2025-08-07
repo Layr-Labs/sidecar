@@ -2,6 +2,10 @@ package protocolDataService
 
 import (
 	"context"
+	"log"
+	"os"
+	"testing"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -11,9 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"log"
-	"os"
-	"testing"
 )
 
 func setup(dataSourceName string) (
