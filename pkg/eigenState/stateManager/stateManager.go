@@ -272,7 +272,7 @@ func (e *EigenStateManager) GetLatestStateRoot() (*StateRoot, error) {
 	result := e.DB.Model(&StateRoot{}).Order("eth_block_number desc").First(&root)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return root, nil
+			return nil, nil
 		}
 		return nil, result.Error
 	}
