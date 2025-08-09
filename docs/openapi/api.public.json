@@ -890,17 +890,21 @@
       "GetStakerSharesRequest": {
         "type": "object",
         "properties": {
-          "blockHeight": {
+          "stakerAddress": {
+            "type": "string"
+          },
+          "strategy": {
+            "type": "string"
+          },
+          "startBlock": {
             "type": "integer",
             "format": "uint64"
           },
-          "stakerAddress": {
-            "type": "string"
+          "endBlock": {
+            "type": "integer",
+            "format": "uint64"
           }
-        },
-        "required": [
-          "block_height"
-        ]
+        }
       },
       "GetStakerSharesResponse": {
         "type": "object",
