@@ -2,8 +2,10 @@ package rpcServer
 
 import (
 	"context"
+
 	rewardsCoordinator "github.com/Layr-Labs/eigenlayer-contracts/pkg/bindings/IRewardsCoordinator"
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -51,5 +53,27 @@ func (rpc *RpcServer) GenerateClaimProof(ctx context.Context, req *rewardsV1.Gen
 	}
 	return &rewardsV1.GenerateClaimProofResponse{
 		Proof: convertClaimProofToRPCResponse(root, claim),
+	}, nil
+}
+
+func (rpc *RpcServer) GenerateClaimProofBulk(ctx context.Context, req *rewardsV1.GenerateClaimProofBulkRequest) (*rewardsV1.GenerateClaimProofBulkResponse, error) {
+	earnerToTokens := req.GetEarnerToTokens()
+	rootIndex := req.GetRootIndex()
+
+	var rootIndexVal int64
+	if rootIndex == nil {
+		rootIndexVal = -1
+	} else {
+		rootIndexVal = rootIndex.GetValue()
+	}
+
+	root, claims, err := rpc.rewardsProofs.GenerateRewardsClaimProofBulk(earnerToTokens, rootIndexVal)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to generate claim proof bulk %s", err.Error())
+	}
+	return &rewardsV1.GenerateClaimProofBulkResponse{
+		Proofs: utils.Map(claims, func(c *rewardsCoordinator.IRewardsCoordinatorRewardsMerkleClaim, i uint64) *rewardsV1.Proof {
+			return convertClaimProofToRPCResponse(root, c)
+		}),
 	}, nil
 }
