@@ -259,10 +259,11 @@ func (s *RpcServer) ListStrategyQueuedWithdrawals(ctx context.Context, request *
 	if strategy == "" {
 		return nil, errors.New("strategy address is required")
 	}
+	blockHeight := request.GetBlockHeight()
 
 	withdrawals, err := s.protocolDataService.ListQueuedWithdrawals(ctx, protocolDataService.WithdrawalFilters{
 		Strategies: []string{strategy},
-	}, 0)
+	}, blockHeight)
 	if err != nil {
 		return nil, err
 	}

@@ -3,9 +3,10 @@ package protocolDataService
 import (
 	"context"
 	"database/sql"
+	"slices"
+
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/queuedSlashingWithdrawals"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
-	"slices"
 )
 
 type StakerQueuedWithdrawal struct {
