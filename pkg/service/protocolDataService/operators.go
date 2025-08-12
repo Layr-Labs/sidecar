@@ -82,7 +82,7 @@ func (pds *ProtocolDataService) ListOperatorsForStrategy(ctx context.Context, st
 	return operators, nil
 }
 
-// ListOperatorsForAvs returns operators registered to an AVS (both registered and unregistered)
+// ListOperatorsForAvs returns operators registered to an AVS
 func (pds *ProtocolDataService) ListOperatorsForAvs(ctx context.Context, avs string, blockHeight uint64) ([]OperatorSet, error) {
 	avs = strings.ToLower(avs)
 	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)

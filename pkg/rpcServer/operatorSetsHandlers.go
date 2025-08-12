@@ -62,31 +62,6 @@ func (rpc *RpcServer) ListOperatorsForAvs(ctx context.Context, request *operator
 	}, nil
 }
 
-func (rpc *RpcServer) ListOperatorsForBlockRange(ctx context.Context, request *operatorSetsV1.ListOperatorsForBlockRangeRequest) (*operatorSetsV1.ListOperatorsForBlockRangeResponse, error) {
-	startBlock := request.GetStartBlock()
-	endBlock := request.GetEndBlock()
-	stakerAddress := request.GetStakerAddress()
-	strategyAddress := request.GetStrategyAddress()
-	avsAddress := request.GetAvsAddress()
-
-	if startBlock == 0 || endBlock == 0 {
-		return nil, errors.New("startBlock and endBlock are required")
-	}
-
-	if startBlock > endBlock {
-		return nil, errors.New("startBlock cannot be greater than endBlock")
-	}
-
-	operators, err := rpc.protocolDataService.ListOperatorsForBlockRange(ctx, startBlock, endBlock, avsAddress, strategyAddress, stakerAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	return &operatorSetsV1.ListOperatorsForBlockRangeResponse{
-		Operators: convertOperatorStringsToProto(operators),
-	}, nil
-}
-
 // convertOperatorStringsToProto converts operator address strings to protobuf Operator messages
 func convertOperatorStringsToProto(operatorAddresses []string) []*operatorSetsV1.Operator {
 	operators := make([]*operatorSetsV1.Operator, 0, len(operatorAddresses))
