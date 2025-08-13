@@ -54,27 +54,19 @@ func (pds *ProtocolDataService) ListOperatorsForStrategy(ctx context.Context, st
 		return nil, err
 	}
 
-	// First get the block time for the given block height
-	var blockTime string
-	blockTimeRes := pds.db.Raw("select block_time::date from blocks where number <= @blockHeight limit 1",
-		sql.Named("blockHeight", blockHeight)).Scan(&blockTime)
-	if blockTimeRes.Error != nil {
-		return nil, blockTimeRes.Error
-	}
-
 	// Then use the block time to filter staker_operator
 	query := `
 		select distinct operator
-		from operator_avs_strategy_snapshots
+		from operator_shares
 		where
 			strategy = @strategy
-			and snapshot <= @blockTime
+			and block_number <= @blockHeight
 	`
 
 	var operators []string
 	res := pds.db.Raw(query,
 		sql.Named("strategy", strategy),
-		sql.Named("blockTime", blockTime),
+		sql.Named("blockHeight", blockHeight),
 	).Scan(&operators)
 	if res.Error != nil {
 		return nil, res.Error
