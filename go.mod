@@ -6,7 +6,7 @@ require (
 	github.com/DataDog/datadog-go/v5 v5.6.0
 	github.com/Layr-Labs/eigenlayer-contracts v0.4.1-holesky-pepe.0.20240813143901-00fc4b95e9c1
 	github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13
-	github.com/Layr-Labs/protocol-apis v1.16.0
+	github.com/Layr-Labs/protocol-apis v1.17.1-0.20250812161011-79be711db384
 	github.com/ProtonMail/go-crypto v1.1.6
 	github.com/agiledragon/gomonkey/v2 v2.13.0
 	github.com/akuity/grpc-gateway-client v0.0.0-20240912082144-55a48e8b4b89
@@ -15,7 +15,7 @@ require (
 	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/lib/pq v1.10.9
@@ -32,8 +32,8 @@ require (
 	github.com/wealdtech/go-merkletree/v2 v2.6.1
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	go.uber.org/zap v1.27.0
-	golang.org/x/mod v0.24.0
-	google.golang.org/grpc v1.71.0
+	golang.org/x/mod v0.25.0
+	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/DataDog/dd-trace-go.v1 v1.65.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -117,14 +117,14 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac // indirect
-	golang.org/x/net v0.37.0 // indirect
-	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/sync v0.15.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/term v0.30.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/text v0.26.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250303144028-a0af3efb3deb // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250603155806-513f23925822 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
