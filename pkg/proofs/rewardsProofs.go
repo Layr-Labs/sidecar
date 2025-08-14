@@ -2,9 +2,13 @@ package proofs
 
 import (
 	"fmt"
+	"sync"
+	"time"
+
 	rewardsCoordinator "github.com/Layr-Labs/eigenlayer-contracts/pkg/bindings/IRewardsCoordinator"
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/claimgen"
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
@@ -12,8 +16,6 @@ import (
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-merkletree/v2"
 	"go.uber.org/zap"
-	"sync"
-	"time"
 )
 
 // RewardsProofsStore manages the generation and caching of Merkle proofs
@@ -44,6 +46,16 @@ type ProofData struct {
 	Distribution *distribution.Distribution
 
 	LastAccessed *time.Time
+}
+
+// EarnerToTokens represents an earner address and their associated tokens
+// for generating rewards claim proofs. This local struct provides a generic
+// interface that doesn't depend on protobuf types.
+type EarnerToTokens struct {
+	// EarnerAddress is the Ethereum address of the earner
+	EarnerAddress string
+	// Tokens is a slice of token addresses for this earner
+	Tokens []string
 }
 
 // NewRewardsProofsStore creates a new RewardsProofsStore instance.
@@ -142,23 +154,7 @@ func (rps *RewardsProofsStore) evictOldRewards() {
 	}
 }
 
-// GenerateRewardsClaimProof generates a Merkle proof for an earner to claim rewards
-// for specific tokens from a distribution root.
-//
-// Parameters:
-//   - earnerAddress: The Ethereum address of the earner claiming rewards
-//   - tokenAddresses: List of token addresses for which to generate proofs
-//   - rootIndex: The index of the distribution root
-//
-// Returns:
-//   - []byte: The Merkle root of the account tree
-//   - *rewardsCoordinator.IRewardsCoordinatorRewardsMerkleClaim: The claim data with proofs
-//   - error: Any error encountered during proof generation
-func (rps *RewardsProofsStore) GenerateRewardsClaimProof(earnerAddress string, tokenAddresses []string, rootIndex int64) (
-	[]byte,
-	*rewardsCoordinator.IRewardsCoordinatorRewardsMerkleClaim,
-	error,
-) {
+func (rps *RewardsProofsStore) generateProofDataForRootIndex(rootIndex int64) (*ProofData, *types.SubmittedDistributionRoot, error) {
 	distributionRoot, err := rps.rewardsCalculator.FindClaimableDistributionRoot(rootIndex)
 	if err != nil {
 		rps.logger.Sugar().Errorf("Failed to find claimable distribution root for root_index",
@@ -194,6 +190,32 @@ func (rps *RewardsProofsStore) GenerateRewardsClaimProof(earnerAddress string, t
 		return nil, nil, err
 	}
 
+	return proofData, distributionRoot, nil
+}
+
+// GenerateRewardsClaimProof generates a Merkle proof for an earner to claim rewards
+// for specific tokens from a distribution root.
+//
+// Parameters:
+//   - earnerAddress: The Ethereum address of the earner claiming rewards
+//   - tokenAddresses: List of token addresses for which to generate proofs
+//   - rootIndex: The index of the distribution root
+//
+// Returns:
+//   - []byte: The Merkle root of the account tree
+//   - *rewardsCoordinator.IRewardsCoordinatorRewardsMerkleClaim: The claim data with proofs
+//   - error: Any error encountered during proof generation
+func (rps *RewardsProofsStore) GenerateRewardsClaimProof(earnerAddress string, tokenAddresses []string, rootIndex int64) (
+	[]byte,
+	*rewardsCoordinator.IRewardsCoordinatorRewardsMerkleClaim,
+	error,
+) {
+	proofData, distributionRoot, err := rps.generateProofDataForRootIndex(rootIndex)
+	if err != nil {
+		rps.logger.Sugar().Error("Failed to generate proof data for root index", zap.Error(err))
+		return nil, nil, err
+	}
+
 	tokens := utils.Map(tokenAddresses, func(addr string, i uint64) gethcommon.Address {
 		return gethcommon.HexToAddress(addr)
 	})
@@ -213,4 +235,61 @@ func (rps *RewardsProofsStore) GenerateRewardsClaimProof(earnerAddress string, t
 	}
 
 	return proofData.AccountTree.Root(), claim, nil
+}
+
+// GenerateRewardsClaimProofBulk generates Merkle proofs for multiple earner-token combinations
+// for claiming rewards against the RewardsCoordinator contract.
+//
+// This method processes multiple earner addresses with their associated tokens in a single operation,
+// improving efficiency when generating proofs for batch claims.
+//
+// Parameters:
+//   - earnerTokens: A slice of EarnerTokens, each containing an earner address and their tokens
+//   - rootIndex: The distribution root index to use for proof generation. If -1, uses the active root
+//
+// Returns:
+//   - []byte: The Merkle root of the account tree (same for all proofs)
+//   - []*rewardsCoordinator.IRewardsCoordinatorRewardsMerkleClaim: Slice of claim data with proofs
+//   - error: Any error encountered during proof generation
+func (rps *RewardsProofsStore) GenerateRewardsClaimProofBulk(earnerToTokens []*EarnerToTokens, rootIndex int64) (
+	[]byte,
+	[]*rewardsCoordinator.IRewardsCoordinatorRewardsMerkleClaim,
+	error,
+) {
+	proofData, distributionRoot, err := rps.generateProofDataForRootIndex(rootIndex)
+	if err != nil {
+		rps.logger.Sugar().Error("Failed to generate proof data for root index", zap.Error(err))
+		return nil, nil, err
+	}
+
+	// Generate proofs for each earner-token combination
+	claims := make([]*rewardsCoordinator.IRewardsCoordinatorRewardsMerkleClaim, len(earnerToTokens))
+	for i, earnerToken := range earnerToTokens {
+		// Convert token addresses to common.Address
+		tokens := utils.Map(earnerToken.Tokens, func(addr string, i uint64) gethcommon.Address {
+			return gethcommon.HexToAddress(addr)
+		})
+		earner := gethcommon.HexToAddress(earnerToken.EarnerAddress)
+
+		// Generate proof for this earner
+		claim, err := claimgen.GetProofForEarner(
+			proofData.Distribution,
+			uint32(distributionRoot.RootIndex),
+			proofData.AccountTree,
+			proofData.TokenTree,
+			earner,
+			tokens,
+		)
+		if err != nil {
+			rps.logger.Sugar().Error("Failed to generate claim proof for earner",
+				zap.String("earnerAddress", earnerToken.EarnerAddress),
+				zap.Strings("tokens", earnerToken.Tokens),
+				zap.Error(err),
+			)
+			return nil, nil, fmt.Errorf("failed to generate proof for earner %s: %w", earnerToken.EarnerAddress, err)
+		}
+		claims[i] = claim
+	}
+
+	return proofData.AccountTree.Root(), claims, nil
 }
