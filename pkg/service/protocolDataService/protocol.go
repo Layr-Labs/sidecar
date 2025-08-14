@@ -443,7 +443,7 @@ type Withdrawal struct {
 	BlockHeight uint64
 }
 
-func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context, strategies []string, blockHeight uint64) ([]*Withdrawal, error) {
+func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context, strategies []string, blockHeight uint64, pagination *types.Pagination) ([]*Withdrawal, error) {
 	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
 		return nil, err
@@ -576,18 +576,30 @@ func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context
 		AND fq.strategy = lmm.strategy 
 		AND fq.withdrawal_type = 'SlashingWithdrawal'
 		)
-		where fq.operator = '0x93a797473810c125ece22f25a2087b6ceb8ce886'
 		ORDER BY fq.block_number DESC
 	`
 
-	withdrawals := make([]*Withdrawal, 0)
-	res := pds.db.Raw(query,
+	queryParams := []interface{}{
 		sql.Named("strategies", strategies),
 		sql.Named("blockHeight", bh),
-	).Scan(&withdrawals)
+	}
+
+	if pagination != nil {
+		query += ` LIMIT @limit`
+		queryParams = append(queryParams, sql.Named("limit", pagination.PageSize))
+
+		if pagination.Page > 0 {
+			query += ` OFFSET @offset`
+			queryParams = append(queryParams, sql.Named("offset", pagination.Page*pagination.PageSize))
+		}
+	}
+
+	var withdrawals []*Withdrawal
+	res := pds.db.Raw(query, queryParams...).Scan(&withdrawals)
 	if res.Error != nil {
 		return nil, res.Error
 	}
+
 	return withdrawals, nil
 }
 
@@ -649,7 +661,7 @@ func (pds *ProtocolDataService) GetCurrentBlockHeight(ctx context.Context, confi
 	return block, nil
 }
 
-func (pds *ProtocolDataService) GetEigenStateChangesForBlock(ctx context.Context, blockHeight uint64) (map[string][]interface{}, error) {
+func (pds *ProtocolDataService) GetEigenStateChangesForBlock(ctx context.Context, blockHeight uint64) (map[string][]any, error) {
 	results, err := pds.stateManager.ListForBlockRange(blockHeight, blockHeight)
 	if err != nil {
 		return nil, err

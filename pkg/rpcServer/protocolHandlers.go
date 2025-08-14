@@ -357,10 +357,23 @@ func (s *RpcServer) ListWithdrawalsForStrategies(ctx context.Context, request *p
 	}
 
 	blockHeight := request.GetBlockHeight()
+	pagination := types.NewDefaultPagination()
 
-	withdrawals, err := s.protocolDataService.ListWithdrawalsForStrategies(ctx, strategies, blockHeight)
+	if p := request.GetPagination(); p != nil {
+		pagination.Load(p.GetPageNumber(), p.GetPageSize())
+	}
+
+	withdrawals, err := s.protocolDataService.ListWithdrawalsForStrategies(ctx, strategies, blockHeight, pagination)
 	if err != nil {
 		return nil, err
+	}
+
+	var nextPage *common.Pagination
+	if uint32(len(withdrawals)) == pagination.PageSize {
+		nextPage = &common.Pagination{
+			PageNumber: pagination.Page + 1,
+			PageSize:   pagination.PageSize,
+		}
 	}
 
 	return &protocolV1.ListWithdrawalsForStrategiesResponse{
@@ -373,5 +386,6 @@ func (s *RpcServer) ListWithdrawalsForStrategies(ctx context.Context, request *p
 				BlockNumber:     withdrawal.BlockHeight,
 			}
 		}),
+		NextPage: nextPage,
 	}, nil
 }
