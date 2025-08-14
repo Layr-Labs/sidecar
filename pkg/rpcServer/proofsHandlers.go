@@ -5,6 +5,7 @@ import (
 
 	rewardsCoordinator "github.com/Layr-Labs/eigenlayer-contracts/pkg/bindings/IRewardsCoordinator"
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
+	"github.com/Layr-Labs/sidecar/pkg/proofs"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -67,7 +68,15 @@ func (rpc *RpcServer) GenerateClaimProofBulk(ctx context.Context, req *rewardsV1
 		rootIndexVal = rootIndex.GetValue()
 	}
 
-	root, claims, err := rpc.rewardsProofs.GenerateRewardsClaimProofBulk(earnerToTokens, rootIndexVal)
+	proofsEarnerToTokens := make([]*proofs.EarnerToTokens, len(earnerToTokens))
+	for i, et := range earnerToTokens {
+		proofsEarnerToTokens[i] = &proofs.EarnerToTokens{
+			EarnerAddress: et.GetEarnerAddress(),
+			Tokens:        et.GetTokens(),
+		}
+	}
+
+	root, claims, err := rpc.rewardsProofs.GenerateRewardsClaimProofBulk(proofsEarnerToTokens, rootIndexVal)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to generate claim proof bulk %s", err.Error())
 	}
