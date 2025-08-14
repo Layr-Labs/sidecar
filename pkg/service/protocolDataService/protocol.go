@@ -450,133 +450,90 @@ func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context
 	}
 
 	query := `
-		WITH transaction_events AS (
-			SELECT 
-				event_name,
-				output_data,
-				block_number
+		WITH events AS (
+			SELECT event_name, output_data, block_number
 			FROM transaction_logs
 			WHERE event_name IN ('WithdrawalQueued', 'WithdrawalCompleted', 'MaxMagnitudeUpdated')
-			AND block_number <= @blockHeight
+				AND block_number <= @blockHeight
 		),
-		queued_m2 AS (
-		SELECT 
-			output_data->>'withdrawalRoot' as withdrawal_root,
-			output_data->'withdrawal'->>'staker' as staker,
-			strategy,
-			shares::numeric,
-			block_number,
-			output_data->'withdrawal'->>'delegatedTo' as operator,
-			'WithdrawalQueued' as withdrawal_type
-		FROM transaction_events,
-		LATERAL (
+
+		completed_roots AS (
+			SELECT output_data->>'withdrawalRoot' as withdrawal_root
+			FROM events 
+			WHERE event_name = 'WithdrawalCompleted'
+			UNION
+			SELECT withdrawal_root FROM completed_slashing_withdrawals
+			WHERE block_number <= @blockHeight
+		),
+
+		queued_regular AS (
 			SELECT 
-				jsonb_array_elements_text(output_data->'withdrawal'->'strategies') AS strategy,
-				jsonb_array_elements_text(output_data->'withdrawal'->'shares') AS shares
-		) AS expanded
-		WHERE event_name = 'WithdrawalQueued'
+				output_data->>'withdrawalRoot' as withdrawal_root,
+				output_data->'withdrawal'->>'staker' as staker,
+				strategy,
+				shares::numeric,
+				block_number,
+				output_data->'withdrawal'->>'delegatedTo' as operator
+			FROM events,
+			LATERAL (
+				SELECT 
+					jsonb_array_elements_text(output_data->'withdrawal'->'strategies') AS strategy,
+					jsonb_array_elements_text(output_data->'withdrawal'->'shares') AS shares
+			) AS expanded
+			WHERE event_name = 'WithdrawalQueued'
+				AND strategy IN @strategies
+				AND output_data->>'withdrawalRoot' NOT IN (SELECT withdrawal_root FROM completed_roots)
 		),
+
 		queued_slashing AS (
-		SELECT 
-			withdrawal_root,
-			staker,
-			strategy,
-			scaled_shares::numeric as shares,
-			block_number,
-			operator,
-			'SlashingWithdrawal' as withdrawal_type
-		FROM queued_slashing_withdrawals qsw
-		WHERE qsw.strategy IN @strategies
+			SELECT 
+				withdrawal_root,
+				staker,
+				strategy,
+				scaled_shares::numeric as shares,
+				block_number,
+				operator
+			FROM queued_slashing_withdrawals
+			WHERE strategy IN @strategies
+				AND withdrawal_root NOT IN (SELECT withdrawal_root FROM completed_roots)
 		),
-		all_queued AS (
-		-- Regular withdrawals filtered by strategy
-		SELECT * FROM queued_m2 
-		WHERE strategy IN @strategies
 
-		UNION ALL
+		latest_magnitudes AS (
+			SELECT DISTINCT ON (output_data->>'operator', output_data->>'strategy')
+				output_data->>'operator' as operator,
+				output_data->>'strategy' as strategy,
+				(output_data->>'maxMagnitude')::numeric as max_magnitude
+			FROM events
+			WHERE event_name = 'MaxMagnitudeUpdated'
+				AND block_number <= @blockHeight
+				AND (output_data->>'operator', output_data->>'strategy') IN (
+					SELECT operator, strategy FROM queued_slashing
+				)
+			ORDER BY output_data->>'operator', output_data->>'strategy', block_number DESC
+		)
 
-		-- Slashing withdrawals (already filtered by strategy)
-		SELECT * FROM queued_slashing
-		),
-		all_completions AS (
-		-- Regular withdrawal completions
 		SELECT 
-			output_data->>'withdrawalRoot' as withdrawal_root,
-			block_number as completed_block_number
-		FROM transaction_events 
-		WHERE event_name = 'WithdrawalCompleted'
-
-		UNION ALL
-
-		-- Slashing withdrawal completions
-		SELECT 
-			withdrawal_root,
-			block_number as completed_block_number
-		FROM completed_slashing_withdrawals
-		),
-		filtered_queued AS (
-		SELECT 
-			aq.*,
+			q.staker,
+			q.strategy,
 			CASE 
-				WHEN comp.withdrawal_root IS NOT NULL 
-				THEN true 
-				ELSE false 
-			END AS completed,
-			comp.completed_block_number
-		FROM all_queued aq
-		LEFT JOIN all_completions comp ON (aq.withdrawal_root = comp.withdrawal_root)
-		WHERE 
-			aq.block_number <= @blockHeight
-			AND (
-				comp.withdrawal_root IS NULL 
-				OR comp.completed_block_number > @blockHeight
-			)
-		),
-		slashing_operator_strategies AS (
-		SELECT DISTINCT operator, strategy
-		FROM filtered_queued
-		WHERE withdrawal_type = 'SlashingWithdrawal'
-		),
-		max_magnitudes AS (
-		SELECT 
-			(output_data->>'operator') as operator,
-			(output_data->>'strategy') as strategy,
-			(output_data->>'maxMagnitude')::numeric as max_magnitude,
-			block_number,
-			ROW_NUMBER() OVER (PARTITION BY output_data->>'operator', output_data->>'strategy' ORDER BY block_number DESC) as rn
-		FROM transaction_events
-		WHERE event_name = 'MaxMagnitudeUpdated'
-		AND block_number <= @blockHeight
-		AND (output_data->>'operator', output_data->>'strategy') IN (
-			SELECT operator, strategy FROM slashing_operator_strategies
+				WHEN qs.withdrawal_root IS NOT NULL 
+				THEN q.shares * COALESCE(m.max_magnitude, 1e18) / 1e18
+				ELSE q.shares
+			END AS shares,
+			q.block_number,
+			q.operator
+		FROM (
+			SELECT * FROM queued_regular
+			UNION ALL
+			SELECT * FROM queued_slashing
+		) q
+		LEFT JOIN queued_slashing qs USING (withdrawal_root)
+		LEFT JOIN latest_magnitudes m ON (
+			q.operator = m.operator 
+			AND q.strategy = m.strategy 
+			AND qs.withdrawal_root IS NOT NULL
 		)
-		),
-		latest_max_magnitudes AS (
-		SELECT operator, strategy, max_magnitude
-		FROM max_magnitudes
-		WHERE rn = 1
-		)
-		SELECT 
-		fq.withdrawal_root,
-		fq.staker,
-		fq.strategy,
-		CASE 
-			WHEN fq.withdrawal_type = 'SlashingWithdrawal' 
-			THEN fq.shares * COALESCE(lmm.max_magnitude, 1000000000000000000::numeric) / 1000000000000000000::numeric
-			ELSE fq.shares
-		END AS shares,
-		fq.block_number,
-		fq.operator,
-		fq.withdrawal_type,
-		fq.completed,
-		fq.completed_block_number
-		FROM filtered_queued fq
-		LEFT JOIN latest_max_magnitudes lmm ON (
-		fq.operator = lmm.operator 
-		AND fq.strategy = lmm.strategy 
-		AND fq.withdrawal_type = 'SlashingWithdrawal'
-		)
-		ORDER BY fq.block_number DESC
+		ORDER BY q.block_number DESC
 	`
 
 	queryParams := []interface{}{
@@ -661,7 +618,7 @@ func (pds *ProtocolDataService) GetCurrentBlockHeight(ctx context.Context, confi
 	return block, nil
 }
 
-func (pds *ProtocolDataService) GetEigenStateChangesForBlock(ctx context.Context, blockHeight uint64) (map[string][]any, error) {
+func (pds *ProtocolDataService) GetEigenStateChangesForBlock(ctx context.Context, blockHeight uint64) (map[string][]interface{}, error) {
 	results, err := pds.stateManager.ListForBlockRange(blockHeight, blockHeight)
 	if err != nil {
 		return nil, err
