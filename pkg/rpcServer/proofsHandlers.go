@@ -59,6 +59,10 @@ func (rpc *RpcServer) GenerateClaimProof(ctx context.Context, req *rewardsV1.Gen
 
 func (rpc *RpcServer) GenerateClaimProofBulk(ctx context.Context, req *rewardsV1.GenerateClaimProofBulkRequest) (*rewardsV1.GenerateClaimProofBulkResponse, error) {
 	earnerToTokens := req.GetEarnerToTokens()
+	if len(earnerToTokens) > 100 {
+		return nil, status.Errorf(codes.InvalidArgument, "maximum 100 earner-token combinations allowed, got %d", len(earnerToTokens))
+	}
+
 	rootIndex := req.GetRootIndex()
 
 	var rootIndexVal int64

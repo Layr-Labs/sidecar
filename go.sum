@@ -28,8 +28,8 @@ github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13 h1:Blb4AE+jC/vddV71w4/MQA
 github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13/go.mod h1:PD/HoyzZjxDw1tAcZw3yD0yGddo+yhmwQAi+lk298r4=
 github.com/Layr-Labs/protobuf-libs v0.1.0 h1:hfawlutriLq1i7cI2kXH8o2N+mx02cJTVlKrwAMazBY=
 github.com/Layr-Labs/protobuf-libs v0.1.0/go.mod h1:Om3Qb39NrWwald+08yTIj/VexKmocIMsMXXIM/iRcW8=
-github.com/Layr-Labs/protocol-apis v1.17.1-0.20250812145455-b10047698b46 h1:/Vn3FQ8k1L/4sTsNGo4ZI5xjKpCyDdAFgQy+PdLduT0=
-github.com/Layr-Labs/protocol-apis v1.17.1-0.20250812145455-b10047698b46/go.mod h1:ZJTZitWS+MnfHND/RF5DMQoFDXnjtP/Xu2Yoxf+hS+Q=
+github.com/Layr-Labs/protocol-apis v1.17.1-0.20250814195335-c4a201fa246e h1:SniTAxQdPZWfI8I70Wyx0bSXDtTfVaZJgmgcutD+8Ao=
+github.com/Layr-Labs/protocol-apis v1.17.1-0.20250814195335-c4a201fa246e/go.mod h1:ZJTZitWS+MnfHND/RF5DMQoFDXnjtP/Xu2Yoxf+hS+Q=
 github.com/Microsoft/go-winio v0.5.0/go.mod h1:JPGBdM1cNvN/6ISo+n8V5iA4v8pBzdOpzfwIujj1a84=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
