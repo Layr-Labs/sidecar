@@ -457,107 +457,127 @@ func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context
 				block_number
 			FROM transaction_logs
 			WHERE event_name IN ('WithdrawalQueued', 'WithdrawalCompleted', 'MaxMagnitudeUpdated')
-				AND block_number <= @blockHeight
+			AND block_number <= @blockHeight
 		),
 		queued_m2 AS (
-			SELECT  
-				output_data->>'withdrawalRoot' as withdrawal_root,
-				output_data->'withdrawal'->>'staker' as staker,
-				strategy,
-				shares::numeric,
-				block_number,
-				output_data->'withdrawal'->>'delegatedTo' as operator
-			FROM transaction_events,
-			LATERAL (
-				SELECT  
-					jsonb_array_elements_text(output_data->'withdrawal'->'strategies') AS strategy,
-					jsonb_array_elements_text(output_data->'withdrawal'->'shares') AS shares
-			) AS expanded
-			WHERE event_name = 'WithdrawalQueued'
-		),
-		all_queued AS (
-			SELECT 
-				withdrawal_root,
-				staker,
-				strategy,
-				shares,
-				block_number,
-				operator,
-				'WithdrawalQueued' as withdrawal_type
-			FROM queued_m2  
-			WHERE strategy IN @strategies  
-			UNION ALL  
-			SELECT  
-				withdrawal_root,
-				staker,
-				strategy,
-				scaled_shares::numeric as shares,
-				block_number,
-				operator,
-				'SlashingWithdrawal' as withdrawal_type
-			FROM queued_slashing_withdrawals qsw
-			WHERE qsw.strategy IN @strategies
-		),
-		all_completions AS (
-			SELECT  
-				output_data->>'withdrawalRoot' as withdrawal_root,
-				block_number as completed_block_number
-			FROM transaction_events  
-			WHERE event_name = 'WithdrawalCompleted'  
-			UNION ALL  
-			SELECT  
-				withdrawal_root,
-				block_number as completed_block_number
-			FROM completed_slashing_withdrawals
-		),
-		filtered_queued AS (
-			SELECT  
-				aq.withdrawal_root,
-				aq.staker,
-				aq.strategy,
-				aq.shares,
-				aq.block_number,
-				aq.operator,
-				aq.withdrawal_type
-			FROM all_queued aq
-			LEFT JOIN all_completions comp ON aq.withdrawal_root = comp.withdrawal_root
-			WHERE  
-				aq.block_number <= @blockHeight
-				AND (
-					comp.withdrawal_root IS NULL  
-					OR comp.completed_block_number > @blockHeight
-				)
-		)
 		SELECT 
+			output_data->>'withdrawalRoot' as withdrawal_root,
+			output_data->'withdrawal'->>'staker' as staker,
+			strategy,
+			shares::numeric,
+			block_number,
+			output_data->'withdrawal'->>'delegatedTo' as operator,
+			'WithdrawalQueued' as withdrawal_type
+		FROM transaction_events,
+		LATERAL (
+			SELECT 
+				jsonb_array_elements_text(output_data->'withdrawal'->'strategies') AS strategy,
+				jsonb_array_elements_text(output_data->'withdrawal'->'shares') AS shares
+		) AS expanded
+		WHERE event_name = 'WithdrawalQueued'
+		),
+		queued_slashing AS (
+		SELECT 
+			withdrawal_root,
 			staker,
 			strategy,
-			shares,
+			scaled_shares::numeric as shares,
 			block_number,
-			operator
-		FROM filtered_queued
-		WHERE withdrawal_type = 'WithdrawalQueued'
+			operator,
+			'SlashingWithdrawal' as withdrawal_type
+		FROM queued_slashing_withdrawals qsw
+		WHERE qsw.strategy IN @strategies
+		),
+		all_queued AS (
+		-- Regular withdrawals filtered by strategy
+		SELECT * FROM queued_m2 
+		WHERE strategy IN @strategies
 
 		UNION ALL
 
+		-- Slashing withdrawals (already filtered by strategy)
+		SELECT * FROM queued_slashing
+		),
+		all_completions AS (
+		-- Regular withdrawal completions
 		SELECT 
-			staker,
-			strategy,
-			shares * COALESCE(
-				(SELECT (output_data->>'maxMagnitude')::numeric
-				FROM transaction_events
-				WHERE event_name = 'MaxMagnitudeUpdated'
-				AND output_data->>'operator' = filtered_queued.operator
-				AND output_data->>'strategy' = filtered_queued.strategy
-				ORDER BY block_number DESC
-				LIMIT 1),
-				1000000000000000000::numeric
-			) / 1000000000000000000::numeric AS shares,
-			block_number,
-			operator
+			output_data->>'withdrawalRoot' as withdrawal_root,
+			block_number as completed_block_number
+		FROM transaction_events 
+		WHERE event_name = 'WithdrawalCompleted'
+
+		UNION ALL
+
+		-- Slashing withdrawal completions
+		SELECT 
+			withdrawal_root,
+			block_number as completed_block_number
+		FROM completed_slashing_withdrawals
+		),
+		filtered_queued AS (
+		SELECT 
+			aq.*,
+			CASE 
+				WHEN comp.withdrawal_root IS NOT NULL 
+				THEN true 
+				ELSE false 
+			END AS completed,
+			comp.completed_block_number
+		FROM all_queued aq
+		LEFT JOIN all_completions comp ON (aq.withdrawal_root = comp.withdrawal_root)
+		WHERE 
+			aq.block_number <= @blockHeight
+			AND (
+				comp.withdrawal_root IS NULL 
+				OR comp.completed_block_number > @blockHeight
+			)
+		),
+		slashing_operator_strategies AS (
+		SELECT DISTINCT operator, strategy
 		FROM filtered_queued
 		WHERE withdrawal_type = 'SlashingWithdrawal'
-
-		ORDER BY block_number DESC
+		),
+		max_magnitudes AS (
+		SELECT 
+			(output_data->>'operator') as operator,
+			(output_data->>'strategy') as strategy,
+			(output_data->>'maxMagnitude')::numeric as max_magnitude,
+			block_number,
+			ROW_NUMBER() OVER (PARTITION BY output_data->>'operator', output_data->>'strategy' ORDER BY block_number DESC) as rn
+		FROM transaction_events
+		WHERE event_name = 'MaxMagnitudeUpdated'
+		AND block_number <= @blockHeight
+		AND (output_data->>'operator', output_data->>'strategy') IN (
+			SELECT operator, strategy FROM slashing_operator_strategies
+		)
+		),
+		latest_max_magnitudes AS (
+		SELECT operator, strategy, max_magnitude
+		FROM max_magnitudes
+		WHERE rn = 1
+		)
+		SELECT 
+		fq.withdrawal_root,
+		fq.staker,
+		fq.strategy,
+		CASE 
+			WHEN fq.withdrawal_type = 'SlashingWithdrawal' 
+			THEN fq.shares * COALESCE(lmm.max_magnitude, 1000000000000000000::numeric) / 1000000000000000000::numeric
+			ELSE fq.shares
+		END AS shares,
+		fq.block_number,
+		fq.operator,
+		fq.withdrawal_type,
+		fq.completed,
+		fq.completed_block_number
+		FROM filtered_queued fq
+		LEFT JOIN latest_max_magnitudes lmm ON (
+		fq.operator = lmm.operator 
+		AND fq.strategy = lmm.strategy 
+		AND fq.withdrawal_type = 'SlashingWithdrawal'
+		)
+		where fq.operator = '0x93a797473810c125ece22f25a2087b6ceb8ce886'
+		ORDER BY fq.block_number DESC
 	`
 
 	withdrawals := make([]*Withdrawal, 0)
