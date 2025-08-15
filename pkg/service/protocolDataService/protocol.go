@@ -435,6 +435,131 @@ func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker str
 	return shares, nil
 }
 
+type Withdrawal struct {
+	Staker      string
+	Strategy    string
+	Shares      string
+	Operator    string
+	BlockHeight uint64
+}
+
+func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context, strategies []string, blockHeight uint64, pagination *types.Pagination) ([]*Withdrawal, error) {
+	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		WITH events AS (
+			SELECT event_name, output_data, block_number
+			FROM transaction_logs
+			WHERE event_name IN ('WithdrawalQueued', 'WithdrawalCompleted', 'MaxMagnitudeUpdated')
+				AND block_number <= @blockHeight
+		),
+
+		completed_roots AS (
+			SELECT output_data->>'withdrawalRoot' as withdrawal_root
+			FROM events 
+			WHERE event_name = 'WithdrawalCompleted'
+			UNION
+			SELECT withdrawal_root FROM completed_slashing_withdrawals
+			WHERE block_number <= @blockHeight
+		),
+
+		queued_regular AS (
+			SELECT 
+				output_data->>'withdrawalRoot' as withdrawal_root,
+				output_data->'withdrawal'->>'staker' as staker,
+				strategy,
+				shares::numeric,
+				block_number,
+				output_data->'withdrawal'->>'delegatedTo' as operator
+			FROM events,
+			LATERAL (
+				SELECT 
+					jsonb_array_elements_text(output_data->'withdrawal'->'strategies') AS strategy,
+					jsonb_array_elements_text(output_data->'withdrawal'->'shares') AS shares
+			) AS expanded
+			WHERE event_name = 'WithdrawalQueued'
+				AND strategy IN @strategies
+				AND output_data->>'withdrawalRoot' NOT IN (SELECT withdrawal_root FROM completed_roots)
+		),
+
+		queued_slashing AS (
+			SELECT 
+				withdrawal_root,
+				staker,
+				strategy,
+				scaled_shares::numeric as shares,
+				block_number,
+				operator
+			FROM queued_slashing_withdrawals
+			WHERE strategy IN @strategies
+				AND withdrawal_root NOT IN (SELECT withdrawal_root FROM completed_roots)
+		),
+
+		latest_magnitudes AS (
+			SELECT DISTINCT ON (output_data->>'operator', output_data->>'strategy')
+				output_data->>'operator' as operator,
+				output_data->>'strategy' as strategy,
+				(output_data->>'maxMagnitude')::numeric as max_magnitude
+			FROM events
+			WHERE event_name = 'MaxMagnitudeUpdated'
+				AND block_number <= @blockHeight
+				AND (output_data->>'operator', output_data->>'strategy') IN (
+					SELECT operator, strategy FROM queued_slashing
+				)
+			ORDER BY output_data->>'operator', output_data->>'strategy', block_number DESC
+		)
+
+		SELECT 
+			q.staker,
+			q.strategy,
+			CASE 
+				WHEN qs.withdrawal_root IS NOT NULL 
+				THEN q.shares * COALESCE(m.max_magnitude, 1e18) / 1e18
+				ELSE q.shares
+			END AS shares,
+			q.block_number,
+			q.operator
+		FROM (
+			SELECT * FROM queued_regular
+			UNION ALL
+			SELECT * FROM queued_slashing
+		) q
+		LEFT JOIN queued_slashing qs USING (withdrawal_root)
+		LEFT JOIN latest_magnitudes m ON (
+			q.operator = m.operator 
+			AND q.strategy = m.strategy 
+			AND qs.withdrawal_root IS NOT NULL
+		)
+		ORDER BY q.block_number DESC
+	`
+
+	queryParams := []interface{}{
+		sql.Named("strategies", strategies),
+		sql.Named("blockHeight", bh),
+	}
+
+	if pagination != nil {
+		query += ` LIMIT @limit`
+		queryParams = append(queryParams, sql.Named("limit", pagination.PageSize))
+
+		if pagination.Page > 0 {
+			query += ` OFFSET @offset`
+			queryParams = append(queryParams, sql.Named("offset", pagination.Page*pagination.PageSize))
+		}
+	}
+
+	var withdrawals []*Withdrawal
+	res := pds.db.Raw(query, queryParams...).Scan(&withdrawals)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+
+	return withdrawals, nil
+}
+
 func (pds *ProtocolDataService) GetStateRoot(ctx context.Context, blockHeight uint64) (*stateManager.StateRoot, error) {
 	var stateRoot *stateManager.StateRoot
 

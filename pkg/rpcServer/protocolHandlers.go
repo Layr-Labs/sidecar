@@ -349,3 +349,43 @@ func (s *RpcServer) ListOperatorStrategyQueuedWithdrawals(ctx context.Context, r
 		}),
 	}, nil
 }
+
+func (s *RpcServer) ListWithdrawalsForStrategies(ctx context.Context, request *protocolV1.ListWithdrawalsForStrategiesRequest) (*protocolV1.ListWithdrawalsForStrategiesResponse, error) {
+	strategies := request.GetStrategyAddresses()
+	if len(strategies) == 0 {
+		return nil, errors.New("at least one strategy address is required")
+	}
+
+	blockHeight := request.GetBlockHeight()
+	pagination := types.NewDefaultPagination()
+
+	if p := request.GetPagination(); p != nil {
+		pagination.Load(p.GetPageNumber(), p.GetPageSize())
+	}
+
+	withdrawals, err := s.protocolDataService.ListWithdrawalsForStrategies(ctx, strategies, blockHeight, pagination)
+	if err != nil {
+		return nil, err
+	}
+
+	var nextPage *common.Pagination
+	if uint32(len(withdrawals)) == pagination.PageSize {
+		nextPage = &common.Pagination{
+			PageNumber: pagination.Page + 1,
+			PageSize:   pagination.PageSize,
+		}
+	}
+
+	return &protocolV1.ListWithdrawalsForStrategiesResponse{
+		Withdrawals: utils.Map(withdrawals, func(withdrawal *protocolDataService.Withdrawal, i uint64) *protocolV1.Withdrawal {
+			return &protocolV1.Withdrawal{
+				Staker:          withdrawal.Staker,
+				Strategy:        withdrawal.Strategy,
+				Shares:          withdrawal.Shares,
+				OperatorAddress: withdrawal.Operator,
+				BlockNumber:     withdrawal.BlockHeight,
+			}
+		}),
+		NextPage: nextPage,
+	}, nil
+}
