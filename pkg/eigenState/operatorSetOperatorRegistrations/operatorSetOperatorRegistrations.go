@@ -115,6 +115,11 @@ func (osor *OperatorSetOperatorRegistrationModel) handleOperatorSetOperatorRegis
 		LogIndex:        log.LogIndex,
 	}
 
+	osor.logger.Sugar().Infow("Detected operator set operator registration event",
+		zap.Uint64("blockNumber", log.BlockNumber),
+		zap.String("transactionHash", log.TransactionHash),
+		zap.Uint64("logIndex", log.LogIndex),
+	)
 	return operatorRegistration, nil
 }
 
