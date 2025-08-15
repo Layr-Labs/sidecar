@@ -19,26 +19,18 @@ func (pds *ProtocolDataService) ListOperatorsForStaker(ctx context.Context, stak
 		return nil, err
 	}
 
-	// First get the block time for the given block height
-	var blockTime string
-	blockTimeRes := pds.db.Raw("select block_time::date from blocks where number <= @blockHeight limit 1",
-		sql.Named("blockHeight", blockHeight)).Scan(&blockTime)
-	if blockTimeRes.Error != nil {
-		return nil, blockTimeRes.Error
-	}
-
 	query := `
 		select distinct operator
 		from staker_delegation_snapshots
 		where
 			staker = @staker
-			and snapshot <= @blockTime
+			and snapshot <= (select block_time from blocks where number = @blockHeight)
 	`
 
 	var operators []string
 	res := pds.db.Raw(query,
 		sql.Named("staker", staker),
-		sql.Named("blockTime", blockTime),
+		sql.Named("blockHeight", blockHeight),
 	).Scan(&operators)
 	if res.Error != nil {
 		return nil, res.Error
@@ -82,26 +74,18 @@ func (pds *ProtocolDataService) ListOperatorsForAvs(ctx context.Context, avs str
 		return nil, err
 	}
 
-	// First get the block time for the given block height
-	var blockTime string
-	blockTimeRes := pds.db.Raw("select block_time::date from blocks where number <= @blockHeight limit 1",
-		sql.Named("blockHeight", blockHeight)).Scan(&blockTime)
-	if blockTimeRes.Error != nil {
-		return nil, blockTimeRes.Error
-	}
-
 	query := `
 		select distinct operator
 		from operator_avs_registration_snapshots
 		where
 			avs = @avs
-			and snapshot <= @blockTime
+			and snapshot <= (select block_time from blocks where number = @blockHeight)
 	`
 
 	var operatorSets []OperatorSet
 	res := pds.db.Raw(query,
 		sql.Named("avs", avs),
-		sql.Named("blockTime", blockTime),
+		sql.Named("blockHeight", blockHeight),
 	).Scan(&operatorSets)
 	if res.Error != nil {
 		return nil, res.Error
