@@ -3,6 +3,11 @@ package slashedOperators
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
+	"slices"
+	"sort"
+	"strings"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/base"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -10,10 +15,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"math/big"
-	"slices"
-	"sort"
-	"strings"
 )
 
 type SlashedOperator struct {
@@ -139,6 +140,11 @@ func (so *SlashedOperatorModel) handleSlashedOperatorCreatedEvent(log *storage.T
 		slashedOperators = append(slashedOperators, slashing)
 	}
 
+	so.logger.Sugar().Infow("Detected slashed operator created event",
+		zap.Uint64("blockNumber", log.BlockNumber),
+		zap.String("transactionHash", log.TransactionHash),
+		zap.Uint64("logIndex", log.LogIndex),
+	)
 	return slashedOperators, nil
 }
 
