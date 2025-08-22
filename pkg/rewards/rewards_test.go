@@ -402,19 +402,11 @@ func Test_Rewards(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_15_staging\n")
-			err = rc.GenerateGold15StagingTable(snapshotDate, snapshotStatus.Id)
+			err = rc.GenerateGoldFinalTable(snapshotDate, snapshotStatus.Id)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, rewardsUtils.RewardsTable_GoldStaging)
+			rows, err = getRowCountForTable(grm, rewardsUtils.RewardsTable_GoldTable)
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_15_staging: %v - [time: %v]\n", rows, time.Since(testStart))
-			testStart = time.Now()
-
-			fmt.Printf("Running gold_final_table\n")
-			err = rc.GenerateGold16FinalTable(snapshotDate, snapshotStatus.Id)
-			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, "gold_table")
-			assert.Nil(t, err)
-			fmt.Printf("\tRows in gold_table: %v - [time: %v]\n", rows, time.Since(testStart))
 
 			goldRows, err := rc.ListGoldRows()
 			assert.Nil(t, err)

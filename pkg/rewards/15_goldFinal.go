@@ -1,13 +1,13 @@
 package rewards
 
 import (
-	"database/sql"
+	"time"
 
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
 
-const _15_goldStagingQuery = `
+const _15_goldFinalQuery = `
 INSERT INTO {{.destTableName}} (earner, snapshot, reward_hash, token, amount, generated_rewards_snapshot_id)
 WITH staker_rewards AS (
   -- We can select DISTINCT here because the staker's tokens are the same for each strategy in the reward hash
@@ -167,10 +167,10 @@ FROM deduped_earners
 ON CONFLICT (earner, token, reward_hash, snapshot) DO NOTHING
 `
 
-func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
-	destTableName := rewardsUtils.RewardsTable_GoldStaging
+func (rc *RewardsCalculator) GenerateGoldFinalTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	destTableName := rewardsUtils.RewardsTable_GoldTable
 
-	rc.logger.Sugar().Infow("Generating gold staging",
+	rc.logger.Sugar().Infow("Generating gold final",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
@@ -189,7 +189,7 @@ func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string, gen
 	}
 	rc.logger.Sugar().Infow("Is RewardsV2_1 enabled?", "enabled", isRewardsV2_1Enabled)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_15_goldStagingQuery, map[string]interface{}{
+	query, err := rewardsUtils.RenderQueryTemplate(_15_goldFinalQuery, map[string]interface{}{
 		"destTableName":                           destTableName,
 		"stakerRewardAmountsTable":                rewardsUtils.RewardsTable_2_StakerRewardAmounts,
 		"operatorRewardAmountsTable":              rewardsUtils.RewardsTable_3_OperatorRewardAmounts,
@@ -213,45 +213,26 @@ func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string, gen
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_staging", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to create gold_final", "error", res.Error)
 		return res.Error
 	}
 	return nil
 }
 
-type GoldStagingRow struct {
+type GoldRow struct {
 	Earner     string
-	Snapshot   string
+	Snapshot   time.Time
 	RewardHash string
 	Token      string
 	Amount     string
 }
 
-func (rc *RewardsCalculator) ListGoldStagingRowsForSnapshot(snapshotDate string) ([]*GoldStagingRow, error) {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-
-	results := make([]*GoldStagingRow, 0)
-	query := `
-	SELECT
-		earner,
-		snapshot::text as snapshot,
-		reward_hash,
-		token,
-		amount
-	FROM {{.goldStagingTable}} WHERE DATE(snapshot) < @cutoffDate`
-	query, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
-		"goldStagingTable": allTableNames[rewardsUtils.Table_15_GoldStaging],
-	})
-	if err != nil {
-		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
-		return nil, err
-	}
-	res := rc.grm.Raw(query,
-		sql.Named("cutoffDate", snapshotDate),
-	).Scan(&results)
+func (rc *RewardsCalculator) ListGoldRows() ([]*GoldRow, error) {
+	var goldRows []*GoldRow
+	res := rc.grm.Raw("select * from gold_table").Scan(&goldRows)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to list gold staging rows", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to list gold rows", "error", res.Error)
 		return nil, res.Error
 	}
-	return results, nil
+	return goldRows, nil
 }
