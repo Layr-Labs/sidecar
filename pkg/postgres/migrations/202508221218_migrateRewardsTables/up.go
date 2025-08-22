@@ -54,16 +54,12 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 		return res.Error
 	}
 
-	// Track total records for validation
-	var totalSourceRecords int64
-	var totalMigratedRecords int64
-
 	for _, table := range tables {
 		// Extract date from table name
 		re := regexp.MustCompile(`(202[0-9]_[0-9]{2}_[0-9]{2})$`)
 		match := re.FindStringSubmatch(table)
 		if len(match) != 2 {
-			return fmt.Errorf("Failed to find date in table name: %s", table)
+			return fmt.Errorf("failed to find date in table name: %s", table)
 		}
 		date := match[1]
 		kebabDate := strings.ReplaceAll(date, "_", "-")
@@ -76,7 +72,7 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 			if errors.Is(res.Error, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("CRITICAL: No generated rewards snapshot found for date: %s. Migration cannot proceed safely - this would corrupt data. Please ensure snapshot exists before migrating", kebabDate)
 			}
-			return fmt.Errorf("Failed to query generated rewards snapshot for date %s: %w", kebabDate, res.Error)
+			return fmt.Errorf("failed to query generated rewards snapshot for date %s: %w", kebabDate, res.Error)
 		}
 		if snapshotId == 0 {
 			return fmt.Errorf("CRITICAL: Invalid snapshot ID (0) found for date: %s. Migration cannot proceed safely", kebabDate)
@@ -87,59 +83,27 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 		offset := 0
 		var tableMigratedRecords int64
 
-		// Create a single temp table for this source table to handle ON CONFLICT properly
-		tempTableName := fmt.Sprintf("temp_mig_%d", snapshotId)
-
-		// Create temp table with same structure as SOURCE table + generated_rewards_snapshot_id column
-		createTempQuery := fmt.Sprintf(`
-			CREATE TEMP TABLE %s AS 
-			SELECT *, 0::bigint as generated_rewards_snapshot_id
-			FROM %s WHERE false
-		`, tempTableName, table)
-
-		res := grm.Exec(createTempQuery)
-		if res.Error != nil {
-			return fmt.Errorf("Failed to create temp table for migration: %w", res.Error)
-		}
-
-		// Ensure temp table cleanup on exit
-		defer grm.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName))
-
 		for {
-			// Insert batch into temp table first
-			insertTempQuery := fmt.Sprintf(`
+			// Insert directly from source table to final table with generated_rewards_snapshot_id
+			migrateQuery := fmt.Sprintf(`
 				INSERT INTO %s 
-				SELECT *, %d 
+				SELECT *, %d as generated_rewards_snapshot_id
 				FROM %s 
 				ORDER BY ctid 
 				LIMIT %d OFFSET %d
-			`, tempTableName, snapshotId, table, insertBatchSize, offset)
+				ON CONFLICT ON CONSTRAINT uniq_%s 
+				DO NOTHING
+			`, sm.NewTableName, snapshotId, table, insertBatchSize, offset, sm.NewTableName)
 
-			res := grm.Exec(insertTempQuery)
+			res := grm.Exec(migrateQuery)
 			if res.Error != nil {
-				return fmt.Errorf("Failed to insert batch into temp table: %w", res.Error)
+				return fmt.Errorf("Migration failed for table %s at offset %d: %w", table, offset, res.Error)
 			}
 
 			rowsAffected := res.RowsAffected
 			if rowsAffected == 0 {
 				break
 			}
-
-			// Move from temp table to final table with conflict resolution
-			moveQuery := fmt.Sprintf(`
-				INSERT INTO %s 
-				SELECT * FROM %s
-				ON CONFLICT ON CONSTRAINT uniq_%s 
-				DO NOTHING
-			`, sm.NewTableName, tempTableName, sm.NewTableName)
-
-			res = grm.Exec(moveQuery)
-			if res.Error != nil {
-				return fmt.Errorf("Migration failed for table %s at offset %d: %w", table, offset, res.Error)
-			}
-
-			// Clear temp table for next batch
-			grm.Exec(fmt.Sprintf("DELETE FROM %s", tempTableName))
 
 			tableMigratedRecords += rowsAffected
 			fmt.Printf("Migrated %d records from %s (offset %d)\n", rowsAffected, table, offset)
@@ -152,39 +116,14 @@ func (sm *SubMigration) Run(db *sql.DB, grm *gorm.DB, cfg *config.Config) error 
 			offset += insertBatchSize
 		}
 
-		totalMigratedRecords += tableMigratedRecords
-		fmt.Printf("Completed migration for table %s: %d records processed\n", table, tableMigratedRecords)
+		// Drop the source table
+		dropQuery := fmt.Sprintf("DROP TABLE IF EXISTS %s", table)
+		res = grm.Exec(dropQuery)
+		if res.Error != nil {
+			fmt.Printf("Failed to drop table %s: %s\n", table, res.Error)
+		}
 	}
 
-	// Validate migration results
-	fmt.Printf("Migration validation: Source records: %d, Migrated records: %d\n", totalSourceRecords, totalMigratedRecords)
-
-	// Count final records in destination table
-	var finalCount int64
-	finalCountRes := grm.Raw("SELECT COUNT(*) FROM " + sm.NewTableName).Scan(&finalCount)
-	if finalCountRes.Error != nil {
-		return fmt.Errorf("failed to count final records in %s: %w", sm.NewTableName, finalCountRes.Error)
-	}
-
-	// Validate data integrity
-	if totalMigratedRecords != totalSourceRecords {
-		fmt.Printf("WARNING: Record count mismatch - Source: %d, Migrated: %d, Final: %d\n",
-			totalSourceRecords, totalMigratedRecords, finalCount)
-		// Note: This might be expected due to deduplication, but we should log it
-	}
-
-	// Verify no records have null generated_rewards_snapshot_id
-	var nullSnapshotCount int64
-	nullCheckRes := grm.Raw("SELECT COUNT(*) FROM " + sm.NewTableName + " WHERE generated_rewards_snapshot_id IS NULL").Scan(&nullSnapshotCount)
-	if nullCheckRes.Error != nil {
-		return fmt.Errorf("failed to check for null snapshot IDs in %s: %w", sm.NewTableName, nullCheckRes.Error)
-	}
-
-	if nullSnapshotCount > 0 {
-		return fmt.Errorf("CRITICAL: Found %d records with null generated_rewards_snapshot_id in %s after migration. This indicates data corruption", nullSnapshotCount, sm.NewTableName)
-	}
-
-	fmt.Printf("Successfully completed migration for %s: %d total records migrated\n", sm.NewTableName, finalCount)
 	return nil
 }
 
@@ -600,27 +539,6 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			ExistingTablePattern: "gold_[0-9]+_avs_od_operator_set_reward_amounts_[0-9_]+$",
 		},
 		{
-			CreateTableQuery: `create table if not exists rewards_gold_staging (
-				earner      varchar,
-				snapshot    date,
-				reward_hash varchar,
-				token       varchar,
-				amount      numeric,
-				generated_rewards_snapshot_id bigint,
-    			foreign key (generated_rewards_snapshot_id) references generated_rewards_snapshots (id) on delete cascade
-			);`,
-			PreDataMigrationQueries: []string{
-				`DO $$ 
-				BEGIN
-					IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uniq_rewards_gold_staging') THEN
-						ALTER TABLE rewards_gold_staging ADD CONSTRAINT uniq_rewards_gold_staging UNIQUE (earner, token, reward_hash, snapshot);
-					END IF;
-				END $$;`,
-			},
-			NewTableName:         "rewards_gold_staging",
-			ExistingTablePattern: "^$",
-		},
-		{
 			CreateTableQuery: `
 				DROP TABLE IF EXISTS gold_table;
 				CREATE TABLE gold_table (
@@ -641,8 +559,31 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				END $$;`,
 			},
 			NewTableName:         "gold_table",
-			ExistingTablePattern: "gold_[0-9]+_staging_[0-9_]+$",
+			ExistingTablePattern: "^$",
 		},
+	}
+
+	// Drop staging tables (no data migration needed)
+	dropStagingTablesQuery := `
+		SELECT table_name
+		FROM information_schema.tables
+		WHERE table_type='BASE TABLE'
+			AND table_name ~* 'gold_(11|15)_staging_[0-9_]+$'
+			AND table_schema = 'public'
+	`
+	var stagingTables []string
+	res := grm.Raw(dropStagingTablesQuery).Scan(&stagingTables)
+	if res.Error != nil {
+		return fmt.Errorf("failed to find staging tables: %w", res.Error)
+	}
+
+	for _, table := range stagingTables {
+		dropQuery := fmt.Sprintf("DROP TABLE IF EXISTS %s", table)
+		dropRes := grm.Exec(dropQuery)
+		if dropRes.Error != nil {
+			fmt.Printf("Failed to drop staging table %s: %s\n", table, dropRes.Error)
+			return dropRes.Error
+		}
 	}
 
 	_, err := helpers.WrapTxAndCommit(func(tx *gorm.DB) (interface{}, error) {

@@ -762,13 +762,26 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string, generatedSn
 		return err
 	}
 
-	if err := rc.GenerateGold15StagingTable(snapshotDate, generatedSnapshotId); err != nil {
-		rc.logger.Sugar().Errorw("Failed to generate gold staging", "error", err)
+	if err := rc.GenerateGoldFinalTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate final table", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold16FinalTable(snapshotDate, generatedSnapshotId); err != nil {
-		rc.logger.Sugar().Errorw("Failed to generate final table", "error", err)
+	// ------------------------------------------------------------------------
+	// Copy temp tables to final tables
+	// ------------------------------------------------------------------------
+	if err := rc.CopyTempActiveRewardsToActiveRewards(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to copy temp active rewards to active rewards", "error", err)
+		return err
+	}
+
+	if err := rc.CopyTempActiveODRewardsToActiveODRewards(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to copy temp active od rewards to active od rewards", "error", err)
+		return err
+	}
+
+	if err := rc.CopyTempActiveODOperatorSetRewardsToActiveODOperatorSetRewards(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to copy temp active od operator set rewards to active od operator set rewards", "error", err)
 		return err
 	}
 
