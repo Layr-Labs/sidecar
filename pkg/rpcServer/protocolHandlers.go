@@ -383,7 +383,7 @@ func (s *RpcServer) ListWithdrawalsForStrategies(ctx context.Context, request *p
 				Strategy:        withdrawal.Strategy,
 				Shares:          withdrawal.Shares,
 				OperatorAddress: withdrawal.Operator,
-				BlockNumber:     withdrawal.BlockHeight,
+				BlockNumber:     withdrawal.BlockNumber,
 			}
 		}),
 		NextPage: nextPage,
