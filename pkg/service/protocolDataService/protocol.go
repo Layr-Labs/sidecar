@@ -440,7 +440,7 @@ type Withdrawal struct {
 	Strategy    string
 	Shares      string
 	Operator    string
-	BlockHeight uint64
+	BlockNumber uint64
 }
 
 func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context, strategies []string, blockHeight uint64, pagination *types.Pagination) ([]*Withdrawal, error) {
@@ -520,8 +520,8 @@ func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context
 				THEN q.shares * COALESCE(m.max_magnitude, 1e18) / 1e18
 				ELSE q.shares
 			END AS shares,
-			q.block_number,
-			q.operator
+			q.operator,
+			q.block_number
 		FROM (
 			SELECT * FROM queued_regular
 			UNION ALL
