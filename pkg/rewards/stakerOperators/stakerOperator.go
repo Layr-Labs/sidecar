@@ -2,7 +2,6 @@ package stakerOperators
 
 import (
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -25,7 +24,7 @@ func NewStakerOperatorGenerator(
 	}
 }
 
-func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate string) error {
+func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate string, generatedSnapshotId uint64) error {
 	forks, err := sog.globalConfig.GetRewardsSqlForkDates()
 	if err != nil {
 		return err
@@ -39,7 +38,7 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 	}
 
 	sog.logger.Sugar().Infow("Generating staker operators table", zap.String("cutoffDate", cutoffDate))
-	if err := sog.GenerateAndInsert1StakerStrategyPayouts(cutoffDate, forks); err != nil {
+	if err := sog.GenerateAndInsert1StakerStrategyPayouts(cutoffDate, forks, generatedSnapshotId); err != nil {
 		sog.logger.Sugar().Errorw("Failed to generate and insert 1 staker strategy rewards",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
@@ -47,7 +46,7 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 
-	if err := sog.GenerateAndInsert2OperatorStrategyRewards(cutoffDate); err != nil {
+	if err := sog.GenerateAndInsert2OperatorStrategyRewards(cutoffDate, generatedSnapshotId); err != nil {
 		sog.logger.Sugar().Errorw("Failed to generate and insert 2 staker strategy rewards",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
@@ -55,7 +54,7 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 
-	if err := sog.GenerateAndInsert3RewardsForAllStrategyPayout(cutoffDate); err != nil {
+	if err := sog.GenerateAndInsert3RewardsForAllStrategyPayout(cutoffDate, generatedSnapshotId); err != nil {
 		sog.logger.Sugar().Errorw("Failed to generate and insert 3 staker strategy rewards",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
@@ -63,7 +62,7 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 
-	if err := sog.GenerateAndInsert4RfaeStakerStrategyPayout(cutoffDate, forks); err != nil {
+	if err := sog.GenerateAndInsert4RfaeStakerStrategyPayout(cutoffDate, forks, generatedSnapshotId); err != nil {
 		sog.logger.Sugar().Errorw("Failed to generate and insert 4 staker strategy rewards",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
@@ -71,7 +70,7 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 
-	if err := sog.GenerateAndInsert5RfaeOperatorStrategyPayout(cutoffDate); err != nil {
+	if err := sog.GenerateAndInsert5RfaeOperatorStrategyPayout(cutoffDate, generatedSnapshotId); err != nil {
 		sog.logger.Sugar().Errorw("Failed to generate and insert 5 staker strategy rewards",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
@@ -79,7 +78,7 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 
-	if err := sog.GenerateAndInsert6OperatorODStrategyPayouts(cutoffDate); err != nil {
+	if err := sog.GenerateAndInsert6OperatorODStrategyPayouts(cutoffDate, generatedSnapshotId); err != nil {
 		sog.logger.Sugar().Errorw("Failed to generate and insert 6 staker strategy rewards",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
@@ -87,7 +86,7 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 
-	if err := sog.GenerateAndInsert7StakerODStrategyPayouts(cutoffDate); err != nil {
+	if err := sog.GenerateAndInsert7StakerODStrategyPayouts(cutoffDate, generatedSnapshotId); err != nil {
 		sog.logger.Sugar().Errorw("Failed to generate and insert 7 staker strategy rewards",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
@@ -95,7 +94,7 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 
-	if err := sog.GenerateAndInsert8AvsODStrategyPayouts(cutoffDate); err != nil {
+	if err := sog.GenerateAndInsert8AvsODStrategyPayouts(cutoffDate, generatedSnapshotId); err != nil {
 		sog.logger.Sugar().Errorw("Failed to generate and insert 8 staker strategy rewards",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
@@ -103,7 +102,7 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 
-	if err := sog.GenerateAndInsert9OperatorODOperatorSetStrategyPayouts(cutoffDate); err != nil {
+	if err := sog.GenerateAndInsert9OperatorODOperatorSetStrategyPayouts(cutoffDate, generatedSnapshotId); err != nil {
 		sog.logger.Sugar().Errorw("Failed to generate and insert 9 operator OD operator set strategy rewards",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
@@ -111,7 +110,7 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 
-	if err := sog.GenerateAndInsert10StakerODOperatorSetStrategyPayouts(cutoffDate); err != nil {
+	if err := sog.GenerateAndInsert10StakerODOperatorSetStrategyPayouts(cutoffDate, generatedSnapshotId); err != nil {
 		sog.logger.Sugar().Errorw("Failed to generate and insert 10 staker OD operator set strategy rewards",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
@@ -119,7 +118,7 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 
-	if err := sog.GenerateAndInsert11AvsODOperatorSetStrategyPayouts(cutoffDate); err != nil {
+	if err := sog.GenerateAndInsert11AvsODOperatorSetStrategyPayouts(cutoffDate, generatedSnapshotId); err != nil {
 		sog.logger.Sugar().Errorw("Failed to generate and insert 11 AVS OD operator set strategy rewards",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
@@ -143,8 +142,4 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 	return nil
-}
-
-func (sog *StakerOperatorsGenerator) FindRewardsTableNamesForSearchPattersn(patterns map[string]string, cutoffDate string) (map[string]string, error) {
-	return rewardsUtils.FindRewardsTableNamesForSearchPatterns(patterns, cutoffDate, sog.globalConfig.DatabaseConfig.SchemaName, sog.db)
 }

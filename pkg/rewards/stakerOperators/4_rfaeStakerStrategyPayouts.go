@@ -1,9 +1,10 @@
 package stakerOperators
 
 import (
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
-	"time"
 )
 
 const _4_rfaeStakerStrategyPayoutsQuery = `
@@ -29,7 +30,7 @@ reward_snapshot_operators as (
   FROM {{.activeRewardsTable}} ap
   JOIN avs_opted_operators aoo
   ON ap.snapshot = aoo.snapshot
-  WHERE ap.reward_type = 'all_earners'
+  WHERE ap.reward_type = 'all_earners' AND ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 -- Get the stakers that were delegated to the operator for the snapshot
 staker_delegated_operators AS (
@@ -66,7 +67,7 @@ rejoined_staker_strategies AS (
     sss.reward_hash = rfas.reward_hash AND
     sss.staker = rfas.staker
   -- Parse out negative shares and zero multiplier so there is no division by zero case
-  WHERE sss.shares > 0 and sss.multiplier > 0
+  WHERE sss.shares > 0 and sss.multiplier > 0 AND rfas.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 -- Calculate the weight of a staker for each of their strategies
 staker_strategy_weights AS (
@@ -110,7 +111,7 @@ type RfaeStakerStrategyPayout struct {
 	StakerStrategyTokens string
 }
 
-func (sog *StakerOperatorsGenerator) GenerateAndInsert4RfaeStakerStrategyPayout(cutoffDate string, forks config.ForkMap) error {
+func (sog *StakerOperatorsGenerator) GenerateAndInsert4RfaeStakerStrategyPayout(cutoffDate string, forks config.ForkMap, generatedRewardsSnapshotId uint64) error {
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 	destTableName := allTableNames[rewardsUtils.Sot_4_RfaeStakers]
 
@@ -123,19 +124,11 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert4RfaeStakerStrategyPayout(
 		return err
 	}
 
-	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
-		rewardsUtils.Table_1_ActiveRewards: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_1_ActiveRewards],
-		rewardsUtils.Table_5_RfaeStakers:   rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_5_RfaeStakers],
-	}, cutoffDate)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
-		return err
-	}
-
 	query, err := rewardsUtils.RenderQueryTemplate(_4_rfaeStakerStrategyPayoutsQuery, map[string]interface{}{
-		"destTableName":      destTableName,
-		"activeRewardsTable": rewardsTables[rewardsUtils.Table_1_ActiveRewards],
-		"rfaeStakersTable":   rewardsTables[rewardsUtils.Table_5_RfaeStakers],
+		"destTableName":              destTableName,
+		"activeRewardsTable":         rewardsUtils.RewardsTable_1_ActiveRewards,
+		"rfaeStakersTable":           rewardsUtils.RewardsTable_5_RfaeStakers,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 4_rfaeStakerStrategyPayouts query", "error", err)

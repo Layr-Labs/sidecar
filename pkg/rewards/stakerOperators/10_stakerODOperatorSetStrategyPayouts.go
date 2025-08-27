@@ -19,9 +19,10 @@ select
     reward_hash,
     snapshot
 from {{.stakerODOperatorSetRewardAmountsTable}}
+where generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 `
 
-func (sog *StakerOperatorsGenerator) GenerateAndInsert10StakerODOperatorSetStrategyPayouts(cutoffDate string) error {
+func (sog *StakerOperatorsGenerator) GenerateAndInsert10StakerODOperatorSetStrategyPayouts(cutoffDate string, generatedRewardsSnapshotId uint64) error {
 	rewardsV2_1Enabled, err := sog.globalConfig.IsRewardsV2_1EnabledForCutoffDate(cutoffDate)
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to check if rewards v2.1 is enabled", "error", err)
@@ -44,17 +45,10 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert10StakerODOperatorSetStrat
 		return err
 	}
 
-	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
-		rewardsUtils.Table_13_StakerODOperatorSetRewardAmounts: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_13_StakerODOperatorSetRewardAmounts],
-	}, cutoffDate)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
-		return err
-	}
-
 	query, err := rewardsUtils.RenderQueryTemplate(_10_stakerODOperatorSetStrategyPayoutQuery, map[string]interface{}{
 		"destTableName":                         destTableName,
-		"stakerODOperatorSetRewardAmountsTable": rewardsTables[rewardsUtils.Table_13_StakerODOperatorSetRewardAmounts],
+		"stakerODOperatorSetRewardAmountsTable": rewardsUtils.RewardsTable_13_StakerODOperatorSetRewardAmounts,
+		"generatedRewardsSnapshotId":            generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 10_stakerODOperatorSetStrategyPayouts query", "error", err)
