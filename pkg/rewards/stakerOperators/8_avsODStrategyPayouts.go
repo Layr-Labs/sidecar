@@ -21,6 +21,7 @@ select
 	operator,
 	avs_tokens
 from {{.avsODRewardAmountsTable}}
+where generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 `
 
 type AvsODStrategyPayout struct {
@@ -32,7 +33,7 @@ type AvsODStrategyPayout struct {
 	AvsTokens  string
 }
 
-func (sog *StakerOperatorsGenerator) GenerateAndInsert8AvsODStrategyPayouts(cutoffDate string) error {
+func (sog *StakerOperatorsGenerator) GenerateAndInsert8AvsODStrategyPayouts(cutoffDate string, generatedRewardsSnapshotId uint64) error {
 	rewardsV2Enabled, err := sog.globalConfig.IsRewardsV2EnabledForCutoffDate(cutoffDate)
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
@@ -55,17 +56,10 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert8AvsODStrategyPayouts(cuto
 		return err
 	}
 
-	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
-		rewardsUtils.Table_10_AvsODRewardAmounts: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_10_AvsODRewardAmounts],
-	}, cutoffDate)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
-		return err
-	}
-
 	query, err := rewardsUtils.RenderQueryTemplate(_8_avsODStrategyPayoutQuery, map[string]interface{}{
-		"destTableName":           destTableName,
-		"avsODRewardAmountsTable": rewardsTables[rewardsUtils.Table_10_AvsODRewardAmounts],
+		"destTableName":              destTableName,
+		"avsODRewardAmountsTable":    rewardsUtils.RewardsTable_10_AvsODRewardAmounts,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 8_avsODStrategyPayouts query", "error", err)

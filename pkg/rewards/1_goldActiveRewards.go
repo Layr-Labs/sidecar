@@ -108,7 +108,6 @@ from active_rewards_final as arf
 // @param startDate: The lower bound of when to calculate rewards from. If we're running rewards for the first time,
 // this will be "1970-01-01". If this is a subsequent run, this will be the last snapshot date.
 func (r *RewardsCalculator) Generate1ActiveRewards(snapshotDate string, generatedRewardsSnapshotId uint64) error {
-	// destTableName := rewardsUtils.RewardsTable_1_ActiveRewards
 	destTableName := r.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
 	// first, drop the table if it already exists
