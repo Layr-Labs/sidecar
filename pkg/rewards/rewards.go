@@ -289,7 +289,7 @@ func (rc *RewardsCalculator) BackfillAllStakerOperators() error {
 	// iterate over each snapshot and generate the staker operators table data for each
 	for _, snapshot := range generatedSnapshots {
 		rc.logger.Sugar().Infow("Generating staker operators table for snapshot", "snapshotDate", snapshot.SnapshotDate)
-		if err := rc.sog.GenerateStakerOperatorsTable(snapshot.SnapshotDate); err != nil {
+		if err := rc.sog.GenerateStakerOperatorsTable(snapshot.SnapshotDate, snapshot.Id); err != nil {
 			rc.logger.Sugar().Errorw("Failed to generate staker operators table", "error", err)
 			return err
 		}
@@ -341,7 +341,7 @@ func (rc *RewardsCalculator) GenerateStakerOperatorsTableForPastSnapshot(cutoffD
 		return err
 	}
 
-	if err := rc.sog.GenerateStakerOperatorsTable(cutoffDate); err != nil {
+	if err := rc.sog.GenerateStakerOperatorsTable(cutoffDate, generatedSnapshot.Id); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker operators table", "error", err)
 		return err
 	}
@@ -550,7 +550,7 @@ func (rc *RewardsCalculator) calculateRewards(snapshotDate string) error {
 		return err
 	}
 
-	if err = rc.sog.GenerateStakerOperatorsTable(snapshotDate); err != nil {
+	if err = rc.sog.GenerateStakerOperatorsTable(snapshotDate, snapshot.Id); err != nil {
 		_ = rc.UpdateRewardSnapshotStatus(snapshotDate, storage.RewardSnapshotStatusFailed)
 		rc.logger.Sugar().Errorw("Failed to generate staker operators table", "error", err)
 		return err

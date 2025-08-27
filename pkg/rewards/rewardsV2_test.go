@@ -264,7 +264,7 @@ func Test_RewardsV2(t *testing.T) {
 			}
 
 			t.Logf("Generating staker operators table")
-			err = rc.sog.GenerateStakerOperatorsTable(snapshotDate)
+			err = rc.sog.GenerateStakerOperatorsTable(snapshotDate, snapshotStatus.Id)
 			assert.Nil(t, err)
 
 			fmt.Printf("Total duration for rewards compute %s: %v\n", snapshotDate, time.Since(snapshotStartTime))

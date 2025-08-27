@@ -1,8 +1,9 @@
 package stakerOperators
 
 import (
-	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 )
 
 const _2_operatorStrategyRewardsQuery = `
@@ -21,7 +22,7 @@ WITH reward_snapshot_operators as (
   FROM {{.activeRewardsTable}} ap
   JOIN operator_avs_registration_snapshots oar
   ON ap.avs = oar.avs and ap.snapshot = oar.snapshot
-  WHERE ap.reward_type = 'avs'
+  WHERE ap.reward_type = 'avs' AND ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 operator_restaked_strategies AS (
   SELECT
@@ -55,7 +56,7 @@ rejoined_operator_strategies AS (
     oass.snapshot = opa.snapshot AND
     oass.reward_hash = opa.reward_hash AND
     oass.operator = opa.operator
-  WHERE oass.shares > 0 AND oass.multiplier != 0
+  WHERE oass.shares > 0 AND oass.multiplier != 0 AND opa.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 -- Calculate the weight of a operator for each of their strategies
 operator_strategy_weights AS (
@@ -98,7 +99,7 @@ type OperatorStrategyRewards struct {
 	Shares                 string
 }
 
-func (sog *StakerOperatorsGenerator) GenerateAndInsert2OperatorStrategyRewards(cutoffDate string) error {
+func (sog *StakerOperatorsGenerator) GenerateAndInsert2OperatorStrategyRewards(cutoffDate string, generatedRewardsSnapshotId uint64) error {
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 	destTableName := allTableNames[rewardsUtils.Sot_2_OperatorStrategyPayouts]
 
@@ -111,19 +112,11 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert2OperatorStrategyRewards(c
 		return err
 	}
 
-	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
-		rewardsUtils.Table_1_ActiveRewards:         rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_1_ActiveRewards],
-		rewardsUtils.Table_3_OperatorRewardAmounts: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_3_OperatorRewardAmounts],
-	}, cutoffDate)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
-		return err
-	}
-
 	query, err := rewardsUtils.RenderQueryTemplate(_2_operatorStrategyRewardsQuery, map[string]interface{}{
 		"destTableName":              destTableName,
-		"activeRewardsTable":         rewardsTables[rewardsUtils.Table_1_ActiveRewards],
-		"operatorRewardAmountsTable": rewardsTables[rewardsUtils.Table_3_OperatorRewardAmounts],
+		"activeRewardsTable":         rewardsUtils.RewardsTable_1_ActiveRewards,
+		"operatorRewardAmountsTable": rewardsUtils.RewardsTable_3_OperatorRewardAmounts,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 2_operatorStrategyRewards query", "error", err)
