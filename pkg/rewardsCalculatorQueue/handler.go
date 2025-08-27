@@ -1,6 +1,9 @@
 package rewardsCalculatorQueue
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // Process starts the main processing loop for the rewards calculator queue.
 // This method should be run in a separate goroutine. It continuously listens
@@ -40,8 +43,27 @@ func (rcq *RewardsCalculatorQueue) Process() {
 // Returns:
 //   - *RewardsCalculatorResponse: The calculation response containing results or error
 func (rcq *RewardsCalculatorQueue) processMessage(msg *RewardsCalculationMessage) *RewardsCalculatorResponse {
+	startTime := time.Now()
 	response := &RewardsCalculatorResponse{}
 	cutoffDate := msg.Data.CutoffDate
+
+	defer func() {
+		duration := time.Since(startTime)
+		if response.Error != nil {
+			rcq.logger.Sugar().Errorw("Rewards calculation failed",
+				"calculationType", msg.Data.CalculationType,
+				"cutoffDate", cutoffDate,
+				"duration", duration,
+				"error", response.Error,
+			)
+		} else {
+			rcq.logger.Sugar().Infow("Rewards calculation completed successfully",
+				"calculationType", msg.Data.CalculationType,
+				"cutoffDate", cutoffDate,
+				"duration", duration,
+			)
+		}
+	}()
 
 	switch msg.Data.CalculationType {
 	case RewardsCalculationType_CalculateRewards:
