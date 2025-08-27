@@ -1,8 +1,9 @@
 package stakerOperators
 
 import (
-	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 )
 
 // _6_operatorODStrategyPayoutQuery is the query that generates the operator OD strategy payouts.
@@ -25,6 +26,7 @@ select
 	od.split_pct,
 	od.operator_tokens
 from {{.operatorODRewardAmountsTable}} as od
+where od.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 `
 
 type OperatorODStrategyPayout struct {
@@ -39,7 +41,7 @@ type OperatorODStrategyPayout struct {
 	OperatorTokens       string
 }
 
-func (sog *StakerOperatorsGenerator) GenerateAndInsert6OperatorODStrategyPayouts(cutoffDate string) error {
+func (sog *StakerOperatorsGenerator) GenerateAndInsert6OperatorODStrategyPayouts(cutoffDate string, generatedRewardsSnapshotId uint64) error {
 	rewardsV2Enabled, err := sog.globalConfig.IsRewardsV2EnabledForCutoffDate(cutoffDate)
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
@@ -61,17 +63,10 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert6OperatorODStrategyPayouts
 		return err
 	}
 
-	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
-		rewardsUtils.Table_8_OperatorODRewardAmounts: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_8_OperatorODRewardAmounts],
-	}, cutoffDate)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
-		return err
-	}
-
 	query, err := rewardsUtils.RenderQueryTemplate(_6_operatorODStrategyPayoutQuery, map[string]interface{}{
 		"destTableName":                destTableName,
-		"operatorODRewardAmountsTable": rewardsTables[rewardsUtils.Table_8_OperatorODRewardAmounts],
+		"operatorODRewardAmountsTable": rewardsUtils.RewardsTable_8_OperatorODRewardAmounts,
+		"generatedRewardsSnapshotId":   generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 6_operatorODStrategyPayouts query", "error", err)
