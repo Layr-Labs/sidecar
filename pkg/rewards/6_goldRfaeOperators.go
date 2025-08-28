@@ -20,6 +20,7 @@ WITH operator_token_sums AS (
     operator,
     SUM(operator_tokens) OVER (PARTITION BY operator, reward_hash, snapshot) AS operator_tokens
   FROM {{.rfaeStakersTable}}
+  WHERE generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 -- Dedupe the operator tokens across strategies for each operator, reward hash, and snapshot
 distinct_operators AS (

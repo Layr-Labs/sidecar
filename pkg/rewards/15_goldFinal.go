@@ -18,6 +18,7 @@ WITH staker_rewards AS (
     token,
     staker_tokens as amount
   FROM {{.stakerRewardAmountsTable}}
+  WHERE generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 operator_rewards AS (
   SELECT DISTINCT
@@ -28,6 +29,7 @@ operator_rewards AS (
     token,
     operator_tokens as amount
   FROM {{.operatorRewardAmountsTable}}
+  WHERE generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 rewards_for_all AS (
   SELECT DISTINCT
@@ -37,6 +39,7 @@ rewards_for_all AS (
     token,
     staker_tokens as amount
   FROM {{.rewardsForAllTable}}
+  WHERE generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 rewards_for_all_earners_stakers AS (
   SELECT DISTINCT
@@ -46,6 +49,7 @@ rewards_for_all_earners_stakers AS (
     token,
     staker_tokens as amount
   FROM {{.rfaeStakerTable}}
+  WHERE generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 rewards_for_all_earners_operators AS (
   SELECT DISTINCT
@@ -55,6 +59,7 @@ rewards_for_all_earners_operators AS (
     token,
     operator_tokens as amount
   FROM {{.rfaeOperatorTable}}
+  WHERE generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 {{ if .enableRewardsV2 }}
 operator_od_rewards AS (
@@ -66,6 +71,7 @@ operator_od_rewards AS (
     token,
     operator_tokens as amount
   FROM {{.operatorODRewardAmountsTable}}
+  WHERE generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 staker_od_rewards AS (
   SELECT DISTINCT
@@ -76,6 +82,7 @@ staker_od_rewards AS (
     token,
     staker_tokens as amount
   FROM {{.stakerODRewardAmountsTable}}
+  WHERE generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 avs_od_rewards AS (
   SELECT DISTINCT
@@ -86,6 +93,7 @@ avs_od_rewards AS (
     token,
     avs_tokens as amount
   FROM {{.avsODRewardAmountsTable}}
+  WHERE generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 {{ end }}
 {{ if .enableRewardsV2_1 }}
@@ -98,6 +106,7 @@ operator_od_operator_set_rewards AS (
     token,
     operator_tokens as amount
   FROM {{.operatorODOperatorSetRewardAmountsTable}}
+  WHERE generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 staker_od_operator_set_rewards AS (
   SELECT DISTINCT
@@ -108,6 +117,7 @@ staker_od_operator_set_rewards AS (
     token,
     staker_tokens as amount
   FROM {{.stakerODOperatorSetRewardAmountsTable}}
+  WHERE generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 avs_od_operator_set_rewards AS (
   SELECT DISTINCT
@@ -118,6 +128,7 @@ avs_od_operator_set_rewards AS (
     token,
     avs_tokens as amount
   FROM {{.avsODOperatorSetRewardAmountsTable}}
+  WHERE generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 {{ end }}
 combined_rewards AS (

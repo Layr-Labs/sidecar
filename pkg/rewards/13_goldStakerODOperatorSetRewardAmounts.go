@@ -27,6 +27,7 @@ WITH reward_snapshot_operators AS (
        AND ap.operator_set_id = osor.operator_set_id
        AND ap.snapshot = osor.snapshot 
        AND ap.operator = osor.operator
+    WHERE ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 
 -- Get the rows where strategies have registered for the operator set

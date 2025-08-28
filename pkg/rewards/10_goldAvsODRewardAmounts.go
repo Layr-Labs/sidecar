@@ -21,8 +21,8 @@ WITH reward_snapshot_operators AS (
         ap.multiplier,
         ap.reward_submission_date
     FROM {{.activeODRewardsTable}} ap
-    WHERE
-        ap.num_registered_snapshots = 0
+    WHERE ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
+      AND ap.num_registered_snapshots = 0
 ),
 
 -- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)

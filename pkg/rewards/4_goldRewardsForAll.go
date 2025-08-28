@@ -22,7 +22,7 @@ WITH reward_snapshot_stakers AS (
   FROM {{.activeRewardsTable}} ap
   JOIN staker_share_snapshots as sss
   ON ap.strategy = sss.strategy and ap.snapshot = sss.snapshot
-  WHERE ap.reward_type = 'all_stakers'
+  WHERE ap.reward_type = 'all_stakers' AND ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
   -- Parse out negative shares and zero multiplier so there is no division by zero case
   AND sss.shares > 0 and ap.multiplier != 0
 ),

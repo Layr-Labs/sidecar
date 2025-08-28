@@ -25,8 +25,8 @@ WITH not_registered_operators AS (
         ap.multiplier,
         ap.reward_submission_date
     FROM {{.activeODRewardsTable}} ap
-    WHERE
-        ap.num_registered_snapshots = 0
+    WHERE ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
+      AND ap.num_registered_snapshots = 0
 ),
 
 -- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
@@ -81,7 +81,8 @@ registered_operators AS (
         AND ap.operator_set_id = osor.operator_set_id
         AND ap.snapshot = osor.snapshot 
         AND ap.operator = osor.operator
-    WHERE ap.num_registered_snapshots != 0
+    WHERE ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
+      AND ap.num_registered_snapshots != 0
       AND ap.reward_submission_date >= @coloradoHardforkDate
 ),
 

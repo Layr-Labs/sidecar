@@ -28,6 +28,7 @@ WITH reward_snapshot_operators AS (
         ON ap.avs = oar.avs 
        AND ap.snapshot = oar.snapshot 
        AND ap.operator = oar.operator
+    WHERE ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 
 -- Calculate the total staker split for each operator reward with dynamic split logic

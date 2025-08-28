@@ -26,7 +26,7 @@ WITH reward_snapshot_operators as (
   FROM {{.activeRewardsTable}} ap
   JOIN operator_avs_registration_snapshots oar
   ON ap.avs = oar.avs and ap.snapshot = oar.snapshot
-  WHERE ap.reward_type = 'avs'
+  WHERE ap.reward_type = 'avs' AND ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 _operator_restaked_strategies AS (
   SELECT

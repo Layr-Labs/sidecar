@@ -27,6 +27,7 @@ WITH reward_snapshot_operators AS (
        AND ap.operator_set_id = osor.operator_set_id
        AND ap.snapshot = osor.snapshot 
        AND ap.operator = osor.operator
+    WHERE ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 
 -- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
