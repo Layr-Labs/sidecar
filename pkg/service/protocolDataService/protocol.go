@@ -451,7 +451,7 @@ func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context
 
 	query := `
 		WITH events AS (
-			SELECT event_name, output_data, block_number
+			SELECT event_name, output_data, block_number, log_index
 			FROM transaction_logs
 			WHERE event_name IN ('WithdrawalQueued', 'WithdrawalCompleted', 'MaxMagnitudeUpdated')
 				AND block_number <= @blockHeight
@@ -497,27 +497,50 @@ func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context
 			WHERE strategy IN @strategies
 				AND withdrawal_root NOT IN (SELECT withdrawal_root FROM completed_roots)
 		),
-
-		latest_magnitudes AS (
-			SELECT DISTINCT ON (output_data->>'operator', output_data->>'strategy')
-				output_data->>'operator' as operator,
-				output_data->>'strategy' as strategy,
-				(output_data->>'maxMagnitude')::numeric as max_magnitude
-			FROM events
-			WHERE event_name = 'MaxMagnitudeUpdated'
-				AND block_number <= @blockHeight
-				AND (output_data->>'operator', output_data->>'strategy') IN (
-					SELECT operator, strategy FROM queued_slashing
-				)
-			ORDER BY output_data->>'operator', output_data->>'strategy', block_number DESC
+		-- Find the completable block for each withdrawal
+		withdrawal_completable_blocks AS (
+			SELECT 
+				q.withdrawal_root,
+				q.operator,
+				q.strategy,
+				-- Calculate when this withdrawal became completable
+				-- This would typically be queue_block + withdrawal_delay_blocks
+				-- You'll need to adjust this logic based on your specific completability rules
+				q.block_number + @withdrawalDelayBlocks as completable_block
+			FROM (
+				SELECT * FROM queued_regular
+				UNION ALL
+				SELECT * FROM queued_slashing
+			) q
+		),
+		-- Get the magnitude that was active at the time each withdrawal became completable
+		magnitudes_at_completability AS (
+			SELECT DISTINCT ON (w.withdrawal_root)
+				w.withdrawal_root,
+				w.operator,
+				w.strategy,
+				COALESCE(
+					(SELECT (output_data->>'maxMagnitude')::numeric 
+					FROM events e
+					WHERE e.event_name = 'MaxMagnitudeUpdated'
+						AND e.output_data->>'operator' = w.operator
+						AND e.output_data->>'strategy' = w.strategy
+						AND e.block_number <= LEAST(w.completable_block, @blockHeight)
+					ORDER BY e.block_number DESC, e.log_index DESC
+					LIMIT 1),
+					1e18  -- Default magnitude if no update found
+				) as max_magnitude_at_completability
+			FROM withdrawal_completable_blocks w
+			WHERE w.withdrawal_root IN (
+				SELECT withdrawal_root FROM queued_slashing
+			)
 		)
-
 		SELECT 
 			q.staker,
 			q.strategy,
 			CASE 
 				WHEN qs.withdrawal_root IS NOT NULL 
-				THEN q.shares * COALESCE(m.max_magnitude, 1e18) / 1e18
+				THEN q.shares * m.max_magnitude_at_completability / 1e18
 				ELSE q.shares
 			END AS shares,
 			q.operator,
@@ -528,10 +551,8 @@ func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context
 			SELECT * FROM queued_slashing
 		) q
 		LEFT JOIN queued_slashing qs USING (withdrawal_root)
-		LEFT JOIN latest_magnitudes m ON (
-			q.operator = m.operator 
-			AND q.strategy = m.strategy 
-			AND qs.withdrawal_root IS NOT NULL
+		LEFT JOIN magnitudes_at_completability m ON (
+    		q.withdrawal_root = m.withdrawal_root
 		)
 		ORDER BY q.block_number DESC
 	`
