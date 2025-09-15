@@ -6,7 +6,7 @@ import (
 )
 
 const _4_goldRewardsForAllQuery = `
-create table {{.destTableName}} as
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_day, avs, strategy, multiplier, reward_type, staker, shares, staker_weight, rn, total_staker_weight, staker_proportion, staker_tokens, generated_rewards_snapshot_id)
 WITH reward_snapshot_stakers AS (
   SELECT
     ap.reward_hash,
@@ -22,7 +22,7 @@ WITH reward_snapshot_stakers AS (
   FROM {{.activeRewardsTable}} ap
   JOIN staker_share_snapshots as sss
   ON ap.strategy = sss.strategy and ap.snapshot = sss.snapshot
-  WHERE ap.reward_type = 'all_stakers'
+  WHERE ap.reward_type = 'all_stakers' AND ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
   -- Parse out negative shares and zero multiplier so there is no division by zero case
   AND sss.shares > 0 and ap.multiplier != 0
 ),
@@ -64,12 +64,13 @@ staker_tokens AS (
   (tokens_per_day * staker_proportion)::text::decimal(38,0) as staker_tokens
   FROM staker_proportion
 )
-SELECT * from staker_tokens
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id from staker_tokens
+ON CONFLICT (reward_hash, avs, staker, strategy, snapshot) DO NOTHING
 `
 
-func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string) error {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_4_RewardsForAll]
+func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	destTableName := rewardsUtils.RewardsTable_4_RewardsForAll
+	activeRewardsTable := rc.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
 	rc.logger.Sugar().Infow("Generating rewards for all table",
 		zap.String("cutoffDate", snapshotDate),
@@ -77,8 +78,9 @@ func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_4_goldRewardsForAllQuery, map[string]interface{}{
-		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
+		"destTableName":              destTableName,
+		"activeRewardsTable":         activeRewardsTable,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

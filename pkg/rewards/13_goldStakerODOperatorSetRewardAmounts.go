@@ -6,7 +6,7 @@ import (
 )
 
 const _13_goldStakerODOperatorSetRewardAmountsQuery = `
-CREATE TABLE {{.destTableName}} AS
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_registered_snapshot_decimal, avs, operator_set_id, operator, strategy, multiplier, reward_submission_date, staker_split, staker, shares, staker_weight, rn, total_weight, staker_proportion, staker_tokens, generated_rewards_snapshot_id)
 
 -- Step 1: Get the rows where operators have registered for the operator set
 WITH reward_snapshot_operators AS (
@@ -27,6 +27,7 @@ WITH reward_snapshot_operators AS (
        AND ap.operator_set_id = osor.operator_set_id
        AND ap.snapshot = osor.snapshot 
        AND ap.operator = osor.operator
+    WHERE ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 
 -- Get the rows where strategies have registered for the operator set
@@ -127,10 +128,11 @@ staker_reward_amounts AS (
     FROM staker_proportion
 )
 -- Output the final table
-SELECT * FROM staker_reward_amounts
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM staker_reward_amounts
+ON CONFLICT (reward_hash, snapshot, operator_set_id, operator, strategy) DO NOTHING
 `
 
-func (rc *RewardsCalculator) GenerateGold13StakerODOperatorSetRewardAmountsTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold13StakerODOperatorSetRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
 	rewardsV2_1Enabled, err := rc.globalConfig.IsRewardsV2_1EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.1 is enabled", "error", err)
@@ -141,8 +143,8 @@ func (rc *RewardsCalculator) GenerateGold13StakerODOperatorSetRewardAmountsTable
 		return nil
 	}
 
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_13_StakerODOperatorSetRewardAmounts]
+	destTableName := rewardsUtils.RewardsTable_13_StakerODOperatorSetRewardAmounts
+	activeODRewardsTable := rc.getTempActiveODOperatorSetRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
 	rc.logger.Sugar().Infow("Generating Staker OD operator set reward amounts",
 		zap.String("cutoffDate", snapshotDate),
@@ -150,8 +152,9 @@ func (rc *RewardsCalculator) GenerateGold13StakerODOperatorSetRewardAmountsTable
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_13_goldStakerODOperatorSetRewardAmountsQuery, map[string]interface{}{
-		"destTableName":        destTableName,
-		"activeODRewardsTable": allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
+		"destTableName":              destTableName,
+		"activeODRewardsTable":       activeODRewardsTable,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

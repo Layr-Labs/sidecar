@@ -9,7 +9,7 @@ import (
 )
 
 const _14_goldAvsODOperatorSetRewardAmountsQuery = `
-CREATE TABLE {{.destTableName}} AS
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, avs, operator_set_id, operator, avs_tokens, generated_rewards_snapshot_id)
 
 -- Step 1: Get the rows where operators have not registered for the AVS or if the AVS does not exist
 WITH not_registered_operators AS (
@@ -25,8 +25,8 @@ WITH not_registered_operators AS (
         ap.multiplier,
         ap.reward_submission_date
     FROM {{.activeODRewardsTable}} ap
-    WHERE
-        ap.num_registered_snapshots = 0
+    WHERE ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
+      AND ap.num_registered_snapshots = 0
 ),
 
 -- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
@@ -81,7 +81,8 @@ registered_operators AS (
         AND ap.operator_set_id = osor.operator_set_id
         AND ap.snapshot = osor.snapshot 
         AND ap.operator = osor.operator
-    WHERE ap.num_registered_snapshots != 0
+    WHERE ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
+      AND ap.num_registered_snapshots != 0
       AND ap.reward_submission_date >= @coloradoHardforkDate
 ),
 
@@ -165,10 +166,11 @@ combined_avs_refund_amounts AS (
 )
 
 -- Output the final table
-SELECT * FROM combined_avs_refund_amounts
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM combined_avs_refund_amounts
+ON CONFLICT (reward_hash, snapshot, operator_set_id, operator, token) DO NOTHING
 `
 
-func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate string, forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
 	rewardsV2_1Enabled, err := rc.globalConfig.IsRewardsV2_1EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.1 is enabled", "error", err)
@@ -179,18 +181,18 @@ func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(sn
 		return nil
 	}
 
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_14_AvsODOperatorSetRewardAmounts]
+	destTableName := rewardsUtils.RewardsTable_14_AvsODOperatorSetRewardAmounts
+	activeODRewardsTable := rc.getTempActiveODOperatorSetRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
 	rc.logger.Sugar().Infow("Generating Avs OD operator set reward amounts",
 		zap.String("cutoffDate", snapshotDate),
-		zap.String("destTableName", destTableName),
 		zap.String("coloradoHardforkDate", forks[config.RewardsFork_Colorado].Date),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_14_goldAvsODOperatorSetRewardAmountsQuery, map[string]interface{}{
-		"destTableName":        destTableName,
-		"activeODRewardsTable": allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
+		"destTableName":              destTableName,
+		"activeODRewardsTable":       activeODRewardsTable,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

@@ -2,6 +2,10 @@ package rewards
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"testing"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
@@ -12,9 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"log"
-	"os"
-	"testing"
 )
 
 func setupRegression(dataSourceName string) (

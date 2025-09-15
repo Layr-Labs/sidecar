@@ -7,12 +7,20 @@ import (
 
 const stakerShareSnapshotsQuery = `
 	insert into staker_share_snapshots(staker, strategy, shares, snapshot)
-	WITH ranked_staker_records as (
+	with recent_max_block as (
+	    select
+	        coalesce(max(snapshot), '1970-01-01') as snapshot
+	    from staker_share_snapshots
+	    where snapshot < TIMESTAMP '{{.cutoffDate}}'
+	),
+	ranked_staker_records as (
 		SELECT *,
 			   ROW_NUMBER() OVER (PARTITION BY staker, strategy, cast(block_time AS DATE) ORDER BY block_time DESC, log_index DESC) AS rn
 		FROM staker_shares
 		-- pipeline bronze table uses this to filter the correct records
-		where block_time < TIMESTAMP '{{.cutoffDate}}'
+		where
+		    block_time < TIMESTAMP '{{.cutoffDate}}'
+			and block_time >= (select snapshot from recent_max_block)
 	),
 	-- Get the latest record for each day & round up to the snapshot day
 	snapshotted_records as (

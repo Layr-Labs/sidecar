@@ -6,7 +6,7 @@ import (
 )
 
 const _6_goldRfaeOperatorsQuery = `
-create table {{.destTableName}} as
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_day_decimal, avs, strategy, multiplier, reward_type, operator, operator_tokens, rn, generated_rewards_snapshot_id)
 WITH operator_token_sums AS (
   SELECT
     reward_hash,
@@ -20,6 +20,7 @@ WITH operator_token_sums AS (
     operator,
     SUM(operator_tokens) OVER (PARTITION BY operator, reward_hash, snapshot) AS operator_tokens
   FROM {{.rfaeStakersTable}}
+  WHERE generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 -- Dedupe the operator tokens across strategies for each operator, reward hash, and snapshot
 distinct_operators AS (
@@ -33,12 +34,12 @@ distinct_operators AS (
   ) t
   WHERE rn = 1
 )
-SELECT * FROM distinct_operators
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM distinct_operators
+ON CONFLICT (reward_hash, avs, operator, strategy, snapshot) DO NOTHING
 `
 
-func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string) error {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_6_RfaeOperators]
+func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	destTableName := rewardsUtils.RewardsTable_6_RfaeOperators
 
 	rc.logger.Sugar().Infow("Generating rfae operators table",
 		zap.String("cutoffDate", snapshotDate),
@@ -46,8 +47,9 @@ func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_6_goldRfaeOperatorsQuery, map[string]interface{}{
-		"destTableName":    destTableName,
-		"rfaeStakersTable": allTableNames[rewardsUtils.Table_5_RfaeStakers],
+		"destTableName":              destTableName,
+		"rfaeStakersTable":           rewardsUtils.RewardsTable_5_RfaeStakers,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

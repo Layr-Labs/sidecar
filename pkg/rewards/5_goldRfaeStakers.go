@@ -9,7 +9,7 @@ import (
 )
 
 const _5_goldRfaeStakersQuery = `
-create table {{.destTableName}} as
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_day_decimal, avs, strategy, multiplier, reward_type, reward_submission_date, operator, staker, shares, excluded_address, staker_weight, rn, total_weight, staker_proportion, total_staker_operator_payout, operator_tokens, staker_tokens, generated_rewards_snapshot_id)
 WITH combined_operators AS (
   SELECT DISTINCT
     snapshot,
@@ -47,7 +47,7 @@ reward_snapshot_operators as (
   FROM {{.activeRewardsTable}} ap
   JOIN combined_operators co
   ON ap.snapshot = co.snapshot
-  WHERE ap.reward_type = 'all_earners'
+  WHERE ap.reward_type = 'all_earners' AND ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 -- Get the stakers that were delegated to the operator for the snapshot 
 staker_delegated_operators AS (
@@ -148,13 +148,14 @@ token_breakdowns AS (
   ON sott.operator = ops.operator AND sott.snapshot = ops.snapshot
   LEFT JOIN default_operator_split_snapshots dos ON (sott.snapshot = dos.snapshot)
 )
-SELECT * from token_breakdowns
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
+ON CONFLICT (reward_hash, avs, staker, operator, strategy, snapshot) DO NOTHING
 `
 
-func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, forks config.ForkMap) error {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_5_RfaeStakers]
+func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
+	destTableName := rewardsUtils.RewardsTable_5_RfaeStakers
+	activeRewardsTable := rc.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
 	rc.logger.Sugar().Infow("Generating rfae stakers table",
 		zap.String("cutoffDate", snapshotDate),
@@ -165,8 +166,9 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_5_goldRfaeStakersQuery, map[string]interface{}{
-		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
+		"destTableName":              destTableName,
+		"activeRewardsTable":         activeRewardsTable,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

@@ -1,8 +1,9 @@
 package stakerOperators
 
 import (
-	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 )
 
 const _3_rewardsForAllStrategyPayoutsQuery = `
@@ -22,7 +23,7 @@ WITH reward_snapshot_stakers AS (
   FROM {{.activeRewardsTable}} ap
   JOIN staker_share_snapshots as sss
   ON ap.strategy = sss.strategy and ap.snapshot = sss.snapshot
-  WHERE ap.reward_type = 'all_stakers'
+  WHERE ap.reward_type = 'all_stakers' AND ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
   -- Parse out negative shares and zero multiplier so there is no division by zero case
   AND sss.shares > 0 and ap.multiplier != 0
 ),
@@ -68,7 +69,7 @@ type RewardsForAllStrategyPayout struct {
 	StakerStrategyTokens string
 }
 
-func (sog *StakerOperatorsGenerator) GenerateAndInsert3RewardsForAllStrategyPayout(cutoffDate string) error {
+func (sog *StakerOperatorsGenerator) GenerateAndInsert3RewardsForAllStrategyPayout(cutoffDate string, generatedRewardsSnapshotId uint64) error {
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 	destTableName := allTableNames[rewardsUtils.Sot_3_RewardsForAllStrategyPayout]
 
@@ -81,17 +82,10 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert3RewardsForAllStrategyPayo
 		return err
 	}
 
-	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
-		rewardsUtils.Table_1_ActiveRewards: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_1_ActiveRewards],
-	}, cutoffDate)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
-		return err
-	}
-
 	query, err := rewardsUtils.RenderQueryTemplate(_3_rewardsForAllStrategyPayoutsQuery, map[string]interface{}{
-		"destTableName":      destTableName,
-		"activeRewardsTable": rewardsTables[rewardsUtils.Table_1_ActiveRewards],
+		"destTableName":              destTableName,
+		"activeRewardsTable":         rewardsUtils.RewardsTable_1_ActiveRewards,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 3_rewardsForAllStrategyPayouts query", "error", err)

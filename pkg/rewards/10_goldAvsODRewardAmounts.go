@@ -6,7 +6,7 @@ import (
 )
 
 const _10_goldAvsODRewardAmountsQuery = `
-CREATE TABLE {{.destTableName}} AS
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, avs, operator, avs_tokens, generated_rewards_snapshot_id)
 
 -- Step 1: Get the rows where operators have not registered for the AVS or if the AVS does not exist
 WITH reward_snapshot_operators AS (
@@ -21,8 +21,8 @@ WITH reward_snapshot_operators AS (
         ap.multiplier,
         ap.reward_submission_date
     FROM {{.activeODRewardsTable}} ap
-    WHERE
-        ap.num_registered_snapshots = 0
+    WHERE ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
+      AND ap.num_registered_snapshots = 0
 ),
 
 -- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
@@ -57,10 +57,11 @@ operator_token_sums AS (
 )
 
 -- Step 4: Output the final table
-SELECT * FROM operator_token_sums
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM operator_token_sums
+ON CONFLICT (reward_hash, avs, operator, snapshot) DO NOTHING
 `
 
-func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
 	rewardsV2Enabled, err := rc.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
@@ -71,8 +72,8 @@ func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate 
 		return nil
 	}
 
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_10_AvsODRewardAmounts]
+	destTableName := rewardsUtils.RewardsTable_10_AvsODRewardAmounts
+	activeOdRewardsTableName := rc.getTempActiveODRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
 	rc.logger.Sugar().Infow("Generating Avs OD reward amounts",
 		zap.String("cutoffDate", snapshotDate),
@@ -80,8 +81,9 @@ func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate 
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_10_goldAvsODRewardAmountsQuery, map[string]interface{}{
-		"destTableName":        destTableName,
-		"activeODRewardsTable": allTableNames[rewardsUtils.Table_7_ActiveODRewards],
+		"destTableName":              destTableName,
+		"activeODRewardsTable":       activeOdRewardsTableName,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

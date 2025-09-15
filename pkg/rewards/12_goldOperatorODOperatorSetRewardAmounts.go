@@ -6,7 +6,7 @@ import (
 )
 
 const _12_goldOperatorODOperatorSetRewardAmountsQuery = `
-CREATE TABLE {{.destTableName}} AS
+INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_registered_snapshot_decimal, avs, operator_set_id, operator, strategy, multiplier, reward_submission_date, rn, split_pct, operator_tokens, generated_rewards_snapshot_id)
 
 -- Step 1: Get the rows where operators have registered for the operator set
 WITH reward_snapshot_operators AS (
@@ -27,6 +27,7 @@ WITH reward_snapshot_operators AS (
        AND ap.operator_set_id = osor.operator_set_id
        AND ap.snapshot = osor.snapshot 
        AND ap.operator = osor.operator
+    WHERE ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 
 -- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
@@ -65,10 +66,11 @@ operator_splits AS (
 )
 
 -- Step 4: Output the final table with operator splits
-SELECT * FROM operator_splits
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM operator_splits
+ON CONFLICT (reward_hash, operator_set_id, operator, strategy, snapshot) DO NOTHING
 `
 
-func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
 	rewardsV2_1Enabled, err := rc.globalConfig.IsRewardsV2_1EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.1 is enabled", "error", err)
@@ -78,8 +80,9 @@ func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTab
 		rc.logger.Sugar().Infow("Rewards v2.1 is not enabled for this cutoff date, skipping GenerateGold12OperatorODOperatorSetRewardAmountsTable")
 		return nil
 	}
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts]
+
+	destTableName := rewardsUtils.RewardsTable_12_OperatorODOperatorSetRewardAmounts
+	activeODRewardsTable := rc.getTempActiveODOperatorSetRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
 	rc.logger.Sugar().Infow("Generating Operator OD operator set reward amounts",
 		zap.String("cutoffDate", snapshotDate),
@@ -87,8 +90,9 @@ func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTab
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_12_goldOperatorODOperatorSetRewardAmountsQuery, map[string]interface{}{
-		"destTableName":        destTableName,
-		"activeODRewardsTable": allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
+		"destTableName":              destTableName,
+		"activeODRewardsTable":       activeODRewardsTable,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
