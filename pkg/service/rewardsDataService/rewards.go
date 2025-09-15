@@ -62,7 +62,18 @@ func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context
 	if root == nil {
 		return nil, fmt.Errorf("no distribution root found for root index '%d'", rootIndex)
 	}
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(root.GetSnapshotDate(), nil, nil)
+
+	// Check if rewards calculation has been completed for this snapshot date
+	snapshotDate := root.GetSnapshotDate()
+	generatedSnapshot, err := rds.findRewardsGenerationForSnapshotDate(snapshotDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check rewards generation status for snapshot date '%s': %w", snapshotDate, err)
+	}
+	if generatedSnapshot == nil {
+		return nil, fmt.Errorf("rewards calculation has not been completed for distribution root %d (snapshot date: %s). Please wait for the calculation to finish", rootIndex, snapshotDate)
+	}
+
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshotDate, nil, nil)
 }
 
 type TotalClaimedReward struct {
@@ -331,7 +342,6 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 	return claimableRewards, snapshot, nil
 }
 
-//nolint:unused
 func (rds *RewardsDataService) findRewardsGenerationForSnapshotDate(snapshotDate string) (*storage.GeneratedRewardsSnapshots, error) {
 	query := `
 		select
@@ -393,7 +403,7 @@ func (rds *RewardsDataService) findDistributionRootClosestToBlockHeight(blockHei
 	var root *eigenStateTypes.SubmittedDistributionRoot
 	res := rds.db.Raw(renderedQuery, sql.Named("blockHeight", blockHeight)).Scan(&root)
 	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
-		return nil, errors.Join(fmt.Errorf("Failed to find distribution for block number '%d'", blockHeight), res.Error)
+		return nil, errors.Join(fmt.Errorf("failed to find distribution for block number '%d'", blockHeight), res.Error)
 	}
 	if errors.Is(res.Error, gorm.ErrRecordNotFound) {
 		return nil, fmt.Errorf("no distribution root found for blockHeight '%d'", blockHeight)
