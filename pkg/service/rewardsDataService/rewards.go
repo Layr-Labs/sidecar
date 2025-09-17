@@ -51,10 +51,10 @@ func NewRewardsDataService(
 }
 
 func (rds *RewardsDataService) GetRewardsForSnapshot(ctx context.Context, snapshot string, earners []string) ([]*rewardsTypes.Reward, error) {
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot, earners, nil)
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot, earners, nil, nil)
 }
 
-func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context, rootIndex uint64) ([]*rewardsTypes.Reward, error) {
+func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context, rootIndex uint64, pagination *serviceTypes.Pagination) ([]*rewardsTypes.Reward, error) {
 	root, err := rds.getDistributionRootByRootIndex(rootIndex)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context
 		return nil, fmt.Errorf("rewards calculation has not been completed for distribution root %d (snapshot date: %s). Please wait for the calculation to finish", rootIndex, snapshotDate)
 	}
 
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshotDate, nil, nil)
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshotDate, nil, nil, nil)
 }
 
 type TotalClaimedReward struct {
@@ -222,7 +222,7 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(
 		return nil, fmt.Errorf("no distribution root found for blockHeight '%d'", blockHeight)
 	}
 
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot.GetSnapshotDate(), []string{earner}, tokens)
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot.GetSnapshotDate(), []string{earner}, tokens, nil)
 }
 
 // GetClaimableRewardsForEarner returns the rewards that are claimable for a given earner at a given block height (totalActiveRewards - claimed)
