@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
@@ -9,7 +10,7 @@ import (
 )
 
 const _5_goldRfaeStakersQuery = `
-INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_day_decimal, avs, strategy, multiplier, reward_type, reward_submission_date, operator, staker, shares, excluded_address, staker_weight, rn, total_weight, staker_proportion, total_staker_operator_payout, operator_tokens, staker_tokens, generated_rewards_snapshot_id)
+create table {{.destTableName}} as
 WITH combined_operators AS (
   SELECT DISTINCT
     snapshot,
@@ -31,24 +32,24 @@ WITH combined_operators AS (
     )
   ) all_operators
 ),
--- Get the operators who will earn rewards for the reward submission at the given snapshot
-reward_snapshot_operators as (
-  SELECT
-    ap.reward_hash,
-    ap.snapshot,
-    ap.token,
-    ap.tokens_per_day_decimal,
-    ap.avs,
-    ap.strategy,
-    ap.multiplier,
-    ap.reward_type,
-    ap.reward_submission_date,
-    co.operator
-  FROM {{.activeRewardsTable}} ap
-  JOIN combined_operators co
-  ON ap.snapshot = co.snapshot
-  WHERE ap.reward_type = 'all_earners'
-),
+		-- Get the operators who will earn rewards for the reward submission at the given snapshot
+		reward_snapshot_operators as (
+			SELECT
+				ap.reward_hash,
+				ap.snapshot,
+				ap.token,
+				ap.tokens_per_day_decimal,
+				ap.avs,
+				ap.strategy,
+				ap.multiplier,
+				ap.reward_type,
+				ap.reward_submission_date,
+				co.operator
+			FROM {{.activeRewardsTable}} ap
+			JOIN combined_operators co
+			ON ap.snapshot = co.snapshot
+			WHERE ap.reward_type = 'all_earners'
+		),
 -- Get the stakers that were delegated to the operator for the snapshot 
 staker_delegated_operators AS (
   SELECT
@@ -61,16 +62,22 @@ staker_delegated_operators AS (
     rso.snapshot = sds.snapshot
 ),
 -- Get the shares of each strategy the staker has delegated to the operator
+-- Use conservative matching for share snapshots (like Table 2 fix)
 staker_strategy_shares AS (
   SELECT
     sdo.*,
     sss.shares
   FROM staker_delegated_operators sdo
-  JOIN staker_share_snapshots sss
-  ON
+  JOIN staker_share_snapshots sss ON
     sdo.staker = sss.staker AND
-    sdo.snapshot = sss.snapshot AND
-    sdo.strategy = sss.strategy
+    sdo.strategy = sss.strategy AND
+    sss.snapshot = (
+      SELECT MAX(sss2.snapshot) 
+      FROM staker_share_snapshots sss2 
+      WHERE sss2.staker = sdo.staker 
+        AND sss2.strategy = sdo.strategy 
+        AND sss2.snapshot <= sdo.snapshot
+    )
   -- Parse out negative shares and zero multiplier so there is no division by zero case
   WHERE sss.shares > 0 and sdo.multiplier != 0
 ),
@@ -149,15 +156,18 @@ token_breakdowns AS (
   LEFT JOIN default_operator_split_snapshots dos ON (sott.snapshot = dos.snapshot)
 )
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id from token_breakdowns
-ORDER BY reward_hash, snapshot, staker, operator
-ON CONFLICT (reward_hash, avs, staker, operator, strategy, snapshot) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
-	destTableName := rewardsUtils.RewardsTable_5_RfaeStakers
+	destTableName := rc.getTempRfaeStakersTableName(snapshotDate, generatedRewardsSnapshotId)
 	activeRewardsTable := rc.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
-	rc.logger.Sugar().Infow("Generating rfae stakers table",
+	if err := rc.DropTempRfaeStakersTable(snapshotDate, generatedRewardsSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop existing temp rfae stakers table", "error", err)
+		return err
+	}
+
+	rc.logger.Sugar().Infow("Generating temp rfae stakers table",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 		zap.String("arnoHardforkDate", forks[config.RewardsFork_Arno].Date),
@@ -169,6 +179,7 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 		"destTableName":              destTableName,
 		"activeRewardsTable":         activeRewardsTable,
 		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
+		"snapshotDate":               snapshotDate,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -183,8 +194,29 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 		sql.Named("mississippiForkDate", forks[config.RewardsFork_Mississippi].Date),
 	)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to generate gold_rfae_stakers", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to create temp rfae stakers", "error", res.Error)
 		return res.Error
 	}
+	return nil
+}
+
+func (rc *RewardsCalculator) getTempRfaeStakersTableName(snapshotDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(snapshotDate)
+	return fmt.Sprintf("tmp_rewards_gold_5_rfae_stakers_%s_%d", camelDate, generatedRewardSnapshotId)
+}
+
+func (rc *RewardsCalculator) DropTempRfaeStakersTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	tempTableName := rc.getTempRfaeStakersTableName(snapshotDate, generatedRewardsSnapshotId)
+
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName)
+	res := rc.grm.Exec(query)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp rfae stakers table", "error", res.Error)
+		return res.Error
+	}
+	rc.logger.Sugar().Infow("Successfully dropped temp rfae stakers table",
+		zap.String("tempTableName", tempTableName),
+		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
+	)
 	return nil
 }

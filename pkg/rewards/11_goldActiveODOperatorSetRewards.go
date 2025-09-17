@@ -47,14 +47,21 @@ active_rewards_updated_end_timestamps AS (
         block_date AS reward_submission_date
     FROM active_rewards_modified
 ),
-
+-- Optimized: Get the latest snapshot for each reward hash
+reward_progress AS (
+    SELECT 
+        reward_hash, 
+        MAX(snapshot) as last_snapshot
+    FROM gold_table 
+    GROUP BY reward_hash
+),
 -- Step 3: For each reward hash, find the latest snapshot
 active_rewards_updated_start_timestamps AS (
     SELECT
         ap.avs,
         ap.operator_set_id,
         ap.operator,
-        COALESCE(MAX(g.snapshot), ap.reward_start_exclusive) AS reward_start_exclusive,
+        COALESCE(g.last_snapshot, ap.reward_start_exclusive) AS reward_start_exclusive,
         ap.reward_end_inclusive,
         ap.token,
         -- We use floor to ensure we are always underestimating total tokens per day
@@ -66,7 +73,7 @@ active_rewards_updated_start_timestamps AS (
         ap.global_end_inclusive,
         ap.reward_submission_date
     FROM active_rewards_updated_end_timestamps ap
-    LEFT JOIN gold_table g 
+    LEFT JOIN reward_progress g 
         ON g.reward_hash = ap.reward_hash
     GROUP BY 
         ap.avs, 
@@ -78,10 +85,11 @@ active_rewards_updated_start_timestamps AS (
         ap.multiplier, 
         ap.strategy, 
         ap.reward_hash, 
-        ap.duration,
+        ap.duration, 
         ap.global_end_inclusive, 
         ap.reward_start_exclusive, 
-        ap.reward_submission_date
+        ap.reward_submission_date,
+        g.last_snapshot
 ),
 
 -- Step 4: Filter out invalid reward ranges
@@ -273,5 +281,6 @@ func (rc *RewardsCalculator) CopyTempActiveODOperatorSetRewardsToActiveODOperato
 		return res.Error
 	}
 
-	return rc.DropTempActiveODOperatorSetRewardsTable(snapshotDate, generatedRewardsSnapshotId)
+	// return rc.DropTempActiveODOperatorSetRewardsTable(snapshotDate, generatedRewardsSnapshotId)
+	return nil
 }

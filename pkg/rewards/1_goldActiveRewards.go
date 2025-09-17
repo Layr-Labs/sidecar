@@ -43,11 +43,19 @@ active_rewards_updated_end_timestamps as (
 	 block_date as reward_submission_date
  FROM active_rewards_modified
 ),
+-- Optimized: Get the latest snapshot for each reward hash
+reward_progress AS (
+    SELECT 
+        reward_hash, 
+        MAX(snapshot) as last_snapshot
+    FROM gold_table 
+    GROUP BY reward_hash
+),
 -- For each reward hash, find the latest snapshot
 active_rewards_updated_start_timestamps as (
 	SELECT
 		ap.avs,
-		COALESCE(MAX(g.snapshot), ap.reward_start_exclusive) as reward_start_exclusive,
+		COALESCE(g.last_snapshot, ap.reward_start_exclusive) as reward_start_exclusive,
 		-- ap.reward_start_exclusive,
 		ap.reward_end_inclusive,
 		ap.token,
@@ -62,8 +70,7 @@ active_rewards_updated_start_timestamps as (
 		ap.global_end_inclusive,
 	 	ap.reward_submission_date
 	FROM active_rewards_updated_end_timestamps ap
-	LEFT JOIN gold_table g ON g.reward_hash = ap.reward_hash
- GROUP BY ap.avs, ap.reward_end_inclusive, ap.token, ap.tokens_per_day, ap.multiplier, ap.strategy, ap.reward_hash, ap.global_end_inclusive, ap.reward_start_exclusive, ap.reward_type, ap.reward_submission_date
+	LEFT JOIN reward_progress g ON g.reward_hash = ap.reward_hash
 ),
 -- Parse out invalid ranges
 active_reward_ranges AS (
@@ -193,5 +200,6 @@ func (r *RewardsCalculator) CopyTempActiveRewardsToActiveRewards(snapshotDate st
 		return res.Error
 	}
 
-	return r.DropTempActiveRewardsTable(snapshotDate, generatedRewardsSnapshotId)
+	// return r.DropTempActiveRewardsTable(snapshotDate, generatedRewardsSnapshotId)
+	return nil
 }

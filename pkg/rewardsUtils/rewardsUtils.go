@@ -75,7 +75,6 @@ var RewardsTableBaseNames = []string{
 	RewardsTable_12_OperatorODOperatorSetRewardAmounts,
 	RewardsTable_13_StakerODOperatorSetRewardAmounts,
 	RewardsTable_14_AvsODOperatorSetRewardAmounts,
-	RewardsTable_GoldStaging,
 	RewardsTable_GoldTable,
 }
 
