@@ -7,6 +7,7 @@ import (
 	_202507281314_taskMailboxContracts "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202507281314_taskMailboxContracts"
 	_202507291037_crossChainRegistryContracts "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202507291037_crossChainRegistryContracts"
 	_202507311116_verificationAndTableContracts "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202507311116_verificationAndTableContracts"
+	_202509162116_upgradeAllocationManagerImpl "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202509162116_upgradeAllocationManagerImpl"
 	"github.com/Layr-Labs/sidecar/pkg/coreContracts/types"
 )
 
@@ -18,5 +19,6 @@ func GetCoreContractMigrations() []types.ICoreContractMigration {
 		&_202507291037_crossChainRegistryContracts.ContractMigration{},
 		&_202507281314_taskMailboxContracts.ContractMigration{},
 		&_202507311116_verificationAndTableContracts.ContractMigration{},
+		&_202509162116_upgradeAllocationManagerImpl.ContractMigration{},
 	}
 }
