@@ -132,7 +132,6 @@ staker_reward_amounts AS (
 )
 -- Output the final table
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM staker_reward_amounts
-ON CONFLICT (reward_hash, snapshot, operator_set_id, operator, strategy) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold13StakerODOperatorSetRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
