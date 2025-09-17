@@ -62,7 +62,7 @@ active_rewards_updated_start_timestamps as (
 		ap.global_end_inclusive,
 	 	ap.reward_submission_date
 	FROM active_rewards_updated_end_timestamps ap
-	LEFT JOIN gold_table g ON g.reward_hash = ap.reward_hash
+	LEFT JOIN rewards_gold_1_active_rewards g ON g.reward_hash = ap.reward_hash
  GROUP BY ap.avs, ap.reward_end_inclusive, ap.token, ap.tokens_per_day, ap.multiplier, ap.strategy, ap.reward_hash, ap.global_end_inclusive, ap.reward_start_exclusive, ap.reward_type, ap.reward_submission_date
 ),
 -- Parse out invalid ranges

@@ -64,7 +64,7 @@ active_rewards_updated_start_timestamps AS (
         ap.global_end_inclusive,
         ap.reward_submission_date
     FROM active_rewards_updated_end_timestamps ap
-    LEFT JOIN gold_table g 
+    LEFT JOIN rewards_gold_7_active_od_rewards g 
         ON g.reward_hash = ap.reward_hash
     GROUP BY 
         ap.avs, 
