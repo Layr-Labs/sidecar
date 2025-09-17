@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
@@ -9,7 +10,7 @@ import (
 )
 
 const _14_goldAvsODOperatorSetRewardAmountsQuery = `
-INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, avs, operator_set_id, operator, avs_tokens, generated_rewards_snapshot_id)
+create table {{.destTableName}} as
 
 -- Step 1: Get the rows where operators have not registered for the AVS or if the AVS does not exist
 WITH not_registered_operators AS (
@@ -166,7 +167,6 @@ combined_avs_refund_amounts AS (
 
 -- Output the final table
 SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM combined_avs_refund_amounts
-ON CONFLICT (reward_hash, snapshot, operator_set_id, operator, token) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
@@ -180,11 +180,18 @@ func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(sn
 		return nil
 	}
 
-	destTableName := rewardsUtils.RewardsTable_14_AvsODOperatorSetRewardAmounts
+	destTableName := rc.getTempAvsODOperatorSetRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId)
 	activeODRewardsTable := rc.getTempActiveODOperatorSetRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
-	rc.logger.Sugar().Infow("Generating Avs OD operator set reward amounts",
+	// Drop existing temp table
+	if err := rc.DropTempAvsODOperatorSetRewardAmountsTable(snapshotDate, generatedRewardsSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop existing temp avs OD operator set reward amounts table", "error", err)
+		return err
+	}
+
+	rc.logger.Sugar().Infow("Generating temp Avs OD operator set reward amounts",
 		zap.String("cutoffDate", snapshotDate),
+		zap.String("destTableName", destTableName),
 		zap.String("coloradoHardforkDate", forks[config.RewardsFork_Colorado].Date),
 	)
 
@@ -200,8 +207,30 @@ func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsTable(sn
 
 	res := rc.grm.Exec(query, sql.Named("coloradoHardforkDate", forks[config.RewardsFork_Colorado].Date))
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_avs_od_operator_set_reward_amounts", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to create temp avs OD operator set reward amounts", "error", res.Error)
 		return res.Error
 	}
+	return nil
+}
+
+// Helper functions for temp table management
+func (rc *RewardsCalculator) getTempAvsODOperatorSetRewardAmountsTableName(snapshotDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(snapshotDate)
+	return fmt.Sprintf("tmp_rewards_gold_14_avs_od_operator_set_reward_amounts_%s_%d", camelDate, generatedRewardSnapshotId)
+}
+
+func (rc *RewardsCalculator) DropTempAvsODOperatorSetRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	tempTableName := rc.getTempAvsODOperatorSetRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId)
+
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName)
+	res := rc.grm.Exec(query)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp avs OD operator set reward amounts table", "error", res.Error)
+		return res.Error
+	}
+	rc.logger.Sugar().Infow("Successfully dropped temp avs OD operator set reward amounts table",
+		zap.String("tempTableName", tempTableName),
+		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
+	)
 	return nil
 }
