@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
@@ -9,8 +10,23 @@ import (
 )
 
 const _2_goldStakerRewardAmountsQuery = `
-INSERT INTO {{.destTableName}} (reward_hash, snapshot, token, tokens_per_day, tokens_per_day_decimal, avs, strategy, multiplier, reward_type, reward_submission_date, operator, staker, shares, staker_weight, rn, total_weight, staker_proportion, total_staker_operator_payout, operator_tokens, staker_tokens, generated_rewards_snapshot_id)
-WITH reward_snapshot_operators as (
+create table {{.destTableName}} as 
+WITH 
+-- Get the latest available operator AVS registration snapshot on or before the reward snapshot date
+latest_operator_avs_snapshots AS (
+  SELECT 
+    ap.reward_hash,
+    ap.snapshot as reward_snapshot,
+    ap.avs,
+    MAX(oar.snapshot) as latest_operator_snapshot
+  FROM {{.activeRewardsTable}} ap
+  CROSS JOIN (SELECT DISTINCT snapshot, avs FROM operator_avs_registration_snapshots) oar
+  WHERE ap.reward_type = 'avs'
+    AND oar.avs = ap.avs
+    AND oar.snapshot <= ap.snapshot
+  GROUP BY ap.reward_hash, ap.snapshot, ap.avs
+),
+reward_snapshot_operators as (
   SELECT
     ap.reward_hash,
     ap.snapshot as snapshot,
@@ -24,8 +40,13 @@ WITH reward_snapshot_operators as (
     ap.reward_submission_date,
     oar.operator
   FROM {{.activeRewardsTable}} ap
-  JOIN operator_avs_registration_snapshots oar
-  ON ap.avs = oar.avs and ap.snapshot = oar.snapshot
+  JOIN latest_operator_avs_snapshots loas ON 
+    ap.reward_hash = loas.reward_hash AND
+    ap.snapshot = loas.reward_snapshot AND
+    ap.avs = loas.avs
+  JOIN operator_avs_registration_snapshots oar ON
+    oar.avs = loas.avs AND
+    oar.snapshot = loas.latest_operator_snapshot
   WHERE ap.reward_type = 'avs'
 ),
 _operator_restaked_strategies AS (
@@ -50,17 +71,36 @@ staker_delegated_operators AS (
     ors.operator = sds.operator AND
     ors.snapshot = sds.snapshot
 ),
+-- Get the latest available staker share snapshot on or before the reward snapshot date
+latest_staker_share_snapshots AS (
+  SELECT 
+    sdo.reward_hash,
+    sdo.snapshot as reward_snapshot,
+    sdo.staker,
+    sdo.strategy,
+    MAX(sss.snapshot) as latest_share_snapshot
+  FROM staker_delegated_operators sdo
+  CROSS JOIN (SELECT DISTINCT snapshot, staker, strategy FROM staker_share_snapshots) sss
+  WHERE sss.staker = sdo.staker
+    AND sss.strategy = sdo.strategy
+    AND sss.snapshot <= sdo.snapshot
+  GROUP BY sdo.reward_hash, sdo.snapshot, sdo.staker, sdo.strategy
+),
 -- Get the shares for staker delegated to the operator
 staker_avs_strategy_shares AS (
   SELECT
     sdo.*,
     sss.shares
   FROM staker_delegated_operators sdo
-  JOIN staker_share_snapshots sss
-  ON
-    sdo.staker = sss.staker AND
-    sdo.snapshot = sss.snapshot AND
-    sdo.strategy = sss.strategy
+  JOIN latest_staker_share_snapshots lsss ON 
+    sdo.reward_hash = lsss.reward_hash AND
+    sdo.snapshot = lsss.reward_snapshot AND
+    sdo.staker = lsss.staker AND
+    sdo.strategy = lsss.strategy
+  JOIN staker_share_snapshots sss ON
+    sss.staker = lsss.staker AND
+    sss.strategy = lsss.strategy AND
+    sss.snapshot = lsss.latest_share_snapshot
   -- Parse out negative shares and zero multiplier so there is no division by zero case
   WHERE sss.shares > 0 and sdo.multiplier != 0
 ),
@@ -146,15 +186,19 @@ SELECT
 	tb.*,
 	{{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id
 from token_breakdowns as tb
-ORDER BY reward_hash, snapshot, staker, operator
-ON CONFLICT (reward_hash, staker, avs, strategy, snapshot) DO NOTHING
 `
 
 func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
-	destTableName := rewardsUtils.RewardsTable_2_StakerRewardAmounts
+	destTableName := rc.getTempStakerRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId)
 	activeRewardsTable := rc.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
-	rc.logger.Sugar().Infow("Generating staker reward amounts",
+	// Drop existing temp table
+	if err := rc.DropTempStakerRewardAmountsTable(snapshotDate, generatedRewardsSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop existing temp staker reward amounts table", "error", err)
+		return err
+	}
+
+	rc.logger.Sugar().Infow("Generating temp staker reward amounts",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 		zap.String("amazonHardforkDate", forks[config.RewardsFork_Amazon].Date),
@@ -178,11 +222,31 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 		sql.Named("nileHardforkDate", forks[config.RewardsFork_Nile].Date),
 		sql.Named("arnoHardforkDate", forks[config.RewardsFork_Arno].Date),
 		sql.Named("trinityHardforkDate", forks[config.RewardsFork_Trinity].Date),
-		sql.Named("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
 	)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_staker_reward_amounts", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to generate staker reward amounts", "error", res.Error)
 		return res.Error
 	}
+	return nil
+}
+
+func (rc *RewardsCalculator) getTempStakerRewardAmountsTableName(snapshotDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(snapshotDate)
+	return fmt.Sprintf("tmp_rewards_gold_2_staker_reward_amounts_%s_%d", camelDate, generatedRewardSnapshotId)
+}
+
+func (rc *RewardsCalculator) DropTempStakerRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	tempTableName := rc.getTempStakerRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId)
+
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName)
+	res := rc.grm.Exec(query)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp staker reward amounts table", "error", res.Error)
+		return res.Error
+	}
+	rc.logger.Sugar().Infow("Successfully dropped temp staker reward amounts table",
+		zap.String("tempTableName", tempTableName),
+		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
+	)
 	return nil
 }

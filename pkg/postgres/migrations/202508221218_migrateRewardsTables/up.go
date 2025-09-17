@@ -559,31 +559,8 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 				END $$;`,
 			},
 			NewTableName:         "gold_table",
-			ExistingTablePattern: "^$",
+			ExistingTablePattern: "gold_[0-9]+_staging_[0-9_]+$",
 		},
-	}
-
-	// Drop staging tables (no data migration needed)
-	dropStagingTablesQuery := `
-		SELECT table_name
-		FROM information_schema.tables
-		WHERE table_type='BASE TABLE'
-			AND table_name ~* 'gold_(11|15)_staging_[0-9_]+$'
-			AND table_schema = 'public'
-	`
-	var stagingTables []string
-	res := grm.Raw(dropStagingTablesQuery).Scan(&stagingTables)
-	if res.Error != nil {
-		return fmt.Errorf("failed to find staging tables: %w", res.Error)
-	}
-
-	for _, table := range stagingTables {
-		dropQuery := fmt.Sprintf("DROP TABLE IF EXISTS %s", table)
-		dropRes := grm.Exec(dropQuery)
-		if dropRes.Error != nil {
-			fmt.Printf("Failed to drop staging table %s: %s\n", table, dropRes.Error)
-			return dropRes.Error
-		}
 	}
 
 	_, err := helpers.WrapTxAndCommit(func(tx *gorm.DB) (interface{}, error) {
