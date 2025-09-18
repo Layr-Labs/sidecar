@@ -55,6 +55,22 @@ func (rds *RewardsDataService) GetRewardsForSnapshot(ctx context.Context, snapsh
 }
 
 func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context, rootIndex uint64, pagination *serviceTypes.Pagination) ([]*rewardsTypes.Reward, error) {
+	// First check if rewards are cached
+	// cachedRewards, found, err := rds.GetCachedRewardsForDistributionRoot(ctx, rootIndex, pagination)
+	// if err != nil {
+	// 	rds.logger.Sugar().Warnw("Error checking cache for distribution root",
+	// 		"rootIndex", rootIndex, "error", err)
+	// 	// Continue to fallback computation
+	// } else if found {
+	// 	rds.logger.Sugar().Infow("Using cached rewards for distribution root",
+	// 		"rootIndex", rootIndex, "count", len(cachedRewards))
+	// 	return cachedRewards, nil
+	// }
+
+	// // Fallback to expensive computation
+	// rds.logger.Sugar().Warnw("No cached rewards found, falling back to expensive computation",
+	// 	"rootIndex", rootIndex)
+
 	root, err := rds.getDistributionRootByRootIndex(rootIndex)
 	if err != nil {
 		return nil, err
@@ -73,7 +89,7 @@ func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context
 		return nil, fmt.Errorf("rewards calculation has not been completed for distribution root %d (snapshot date: %s). Please wait for the calculation to finish", rootIndex, snapshotDate)
 	}
 
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshotDate, nil, nil, nil)
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshotDate, nil, nil, pagination)
 }
 
 type TotalClaimedReward struct {
