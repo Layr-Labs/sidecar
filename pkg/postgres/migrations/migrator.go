@@ -204,7 +204,6 @@ func (m *Migrator) MigrateAll() error {
 		&_202502180836_snapshotUniqueConstraints.Migration{},
 		&_202503051449_addContractTypeColumn.Migration{},
 		&_202503311108_goldRewardHashIndex.Migration{},
-		&_202509181400_goldTableCompositeIndex.Migration{},
 		&_202501241322_operatorDirectedOperatorSetRewardSubmissions.Migration{},
 		&_202501241533_operatorSetSplits.Migration{},
 		&_202501271727_operatorSetOperatorRegistrations.Migration{},
@@ -226,6 +225,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202503191610_coreContractMigrations.Migration{},
 		&_202507301421_crossChainRegistryTables.Migration{},
 		&_202507301346_taskMailboxTables.Migration{},
+		&_202509181400_goldTableCompositeIndex.Migration{},
 	}
 
 	for _, migration := range migrations {
