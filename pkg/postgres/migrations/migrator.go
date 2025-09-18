@@ -81,6 +81,7 @@ import (
 	_202506172149_snapshotUniqueConstraintsPartTwo "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202506172149_snapshotUniqueConstraintsPartTwo"
 	_202507301346_taskMailboxTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202507301346_taskMailboxTables"
 	_202507301421_crossChainRegistryTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202507301421_crossChainRegistryTables"
+	_202509181400_goldTableCompositeIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202509181400_goldTableCompositeIndex"
 )
 
 // Migration interface defines the contract for database migrations.
@@ -203,6 +204,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202502180836_snapshotUniqueConstraints.Migration{},
 		&_202503051449_addContractTypeColumn.Migration{},
 		&_202503311108_goldRewardHashIndex.Migration{},
+		&_202509181400_goldTableCompositeIndex.Migration{},
 		&_202501241322_operatorDirectedOperatorSetRewardSubmissions.Migration{},
 		&_202501241533_operatorSetSplits.Migration{},
 		&_202501271727_operatorSetOperatorRegistrations.Migration{},
