@@ -542,12 +542,12 @@ func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earner
 		{{ if .filterTokens }}
 			and token in @tokens
 		{{ end }}
+		group by 1, 2
+		order by snapshot desc
 		{{ if .pagination }}
 			limit @limit
 			offset @offset
 		{{ end }}
-		group by 1, 2
-		order by snapshot desc
     `
 	templateArgs := map[string]interface{}{
 		"snapshotDate":  snapshotDate,
