@@ -255,13 +255,23 @@ func (rpc *RpcServer) GetRewardsForSnapshot(ctx context.Context, req *rewardsV1.
 
 func (rpc *RpcServer) GetRewardsForDistributionRoot(ctx context.Context, req *rewardsV1.GetRewardsForDistributionRootRequest) (*rewardsV1.GetRewardsForDistributionRootResponse, error) {
 	rootIndex := req.GetRootIndex()
+	pagination := req.GetPagination()
 
-	snapshotRewards, err := rpc.rewardsDataService.GetRewardsForDistributionRoot(ctx, rootIndex)
+	var page *serviceTypes.Pagination
+	if pagination != nil {
+		page = serviceTypes.NewDefaultPagination()
+		page.Load(pagination.PageNumber, pagination.PageSize)
+		if page.PageSize == 0 {
+			page.PageSize = DefaultRewardsByAvsPageSize
+		}
+	}
+
+	snapshotRewards, err := rpc.rewardsDataService.GetRewardsForDistributionRoot(ctx, rootIndex, page)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	rewardsRes := make([]*rewardsV1.Reward, 0, len(snapshotRewards))
 
+	rewardsRes := make([]*rewardsV1.Reward, 0, len(snapshotRewards))
 	for _, reward := range snapshotRewards {
 		rewardsRes = append(rewardsRes, &rewardsV1.Reward{
 			Earner:   reward.Earner,
@@ -271,8 +281,17 @@ func (rpc *RpcServer) GetRewardsForDistributionRoot(ctx context.Context, req *re
 		})
 	}
 
+	var nextPage *common.Pagination
+	if page != nil && uint32(len(rewardsRes)) == page.PageSize {
+		nextPage = &common.Pagination{
+			PageNumber: page.Page + 1,
+			PageSize:   page.PageSize,
+		}
+	}
+
 	return &rewardsV1.GetRewardsForDistributionRootResponse{
-		Rewards: rewardsRes,
+		Rewards:  rewardsRes,
+		NextPage: nextPage,
 	}, nil
 }
 

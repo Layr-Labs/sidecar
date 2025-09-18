@@ -180,7 +180,7 @@ func Test_RewardsDataService(t *testing.T) {
 		rootIndex := uint64(189)
 
 		t.Run("successful case with completed rewards calculation", func(t *testing.T) {
-			r, err := rds.GetRewardsForDistributionRoot(context.Background(), rootIndex)
+			r, err := rds.GetRewardsForDistributionRoot(context.Background(), rootIndex, nil)
 			assert.Nil(t, err)
 			assert.NotNil(t, r)
 			// Should return some rewards for a valid root index
@@ -190,7 +190,7 @@ func Test_RewardsDataService(t *testing.T) {
 
 		t.Run("error case with non-existent root index", func(t *testing.T) {
 			nonExistentRootIndex := uint64(999999)
-			r, err := rds.GetRewardsForDistributionRoot(context.Background(), nonExistentRootIndex)
+			r, err := rds.GetRewardsForDistributionRoot(context.Background(), nonExistentRootIndex, nil)
 			assert.NotNil(t, err, "Should return an error for non-existent root index")
 			assert.Nil(t, r)
 			assert.Contains(t, err.Error(), "no distribution root found for root index", "Error should mention missing root index")
@@ -205,7 +205,7 @@ func Test_RewardsDataService(t *testing.T) {
 			// The important thing is that our code correctly handles the case where rewards are incomplete
 			rootIndex := uint64(190) // Try a different root index that might not have completed calculations
 
-			r, err := rds.GetRewardsForDistributionRoot(context.Background(), rootIndex)
+			r, err := rds.GetRewardsForDistributionRoot(context.Background(), rootIndex, nil)
 			if err != nil {
 				// If there's an error, check if it's the expected incomplete calculation error
 				if err.Error() == fmt.Sprintf("no distribution root found for root index '%d'", rootIndex) {
