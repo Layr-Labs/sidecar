@@ -85,10 +85,11 @@ active_rewards_updated_start_timestamps AS (
         ap.multiplier, 
         ap.strategy, 
         ap.reward_hash, 
-        ap.duration,
+        ap.duration, 
         ap.global_end_inclusive, 
         ap.reward_start_exclusive, 
-        ap.reward_submission_date
+        ap.reward_submission_date,
+        g.last_snapshot
 ),
 
 -- Step 4: Filter out invalid reward ranges
