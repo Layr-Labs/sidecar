@@ -46,13 +46,20 @@ active_rewards_updated_end_timestamps AS (
         block_date AS reward_submission_date
     FROM active_rewards_modified
 ),
-
+-- Optimized: Get the latest snapshot for each reward hash
+reward_progress AS (
+    SELECT 
+        reward_hash, 
+        MAX(snapshot) as last_snapshot
+    FROM gold_table 
+    GROUP BY reward_hash
+),
 -- Step 4: For each reward hash, find the latest snapshot
 active_rewards_updated_start_timestamps AS (
     SELECT
         ap.avs,
         ap.operator,
-        COALESCE(MAX(g.snapshot), ap.reward_start_exclusive) AS reward_start_exclusive,
+        COALESCE(g.last_snapshot, ap.reward_start_exclusive) AS reward_start_exclusive,
         ap.reward_end_inclusive,
         ap.token,
         -- We use floor to ensure we are always underestimating total tokens per day
@@ -64,7 +71,7 @@ active_rewards_updated_start_timestamps AS (
         ap.global_end_inclusive,
         ap.reward_submission_date
     FROM active_rewards_updated_end_timestamps ap
-    LEFT JOIN rewards_gold_7_active_od_rewards g 
+    LEFT JOIN reward_progress g 
         ON g.reward_hash = ap.reward_hash
     GROUP BY 
         ap.avs, 

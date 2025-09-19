@@ -48,7 +48,7 @@ reward_snapshot_operators as (
   FROM {{.activeRewardsTable}} ap
   JOIN combined_operators co
   ON ap.snapshot = co.snapshot
-  WHERE ap.reward_type = 'all_earners' AND ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
+  WHERE ap.reward_type = 'all_earners'
 ),
 -- Get the stakers that were delegated to the operator for the snapshot 
 staker_delegated_operators AS (

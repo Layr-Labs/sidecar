@@ -27,7 +27,7 @@ WITH not_registered_operators AS (
         ap.reward_submission_date
     FROM {{.activeODRewardsTable}} ap
     WHERE
-        ap.num_registered_snapshots = 0 AND ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
+        ap.num_registered_snapshots = 0
 ),
 
 -- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
@@ -84,7 +84,6 @@ registered_operators AS (
         AND ap.operator = osor.operator
     WHERE ap.num_registered_snapshots != 0
       AND ap.reward_submission_date >= @coloradoHardforkDate
-      AND ap.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 ),
 
 -- Step 5: For each reward/snapshot/operator_set, check if any strategies are registered
