@@ -275,5 +275,6 @@ func (rc *RewardsCalculator) CopyTempActiveODRewardsToActiveODRewards(snapshotDa
 		return res.Error
 	}
 
-	return rc.DropTempActiveODRewardsTable(snapshotDate, generatedRewardsSnapshotId)
+	// return rc.DropTempActiveODRewardsTable(snapshotDate, generatedRewardsSnapshotId)
+	return nil
 }

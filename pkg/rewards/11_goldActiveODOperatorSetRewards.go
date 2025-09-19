@@ -281,5 +281,6 @@ func (rc *RewardsCalculator) CopyTempActiveODOperatorSetRewardsToActiveODOperato
 		return res.Error
 	}
 
-	return rc.DropTempActiveODOperatorSetRewardsTable(snapshotDate, generatedRewardsSnapshotId)
+	// return rc.DropTempActiveODOperatorSetRewardsTable(snapshotDate, generatedRewardsSnapshotId)
+	return nil
 }

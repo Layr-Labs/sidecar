@@ -200,5 +200,6 @@ func (r *RewardsCalculator) CopyTempActiveRewardsToActiveRewards(snapshotDate st
 		return res.Error
 	}
 
-	return r.DropTempActiveRewardsTable(snapshotDate, generatedRewardsSnapshotId)
+	// return r.DropTempActiveRewardsTable(snapshotDate, generatedRewardsSnapshotId)
+	return nil
 }
