@@ -33,17 +33,7 @@ WITH combined_operators AS (
   ) all_operators
 ),
 -- Get the operators who will earn rewards for the reward submission at the given snapshot
--- Use the latest available operator registration on or before the snapshot date
-latest_operator_snapshots AS (
-  SELECT 
-    ap.snapshot as reward_snapshot,
-    MAX(co.snapshot) as latest_operator_snapshot
-  FROM {{.activeRewardsTable}} ap
-  CROSS JOIN (SELECT DISTINCT snapshot FROM combined_operators) co
-  WHERE ap.reward_type = 'all_earners'
-    AND co.snapshot <= ap.snapshot
-  GROUP BY ap.snapshot
-),
+-- Try exact snapshot first, fallback to latest available if needed
 reward_snapshot_operators as (
   SELECT
     ap.reward_hash,
@@ -57,30 +47,75 @@ reward_snapshot_operators as (
     ap.reward_submission_date,
     co.operator
   FROM {{.activeRewardsTable}} ap
-  JOIN latest_operator_snapshots los ON ap.snapshot = los.reward_snapshot
+  JOIN combined_operators co ON ap.snapshot = co.snapshot
+  WHERE ap.reward_type = 'all_earners'
+  
+  UNION ALL
+  
+  -- Fallback: Use latest available snapshot for dates that don't have exact matches
+  SELECT
+    ap.reward_hash,
+    ap.snapshot,
+    ap.token,
+    ap.tokens_per_day_decimal,
+    ap.avs,
+    ap.strategy,
+    ap.multiplier,
+    ap.reward_type,
+    ap.reward_submission_date,
+    co.operator
+  FROM {{.activeRewardsTable}} ap
+  JOIN (
+    SELECT 
+      ap2.snapshot as reward_snapshot,
+      MAX(co2.snapshot) as latest_operator_snapshot
+    FROM {{.activeRewardsTable}} ap2
+    CROSS JOIN (SELECT DISTINCT snapshot FROM combined_operators) co2
+    WHERE ap2.reward_type = 'all_earners'
+      AND co2.snapshot <= ap2.snapshot
+      AND NOT EXISTS (
+        SELECT 1 FROM combined_operators co3 
+        WHERE co3.snapshot = ap2.snapshot
+      )
+    GROUP BY ap2.snapshot
+  ) los ON ap.snapshot = los.reward_snapshot
   JOIN combined_operators co ON co.snapshot = los.latest_operator_snapshot
   WHERE ap.reward_type = 'all_earners'
 ),
 -- Get the stakers that were delegated to the operator for the snapshot 
--- Use the latest available delegation snapshot on or before the reward snapshot date
-latest_delegation_snapshots AS (
-  SELECT 
-    rso.reward_hash,
-    rso.snapshot as reward_snapshot,
-    rso.operator,
-    MAX(sds.snapshot) as latest_delegation_snapshot
-  FROM reward_snapshot_operators rso
-  CROSS JOIN (SELECT DISTINCT snapshot, operator FROM staker_delegation_snapshots) sds
-  WHERE sds.operator = rso.operator
-    AND sds.snapshot <= rso.snapshot
-  GROUP BY rso.reward_hash, rso.snapshot, rso.operator
-),
+-- Try exact snapshot first, fallback to latest available if needed
 staker_delegated_operators AS (
   SELECT
     rso.*,
     sds.staker
   FROM reward_snapshot_operators rso
-  JOIN latest_delegation_snapshots lds ON 
+  JOIN staker_delegation_snapshots sds ON
+    rso.operator = sds.operator AND
+    rso.snapshot = sds.snapshot
+    
+  UNION ALL
+  
+  -- Fallback: Use latest available delegation snapshot for missing dates
+  SELECT
+    rso.*,
+    sds.staker
+  FROM reward_snapshot_operators rso
+  JOIN (
+    SELECT 
+      rso2.reward_hash,
+      rso2.snapshot as reward_snapshot,
+      rso2.operator,
+      MAX(sds2.snapshot) as latest_delegation_snapshot
+    FROM reward_snapshot_operators rso2
+    CROSS JOIN (SELECT DISTINCT snapshot, operator FROM staker_delegation_snapshots) sds2
+    WHERE sds2.operator = rso2.operator
+      AND sds2.snapshot <= rso2.snapshot
+      AND NOT EXISTS (
+        SELECT 1 FROM staker_delegation_snapshots sds3 
+        WHERE sds3.operator = rso2.operator AND sds3.snapshot = rso2.snapshot
+      )
+    GROUP BY rso2.reward_hash, rso2.snapshot, rso2.operator
+  ) lds ON 
     rso.reward_hash = lds.reward_hash AND
     rso.snapshot = lds.reward_snapshot AND
     rso.operator = lds.operator
@@ -89,27 +124,46 @@ staker_delegated_operators AS (
     sds.snapshot = lds.latest_delegation_snapshot
 ),
 -- Get the shares of each strategy the staker has delegated to the operator
--- Use the latest available share snapshot on or before the reward snapshot date
-latest_share_snapshots AS (
-  SELECT 
-    sdo.reward_hash,
-    sdo.snapshot as reward_snapshot,
-    sdo.staker,
-    sdo.strategy,
-    MAX(sss.snapshot) as latest_share_snapshot
-  FROM staker_delegated_operators sdo
-  CROSS JOIN (SELECT DISTINCT snapshot, staker, strategy FROM staker_share_snapshots) sss
-  WHERE sss.staker = sdo.staker
-    AND sss.strategy = sdo.strategy
-    AND sss.snapshot <= sdo.snapshot
-  GROUP BY sdo.reward_hash, sdo.snapshot, sdo.staker, sdo.strategy
-),
+-- Try exact snapshot first, fallback to latest available if needed
 staker_strategy_shares AS (
   SELECT
     sdo.*,
     sss.shares
   FROM staker_delegated_operators sdo
-  JOIN latest_share_snapshots lss ON 
+  JOIN staker_share_snapshots sss ON
+    sdo.staker = sss.staker AND
+    sdo.snapshot = sss.snapshot AND
+    sdo.strategy = sss.strategy
+  -- Parse out negative shares and zero multiplier so there is no division by zero case
+  WHERE sss.shares > 0 and sdo.multiplier != 0
+  
+  UNION ALL
+  
+  -- Fallback: Use latest available share snapshot for missing dates
+  SELECT
+    sdo.*,
+    sss.shares
+  FROM staker_delegated_operators sdo
+  JOIN (
+    SELECT 
+      sdo2.reward_hash,
+      sdo2.snapshot as reward_snapshot,
+      sdo2.staker,
+      sdo2.strategy,
+      MAX(sss2.snapshot) as latest_share_snapshot
+    FROM staker_delegated_operators sdo2
+    CROSS JOIN (SELECT DISTINCT snapshot, staker, strategy FROM staker_share_snapshots) sss2
+    WHERE sss2.staker = sdo2.staker
+      AND sss2.strategy = sdo2.strategy
+      AND sss2.snapshot <= sdo2.snapshot
+      AND NOT EXISTS (
+        SELECT 1 FROM staker_share_snapshots sss3 
+        WHERE sss3.staker = sdo2.staker 
+          AND sss3.strategy = sdo2.strategy 
+          AND sss3.snapshot = sdo2.snapshot
+      )
+    GROUP BY sdo2.reward_hash, sdo2.snapshot, sdo2.staker, sdo2.strategy
+  ) lss ON 
     sdo.reward_hash = lss.reward_hash AND
     sdo.snapshot = lss.reward_snapshot AND
     sdo.staker = lss.staker AND
