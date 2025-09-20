@@ -10,7 +10,22 @@ import (
 
 const _4_goldRewardsForAllQuery = `
 create table {{.destTableName}} as
-WITH reward_snapshot_stakers AS (
+WITH 
+-- Get the latest available staker share snapshot on or before the reward snapshot date
+latest_share_snapshots AS (
+  SELECT 
+    ap.reward_hash,
+    ap.snapshot as reward_snapshot,
+    ap.strategy,
+    MAX(sss.snapshot) as latest_share_snapshot
+  FROM {{.activeRewardsTable}} ap
+  CROSS JOIN (SELECT DISTINCT snapshot, strategy FROM staker_share_snapshots) sss
+  WHERE ap.reward_type = 'all_stakers'
+    AND sss.strategy = ap.strategy
+    AND sss.snapshot <= ap.snapshot
+  GROUP BY ap.reward_hash, ap.snapshot, ap.strategy
+),
+reward_snapshot_stakers AS (
   SELECT
     ap.reward_hash,
     ap.snapshot,
@@ -23,8 +38,13 @@ WITH reward_snapshot_stakers AS (
     sss.staker,
     sss.shares
   FROM {{.activeRewardsTable}} ap
-  JOIN staker_share_snapshots as sss
-  ON ap.strategy = sss.strategy and ap.snapshot = sss.snapshot
+  JOIN latest_share_snapshots lss ON 
+    ap.reward_hash = lss.reward_hash AND
+    ap.snapshot = lss.reward_snapshot AND
+    ap.strategy = lss.strategy
+  JOIN staker_share_snapshots sss ON
+    sss.strategy = lss.strategy AND
+    sss.snapshot = lss.latest_share_snapshot
   WHERE ap.reward_type = 'all_stakers'
   -- Parse out negative shares and zero multiplier so there is no division by zero case
   AND sss.shares > 0 and ap.multiplier != 0
