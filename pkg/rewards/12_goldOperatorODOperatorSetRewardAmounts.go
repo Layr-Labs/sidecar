@@ -1,12 +1,15 @@
 package rewards
 
 import (
+	"fmt"
+
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
 
 const _12_goldOperatorODOperatorSetRewardAmountsQuery = `
-CREATE TABLE {{.destTableName}} AS
+create table {{.destTableName}} as
 
 -- Step 1: Get the rows where operators have registered for the operator set
 WITH reward_snapshot_operators AS (
@@ -65,10 +68,10 @@ operator_splits AS (
 )
 
 -- Step 4: Output the final table with operator splits
-SELECT * FROM operator_splits
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM operator_splits
 `
 
-func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
 	rewardsV2_1Enabled, err := rc.globalConfig.IsRewardsV2_1EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.1 is enabled", "error", err)
@@ -78,17 +81,25 @@ func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTab
 		rc.logger.Sugar().Infow("Rewards v2.1 is not enabled for this cutoff date, skipping GenerateGold12OperatorODOperatorSetRewardAmountsTable")
 		return nil
 	}
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts]
 
-	rc.logger.Sugar().Infow("Generating Operator OD operator set reward amounts",
+	destTableName := rc.getTempOperatorODOperatorSetRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId)
+	activeODRewardsTable := rc.getTempActiveODOperatorSetRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
+
+	// Drop existing temp table
+	if err := rc.DropTempOperatorODOperatorSetRewardAmountsTable(snapshotDate, generatedRewardsSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop existing temp operator OD operator set reward amounts table", "error", err)
+		return err
+	}
+
+	rc.logger.Sugar().Infow("Generating temp Operator OD operator set reward amounts",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_12_goldOperatorODOperatorSetRewardAmountsQuery, map[string]interface{}{
-		"destTableName":        destTableName,
-		"activeODRewardsTable": allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
+		"destTableName":              destTableName,
+		"activeODRewardsTable":       activeODRewardsTable,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -97,8 +108,30 @@ func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTab
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_operator_od_operator_set_reward_amounts", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to create temp operator OD operator set reward amounts", "error", res.Error)
 		return res.Error
 	}
+	return nil
+}
+
+// Helper functions for temp table management
+func (rc *RewardsCalculator) getTempOperatorODOperatorSetRewardAmountsTableName(snapshotDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(snapshotDate)
+	return fmt.Sprintf("tmp_rewards_gold_12_operator_od_operator_set_reward_amounts_%s_%d", camelDate, generatedRewardSnapshotId)
+}
+
+func (rc *RewardsCalculator) DropTempOperatorODOperatorSetRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	tempTableName := rc.getTempOperatorODOperatorSetRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId)
+
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName)
+	res := rc.grm.Exec(query)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp operator OD operator set reward amounts table", "error", res.Error)
+		return res.Error
+	}
+	rc.logger.Sugar().Infow("Successfully dropped temp operator OD operator set reward amounts table",
+		zap.String("tempTableName", tempTableName),
+		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
+	)
 	return nil
 }
