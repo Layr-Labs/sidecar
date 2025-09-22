@@ -254,33 +254,3 @@ func (rc *RewardsCalculator) DropTempActiveODOperatorSetRewardsTable(snapshotDat
 	}
 	return nil
 }
-
-func (rc *RewardsCalculator) CopyTempActiveODOperatorSetRewardsToActiveODOperatorSetRewards(snapshotDate string, generatedRewardsSnapshotId uint64) error {
-	rc.logger.Sugar().Infow("Copying temp active od operator set rewards to active od operator set rewards",
-		zap.String("snapshotDate", snapshotDate),
-		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
-	)
-	tempTableName := rc.getTempActiveODOperatorSetRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
-	destTableName := rewardsUtils.RewardsTable_11_ActiveODOperatorSetRewards
-
-	query := `
-		insert into {{.destTableName}} (avs, operator_set_id, operator, snapshot, token, amount_decimal, multiplier, strategy, duration, reward_hash, reward_submission_date, num_registered_snapshots, tokens_per_registered_snapshot_decimal, generated_rewards_snapshot_id)
-		select avs, operator_set_id, operator, snapshot, token, amount_decimal, multiplier, strategy, duration, reward_hash, reward_submission_date, num_registered_snapshots, tokens_per_registered_snapshot_decimal, generated_rewards_snapshot_id from {{.tempTableName}}
-		on conflict (reward_hash, operator_set_id, strategy, snapshot) do nothing
-	`
-	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
-		"destTableName": destTableName,
-		"tempTableName": tempTableName,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to render query template: %w", err)
-	}
-	res := rc.grm.Exec(renderedQuery)
-	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to copy temp active OD rewards to active OD rewards", "error", res.Error)
-		return res.Error
-	}
-
-	// return rc.DropTempActiveODOperatorSetRewardsTable(snapshotDate, generatedRewardsSnapshotId)
-	return nil
-}

@@ -1,9 +1,12 @@
 package stakerOperators
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"go.uber.org/zap"
 )
 
 // _6_operatorODStrategyPayoutQuery is the query that generates the operator OD strategy payouts.
@@ -26,7 +29,6 @@ select
 	od.split_pct,
 	od.operator_tokens
 from {{.operatorODRewardAmountsTable}} as od
-where od.generated_rewards_snapshot_id = {{.generatedRewardsSnapshotId}}
 `
 
 type OperatorODStrategyPayout struct {
@@ -51,21 +53,24 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert6OperatorODStrategyPayouts
 		sog.logger.Sugar().Infow("Skipping 6_operatorODStrategyPayouts generation as rewards v2 is not enabled")
 		return nil
 	}
-	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
-	destTableName := allTableNames[rewardsUtils.Sot_6_OperatorODStrategyPayouts]
+	destTableName := sog.getTempOperatorODStrategyPayoutTableName(cutoffDate, generatedRewardsSnapshotId)
 
-	sog.logger.Sugar().Infow("Generating and inserting 6_operatorODStrategyPayouts",
+	sog.logger.Sugar().Infow("Generating temp 6_operatorODStrategyPayouts",
 		"cutoffDate", cutoffDate,
+		"destTableName", destTableName,
 	)
 
-	if err := rewardsUtils.DropTableIfExists(sog.db, destTableName, sog.logger); err != nil {
-		sog.logger.Sugar().Errorw("Failed to drop table", "error", err)
+	// Drop existing temp table
+	if err := sog.DropTempOperatorODStrategyPayoutTable(cutoffDate, generatedRewardsSnapshotId); err != nil {
+		sog.logger.Sugar().Errorw("Failed to drop existing temp operator OD strategy payout table", "error", err)
 		return err
 	}
 
+	tempOperatorODRewardAmountsTable := sog.getTempOperatorODRewardAmountsTableName(cutoffDate, generatedRewardsSnapshotId)
+
 	query, err := rewardsUtils.RenderQueryTemplate(_6_operatorODStrategyPayoutQuery, map[string]interface{}{
 		"destTableName":                destTableName,
-		"operatorODRewardAmountsTable": rewardsUtils.RewardsTable_8_OperatorODRewardAmounts,
+		"operatorODRewardAmountsTable": tempOperatorODRewardAmountsTable,
 		"generatedRewardsSnapshotId":   generatedRewardsSnapshotId,
 	})
 	if err != nil {
@@ -76,8 +81,34 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert6OperatorODStrategyPayouts
 	res := sog.db.Exec(query)
 
 	if res.Error != nil {
-		sog.logger.Sugar().Errorw("Failed to generate 6_operatorODStrategyPayouts", "error", res.Error)
-		return err
+		sog.logger.Sugar().Errorw("Failed to generate temp 6_operatorODStrategyPayouts", "error", res.Error)
+		return res.Error
 	}
 	return nil
+}
+
+func (sog *StakerOperatorsGenerator) getTempOperatorODStrategyPayoutTableName(cutoffDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(cutoffDate)
+	return fmt.Sprintf("tmp_staker_operators_6_operator_od_strategy_payout_%s_%d", camelDate, generatedRewardSnapshotId)
+}
+
+func (sog *StakerOperatorsGenerator) DropTempOperatorODStrategyPayoutTable(cutoffDate string, generatedRewardsSnapshotId uint64) error {
+	tempTableName := sog.getTempOperatorODStrategyPayoutTableName(cutoffDate, generatedRewardsSnapshotId)
+
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName)
+	res := sog.db.Exec(query)
+	if res.Error != nil {
+		sog.logger.Sugar().Errorw("Failed to drop temp operator OD strategy payout table", "error", res.Error)
+		return res.Error
+	}
+	sog.logger.Sugar().Infow("Successfully dropped temp operator OD strategy payout table",
+		zap.String("tempTableName", tempTableName),
+		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
+	)
+	return nil
+}
+
+func (sog *StakerOperatorsGenerator) getTempOperatorODRewardAmountsTableName(cutoffDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(cutoffDate)
+	return fmt.Sprintf("tmp_rewards_gold_8_operator_od_reward_amounts_%s_%d", camelDate, generatedRewardSnapshotId)
 }
