@@ -173,33 +173,3 @@ func (r *RewardsCalculator) DropTempActiveRewardsTable(snapshotDate string, gene
 	)
 	return nil
 }
-
-func (r *RewardsCalculator) CopyTempActiveRewardsToActiveRewards(snapshotDate string, generatedRewardsSnapshotId uint64) error {
-	r.logger.Sugar().Infow("Copying temp active rewards to active rewards",
-		zap.String("snapshotDate", snapshotDate),
-		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
-	)
-	tempTableName := r.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
-	destTableName := rewardsUtils.RewardsTable_1_ActiveRewards
-
-	query := `
-		insert into {{.destTableName}} (avs, snapshot, token, tokens_per_day, tokens_per_day_decimal, multiplier, strategy, reward_hash, reward_type, reward_submission_date, generated_rewards_snapshot_id)
-		select avs, snapshot, token, tokens_per_day, tokens_per_day_decimal, multiplier, strategy, reward_hash, reward_type, reward_submission_date, generated_rewards_snapshot_id from {{.tempTableName}}
-		on conflict (avs, reward_hash, strategy, snapshot) do nothing
-	`
-	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
-		"destTableName": destTableName,
-		"tempTableName": tempTableName,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to render query template: %w", err)
-	}
-	res := r.grm.Exec(renderedQuery)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to copy temp active rewards to active rewards", "error", res.Error)
-		return res.Error
-	}
-
-	// return r.DropTempActiveRewardsTable(snapshotDate, generatedRewardsSnapshotId)
-	return nil
-}

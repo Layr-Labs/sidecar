@@ -576,6 +576,11 @@ func (rc *RewardsCalculator) calculateRewards(snapshotDate string) error {
 		return err
 	}
 
+	if err = rc.removeTempGoldTables(snapshotDate, snapshot.Id); err != nil {
+		rc.logger.Sugar().Errorw("Failed to remove temp gold tables", "error", err)
+		return err
+	}
+
 	if err = rc.UpdateRewardSnapshotStatus(snapshotDate, storage.RewardSnapshotStatusCompleted); err != nil {
 		rc.logger.Sugar().Errorw("Failed to update reward snapshot status", "error", err)
 		return err
@@ -787,21 +792,77 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string, generatedSn
 		return err
 	}
 
-	// ------------------------------------------------------------------------
-	// Copy temp tables to final tables
-	// ------------------------------------------------------------------------
-	if err := rc.CopyTempActiveRewardsToActiveRewards(snapshotDate, generatedSnapshotId); err != nil {
-		rc.logger.Sugar().Errorw("Failed to copy temp active rewards to active rewards", "error", err)
+	return nil
+}
+
+func (rc *RewardsCalculator) removeTempGoldTables(snapshotDate string, generatedSnapshotId uint64) error {
+	if err := rc.DropTempActiveRewardsTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp active rewards table", "error", err)
 		return err
 	}
 
-	if err := rc.CopyTempActiveODRewardsToActiveODRewards(snapshotDate, generatedSnapshotId); err != nil {
-		rc.logger.Sugar().Errorw("Failed to copy temp active od rewards to active od rewards", "error", err)
+	if err := rc.DropTempStakerRewardAmountsTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp staker reward amounts table", "error", err)
 		return err
 	}
 
-	if err := rc.CopyTempActiveODOperatorSetRewardsToActiveODOperatorSetRewards(snapshotDate, generatedSnapshotId); err != nil {
-		rc.logger.Sugar().Errorw("Failed to copy temp active od operator set rewards to active od operator set rewards", "error", err)
+	if err := rc.DropTempOperatorRewardAmountsTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp operator reward amounts table", "error", err)
+		return err
+	}
+
+	if err := rc.DropTempRewardsForAllTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp rewards for all table", "error", err)
+		return err
+	}
+
+	if err := rc.DropTempRfaeStakersTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp rfae stakers table", "error", err)
+		return err
+	}
+
+	if err := rc.DropTempRfaeOperatorsTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp rfae operators table", "error", err)
+		return err
+	}
+
+	if err := rc.DropTempActiveODRewardsTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp active od rewards table", "error", err)
+		return err
+	}
+
+	if err := rc.DropTempOperatorODRewardAmountsTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp operator od reward amounts table", "error", err)
+		return err
+	}
+
+	if err := rc.DropTempStakerODRewardAmountsTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp staker od reward amounts table", "error", err)
+		return err
+	}
+
+	if err := rc.DropTempAvsODRewardAmountsTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp avs od reward amounts table", "error", err)
+		return err
+	}
+
+	if err := rc.DropTempActiveODOperatorSetRewardsTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp active od operator set rewards table", "error", err)
+		return err
+	}
+
+	if err := rc.DropTempOperatorODOperatorSetRewardAmountsTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp operator od operator set reward amounts table", "error", err)
+		return err
+	}
+
+	if err := rc.DropTempStakerODOperatorSetRewardAmountsTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp staker od operator set reward amounts table", "error", err)
+		return err
+	}
+
+	if err := rc.DropTempAvsODOperatorSetRewardAmountsTable(snapshotDate, generatedSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp avs od operator set reward amounts table", "error", err)
 		return err
 	}
 

@@ -126,20 +126,13 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 
-	if err := sog.GenerateAndInsert12StakerOperatorStaging(cutoffDate); err != nil {
-		sog.logger.Sugar().Errorw("Failed to generate and insert 12 staker operator staging",
+	if err := sog.GenerateAndInsert12StakerOperator(cutoffDate, generatedSnapshotId); err != nil {
+		sog.logger.Sugar().Errorw("Failed to generate and insert 12 staker operator",
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(err),
 		)
 		return err
 	}
 
-	if err := sog.GenerateAndInsert13StakerOperator(cutoffDate); err != nil {
-		sog.logger.Sugar().Errorw("Failed to generate and insert 13 staker operator",
-			zap.String("cutoffDate", cutoffDate),
-			zap.Error(err),
-		)
-		return err
-	}
 	return nil
 }
