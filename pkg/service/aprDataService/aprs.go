@@ -60,7 +60,9 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 				SUM(shares::numeric) as total_shares
 			FROM staker_operator
 			WHERE 
-				operator = @operatorAddress
+				strategy = @eigenStrategyAddress  -- EIGEN strategy
+    			AND token = @eigenTokenAddress  -- EIGEN token
+				AND operator = @operatorAddress
 				AND DATE(snapshot) = @date
 				AND strategy != '0x0000000000000000000000000000000000000000'
 			GROUP BY strategy
@@ -79,6 +81,8 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 
 	var results []*OperatorStrategyApr
 	res := ads.db.Raw(query,
+		sql.Named("eigenStrategyAddress", "0xacb55c530acdb2849e6d4f36992cd8c9d50ed8f7"),
+		sql.Named("eigenTokenAddress", "0xec53bf9167f50cdeb3ae105f56099aaab9061f83"),
 		sql.Named("operatorAddress", operatorAddress),
 		sql.Named("date", parsedDate.Format("2006-01-02")),
 	).Scan(&results)

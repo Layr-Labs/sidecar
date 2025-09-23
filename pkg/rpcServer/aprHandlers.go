@@ -12,6 +12,11 @@ func (rpc *RpcServer) GetDailyOperatorStrategyAprs(
 	ctx context.Context,
 	request *pdsV1.GetDailyOperatorStrategyAprsRequest,
 ) (*pdsV1.GetDailyOperatorStrategyAprsResponse, error) {
+	// Only allow this endpoint to work on mainnet
+	if rpc.globalConfig.Chain != "mainnet" {
+		return nil, errors.New("this endpoint is only available on mainnet")
+	}
+
 	operatorAddress := request.GetOperatorAddress()
 	date := request.GetDate()
 
