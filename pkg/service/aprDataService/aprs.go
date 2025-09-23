@@ -51,51 +51,29 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 	}
 
 	query := `
-		WITH operator_daily_rewards AS (
+		WITH strategy_rewards_and_shares AS (
 			SELECT 
 				strategy,
-				token,
-				SUM(amount::numeric) as daily_reward_amount
+				-- Sum daily rewards for this operator and strategy
+				SUM(amount::numeric) as daily_rewards,
+				-- Sum shares that generated these rewards (proxy for staked amount)
+				SUM(shares::numeric) as total_shares
 			FROM staker_operator
 			WHERE 
 				operator = @operatorAddress
 				AND DATE(snapshot) = @date
-				AND reward_type IN ('operator_reward', 'operator_od_reward', 'operator_od_operator_set_reward')
-			GROUP BY strategy, token
-		),
-		-- Get total shares delegated to operator for each strategy on the date
-		operator_total_shares AS (
-			SELECT 
-				oss.strategy,
-				oss.shares::numeric as total_shares
-			FROM operator_share_snapshots oss
-			WHERE 
-				oss.operator = @operatorAddress
-				AND DATE(oss.snapshot) = @date
-		),
-		-- Get strategy share prices/values (simplified - using shares as proxy for value)
-		-- In a real implementation, you'd need to get the actual token value per share
-		strategy_calculations AS (
-			SELECT 
-				odr.strategy,
-				odr.daily_reward_amount,
-				COALESCE(ots.total_shares, 0) as total_shares,
-				-- Calculate daily APR: (daily_rewards / total_value) * 365 * 100
-				-- Using shares as proxy for value - in reality you'd need share price
-				CASE 
-					WHEN COALESCE(ots.total_shares, 0) > 0 
-					THEN (odr.daily_reward_amount / ots.total_shares) * 365 * 100
-					ELSE 0
-				END as daily_apr
-			FROM operator_daily_rewards odr
-			LEFT JOIN operator_total_shares ots ON odr.strategy = ots.strategy
+				AND strategy != '0x0000000000000000000000000000000000000000'
+			GROUP BY strategy
 		)
 		SELECT 
 			strategy,
-			ROUND(AVG(daily_apr), 4)::text as apr
-		FROM strategy_calculations
-		WHERE strategy != '0x0000000000000000000000000000000000000000'  -- Exclude null strategy
-		GROUP BY strategy
+			-- Calculate APR: (daily_rewards / staked_amount) * 365 * 100
+			CASE 
+				WHEN total_shares > 0 
+				THEN ROUND((daily_rewards / total_shares) * 365 * 100, 4)::text
+				ELSE '0'
+			END as apr
+		FROM strategy_rewards_and_shares
 		ORDER BY strategy
 	`
 
@@ -104,7 +82,6 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		sql.Named("operatorAddress", operatorAddress),
 		sql.Named("date", parsedDate.Format("2006-01-02")),
 	).Scan(&results)
-
 	if res.Error != nil {
 		return nil, res.Error
 	}
@@ -124,44 +101,18 @@ func (ads *AprDataService) GetDailyAprForEarnerStrategy(ctx context.Context, ear
 	}
 
 	query := `
-		WITH earner_daily_rewards AS (
-			SELECT 
-				SUM(amount::numeric) as daily_reward_amount
-			FROM staker_operator
-			WHERE 
-				earner = @earnerAddress
-				AND strategy = @strategy
-				AND DATE(snapshot) = @date
-		),
-		-- Get earner's shares in the strategy on the date
-		earner_shares AS (
-			SELECT 
-				COALESCE(shares::numeric, 0) as shares
-			FROM staker_share_snapshots
-			WHERE 
-				staker = @earnerAddress
-				AND strategy = @strategy
-				AND DATE(snapshot) = @date
-			LIMIT 1
-		),
-		-- Calculate APR
-		apr_calculation AS (
-			SELECT 
-				edr.daily_reward_amount,
-				es.shares,
-				-- Calculate daily APR: (daily_rewards / shares_value) * 365 * 100
-				-- Using shares as proxy for value - in reality you'd need share price
-				CASE 
-					WHEN COALESCE(es.shares, 0) > 0 
-					THEN (COALESCE(edr.daily_reward_amount, 0) / es.shares) * 365 * 100
-					ELSE 0
-				END as daily_apr
-			FROM earner_daily_rewards edr
-			CROSS JOIN earner_shares es
-		)
 		SELECT 
-			ROUND(daily_apr, 4)::text as apr
-		FROM apr_calculation
+			-- Calculate APR: (daily_rewards / staked_amount) * 365 * 100
+			CASE 
+				WHEN SUM(shares::numeric) > 0 
+				THEN ROUND((SUM(amount::numeric) / SUM(shares::numeric)) * 365 * 100, 4)::text
+				ELSE '0'
+			END as apr
+		FROM staker_operator
+		WHERE 
+			earner = @earnerAddress
+			AND strategy = @strategy
+			AND DATE(snapshot) = @date
 	`
 
 	var apr string
@@ -170,14 +121,7 @@ func (ads *AprDataService) GetDailyAprForEarnerStrategy(ctx context.Context, ear
 		sql.Named("strategy", strategy),
 		sql.Named("date", parsedDate.Format("2006-01-02")),
 	).Row().Scan(&apr)
-
 	if res != nil {
-		ads.logger.Sugar().Errorw("Failed to calculate earner strategy APR",
-			"earner", earnerAddress,
-			"strategy", strategy,
-			"date", date,
-			"error", res,
-		)
 		return "", res
 	}
 
