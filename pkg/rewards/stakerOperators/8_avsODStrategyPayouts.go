@@ -104,5 +104,5 @@ func (sog *StakerOperatorsGenerator) DropTempAvsODStrategyPayoutTable(cutoffDate
 
 func (sog *StakerOperatorsGenerator) getTempAvsODRewardAmountsTableName(cutoffDate string, generatedRewardSnapshotId uint64) string {
 	camelDate := config.KebabToSnakeCase(cutoffDate)
-	return fmt.Sprintf("tmp_rewards_gold_8_avs_od_reward_amounts_%s_%d", camelDate, generatedRewardSnapshotId)
+	return fmt.Sprintf("tmp_rewards_gold_10_avs_od_reward_amounts_%s_%d", camelDate, generatedRewardSnapshotId)
 }
