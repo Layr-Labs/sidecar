@@ -16,7 +16,11 @@ sidecar:
     SIDECAR_DATABASE_PORT: "5432"
     SIDECAR_DATABASE_USER: "sidecar"
     SIDECAR_DATABASE_DB_NAME: "sidecar"
-    # SIDECAR_STATSD_URL: ""
+    DATADOG_STATSD_ENABLED: "true"
+    DATADOG_STATSD_URL: "datadog-agent:8125"
+    # Datadog APM - using TCP instead of Unix socket for security Finding.
+    DD_AGENT_HOST: "datadog-agent"
+    DD_TRACE_AGENT_PORT: "8126"
   additionalEnv: []
   #  - name: ENV_NAME
   #    value: "env value"
