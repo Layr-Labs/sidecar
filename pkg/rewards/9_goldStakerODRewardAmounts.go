@@ -61,15 +61,22 @@ staker_delegated_operators AS (
 ),
 
 -- Get the shares for stakers delegated to the operator
+-- Use conservative matching for share snapshots (like Tables 2 and 5)
 staker_avs_strategy_shares AS (
     SELECT
         sdo.*,
         sss.shares
     FROM staker_delegated_operators sdo
-    JOIN staker_share_snapshots sss
-        ON sdo.staker = sss.staker 
-       AND sdo.snapshot = sss.snapshot 
-       AND sdo.strategy = sss.strategy
+    JOIN staker_share_snapshots sss ON
+        sdo.staker = sss.staker AND
+        sdo.strategy = sss.strategy AND
+        sss.snapshot = (
+            SELECT MAX(sss2.snapshot) 
+            FROM staker_share_snapshots sss2 
+            WHERE sss2.staker = sdo.staker 
+              AND sss2.strategy = sdo.strategy 
+              AND sss2.snapshot <= sdo.snapshot
+        )
     -- Filter out negative shares and zero multiplier to avoid division by zero
     WHERE sss.shares > 0 AND sdo.multiplier != 0
 ),
