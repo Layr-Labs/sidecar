@@ -145,6 +145,10 @@ type EtherscanConfig struct {
 	ApiKey string
 }
 
+type CoingeckoConfig struct {
+	ApiKey string
+}
+
 type Config struct {
 	Debug                 bool
 	EthereumRpcConfig     EthereumRpcConfig
@@ -160,6 +164,7 @@ type Config struct {
 	LoadContractConfig    LoadContractConfig
 	IpfsConfig            IpfsConfig
 	EtherscanConfig       EtherscanConfig
+	CoingeckoConfig       CoingeckoConfig
 }
 
 func StringWithDefault(value, defaultValue string) string {
@@ -236,6 +241,8 @@ var (
 	IpfsUrl = "ipfs.url"
 
 	EtherscanApiKey = "etherscan.api-key"
+
+	CoingeckoApiKey = "coingecko.api-key"
 )
 
 func NewConfig() *Config {
@@ -325,6 +332,10 @@ func NewConfig() *Config {
 
 		EtherscanConfig: EtherscanConfig{
 			ApiKey: viper.GetString(normalizeFlagName(EtherscanApiKey)),
+		},
+
+		CoingeckoConfig: CoingeckoConfig{
+			ApiKey: viper.GetString(normalizeFlagName(CoingeckoApiKey)),
 		},
 	}
 }

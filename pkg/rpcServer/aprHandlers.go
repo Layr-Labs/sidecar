@@ -34,6 +34,18 @@ func (rpc *RpcServer) GetDailyOperatorStrategyAprs(
 
 	responseAprs := make([]*pdsV1.OperatorStrategyApr, 0, len(aprs))
 	for _, apr := range aprs {
+		// Log additional price data if available from CoinGecko integration
+		if apr.TokenPriceUSD != nil || apr.TokenPriceETH != nil {
+			rpc.Logger.Sugar().Debugw("APR enhanced with CoinGecko price data",
+				"strategy", apr.Strategy,
+				"apr", apr.Apr,
+				"token_price_usd", apr.TokenPriceUSD,
+				"token_price_eth", apr.TokenPriceETH,
+				"apr_usd", apr.AprUSD,
+				"apr_eth", apr.AprETH,
+			)
+		}
+
 		responseAprs = append(responseAprs, &pdsV1.OperatorStrategyApr{
 			Strategy: apr.Strategy,
 			Apr:      apr.Apr,
