@@ -51,10 +51,26 @@ func NewRewardsDataService(
 }
 
 func (rds *RewardsDataService) GetRewardsForSnapshot(ctx context.Context, snapshot string, earners []string) ([]*rewardsTypes.Reward, error) {
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot, earners, nil)
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot, earners, nil, nil)
 }
 
-func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context, rootIndex uint64) ([]*rewardsTypes.Reward, error) {
+func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context, rootIndex uint64, pagination *serviceTypes.Pagination) ([]*rewardsTypes.Reward, error) {
+	// First check if rewards are cached
+	// cachedRewards, found, err := rds.GetCachedRewardsForDistributionRoot(ctx, rootIndex, pagination)
+	// if err != nil {
+	// 	rds.logger.Sugar().Warnw("Error checking cache for distribution root",
+	// 		"rootIndex", rootIndex, "error", err)
+	// 	// Continue to fallback computation
+	// } else if found {
+	// 	rds.logger.Sugar().Infow("Using cached rewards for distribution root",
+	// 		"rootIndex", rootIndex, "count", len(cachedRewards))
+	// 	return cachedRewards, nil
+	// }
+
+	// // Fallback to expensive computation
+	// rds.logger.Sugar().Warnw("No cached rewards found, falling back to expensive computation",
+	// 	"rootIndex", rootIndex)
+
 	root, err := rds.getDistributionRootByRootIndex(rootIndex)
 	if err != nil {
 		return nil, err
@@ -73,7 +89,7 @@ func (rds *RewardsDataService) GetRewardsForDistributionRoot(ctx context.Context
 		return nil, fmt.Errorf("rewards calculation has not been completed for distribution root %d (snapshot date: %s). Please wait for the calculation to finish", rootIndex, snapshotDate)
 	}
 
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshotDate, nil, nil)
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshotDate, nil, nil, pagination)
 }
 
 type TotalClaimedReward struct {
@@ -222,7 +238,7 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(
 		return nil, fmt.Errorf("no distribution root found for blockHeight '%d'", blockHeight)
 	}
 
-	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot.GetSnapshotDate(), []string{earner}, tokens)
+	return rds.rewardsCalculator.FetchRewardsForSnapshot(snapshot.GetSnapshotDate(), []string{earner}, tokens, nil)
 }
 
 // GetClaimableRewardsForEarner returns the rewards that are claimable for a given earner at a given block height (totalActiveRewards - claimed)

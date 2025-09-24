@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 
 	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
@@ -23,6 +24,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	serviceTypes "github.com/Layr-Labs/sidecar/pkg/service/types"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-merkletree/v2"
@@ -225,7 +227,7 @@ func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (
 	*distribution.Distribution,
 	error,
 ) {
-	rewards, err := rc.FetchRewardsForSnapshot(snapshotDate, nil, nil)
+	rewards, err := rc.FetchRewardsForSnapshot(snapshotDate, nil, nil, nil)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -499,7 +501,7 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 	return nil
 }
 
-func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earners []string, tokens []string) ([]*rewardsTypes.Reward, error) {
+func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earners []string, tokens []string, pagination *serviceTypes.Pagination) ([]*rewardsTypes.Reward, error) {
 	snapshotDateTime, err := time.Parse(time.DateOnly, snapshotDate)
 	if err != nil {
 		return nil, fmt.Errorf("invalid snapshot date format: %w", err)
@@ -542,23 +544,33 @@ func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earner
 		{{ end }}
 		group by 1, 2
 		order by snapshot desc
+		{{ if .pagination }}
+			limit @limit
+			offset @offset
+		{{ end }}
     `
 	templateArgs := map[string]interface{}{
 		"snapshotDate":  snapshotDate,
 		"filterEarners": false,
 		"filterTokens":  false,
 		"cutoffDate":    cutoffDate,
+		"pagination":    pagination != nil,
 	}
-	args := make([]interface{}, 0)
+
+	queryArgs := []interface{}{}
+	if pagination != nil {
+		queryArgs = append(queryArgs, sql.Named("limit", pagination.PageSize))
+		queryArgs = append(queryArgs, sql.Named("offset", pagination.Page))
+	}
 
 	if len(earners) > 0 {
 		templateArgs["filterEarners"] = true
-		args = append(args, sql.Named("earners", lowercaseAddressList(earners)))
+		queryArgs = append(queryArgs, sql.Named("earners", lowercaseAddressList(earners)))
 	}
 
 	if len(tokens) > 0 {
 		templateArgs["filterTokens"] = true
-		args = append(args, sql.Named("tokens", lowercaseAddressList(tokens)))
+		queryArgs = append(queryArgs, sql.Named("tokens", lowercaseAddressList(tokens)))
 	}
 
 	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, templateArgs)
@@ -566,7 +578,7 @@ func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earner
 	if err != nil {
 		return nil, err
 	}
-	res := rc.grm.Raw(renderedQuery, args...).Scan(&goldRows)
+	res := rc.grm.Raw(renderedQuery, queryArgs...).Scan(&goldRows)
 	if res.Error != nil {
 		return nil, res.Error
 	}
