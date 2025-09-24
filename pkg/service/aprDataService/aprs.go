@@ -150,10 +150,16 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 	}
 
 	// Fetch ETH prices for all reward tokens
-	tokenPrices := ads.fetchETHPrices(ctx, uniqueTokens, tokenToCoinGeckoID, coingeckoDate, "reward token", false)
+	tokenPrices, err := ads.fetchETHPrices(ctx, uniqueTokens, tokenToCoinGeckoID, coingeckoDate, "reward token", false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch reward token prices: %v", err)
+	}
 
 	// Fetch ETH prices for all strategies
-	strategyPrices := ads.fetchETHPrices(ctx, uniqueStrategies, strategyToCoinGeckoID, coingeckoDate, "strategy", true)
+	strategyPrices, err := ads.fetchETHPrices(ctx, uniqueStrategies, strategyToCoinGeckoID, coingeckoDate, "strategy", true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch strategy prices: %v", err)
+	}
 
 	query := `
 		WITH strategy_token_rewards AS (
@@ -257,8 +263,24 @@ func (ads *AprDataService) fetchETHPrices(
 	coingeckoDate string,
 	logContext string,
 	useFallback bool,
-) map[string]float64 {
+) (map[string]float64, error) {
 	prices := make(map[string]float64)
+
+	// Check if CoinGecko client is available
+	if ads.coingeckoClient == nil {
+		if useFallback {
+			ads.logger.Sugar().Warnw("CoinGecko client not available (missing API key), using fallbacks for all prices",
+				zap.String("logContext", logContext),
+			)
+			// Use fallback prices for all addresses
+			for _, address := range addresses {
+				prices[address] = 1.0
+			}
+			return prices, nil
+		} else {
+			return nil, fmt.Errorf("CoinGecko client not available (missing API key) and fallbacks not enabled for %s", logContext)
+		}
+	}
 
 	for _, address := range addresses {
 		coinID, exists := coinGeckoIDMap[address]
@@ -312,5 +334,5 @@ func (ads *AprDataService) fetchETHPrices(
 		)
 	}
 
-	return prices
+	return prices, nil
 }
