@@ -8,7 +8,7 @@ import (
 )
 
 const _12_stakerOperatorsStaging = `
-insert into {{.destTableName}} as
+insert into {{.destTableName}}
 SELECT 
   staker as earner,
   operator,
