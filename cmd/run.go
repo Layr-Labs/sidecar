@@ -21,6 +21,7 @@ import (
 	etherscanClient "github.com/Layr-Labs/sidecar/pkg/clients/etherscan"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
+	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialStrategyCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
@@ -154,6 +155,7 @@ var runCmd = &cobra.Command{
 		fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, contractStore, l)
 
 		cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, cfg.EthereumRpcConfig.ContractCallBatchSize, l)
+		sc := sequentialStrategyCaller.NewSequentialStrategyCaller(client, l)
 
 		idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 
@@ -171,7 +173,7 @@ var runCmd = &cobra.Command{
 		pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 		rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
 		sds := slashingDataService.NewSlashingDataService(grm, l, cfg)
-		ads := aprDataService.NewAprDataService(grm, l, cfg)
+		ads := aprDataService.NewAprDataService(grm, l, cfg, sc)
 
 		go rcq.Process()
 
