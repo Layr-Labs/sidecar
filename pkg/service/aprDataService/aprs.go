@@ -10,6 +10,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/clients/coingecko"
 	"github.com/Layr-Labs/sidecar/pkg/service/baseDataService"
+	"github.com/lib/pq"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -222,12 +223,16 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 	for token := range tokenPrices {
 		supportedRewardTokens = append(supportedRewardTokens, token)
 	}
+	// Ensure array is never empty to prevent SQL issues with ANY() function
+	if len(supportedRewardTokens) == 0 {
+		supportedRewardTokens = append(supportedRewardTokens, "0x0000000000000000000000000000000000000000")
+	}
 
 	var results []*OperatorStrategyApr
 	res = ads.db.Raw(query,
 		sql.Named("operatorAddress", operatorAddress),
 		sql.Named("date", parsedDate.Format("2006-01-02")),
-		sql.Named("supportedRewardTokens", supportedRewardTokens),
+		sql.Named("supportedRewardTokens", pq.Array(supportedRewardTokens)),
 	).Scan(&results)
 
 	if res.Error != nil {
@@ -243,6 +248,10 @@ func (ads *AprDataService) buildTokenPriceCases(tokenPrices map[string]float64) 
 	for token, price := range tokenPrices {
 		cases.WriteString(fmt.Sprintf("WHEN '%s' THEN %f\n\t\t\t\t\t\t\t\t", token, price))
 	}
+	// Ensure there's always at least one WHEN clause to prevent empty CASE statements
+	if cases.Len() == 0 {
+		cases.WriteString("WHEN '0x0000000000000000000000000000000000000000' THEN 0\n\t\t\t\t\t\t\t\t")
+	}
 	return cases.String()
 }
 
@@ -251,6 +260,10 @@ func (ads *AprDataService) buildStrategyPriceCases(strategyPrices map[string]flo
 	var cases strings.Builder
 	for strategy, price := range strategyPrices {
 		cases.WriteString(fmt.Sprintf("WHEN '%s' THEN %f\n\t\t\t\t\t\t\t", strategy, price))
+	}
+	// Ensure there's always at least one WHEN clause to prevent empty CASE statements
+	if cases.Len() == 0 {
+		cases.WriteString("WHEN '0x0000000000000000000000000000000000000000' THEN 1.0\n\t\t\t\t\t\t\t")
 	}
 	return cases.String()
 }
