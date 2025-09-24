@@ -49,15 +49,32 @@ staker_splits AS (
        AND rso.snapshot = oas.snapshot
     LEFT JOIN default_operator_split_snapshots dos ON (rso.snapshot = dos.snapshot)
 ),
+-- Get the latest available staker delegation snapshot on or before the reward snapshot date
+latest_staker_delegation_snapshots AS (
+    SELECT 
+        ors.reward_hash,
+        ors.snapshot as reward_snapshot,
+        ors.operator,
+        MAX(sds.snapshot) as latest_delegation_snapshot
+    FROM staker_splits ors
+    CROSS JOIN (SELECT DISTINCT snapshot, operator FROM staker_delegation_snapshots) sds
+    WHERE sds.operator = ors.operator
+      AND sds.snapshot <= ors.snapshot
+    GROUP BY ors.reward_hash, ors.snapshot, ors.operator
+),
 -- Get the stakers that were delegated to the operator for the snapshot
 staker_delegated_operators AS (
     SELECT
         ors.*,
         sds.staker
     FROM staker_splits ors
-    JOIN staker_delegation_snapshots sds
-        ON ors.operator = sds.operator 
-       AND ors.snapshot = sds.snapshot
+    JOIN latest_staker_delegation_snapshots lds ON 
+        ors.reward_hash = lds.reward_hash AND
+        ors.snapshot = lds.reward_snapshot AND
+        ors.operator = lds.operator
+    JOIN staker_delegation_snapshots sds ON
+        sds.operator = lds.operator AND
+        sds.snapshot = lds.latest_delegation_snapshot
 ),
 
 -- Get the latest available staker share snapshot on or before the reward snapshot date  
