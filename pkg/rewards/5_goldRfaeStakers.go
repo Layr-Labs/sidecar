@@ -50,16 +50,32 @@ WITH combined_operators AS (
 			ON ap.snapshot = co.snapshot
 			WHERE ap.reward_type = 'all_earners'
 		),
+-- Get the latest available staker delegation snapshot on or before the reward snapshot date
+latest_staker_delegation_snapshots AS (
+  SELECT 
+    rso.reward_hash,
+    rso.snapshot as reward_snapshot,
+    rso.operator,
+    MAX(sds.snapshot) as latest_delegation_snapshot
+  FROM reward_snapshot_operators rso
+  CROSS JOIN (SELECT DISTINCT snapshot, operator FROM staker_delegation_snapshots) sds
+  WHERE sds.operator = rso.operator
+    AND sds.snapshot <= rso.snapshot
+  GROUP BY rso.reward_hash, rso.snapshot, rso.operator
+),
 -- Get the stakers that were delegated to the operator for the snapshot 
 staker_delegated_operators AS (
   SELECT
     rso.*,
     sds.staker
   FROM reward_snapshot_operators rso
-  JOIN staker_delegation_snapshots sds
-  ON
-    rso.operator = sds.operator AND
-    rso.snapshot = sds.snapshot
+  JOIN latest_staker_delegation_snapshots lds ON 
+    rso.reward_hash = lds.reward_hash AND
+    rso.snapshot = lds.reward_snapshot AND
+    rso.operator = lds.operator
+  JOIN staker_delegation_snapshots sds ON
+    sds.operator = lds.operator AND
+    sds.snapshot = lds.latest_delegation_snapshot
 ),
 -- Get the shares of each strategy the staker has delegated to the operator
 -- Use conservative matching for share snapshots (like Table 2 fix)
