@@ -209,7 +209,7 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 			-- Calculate APR using ETH-normalized values
 			CASE 
 				WHEN total_shares_in_eth > 0 
-				THEN ROUND((daily_rewards_in_eth / total_shares_in_eth) * 365 * 100, 4)::text
+				THEN ROUND(((daily_rewards_in_eth / total_shares_in_eth) * 365 * 100)::numeric, 4)::text
 				ELSE '0'
 			END as apr
 		FROM strategy_aggregated
