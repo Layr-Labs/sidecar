@@ -15,6 +15,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	etherscanClient "github.com/Layr-Labs/sidecar/pkg/clients/etherscan"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
+	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialStrategyCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
@@ -134,7 +135,9 @@ var rpcCmd = &cobra.Command{
 		pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 		rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
 		sds := slashingDataService.NewSlashingDataService(grm, l, cfg)
-		ads := aprDataService.NewAprDataService(grm, l, cfg)
+
+		sc := sequentialStrategyCaller.NewSequentialStrategyCaller(client, l)
+		ads := aprDataService.NewAprDataService(grm, l, cfg, sc)
 
 		go rcq.Process()
 

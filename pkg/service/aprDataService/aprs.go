@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/clients/coingecko"
+	"github.com/Layr-Labs/sidecar/pkg/contractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/service/baseDataService"
 	"github.com/lib/pq"
 	"go.uber.org/zap"
@@ -26,12 +28,14 @@ type AprDataService struct {
 	logger          *zap.Logger
 	globalConfig    *config.Config
 	coingeckoClient *coingecko.Client
+	strategyCaller  contractCaller.IStrategyCaller
 }
 
 func NewAprDataService(
 	db *gorm.DB,
 	logger *zap.Logger,
 	globalConfig *config.Config,
+	strategyCaller contractCaller.IStrategyCaller,
 ) *AprDataService {
 	var cgClient *coingecko.Client
 	if globalConfig.CoingeckoConfig.ApiKey != "" {
@@ -46,6 +50,7 @@ func NewAprDataService(
 		logger:          logger,
 		globalConfig:    globalConfig,
 		coingeckoClient: cgClient,
+		strategyCaller:  strategyCaller,
 	}
 }
 
@@ -162,6 +167,61 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		return nil, fmt.Errorf("failed to fetch strategy prices: %v", err)
 	}
 
+	// Get strategy shares for sharesToUnderlying ratio calculation
+	type StrategyShares struct {
+		Strategy    string `json:"strategy"`
+		TotalShares string `json:"total_shares"`
+	}
+
+	var strategySharesData []StrategyShares
+	shareQuery := `
+		SELECT 
+			strategy,
+			MAX(shares::numeric) as total_shares
+		FROM staker_operator
+		WHERE 
+			operator = @operatorAddress
+			AND DATE(snapshot) = @date
+			AND strategy != '0x0000000000000000000000000000000000000000'
+		GROUP BY strategy
+	`
+
+	res = ads.db.Raw(shareQuery,
+		sql.Named("operatorAddress", operatorAddress),
+		sql.Named("date", parsedDate.Format("2006-01-02")),
+	).Scan(&strategySharesData)
+	if res.Error != nil {
+		return nil, fmt.Errorf("failed to fetch strategy shares: %v", res.Error)
+	}
+
+	// Prepare strategy shares for sharesToUnderlying calls
+	strategyShares := make(map[string]*big.Int)
+	for _, ss := range strategySharesData {
+		shares := new(big.Int)
+		shares, success := shares.SetString(ss.TotalShares, 10)
+		if !success {
+			ads.logger.Sugar().Warnw("Failed to parse shares for strategy",
+				zap.String("strategy", ss.Strategy),
+				zap.String("shares", ss.TotalShares),
+			)
+			continue
+		}
+		strategyShares[ss.Strategy] = shares
+	}
+
+	// Fetch sharesToUnderlying amounts for all strategies
+	strategyAmounts, err := ads.strategyCaller.GetSharesToUnderlyingAmounts(ctx, strategyShares)
+	if err != nil {
+		ads.logger.Sugar().Warnw("Failed to fetch sharesToUnderlying amounts, using shares as fallback",
+			zap.Error(err),
+		)
+		// Use shares as fallback (1:1 ratio)
+		strategyAmounts = make(map[string]*big.Int)
+		for strategy, shares := range strategyShares {
+			strategyAmounts[strategy] = new(big.Int).Set(shares)
+		}
+	}
+
 	query := `
 		WITH strategy_token_rewards AS (
 			SELECT 
@@ -169,8 +229,8 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 				token,
 				-- Sum daily rewards for this operator, strategy, and token
 				SUM(amount::numeric) as daily_rewards,
-				-- Sum shares that generated these rewards (proxy for staked amount)
-				SUM(shares::numeric) as total_shares
+				-- all entries for the same strategy have identical share values
+				MAX(shares::numeric) as total_shares
 			FROM staker_operator
 			WHERE 
 				operator = @operatorAddress
@@ -194,9 +254,14 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 						ELSE 0 
 					END
 				) as daily_rewards_in_eth,
-				-- Convert shares to underlying tokens (1:1 ratio), apply decimals (18), then convert to ETH  
-				-- Formula: shares * 1.0 / 10^18 * strategyEthPrice
-				MAX(total_shares) / POWER(10, 18) * (
+				-- Use actual underlying amounts from contract calls, apply decimals (18), then convert to ETH  
+				-- Formula: underlyingAmount / 10^18 * strategyEthPrice
+				(
+					CASE strategy
+						` + ads.buildStrategyAmountCases(strategyAmounts) + `
+						ELSE MAX(total_shares)
+					END
+				) / POWER(10, 18) * (
 					CASE strategy
 						` + ads.buildStrategyPriceCases(strategyPrices) + `
 						ELSE 1.0 -- Fallback for unsupported strategies
@@ -264,6 +329,20 @@ func (ads *AprDataService) buildStrategyPriceCases(strategyPrices map[string]flo
 	// Ensure there's always at least one WHEN clause to prevent empty CASE statements
 	if cases.Len() == 0 {
 		cases.WriteString("WHEN '0x0000000000000000000000000000000000000000' THEN 1.0\n\t\t\t\t\t\t\t")
+	}
+	return cases.String()
+}
+
+// buildStrategyAmountCases generates SQL CASE statements for strategy underlying amounts
+func (ads *AprDataService) buildStrategyAmountCases(strategyAmounts map[string]*big.Int) string {
+	var cases strings.Builder
+	for strategy, amount := range strategyAmounts {
+		// Convert big.Int to string for SQL
+		cases.WriteString(fmt.Sprintf("WHEN '%s' THEN %s\n\t\t\t\t\t\t\t", strategy, amount.String()))
+	}
+	// Ensure there's always at least one WHEN clause to prevent empty CASE statements
+	if cases.Len() == 0 {
+		cases.WriteString("WHEN '0x0000000000000000000000000000000000000000' THEN 0\n\t\t\t\t\t\t\t")
 	}
 	return cases.String()
 }

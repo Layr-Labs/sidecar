@@ -15,6 +15,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
+	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialStrategyCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
@@ -135,7 +136,9 @@ func main() {
 	pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 	rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
 	sds := slashingDataService.NewSlashingDataService(grm, l, cfg)
-	ads := aprDataService.NewAprDataService(grm, l, cfg)
+
+	sc := sequentialStrategyCaller.NewSequentialStrategyCaller(client, l)
+	ads := aprDataService.NewAprDataService(grm, l, cfg, sc)
 
 	scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)
 	if err != nil {
