@@ -576,10 +576,10 @@ func (rc *RewardsCalculator) calculateRewards(snapshotDate string) error {
 		return err
 	}
 
-	if err = rc.removeTempGoldTables(snapshotDate, snapshot.Id); err != nil {
-		rc.logger.Sugar().Errorw("Failed to remove temp gold tables", "error", err)
-		return err
-	}
+	// if err = rc.removeTempGoldTables(snapshotDate, snapshot.Id); err != nil {
+	// 	rc.logger.Sugar().Errorw("Failed to remove temp gold tables", "error", err)
+	// 	return err
+	// }
 
 	if err = rc.UpdateRewardSnapshotStatus(snapshotDate, storage.RewardSnapshotStatusCompleted); err != nil {
 		rc.logger.Sugar().Errorw("Failed to update reward snapshot status", "error", err)
@@ -795,6 +795,7 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string, generatedSn
 	return nil
 }
 
+//nolint:unused
 func (rc *RewardsCalculator) removeTempGoldTables(snapshotDate string, generatedSnapshotId uint64) error {
 	if err := rc.DropTempActiveRewardsTable(snapshotDate, generatedSnapshotId); err != nil {
 		rc.logger.Sugar().Errorw("Failed to drop temp active rewards table", "error", err)
