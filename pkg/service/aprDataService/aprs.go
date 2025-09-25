@@ -229,8 +229,8 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 				token,
 				-- Sum daily rewards for this operator, strategy, and token
 				SUM(amount::numeric) as daily_rewards,
-				-- Sum shares that generated these rewards (proxy for staked amount)
-				SUM(shares::numeric) as total_shares
+				-- all entries for the same strategy have identical share values
+				MAX(shares::numeric) as total_shares
 			FROM staker_operator
 			WHERE 
 				operator = @operatorAddress
@@ -259,7 +259,7 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 				(
 					CASE strategy
 						` + ads.buildStrategyAmountCases(strategyAmounts) + `
-						ELSE MAX(total_shares) -- Fallback to shares for unsupported strategies
+						ELSE MAX(total_shares)
 					END
 				) / POWER(10, 18) * (
 					CASE strategy
