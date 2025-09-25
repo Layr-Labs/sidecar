@@ -18,13 +18,12 @@ latest_operator_avs_snapshots AS (
     ap.reward_hash,
     ap.snapshot as reward_snapshot,
     ap.avs,
-    MAX(oar.snapshot) as latest_operator_snapshot
+    (SELECT MAX(oar.snapshot) 
+     FROM operator_avs_registration_snapshots oar 
+     WHERE oar.avs = ap.avs 
+       AND oar.snapshot <= ap.snapshot) as latest_operator_snapshot
   FROM {{.activeRewardsTable}} ap
-  CROSS JOIN (SELECT DISTINCT snapshot, avs FROM operator_avs_registration_snapshots) oar
   WHERE ap.reward_type = 'avs'
-    AND oar.avs = ap.avs
-    AND oar.snapshot <= ap.snapshot
-  GROUP BY ap.reward_hash, ap.snapshot, ap.avs
 ),
 reward_snapshot_operators as (
   SELECT
