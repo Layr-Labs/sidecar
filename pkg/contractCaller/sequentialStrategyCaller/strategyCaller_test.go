@@ -161,7 +161,7 @@ func Test_SequentialStrategyCaller(t *testing.T) {
 	t.Run("Get underlying token for EIGEN strategy", func(t *testing.T) {
 		// EIGEN strategy address from mainnet
 		eigenStrategyAddress := "0xacb55c530acdb2849e6d4f36992cd8c9d50ed8f7"
-		expectedTokenAddress := "0xec53bf9167f50cdeb3ae105f56099aaab9061f83"
+		expectedTokenAddress := "0x83e9115d334d248ce39a6f36144aeab5b3456e75"
 
 		tokenAddr, err := ssc.GetUnderlyingToken(context.Background(), eigenStrategyAddress)
 		if err != nil {
@@ -220,7 +220,7 @@ func Test_SequentialStrategyCaller(t *testing.T) {
 		assert.True(t, exists)
 		assert.NotEqual(t, common.Address{}, eigenToken)
 
-		expectedEigenToken := "0xec53bf9167f50cdeb3ae105f56099aaab9061f83"
+		expectedEigenToken := "0x83e9115d334d248ce39a6f36144aeab5b3456e75"
 		actualEigenAddr := strings.ToLower(eigenToken.Hex())
 		expectedEigenAddr := strings.ToLower(expectedEigenToken)
 		assert.Equal(t, expectedEigenAddr, actualEigenAddr)

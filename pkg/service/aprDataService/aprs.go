@@ -12,7 +12,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/clients/coingecko"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/service/baseDataService"
-	"github.com/lib/pq"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -54,208 +53,159 @@ func NewAprDataService(
 	}
 }
 
-// Map of strategy addresses to their CoinGecko IDs (from mainnet_ethereum_strategy_category.csv)
-var strategyToCoinGeckoID = map[string]string{
-	"0x93c4b944d05dfe6df7645a86cd2206016c51564d": "staked-ether",                // stETH
-	"0x1bee69b7dfffa4e2d53c2a2df135c388ad25dcd2": "rocket-pool-eth",             // rETH
-	"0x54945180db7943c0ed0fee7edab2bd24620256bc": "coinbase-wrapped-staked-eth", // cbETH
-	"0x9d7ed45ee2e8fc5482fa2428f15c971e6369011d": "stader-ethx",                 // ETHx
-	"0x13760f50a9d7377e4f20cb8cf9e4c26586c658ff": "ankreth",                     // ankrETH
-	"0xa4c637e0f704745d182e4d38cab7e7485321d059": "origin-ether",                // oETH
-	"0x57ba429517c3473b6d34ca9acd56c0e735b94c02": "stakewise-v3-oseth",          // osETH
-	"0x0fe4f44bee93503346a3ac9ee5a26b130a5796d6": "sweth",                       // swETH
-	"0x7ca911e83dabf90c90dd3de5411a10f1a6112184": "wrapped-beacon-eth",          // wBETH
-	"0x8ca7a5d6f3acd3a7a8bc468a8cd0fb14b6bd28b6": "staked-frax-ether",           // sfrxETH
-	"0xae60d8180437b5c34bb956822ac2710972584473": "liquid-staked-ethereum",      // lsETH
-	"0x298afb19a105d59e74658c4c334ff360bade6dd2": "mantle-staked-ether",         // mETH
-	"0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0": "ethereum",                    // ETH (Beacon)
-	"0xacb55c530acdb2849e6d4f36992cd8c9d50ed8f7": "eigenlayer",                  // EIGEN
-}
-
-// Map of reward token addresses to their CoinGecko IDs
-var tokenToCoinGeckoID = map[string]string{
-	"0xec53bf9167f50cdeb3ae105f56099aaab9061f83": "eigenlayer",
-	"0xc43c6bfeda065fe2c4c11765bf838789bd0bb5de": "redstone-oracles",
-	"0xc12e4d31e92cedc1ad4c8c23dbce2c5f7cb52998": "skate",
-}
-
-// GetDailyOperatorStrategyAprs calculates the daily APR for all strategies for a given operator on a specific date
+// GetDailyOperatorStrategyAprs calculates the daily APR for all strategies for a given operator
 func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, operatorAddress string, date string) ([]*OperatorStrategyApr, error) {
 	operatorAddress = strings.ToLower(operatorAddress)
 
-	// Parse the date
 	parsedDate, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		return nil, fmt.Errorf("invalid date format: %v", err)
 	}
 
-	// Check if data exists for the given operator and date
-	var count int64
+	var exists bool
 	dataCheckQuery := `
-		SELECT COUNT(*) 
-		FROM staker_operator 
-		WHERE operator = @operatorAddress 
-		AND DATE(snapshot) = @date
-		AND strategy != '0x0000000000000000000000000000000000000000'
+		SELECT EXISTS (
+			SELECT 1 
+			FROM staker_operator 
+			WHERE operator = @operatorAddress 
+			AND DATE(snapshot) = @date
+			AND strategy != '0x0000000000000000000000000000000000000000'
+		)
 	`
 
 	res := ads.db.Raw(dataCheckQuery,
 		sql.Named("operatorAddress", operatorAddress),
 		sql.Named("date", parsedDate.Format("2006-01-02")),
-	).Scan(&count)
+	).Scan(&exists)
+
 	if res.Error != nil {
-		return nil, fmt.Errorf("failed to check data availability: %v", res.Error)
+		return nil, res.Error
 	}
 
-	if count == 0 {
-		return nil, fmt.Errorf("date %s is not available", date)
+	if !exists {
+		ads.logger.Sugar().Warnw("No data found for the given operator and date",
+			zap.String("operator", operatorAddress),
+			zap.String("date", date),
+		)
+		return []*OperatorStrategyApr{}, nil
 	}
 
-	// Format date for CoinGecko API (DD-MM-YYYY format)
-	coingeckoDate := parsedDate.Format("02-01-2006")
-
-	// Get all unique reward tokens and strategies for this operator/date
-	type TokenStrategy struct {
-		Token    string `json:"token"`
-		Strategy string `json:"strategy"`
-	}
-
-	var uniqueTokensStrategies []TokenStrategy
-	tokenStrategyQuery := `
-		SELECT DISTINCT token, strategy
+	query := `
+		SELECT 
+			strategy,
+			token,
+			MAX(shares) as shares
 		FROM staker_operator 
 		WHERE operator = @operatorAddress 
 		AND DATE(snapshot) = @date
 		AND strategy != '0x0000000000000000000000000000000000000000'
+		GROUP BY strategy, token
 	`
-
-	res = ads.db.Raw(tokenStrategyQuery,
+	var results []struct {
+		Strategy string `gorm:"column:strategy"`
+		Token    string `gorm:"column:token"`
+		Shares   string `gorm:"column:shares"`
+	}
+	res = ads.db.Raw(query,
 		sql.Named("operatorAddress", operatorAddress),
 		sql.Named("date", parsedDate.Format("2006-01-02")),
-	).Scan(&uniqueTokensStrategies)
+	).Scan(&results)
+
 	if res.Error != nil {
-		return nil, fmt.Errorf("failed to fetch unique tokens and strategies: %v", res.Error)
+		return nil, res.Error
 	}
 
-	// Extract unique tokens and strategies
-	uniqueTokensSet := make(map[string]bool)
-	uniqueStrategiesSet := make(map[string]bool)
-	for _, ts := range uniqueTokensStrategies {
-		uniqueTokensSet[ts.Token] = true
-		uniqueStrategiesSet[ts.Strategy] = true
-	}
-
-	var uniqueTokens []string
-	for token := range uniqueTokensSet {
-		uniqueTokens = append(uniqueTokens, token)
-	}
-
-	var uniqueStrategies []string
-	for strategy := range uniqueStrategiesSet {
-		uniqueStrategies = append(uniqueStrategies, strategy)
-	}
-
-	// Fetch ETH prices for all reward tokens
-	tokenPrices, err := ads.fetchETHPrices(ctx, uniqueTokens, tokenToCoinGeckoID, coingeckoDate, "reward token", false)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch reward token prices: %v", err)
-	}
-
-	// Fetch ETH prices for all strategies
-	strategyPrices, err := ads.fetchETHPrices(ctx, uniqueStrategies, strategyToCoinGeckoID, coingeckoDate, "strategy", true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch strategy prices: %v", err)
-	}
-
-	// Get strategy shares for sharesToUnderlying ratio calculation
-	type StrategyShares struct {
-		Strategy    string `json:"strategy"`
-		TotalShares string `json:"total_shares"`
-	}
-
-	var strategySharesData []StrategyShares
-	shareQuery := `
-		SELECT 
-			strategy,
-			MAX(shares::numeric) as total_shares
-		FROM staker_operator
-		WHERE 
-			operator = @operatorAddress
-			AND DATE(snapshot) = @date
-			AND strategy != '0x0000000000000000000000000000000000000000'
-		GROUP BY strategy
-	`
-
-	res = ads.db.Raw(shareQuery,
-		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("date", parsedDate.Format("2006-01-02")),
-	).Scan(&strategySharesData)
-	if res.Error != nil {
-		return nil, fmt.Errorf("failed to fetch strategy shares: %v", res.Error)
-	}
-
-	// Prepare strategy shares for sharesToUnderlying calls
+	// Extract strategies, tokens, and strategyShares from combined results
 	strategyShares := make(map[string]*big.Int)
-	for _, ss := range strategySharesData {
+	strategiesSet := make(map[string]bool)
+	tokensSet := make(map[string]bool)
+
+	for _, result := range results {
 		shares := new(big.Int)
-		shares, success := shares.SetString(ss.TotalShares, 10)
-		if !success {
-			ads.logger.Sugar().Warnw("Failed to parse shares for strategy",
-				zap.String("strategy", ss.Strategy),
-				zap.String("shares", ss.TotalShares),
-			)
-			continue
+		shares.SetString(result.Shares, 10)
+		strategyShares[result.Strategy] = shares
+		strategiesSet[result.Strategy] = true
+		if result.Token != "0x0000000000000000000000000000000000000000" {
+			tokensSet[result.Token] = true
 		}
-		strategyShares[ss.Strategy] = shares
 	}
 
-	// Fetch sharesToUnderlying amounts for all strategies
-	strategyAmounts, err := ads.strategyCaller.GetSharesToUnderlyingAmounts(ctx, strategyShares)
+	// Convert sets to slices
+	var strategies []string
+	for strategy := range strategiesSet {
+		strategies = append(strategies, strategy)
+	}
+
+	var tokens []string
+	for token := range tokensSet {
+		tokens = append(tokens, token)
+	}
+
+	var strategyAmounts map[string]*big.Int
+	if ads.strategyCaller != nil {
+		strategyAmounts, err = ads.strategyCaller.GetSharesToUnderlyingAmounts(ctx, strategyShares)
+		if err != nil {
+			ads.logger.Sugar().Warnw("Failed to get underlying amounts, using shares", "error", err)
+			strategyAmounts = strategyShares
+		}
+	} else {
+		strategyAmounts = strategyShares
+	}
+
+	strategyToCoinGeckoID, tokenToCoinGeckoID, err := ads.buildCoinGeckoMaps(ctx, strategies, tokens)
 	if err != nil {
-		ads.logger.Sugar().Warnw("Failed to fetch sharesToUnderlying amounts, using shares as fallback",
-			zap.Error(err),
-		)
-		// Use shares as fallback (1:1 ratio)
-		strategyAmounts = make(map[string]*big.Int)
-		for strategy, shares := range strategyShares {
-			strategyAmounts[strategy] = new(big.Int).Set(shares)
-		}
+		return nil, fmt.Errorf("failed to get CoinGecko maps: %w", err)
 	}
 
-	query := `
+	coingeckoDate := parsedDate.Format("02-01-2006")
+
+	tokenPrices, err := ads.fetchETHPrices(ctx, tokens, tokenToCoinGeckoID, coingeckoDate, "token")
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch token prices: %w", err)
+	}
+
+	strategyPrices, err := ads.fetchETHPrices(ctx, strategies, strategyToCoinGeckoID, coingeckoDate, "strategy")
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch strategy prices: %w", err)
+	}
+
+	tokenDecimals := ads.getTokenDecimals(ctx, tokens)
+
+	aprQuery := `
 		WITH strategy_token_rewards AS (
 			SELECT 
 				strategy,
 				token,
-				-- Sum daily rewards for this operator, strategy, and token
+				reward_type,
+				-- Use rewards directly from single date, only staker rewards
 				SUM(amount::numeric) as daily_rewards,
-				-- all entries for the same strategy have identical share values
 				MAX(shares::numeric) as total_shares
 			FROM staker_operator
 			WHERE 
 				operator = @operatorAddress
 				AND DATE(snapshot) = @date
 				AND strategy != '0x0000000000000000000000000000000000000000'
-			GROUP BY strategy, token
+				-- Only include staker rewards, not operator rewards
+				AND reward_type IN ('staker_reward', 'staker_od_reward', 'staker_od_operator_set_reward', 'rfae_staker')
+			GROUP BY strategy, token, reward_type
 		),
 		strategy_aggregated AS (
 			SELECT 
 				strategy,
-				-- Convert rewards from wei to ETH using decimals (18), then multiply by token ETH price
+				STRING_AGG(DISTINCT reward_type, ', ') as reward_types,
 				SUM(
-					CASE 
-						WHEN token = ANY(@supportedRewardTokens) 
-						THEN (daily_rewards / POWER(10, 18)) * (
-							CASE token
-								` + ads.buildTokenPriceCases(tokenPrices) + `
-								ELSE 0
-							END
-						)
-						ELSE 0 
-					END
+					(daily_rewards / (
+						CASE token
+							` + ads.buildTokenDecimalsCases(tokenDecimals) + `
+							ELSE POWER(10, 18)
+						END
+					)) * (
+						CASE token
+							` + ads.buildTokenPriceCases(tokenPrices) + `
+							ELSE 0
+						END
+					)
 				) as daily_rewards_in_eth,
-				-- Use actual underlying amounts from contract calls, apply decimals (18), then convert to ETH  
-				-- Formula: underlyingAmount / 10^18 * strategyEthPrice
 				(
 					CASE strategy
 						` + ads.buildStrategyAmountCases(strategyAmounts) + `
@@ -264,7 +214,7 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 				) / POWER(10, 18) * (
 					CASE strategy
 						` + ads.buildStrategyPriceCases(strategyPrices) + `
-						ELSE 1.0 -- Fallback for unsupported strategies
+						ELSE 1.0
 					END
 				) as total_shares_in_eth
 			FROM strategy_token_rewards
@@ -272,157 +222,224 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		)
 		SELECT 
 			strategy,
-			-- Calculate APR using ETH-normalized values
+			reward_types,
 			CASE 
 				WHEN total_shares_in_eth > 0 
 				THEN ROUND(((daily_rewards_in_eth / total_shares_in_eth) * 365 * 100)::numeric, 4)::text
 				ELSE '0'
 			END as apr
 		FROM strategy_aggregated
-		WHERE total_shares_in_eth > 0  -- Only include strategies with actual staked amounts
+		WHERE total_shares_in_eth > 0
 		ORDER BY strategy
 	`
 
-	// Prepare supported tokens array for query
-	supportedRewardTokens := make([]string, 0, len(tokenPrices))
-	for token := range tokenPrices {
-		supportedRewardTokens = append(supportedRewardTokens, token)
-	}
-	// Ensure array is never empty to prevent SQL issues with ANY() function
-	if len(supportedRewardTokens) == 0 {
-		supportedRewardTokens = append(supportedRewardTokens, "0x0000000000000000000000000000000000000000")
+	type QueryResult struct {
+		Strategy    string `gorm:"column:strategy"`
+		RewardTypes string `gorm:"column:reward_types"`
+		Apr         string `gorm:"column:apr"`
 	}
 
-	var results []*OperatorStrategyApr
-	res = ads.db.Raw(query,
+	var queryResults []QueryResult
+	res = ads.db.Raw(aprQuery,
 		sql.Named("operatorAddress", operatorAddress),
 		sql.Named("date", parsedDate.Format("2006-01-02")),
-		sql.Named("supportedRewardTokens", pq.Array(supportedRewardTokens)),
-	).Scan(&results)
+	).Scan(&queryResults)
 
 	if res.Error != nil {
 		return nil, res.Error
 	}
 
-	return results, nil
+	var aprResults []*OperatorStrategyApr
+	for _, queryResult := range queryResults {
+		aprResults = append(aprResults, &OperatorStrategyApr{
+			Strategy: queryResult.Strategy,
+			Apr:      queryResult.Apr,
+		})
+	}
+
+	return aprResults, nil
 }
 
-// buildTokenPriceCases generates SQL CASE statements for token price conversions
+// Helper functions for building SQL cases
 func (ads *AprDataService) buildTokenPriceCases(tokenPrices map[string]float64) string {
 	var cases strings.Builder
 	for token, price := range tokenPrices {
 		cases.WriteString(fmt.Sprintf("WHEN '%s' THEN %f\n\t\t\t\t\t\t\t\t", token, price))
 	}
-	// Ensure there's always at least one WHEN clause to prevent empty CASE statements
 	if cases.Len() == 0 {
 		cases.WriteString("WHEN '0x0000000000000000000000000000000000000000' THEN 0\n\t\t\t\t\t\t\t\t")
 	}
 	return cases.String()
 }
 
-// buildStrategyPriceCases generates SQL CASE statements for strategy price conversions
 func (ads *AprDataService) buildStrategyPriceCases(strategyPrices map[string]float64) string {
 	var cases strings.Builder
 	for strategy, price := range strategyPrices {
 		cases.WriteString(fmt.Sprintf("WHEN '%s' THEN %f\n\t\t\t\t\t\t\t", strategy, price))
 	}
-	// Ensure there's always at least one WHEN clause to prevent empty CASE statements
 	if cases.Len() == 0 {
 		cases.WriteString("WHEN '0x0000000000000000000000000000000000000000' THEN 1.0\n\t\t\t\t\t\t\t")
 	}
 	return cases.String()
 }
 
-// buildStrategyAmountCases generates SQL CASE statements for strategy underlying amounts
 func (ads *AprDataService) buildStrategyAmountCases(strategyAmounts map[string]*big.Int) string {
 	var cases strings.Builder
 	for strategy, amount := range strategyAmounts {
-		// Convert big.Int to string for SQL
 		cases.WriteString(fmt.Sprintf("WHEN '%s' THEN %s\n\t\t\t\t\t\t\t", strategy, amount.String()))
 	}
-	// Ensure there's always at least one WHEN clause to prevent empty CASE statements
 	if cases.Len() == 0 {
 		cases.WriteString("WHEN '0x0000000000000000000000000000000000000000' THEN 0\n\t\t\t\t\t\t\t")
 	}
 	return cases.String()
 }
 
-// fetchETHPrices fetches historical ETH prices for a list of addresses using their CoinGecko IDs
+// getTokenDecimals fetches token decimals from database
+func (ads *AprDataService) getTokenDecimals(ctx context.Context, tokens []string) map[string]int {
+	if len(tokens) == 0 {
+		return make(map[string]int)
+	}
+
+	// Only include tokens with non-18 decimals (18 is the default)
+	knownDecimals := map[string]int{
+		"0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 6, // USDC
+		"0xdac17f958d2ee523a2206206994597c13d831ec7": 6, // USDT (if it appears)
+	}
+
+	decimals := make(map[string]int)
+
+	for _, token := range tokens {
+		token = strings.ToLower(token)
+		if knownDecimal, exists := knownDecimals[token]; exists {
+			decimals[token] = knownDecimal
+		} else {
+			// Default to 18 decimals for all other tokens
+			decimals[token] = 18
+		}
+	}
+
+	return decimals
+}
+
+func (ads *AprDataService) buildTokenDecimalsCases(tokenDecimals map[string]int) string {
+	var cases strings.Builder
+	for token, decimals := range tokenDecimals {
+		cases.WriteString(fmt.Sprintf("WHEN '%s' THEN POWER(10, %d)\n\t\t\t\t\t\t\t", token, decimals))
+	}
+	if cases.Len() == 0 {
+		cases.WriteString("WHEN '0x0000000000000000000000000000000000000000' THEN POWER(10, 18)\n\t\t\t\t\t\t\t")
+	}
+	return cases.String()
+}
+
+// buildCoinGeckoMaps dynamically builds CoinGecko ID mappings, gracefully handling unsupported tokens
+func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddresses []string, tokenAddresses []string) (map[string]string, map[string]string, error) {
+	// Step 1: Get underlying tokens for strategies and collect all unique tokens
+	strategyToToken := make(map[string]string)
+	tokens := make(map[string]bool)
+
+	ads.logger.Sugar().Infow("Getting underlying tokens for strategies", "strategies", strategyAddresses)
+
+	underlyingTokens, err := ads.strategyCaller.GetUnderlyingTokens(ctx, strategyAddresses)
+	if err != nil {
+		ads.logger.Sugar().Errorw("Failed to get underlying tokens", "error", err, "strategies", strategyAddresses)
+		return nil, nil, fmt.Errorf("failed to get underlying tokens: %w", err)
+	}
+
+	// Process strategy underlying tokens
+	for strategyAddr, tokenAddr := range underlyingTokens {
+		strategyAddrLower := strings.ToLower(strategyAddr)
+		tokenAddrLower := strings.ToLower(tokenAddr.Hex())
+		strategyToToken[strategyAddrLower] = tokenAddrLower
+		tokens[tokenAddrLower] = true
+	}
+
+	for _, tokenAddr := range tokenAddresses {
+		tokens[strings.ToLower(tokenAddr)] = true
+	}
+
+	uniqueTokens := make([]string, 0, len(tokens))
+	for token := range tokens {
+		uniqueTokens = append(uniqueTokens, token)
+	}
+
+	// Step 2: Get CoinGecko IDs for tokens (gracefully handle failures)
+	tokenToCoinGecko := make(map[string]string)
+	underlyingTokenCoinGeckoMap := make(map[string]string) // underlying token -> coingecko ID
+
+	if len(uniqueTokens) > 0 {
+		coinGeckoIDs, err := ads.coingeckoClient.GetCoinIDsByContractAddresses(ctx, uniqueTokens)
+		if err != nil {
+			ads.logger.Sugar().Warnw("Failed to get CoinGecko IDs, proceeding with empty token mappings", "error", err)
+		}
+
+		for tokenAddr, coinGeckoID := range coinGeckoIDs {
+			if coinGeckoID != "" {
+				normalizedAddr := strings.ToLower(tokenAddr)
+				underlyingTokenCoinGeckoMap[normalizedAddr] = coinGeckoID
+			}
+		}
+	}
+
+	for _, tokenAddr := range uniqueTokens {
+		if coinGeckoID, exists := underlyingTokenCoinGeckoMap[tokenAddr]; exists {
+			tokenToCoinGecko[tokenAddr] = coinGeckoID
+		}
+	}
+
+	// Step 3: Build strategy to CoinGecko ID mapping
+	strategyToCoinGecko := make(map[string]string)
+
+	for strategyAddr, tokenAddr := range strategyToToken {
+		if coinGeckoID, exists := tokenToCoinGecko[tokenAddr]; exists {
+			strategyToCoinGecko[strategyAddr] = coinGeckoID
+		}
+	}
+
+	// Add direct CoinGecko ID mappings
+	strategyToCoinGecko["0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0"] = "ethereum"   // Beacon Chain ETH strategy -> ethereum
+	strategyToCoinGecko["0xacb55c530acdb2849e6d4f36992cd8c9d50ed8f7"] = "eigenlayer" // EIGEN strategy -> [fill in CoinGecko ID]
+
+	tokenToCoinGecko["0xc12e4d31e92cedc1ad4c8c23dbce2c5f7cb52998"] = "skate" // Special strategy token -> [fill in CoinGecko ID]
+
+	return strategyToCoinGecko, tokenToCoinGecko, nil
+}
+
+// fetchETHPrices fetches historical ETH prices using CoinGecko
 func (ads *AprDataService) fetchETHPrices(
 	ctx context.Context,
 	addresses []string,
 	coinGeckoIDMap map[string]string,
 	coingeckoDate string,
 	logContext string,
-	useFallback bool,
 ) (map[string]float64, error) {
 	prices := make(map[string]float64)
 
-	// Check if CoinGecko client is available
 	if ads.coingeckoClient == nil {
-		if useFallback {
-			ads.logger.Sugar().Warnw("CoinGecko client not available (missing API key), using fallbacks for all prices",
-				zap.String("logContext", logContext),
-			)
-			// Use fallback prices for all addresses
-			for _, address := range addresses {
-				prices[address] = 1.0
-			}
-			return prices, nil
-		} else {
-			return nil, fmt.Errorf("CoinGecko client not available (missing API key) and fallbacks not enabled for %s", logContext)
-		}
+		return nil, fmt.Errorf("CoinGecko client not available for %s", logContext)
 	}
 
 	for _, address := range addresses {
 		coinID, exists := coinGeckoIDMap[address]
 		if !exists {
-			if useFallback {
-				ads.logger.Sugar().Warnw(fmt.Sprintf("%s not supported, using 1.0 ETH fallback", logContext),
-					zap.String("address", address),
-				)
-				prices[address] = 1.0
-			} else {
-				ads.logger.Sugar().Warnw(fmt.Sprintf("%s not supported, skipping", logContext),
-					zap.String("address", address),
-				)
-			}
-			continue
+			return nil, fmt.Errorf("%s not supported: %s", logContext, address)
 		}
 
 		historicalData, err := ads.coingeckoClient.GetHistoricalDataByCoinID(ctx, coinID, coingeckoDate)
 		if err != nil {
-			if useFallback {
-				ads.logger.Sugar().Warnw(fmt.Sprintf("Failed to fetch price data for %s, using 1.0 ETH fallback", logContext),
-					zap.Error(err),
-					zap.String("address", address),
-					zap.String("coinID", coinID),
-				)
-				prices[address] = 1.0
-			} else {
-				ads.logger.Sugar().Warnw(fmt.Sprintf("Failed to fetch price data for %s", logContext),
-					zap.Error(err),
-					zap.String("address", address),
-					zap.String("coinID", coinID),
-				)
-			}
-			continue
+			return nil, fmt.Errorf("failed to fetch %s price for %s (coinID: %s): %w", logContext, address, coinID, err)
 		}
 
-		ethPrice := historicalData.MarketData.CurrentPrice["eth"]
-		if ethPrice == 0 {
-			fallbackPrice := 1.0
-			ads.logger.Sugar().Warnw(fmt.Sprintf("No ETH price found for %s, using %v ETH fallback", logContext, fallbackPrice),
-				zap.String("address", address),
-				zap.String("date", coingeckoDate))
-			ethPrice = fallbackPrice
+		ethPrice, exists := historicalData.MarketData.CurrentPrice["eth"]
+		if !exists {
+			return nil, fmt.Errorf("ETH price not available for %s %s (coinID: %s)", logContext, address, coinID)
 		}
 
 		prices[address] = ethPrice
-		ads.logger.Sugar().Debugw(fmt.Sprintf("Retrieved ETH price for %s", logContext),
-			zap.String("address", address),
-			zap.String("coinID", coinID),
-			zap.Float64("ethPrice", ethPrice),
+		ads.logger.Sugar().Debugw(fmt.Sprintf("Fetched %s price", logContext),
+			"address", address,
+			"coinID", coinID,
+			"ethPrice", ethPrice,
 		)
 	}
 

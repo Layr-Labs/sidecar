@@ -100,49 +100,6 @@ func (c *Client) GetHistoricalDataByCoinID(ctx context.Context, coinID, date str
 	return &historicalData, nil
 }
 
-// GetCoinDataByTokenAddress fetches coin data by contract address
-func (c *Client) GetCoinDataByTokenAddress(ctx context.Context, address string) (*CoinData, error) {
-	url := fmt.Sprintf("%s/coins/ethereum/contract/%s", c.baseURL, address)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("accept", "application/json")
-	req.Header.Set("x-cg-pro-api-key", c.apiKey)
-
-	c.logger.Sugar().Debugw("Making CoinGecko request",
-		zap.String("url", req.URL.String()),
-		zap.String("address", address),
-	)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		if resp.StatusCode == http.StatusNotFound {
-			return nil, fmt.Errorf("token not found: %s", address)
-		}
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var coinData CoinData
-	if err := json.Unmarshal(body, &coinData); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
-	}
-
-	return &coinData, nil
-}
-
 // GetCoinsList fetches a list of all supported coins with ID, name, and symbol
 // includePlatform: include platform contract addresses, default: false
 // status: filter by coin status (active, inactive, etc.), default: "active"

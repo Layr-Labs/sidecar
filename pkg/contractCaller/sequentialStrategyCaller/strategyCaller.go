@@ -32,13 +32,11 @@ func (ssc *SequentialStrategyCaller) GetSharesToUnderlying(ctx context.Context, 
 		return nil, fmt.Errorf("ethereum client not available")
 	}
 
-	// Parse the strategy ABI
 	parsedABI, err := abi.JSON(strings.NewReader(contractCaller.StrategyAbi))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse strategy ABI: %v", err)
 	}
 
-	// Get Ethereum contract caller
 	ethClient, err := ssc.EthereumClient.GetEthereumContractCaller()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ethereum contract caller: %v", err)
@@ -46,10 +44,8 @@ func (ssc *SequentialStrategyCaller) GetSharesToUnderlying(ctx context.Context, 
 
 	strategyAddress := common.HexToAddress(strategy)
 
-	// Create bound contract for this strategy
 	contract := bind.NewBoundContract(strategyAddress, parsedABI, ethClient, nil, nil)
 
-	// Call sharesToUnderlying
 	var result []interface{}
 	err = contract.Call(&bind.CallOpts{Context: ctx}, &result, "sharesToUnderlying", shares)
 	if err != nil {
@@ -60,7 +56,6 @@ func (ssc *SequentialStrategyCaller) GetSharesToUnderlying(ctx context.Context, 
 		return nil, fmt.Errorf("got nil or empty result from sharesToUnderlying for strategy %s", strategy)
 	}
 
-	// Extract the underlying value from the result
 	underlying, ok := result[0].(*big.Int)
 	if !ok {
 		return nil, fmt.Errorf("got unexpected result type from sharesToUnderlying for strategy %s", strategy)
@@ -75,13 +70,11 @@ func (ssc *SequentialStrategyCaller) GetUnderlyingToken(ctx context.Context, str
 		return common.Address{}, fmt.Errorf("ethereum client not available")
 	}
 
-	// Parse the strategy ABI
 	parsedABI, err := abi.JSON(strings.NewReader(contractCaller.StrategyAbi))
 	if err != nil {
 		return common.Address{}, fmt.Errorf("failed to parse strategy ABI: %v", err)
 	}
 
-	// Get Ethereum contract caller
 	ethClient, err := ssc.EthereumClient.GetEthereumContractCaller()
 	if err != nil {
 		return common.Address{}, fmt.Errorf("failed to get ethereum contract caller: %v", err)
@@ -89,10 +82,8 @@ func (ssc *SequentialStrategyCaller) GetUnderlyingToken(ctx context.Context, str
 
 	strategyAddress := common.HexToAddress(strategy)
 
-	// Create bound contract for this strategy
 	contract := bind.NewBoundContract(strategyAddress, parsedABI, ethClient, nil, nil)
 
-	// Call underlyingToken
 	var result []interface{}
 	err = contract.Call(&bind.CallOpts{Context: ctx}, &result, "underlyingToken")
 	if err != nil {
@@ -103,7 +94,6 @@ func (ssc *SequentialStrategyCaller) GetUnderlyingToken(ctx context.Context, str
 		return common.Address{}, fmt.Errorf("got nil or empty result from underlyingToken for strategy %s", strategy)
 	}
 
-	// Extract the token address from the result
 	tokenAddress, ok := result[0].(common.Address)
 	if !ok {
 		return common.Address{}, fmt.Errorf("got unexpected result type from underlyingToken for strategy %s", strategy)
@@ -121,7 +111,6 @@ func (ssc *SequentialStrategyCaller) GetUnderlyingTokens(ctx context.Context, st
 
 	tokens := make(map[string]common.Address)
 
-	// Call underlyingToken for each strategy
 	for _, strategyAddr := range strategies {
 		tokenAddr, err := ssc.GetUnderlyingToken(ctx, strategyAddr)
 		if err != nil {
@@ -152,14 +141,13 @@ func (ssc *SequentialStrategyCaller) GetSharesToUnderlyingAmounts(ctx context.Co
 		// Return shares as fallback (1:1 ratio)
 		amounts := make(map[string]*big.Int)
 		for strategy, shares := range strategyShares {
-			amounts[strategy] = new(big.Int).Set(shares) // Copy to avoid modifying original
+			amounts[strategy] = new(big.Int).Set(shares)
 		}
 		return amounts, nil
 	}
 
 	amounts := make(map[string]*big.Int)
 
-	// Call sharesToUnderlying for each strategy
 	for strategyAddr, shares := range strategyShares {
 		if shares == nil || shares.Cmp(big.NewInt(0)) == 0 {
 			amounts[strategyAddr] = big.NewInt(0)
