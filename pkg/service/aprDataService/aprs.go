@@ -173,31 +173,32 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		strategyAmounts = strategyShares
 	}
 
-	// Get CoinGecko maps
+	// Get CoinGecko maps (handles unsupported tokens internally)
 	strategyToCoinGeckoID, tokenToCoinGeckoID, err := ads.buildCoinGeckoMaps(ctx, strategies, tokens)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CoinGecko maps: %w", err)
 	}
 
-	// Fetch prices
+	// Fetch prices for supported tokens/strategies (maps only contain supported ones)
 	coingeckoDate := parsedDate.Format("02-01-2006")
 
-	tokenPrices, err := ads.fetchETHPrices(ctx, tokens, tokenToCoinGeckoID, coingeckoDate, "token", true)
+	tokenPrices, err := ads.fetchETHPrices(ctx, tokens, tokenToCoinGeckoID, coingeckoDate, "token")
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch token prices: %w", err)
 	}
 
-	strategyPrices, err := ads.fetchETHPrices(ctx, strategies, strategyToCoinGeckoID, coingeckoDate, "strategy", true)
+	strategyPrices, err := ads.fetchETHPrices(ctx, strategies, strategyToCoinGeckoID, coingeckoDate, "strategy")
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch strategy prices: %w", err)
 	}
 
-	// Build and execute query
+	// Build and execute query - TypeScript-style: Use rewards as-is (assumes database contains net staker rewards)
 	query := `
 		WITH strategy_token_rewards AS (
 			SELECT 
 				strategy,
 				token,
+				-- Use rewards directly (assumes database contains net staker rewards after commission)
 				SUM(amount::numeric) as daily_rewards,
 				MAX(shares::numeric) as total_shares
 			FROM staker_operator
@@ -305,7 +306,7 @@ func (ads *AprDataService) buildStrategyAmountCases(strategyAmounts map[string]*
 	return cases.String()
 }
 
-// buildCoinGeckoMaps dynamically builds CoinGecko ID mappings
+// buildCoinGeckoMaps dynamically builds CoinGecko ID mappings, gracefully handling unsupported tokens
 func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddresses []string, additionalTokenAddresses []string) (map[string]string, map[string]string, error) {
 	// Step 1: Get underlying tokens for strategies
 	strategyToToken := make(map[string]string)
@@ -341,14 +342,13 @@ func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddre
 		deduplicatedTokens = append(deduplicatedTokens, token)
 	}
 
-	// Step 2: Get CoinGecko IDs for tokens
+	// Step 2: Get CoinGecko IDs for tokens (gracefully handle failures)
 	tokenToCoinGecko := make(map[string]string)
 	if len(deduplicatedTokens) > 0 {
 		coinGeckoIDs, err := ads.coingeckoClient.GetCoinIDsByContractAddresses(ctx, deduplicatedTokens)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get CoinGecko IDs: %w", err)
+			ads.logger.Sugar().Warnw("Failed to get CoinGecko IDs, proceeding with empty token mappings", "error", err)
 		}
-
 		for tokenAddr, coinGeckoID := range coinGeckoIDs {
 			if coinGeckoID != "" {
 				tokenToCoinGecko[strings.ToLower(tokenAddr)] = coinGeckoID
@@ -374,62 +374,35 @@ func (ads *AprDataService) fetchETHPrices(
 	coinGeckoIDMap map[string]string,
 	coingeckoDate string,
 	logContext string,
-	useFallback bool,
 ) (map[string]float64, error) {
 	prices := make(map[string]float64)
 
 	if ads.coingeckoClient == nil {
-		if useFallback {
-			ads.logger.Sugar().Warnw("CoinGecko client not available, using fallbacks",
-				"logContext", logContext,
-			)
-			for _, address := range addresses {
-				prices[address] = 1.0
-			}
-			return prices, nil
-		}
-		return nil, fmt.Errorf("CoinGecko client not available and fallbacks not enabled for %s", logContext)
+		return nil, fmt.Errorf("CoinGecko client not available for %s", logContext)
 	}
 
 	for _, address := range addresses {
 		coinID, exists := coinGeckoIDMap[address]
 		if !exists {
-			if useFallback {
-				ads.logger.Sugar().Warnw(fmt.Sprintf("%s not supported, using fallback", logContext),
-					"address", address,
-				)
-				prices[address] = 1.0
-			}
-			continue
+			return nil, fmt.Errorf("%s not supported: %s", logContext, address)
 		}
 
 		historicalData, err := ads.coingeckoClient.GetHistoricalDataByCoinID(ctx, coinID, coingeckoDate)
 		if err != nil {
-			if useFallback {
-				ads.logger.Sugar().Warnw(fmt.Sprintf("Failed to fetch %s price, using fallback", logContext),
-					"address", address,
-					"coinID", coinID,
-					"error", err,
-				)
-				prices[address] = 1.0
-			}
-			continue
+			return nil, fmt.Errorf("failed to fetch %s price for %s (coinID: %s): %w", logContext, address, coinID, err)
 		}
 
-		if ethPrice, exists := historicalData.MarketData.CurrentPrice["eth"]; exists {
-			prices[address] = ethPrice
-			ads.logger.Sugar().Debugw(fmt.Sprintf("Fetched %s price", logContext),
-				"address", address,
-				"coinID", coinID,
-				"ethPrice", ethPrice,
-			)
-		} else if useFallback {
-			ads.logger.Sugar().Warnw(fmt.Sprintf("ETH price not available for %s, using fallback", logContext),
-				"address", address,
-				"coinID", coinID,
-			)
-			prices[address] = 1.0
+		ethPrice, exists := historicalData.MarketData.CurrentPrice["eth"]
+		if !exists {
+			return nil, fmt.Errorf("ETH price not available for %s %s (coinID: %s)", logContext, address, coinID)
 		}
+
+		prices[address] = ethPrice
+		ads.logger.Sugar().Debugw(fmt.Sprintf("Fetched %s price", logContext),
+			"address", address,
+			"coinID", coinID,
+			"ethPrice", ethPrice,
+		)
 	}
 
 	return prices, nil
