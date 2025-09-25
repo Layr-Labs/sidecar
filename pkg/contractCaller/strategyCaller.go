@@ -3,6 +3,8 @@ package contractCaller
 import (
 	"context"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // StrategyUnderlyingAmount represents the result of a sharesToUnderlying call
@@ -20,4 +22,10 @@ type IStrategyCaller interface {
 
 	// GetSharesToUnderlying fetches the underlying amount for a specific strategy and shares
 	GetSharesToUnderlying(ctx context.Context, strategy string, shares *big.Int) (*big.Int, error)
+
+	// GetUnderlyingToken fetches the underlying token address for a specific strategy
+	GetUnderlyingToken(ctx context.Context, strategy string) (common.Address, error)
+
+	// GetUnderlyingTokens fetches underlying token addresses for multiple strategies
+	GetUnderlyingTokens(ctx context.Context, strategies []string) (map[string]common.Address, error)
 }
