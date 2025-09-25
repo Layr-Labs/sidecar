@@ -327,10 +327,42 @@ func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddre
 		}
 	}
 
-	// Add additional tokens
-	for _, tokenAddr := range additionalTokenAddresses {
-		allTokenAddresses = append(allTokenAddresses, strings.ToLower(tokenAddr))
+	// Check if additional tokens are strategy tokens (like ezSKATE) and resolve to underlying tokens
+	resolvedTokens := make([]string, 0)
+	if len(additionalTokenAddresses) > 0 && ads.strategyCaller != nil {
+		// Try to get underlying tokens for additional token addresses
+		underlyingTokens, err := ads.strategyCaller.GetUnderlyingTokens(ctx, additionalTokenAddresses)
+		if err != nil {
+			ads.logger.Sugar().Warnw("Failed to resolve additional tokens as strategies, using original addresses", "error", err)
+			// Fall back to original addresses
+			for _, tokenAddr := range additionalTokenAddresses {
+				resolvedTokens = append(resolvedTokens, strings.ToLower(tokenAddr))
+			}
+		} else {
+			for _, tokenAddr := range additionalTokenAddresses {
+				if underlyingAddr, exists := underlyingTokens[tokenAddr]; exists && underlyingAddr.Hex() != "0x0000000000000000000000000000000000000000" {
+					// This is a strategy token (like ezSKATE), use its underlying token (SKATE)
+					resolvedAddr := strings.ToLower(underlyingAddr.Hex())
+					resolvedTokens = append(resolvedTokens, resolvedAddr)
+					ads.logger.Sugar().Infow("Resolved strategy token to underlying token",
+						"originalToken", tokenAddr,
+						"underlyingToken", resolvedAddr,
+					)
+				} else {
+					// Not a strategy token, use original address
+					resolvedTokens = append(resolvedTokens, strings.ToLower(tokenAddr))
+				}
+			}
+		}
+	} else {
+		// No strategy caller available, use original addresses
+		for _, tokenAddr := range additionalTokenAddresses {
+			resolvedTokens = append(resolvedTokens, strings.ToLower(tokenAddr))
+		}
 	}
+
+	// Add resolved tokens to all token addresses
+	allTokenAddresses = append(allTokenAddresses, resolvedTokens...)
 
 	// Deduplicate tokens
 	uniqueTokens := make(map[string]bool)
