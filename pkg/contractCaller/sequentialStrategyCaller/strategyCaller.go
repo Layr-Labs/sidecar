@@ -69,6 +69,82 @@ func (ssc *SequentialStrategyCaller) GetSharesToUnderlying(ctx context.Context, 
 	return underlying, nil
 }
 
+// GetUnderlyingToken fetches the underlying token address for a specific strategy
+func (ssc *SequentialStrategyCaller) GetUnderlyingToken(ctx context.Context, strategy string) (common.Address, error) {
+	if ssc.EthereumClient == nil {
+		return common.Address{}, fmt.Errorf("ethereum client not available")
+	}
+
+	// Parse the strategy ABI
+	parsedABI, err := abi.JSON(strings.NewReader(contractCaller.StrategyAbi))
+	if err != nil {
+		return common.Address{}, fmt.Errorf("failed to parse strategy ABI: %v", err)
+	}
+
+	// Get Ethereum contract caller
+	ethClient, err := ssc.EthereumClient.GetEthereumContractCaller()
+	if err != nil {
+		return common.Address{}, fmt.Errorf("failed to get ethereum contract caller: %v", err)
+	}
+
+	strategyAddress := common.HexToAddress(strategy)
+
+	// Create bound contract for this strategy
+	contract := bind.NewBoundContract(strategyAddress, parsedABI, ethClient, nil, nil)
+
+	// Call underlyingToken
+	var result []interface{}
+	err = contract.Call(&bind.CallOpts{Context: ctx}, &result, "underlyingToken")
+	if err != nil {
+		return common.Address{}, fmt.Errorf("failed to call underlyingToken for strategy %s: %v", strategy, err)
+	}
+
+	if len(result) == 0 || result[0] == nil {
+		return common.Address{}, fmt.Errorf("got nil or empty result from underlyingToken for strategy %s", strategy)
+	}
+
+	// Extract the token address from the result
+	tokenAddress, ok := result[0].(common.Address)
+	if !ok {
+		return common.Address{}, fmt.Errorf("got unexpected result type from underlyingToken for strategy %s", strategy)
+	}
+
+	return tokenAddress, nil
+}
+
+// GetUnderlyingTokens fetches underlying token addresses for multiple strategies
+func (ssc *SequentialStrategyCaller) GetUnderlyingTokens(ctx context.Context, strategies []string) (map[string]common.Address, error) {
+	if ssc.EthereumClient == nil {
+		ssc.Logger.Sugar().Warnw("Ethereum client not available")
+		return nil, fmt.Errorf("ethereum client not available")
+	}
+
+	tokens := make(map[string]common.Address)
+
+	// Call underlyingToken for each strategy
+	for _, strategyAddr := range strategies {
+		tokenAddr, err := ssc.GetUnderlyingToken(ctx, strategyAddr)
+		if err != nil {
+			ssc.Logger.Sugar().Warnw("Failed to get underlyingToken for strategy",
+				zap.String("strategy", strategyAddr),
+				zap.Error(err),
+			)
+			// Set zero address as fallback
+			tokens[strategyAddr] = common.Address{}
+			continue
+		}
+
+		tokens[strategyAddr] = tokenAddr
+
+		ssc.Logger.Sugar().Debugw("Retrieved underlying token",
+			zap.String("strategy", strategyAddr),
+			zap.String("underlyingToken", tokenAddr.Hex()),
+		)
+	}
+
+	return tokens, nil
+}
+
 // GetSharesToUnderlyingAmounts fetches underlying amounts for multiple strategies
 func (ssc *SequentialStrategyCaller) GetSharesToUnderlyingAmounts(ctx context.Context, strategyShares map[string]*big.Int) (map[string]*big.Int, error) {
 	if ssc.EthereumClient == nil {

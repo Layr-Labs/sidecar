@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/logger"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -154,5 +156,118 @@ func Test_SequentialStrategyCaller(t *testing.T) {
 		assert.Equal(t, oneETHShares, invalidAmount)
 
 		fmt.Printf("Invalid strategy amount (fallback to shares): %s\n", invalidAmount.String())
+	})
+
+	t.Run("Get underlying token for EIGEN strategy", func(t *testing.T) {
+		// EIGEN strategy address from mainnet
+		eigenStrategyAddress := "0xacb55c530acdb2849e6d4f36992cd8c9d50ed8f7"
+		expectedTokenAddress := "0xec53bf9167f50cdeb3ae105f56099aaab9061f83"
+
+		tokenAddr, err := ssc.GetUnderlyingToken(context.Background(), eigenStrategyAddress)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		assert.NotEqual(t, common.Address{}, tokenAddr, "Token address should not be zero address")
+
+		// Convert to lowercase for comparison since addresses can have different casing
+		actualAddr := strings.ToLower(tokenAddr.Hex())
+		expectedAddr := strings.ToLower(expectedTokenAddress)
+
+		assert.Equal(t, expectedAddr, actualAddr,
+			fmt.Sprintf("Expected token address %s, got %s", expectedTokenAddress, tokenAddr.Hex()))
+
+		fmt.Printf("EIGEN Strategy %s -> Underlying Token: %s\n", eigenStrategyAddress, tokenAddr.Hex())
+	})
+
+	t.Run("Get underlying token for stETH strategy", func(t *testing.T) {
+		// stETH strategy address from mainnet
+		stETHStrategyAddress := "0x93c4b944d05dfe6df7645a86cd2206016c51564d"
+
+		tokenAddr, err := ssc.GetUnderlyingToken(context.Background(), stETHStrategyAddress)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		assert.NotEqual(t, common.Address{}, tokenAddr, "Token address should not be zero address")
+
+		// stETH token address should be 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84
+		expectedStETHToken := "0xae7ab96520de3a18e5e111b5eaab095312d7fe84"
+		actualAddr := strings.ToLower(tokenAddr.Hex())
+
+		assert.Equal(t, expectedStETHToken, actualAddr,
+			fmt.Sprintf("Expected stETH token address %s, got %s", expectedStETHToken, tokenAddr.Hex()))
+
+		fmt.Printf("stETH Strategy %s -> Underlying Token: %s\n", stETHStrategyAddress, tokenAddr.Hex())
+	})
+
+	t.Run("Get underlying tokens for multiple strategies", func(t *testing.T) {
+		strategies := []string{
+			"0xacb55c530acdb2849e6d4f36992cd8c9d50ed8f7", // EIGEN strategy
+			"0x93c4b944d05dfe6df7645a86cd2206016c51564d", // stETH strategy
+		}
+
+		tokens, err := ssc.GetUnderlyingTokens(context.Background(), strategies)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		assert.NotNil(t, tokens)
+		assert.Len(t, tokens, 2)
+
+		// Check EIGEN token
+		eigenToken, exists := tokens["0xacb55c530acdb2849e6d4f36992cd8c9d50ed8f7"]
+		assert.True(t, exists)
+		assert.NotEqual(t, common.Address{}, eigenToken)
+
+		expectedEigenToken := "0xec53bf9167f50cdeb3ae105f56099aaab9061f83"
+		actualEigenAddr := strings.ToLower(eigenToken.Hex())
+		expectedEigenAddr := strings.ToLower(expectedEigenToken)
+		assert.Equal(t, expectedEigenAddr, actualEigenAddr)
+
+		// Check stETH token
+		stETHToken, exists := tokens["0x93c4b944d05dfe6df7645a86cd2206016c51564d"]
+		assert.True(t, exists)
+		assert.NotEqual(t, common.Address{}, stETHToken)
+
+		fmt.Printf("Batch Results - EIGEN: %s, stETH: %s\n", eigenToken.Hex(), stETHToken.Hex())
+	})
+
+	t.Run("Handle invalid strategy address for underlying token", func(t *testing.T) {
+		invalidStrategy := "0x0000000000000000000000000000000000000000"
+
+		tokenAddr, err := ssc.GetUnderlyingToken(context.Background(), invalidStrategy)
+
+		// Should return an error for invalid strategy
+		assert.Error(t, err)
+		assert.Equal(t, common.Address{}, tokenAddr)
+
+		fmt.Printf("Invalid strategy error: %v\n", err)
+	})
+
+	t.Run("Handle invalid strategies in batch underlying tokens", func(t *testing.T) {
+		strategies := []string{
+			"0xacb55c530acdb2849e6d4f36992cd8c9d50ed8f7", // Valid EIGEN strategy
+			"0x0000000000000000000000000000000000000000", // Invalid strategy
+		}
+
+		tokens, err := ssc.GetUnderlyingTokens(context.Background(), strategies)
+
+		// Should not error but should handle individual failures gracefully
+		assert.NoError(t, err)
+		assert.NotNil(t, tokens)
+		assert.Len(t, tokens, 2)
+
+		// Valid strategy should have a valid token
+		eigenToken, exists := tokens["0xacb55c530acdb2849e6d4f36992cd8c9d50ed8f7"]
+		assert.True(t, exists)
+		assert.NotEqual(t, common.Address{}, eigenToken)
+
+		// Invalid strategy should have zero address as fallback
+		invalidToken, exists := tokens["0x0000000000000000000000000000000000000000"]
+		assert.True(t, exists)
+		assert.Equal(t, common.Address{}, invalidToken)
+
+		fmt.Printf("Batch with invalid - Valid: %s, Invalid: %s\n", eigenToken.Hex(), invalidToken.Hex())
 	})
 }
