@@ -55,12 +55,11 @@ latest_staker_delegation_snapshots AS (
         ors.reward_hash,
         ors.snapshot as reward_snapshot,
         ors.operator,
-        MAX(sds.snapshot) as latest_delegation_snapshot
+        (SELECT MAX(sds.snapshot) 
+         FROM staker_delegation_snapshots sds 
+         WHERE sds.operator = ors.operator 
+           AND sds.snapshot <= ors.snapshot) as latest_delegation_snapshot
     FROM staker_splits ors
-    CROSS JOIN (SELECT DISTINCT snapshot, operator FROM staker_delegation_snapshots) sds
-    WHERE sds.operator = ors.operator
-      AND sds.snapshot <= ors.snapshot
-    GROUP BY ors.reward_hash, ors.snapshot, ors.operator
 ),
 -- Get the stakers that were delegated to the operator for the snapshot
 staker_delegated_operators AS (
