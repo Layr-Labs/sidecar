@@ -71,36 +71,23 @@ staker_delegated_operators AS (
     ors.operator = sds.operator AND
     ors.snapshot = sds.snapshot
 ),
--- Get the latest available staker share snapshot on or before the reward snapshot date
-latest_staker_share_snapshots AS (
-  SELECT 
-    sdo.reward_hash,
-    sdo.snapshot as reward_snapshot,
-    sdo.staker,
-    sdo.strategy,
-    MAX(sss.snapshot) as latest_share_snapshot
-  FROM staker_delegated_operators sdo
-  CROSS JOIN (SELECT DISTINCT snapshot, staker, strategy FROM staker_share_snapshots) sss
-  WHERE sss.staker = sdo.staker
-    AND sss.strategy = sdo.strategy
-    AND sss.snapshot <= sdo.snapshot
-  GROUP BY sdo.reward_hash, sdo.snapshot, sdo.staker, sdo.strategy
-),
 -- Get the shares for staker delegated to the operator
+-- Use conservative matching for share snapshots (same approach as Table 5)
 staker_avs_strategy_shares AS (
   SELECT
     sdo.*,
     sss.shares
   FROM staker_delegated_operators sdo
-  JOIN latest_staker_share_snapshots lsss ON 
-    sdo.reward_hash = lsss.reward_hash AND
-    sdo.snapshot = lsss.reward_snapshot AND
-    sdo.staker = lsss.staker AND
-    sdo.strategy = lsss.strategy
   JOIN staker_share_snapshots sss ON
-    sss.staker = lsss.staker AND
-    sss.strategy = lsss.strategy AND
-    sss.snapshot = lsss.latest_share_snapshot
+    sdo.staker = sss.staker AND
+    sdo.strategy = sss.strategy AND
+    sss.snapshot = (
+      SELECT MAX(sss2.snapshot) 
+      FROM staker_share_snapshots sss2 
+      WHERE sss2.staker = sdo.staker 
+        AND sss2.strategy = sdo.strategy 
+        AND sss2.snapshot <= sdo.snapshot
+    )
   -- Parse out negative shares and zero multiplier so there is no division by zero case
   WHERE sss.shares > 0 and sdo.multiplier != 0
 ),
