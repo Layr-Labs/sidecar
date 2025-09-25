@@ -43,7 +43,8 @@ active_rewards_updated_end_timestamps as (
 	 block_date as reward_submission_date
  FROM active_rewards_modified
 ),
--- Optimized: Get the latest snapshot for each reward hash
+-- Optimized: Get the latest snapshot for each reward hash from persistent gold_table
+-- This ensures proper delta calculation even in temp-only mode
 reward_progress AS (
     SELECT 
         reward_hash, 
