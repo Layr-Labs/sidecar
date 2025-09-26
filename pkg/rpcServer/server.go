@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	pdsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/pds/v1"
 	eventsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/events"
 	healthV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/health"
 	operatorSetsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/operatorSets"
@@ -27,6 +28,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/proofs"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
+	"github.com/Layr-Labs/sidecar/pkg/service/aprDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/slashingDataService"
@@ -65,6 +67,7 @@ type RpcServer struct {
 	protocolDataService *protocolDataService.ProtocolDataService
 	rewardsDataService  *rewardsDataService.RewardsDataService
 	slashingDataService *slashingDataService.SlashingDataService
+	aprDataService      *aprDataService.AprDataService
 	globalConfig        *config.Config
 	sidecarClient       *sidecarClient.SidecarClient
 	metricsSink         *metrics.MetricsSink
@@ -82,6 +85,7 @@ func NewRpcServer(
 	pds *protocolDataService.ProtocolDataService,
 	rds *rewardsDataService.RewardsDataService,
 	sds *slashingDataService.SlashingDataService,
+	ads *aprDataService.AprDataService,
 	scc *sidecarClient.SidecarClient,
 	ms *metrics.MetricsSink,
 	l *zap.Logger,
@@ -99,6 +103,7 @@ func NewRpcServer(
 		protocolDataService: pds,
 		rewardsDataService:  rds,
 		slashingDataService: sds,
+		aprDataService:      ads,
 		Logger:              l,
 		globalConfig:        cfg,
 		sidecarClient:       scc,
@@ -148,6 +153,12 @@ func (s *RpcServer) registerHandlers(ctx context.Context, grpcServer *grpc.Serve
 	slashingV1.RegisterSlashingServer(grpcServer, s)
 	if err := slashingV1.RegisterSlashingHandlerServer(ctx, mux, s); err != nil {
 		s.Logger.Sugar().Errorw("Failed to register Slashing server", zap.Error(err))
+		return err
+	}
+
+	pdsV1.RegisterAprsServer(grpcServer, s)
+	if err := pdsV1.RegisterAprsHandlerServer(ctx, mux, s); err != nil {
+		s.Logger.Sugar().Errorw("Failed to register APR server", zap.Error(err))
 		return err
 	}
 
