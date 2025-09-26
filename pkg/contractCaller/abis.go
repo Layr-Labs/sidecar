@@ -128,5 +128,18 @@ const StrategyAbi = `[
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "underlyingToken",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
   }
 ]`
