@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
@@ -31,23 +32,36 @@ WITH combined_operators AS (
     )
   ) all_operators
 ),
--- Get the operators who will earn rewards for the reward submission at the given snapshot
-reward_snapshot_operators as (
-  SELECT
-    ap.reward_hash,
-    ap.snapshot,
-    ap.token,
-    ap.tokens_per_day_decimal,
-    ap.avs,
-    ap.strategy,
-    ap.multiplier,
-    ap.reward_type,
-    ap.reward_submission_date,
-    co.operator
-  FROM {{.activeRewardsTable}} ap
-  JOIN combined_operators co
-  ON ap.snapshot = co.snapshot
-  WHERE ap.reward_type = 'all_earners'
+		-- Get the operators who will earn rewards for the reward submission at the given snapshot
+		reward_snapshot_operators as (
+			SELECT
+				ap.reward_hash,
+				ap.snapshot,
+				ap.token,
+				ap.tokens_per_day_decimal,
+				ap.avs,
+				ap.strategy,
+				ap.multiplier,
+				ap.reward_type,
+				ap.reward_submission_date,
+				co.operator
+			FROM {{.activeRewardsTable}} ap
+			JOIN combined_operators co
+			ON ap.snapshot = co.snapshot
+			WHERE ap.reward_type = 'all_earners'
+		),
+-- Get the latest available staker delegation snapshot on or before the reward snapshot date
+latest_staker_delegation_snapshots AS (
+  SELECT 
+    rso.reward_hash,
+    rso.snapshot as reward_snapshot,
+    rso.operator,
+    MAX(sds.snapshot) as latest_delegation_snapshot
+  FROM reward_snapshot_operators rso
+  CROSS JOIN (SELECT DISTINCT snapshot, operator FROM staker_delegation_snapshots) sds
+  WHERE sds.operator = rso.operator
+    AND sds.snapshot <= rso.snapshot
+  GROUP BY rso.reward_hash, rso.snapshot, rso.operator
 ),
 -- Get the stakers that were delegated to the operator for the snapshot 
 staker_delegated_operators AS (
@@ -55,22 +69,31 @@ staker_delegated_operators AS (
     rso.*,
     sds.staker
   FROM reward_snapshot_operators rso
-  JOIN staker_delegation_snapshots sds
-  ON
-    rso.operator = sds.operator AND
-    rso.snapshot = sds.snapshot
+  JOIN latest_staker_delegation_snapshots lds ON 
+    rso.reward_hash = lds.reward_hash AND
+    rso.snapshot = lds.reward_snapshot AND
+    rso.operator = lds.operator
+  JOIN staker_delegation_snapshots sds ON
+    sds.operator = lds.operator AND
+    sds.snapshot = lds.latest_delegation_snapshot
 ),
 -- Get the shares of each strategy the staker has delegated to the operator
+-- Use conservative matching for share snapshots (like Table 2 fix)
 staker_strategy_shares AS (
   SELECT
     sdo.*,
     sss.shares
   FROM staker_delegated_operators sdo
-  JOIN staker_share_snapshots sss
-  ON
+  JOIN staker_share_snapshots sss ON
     sdo.staker = sss.staker AND
-    sdo.snapshot = sss.snapshot AND
-    sdo.strategy = sss.strategy
+    sdo.strategy = sss.strategy AND
+    sss.snapshot = (
+      SELECT MAX(sss2.snapshot) 
+      FROM staker_share_snapshots sss2 
+      WHERE sss2.staker = sdo.staker 
+        AND sss2.strategy = sdo.strategy 
+        AND sss2.snapshot <= sdo.snapshot
+    )
   -- Parse out negative shares and zero multiplier so there is no division by zero case
   WHERE sss.shares > 0 and sdo.multiplier != 0
 ),
@@ -148,15 +171,19 @@ token_breakdowns AS (
   ON sott.operator = ops.operator AND sott.snapshot = ops.snapshot
   LEFT JOIN default_operator_split_snapshots dos ON (sott.snapshot = dos.snapshot)
 )
-SELECT * from token_breakdowns
-ORDER BY reward_hash, snapshot, staker, operator
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id from token_breakdowns
 `
 
-func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, forks config.ForkMap) error {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_5_RfaeStakers]
+func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
+	destTableName := rc.getTempRfaeStakersTableName(snapshotDate, generatedRewardsSnapshotId)
+	activeRewardsTable := rc.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
-	rc.logger.Sugar().Infow("Generating rfae stakers table",
+	if err := rc.DropTempRfaeStakersTable(snapshotDate, generatedRewardsSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop existing temp rfae stakers table", "error", err)
+		return err
+	}
+
+	rc.logger.Sugar().Infow("Generating temp rfae stakers table",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 		zap.String("arnoHardforkDate", forks[config.RewardsFork_Arno].Date),
@@ -165,8 +192,10 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_5_goldRfaeStakersQuery, map[string]interface{}{
-		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
+		"destTableName":              destTableName,
+		"activeRewardsTable":         activeRewardsTable,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
+		"snapshotDate":               snapshotDate,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -181,8 +210,29 @@ func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, 
 		sql.Named("mississippiForkDate", forks[config.RewardsFork_Mississippi].Date),
 	)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to generate gold_rfae_stakers", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to create temp rfae stakers", "error", res.Error)
 		return res.Error
 	}
+	return nil
+}
+
+func (rc *RewardsCalculator) getTempRfaeStakersTableName(snapshotDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(snapshotDate)
+	return fmt.Sprintf("tmp_rewards_gold_5_rfae_stakers_%s_%d", camelDate, generatedRewardSnapshotId)
+}
+
+func (rc *RewardsCalculator) DropTempRfaeStakersTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	tempTableName := rc.getTempRfaeStakersTableName(snapshotDate, generatedRewardsSnapshotId)
+
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName)
+	res := rc.grm.Exec(query)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp rfae stakers table", "error", res.Error)
+		return res.Error
+	}
+	rc.logger.Sugar().Infow("Successfully dropped temp rfae stakers table",
+		zap.String("tempTableName", tempTableName),
+		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
+	)
 	return nil
 }
