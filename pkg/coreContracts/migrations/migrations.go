@@ -9,7 +9,7 @@ import (
 	_202507311116_verificationAndTableContracts "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202507311116_verificationAndTableContracts"
 	_202509162116_upgradeAllocationManagerImpl "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202509162116_upgradeAllocationManagerImpl"
 	_202509241754_newMainnetAddresses "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202509241754_newMainnetAddresses"
-	_202509251838_updateStrategyImpl "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202509251838_updateStrategyImpl"
+	_202509251838_updateStrategyAndDelegationImpl "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202509251838_updateStrategyAndDelegationImpl"
 	"github.com/Layr-Labs/sidecar/pkg/coreContracts/types"
 )
 
@@ -23,6 +23,6 @@ func GetCoreContractMigrations() []types.ICoreContractMigration {
 		&_202507311116_verificationAndTableContracts.ContractMigration{},
 		&_202509162116_upgradeAllocationManagerImpl.ContractMigration{},
 		&_202509241754_newMainnetAddresses.ContractMigration{},
-		&_202509251838_updateStrategyImpl.ContractMigration{},
+		&_202509251838_updateStrategyAndDelegationImpl.ContractMigration{},
 	}
 }
