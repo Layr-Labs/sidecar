@@ -192,22 +192,26 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		return nil, fmt.Errorf("failed to fetch strategy prices: %w", err)
 	}
 
-	// For comparison: fetch today's prices to see what APR would be with current prices
-	todayDate := time.Now().Format("02-01-2006")
-	ads.logger.Sugar().Infow("Fetching today's prices for APR comparison",
+	// For comparison: fetch prices for 2 days ago
+	twoDaysAgo := time.Now().AddDate(0, 0, -2)
+	todayDate := twoDaysAgo.Format("02-01-2006")   // For CoinGecko API (DD-MM-YYYY)
+	todayDateDB := twoDaysAgo.Format("2006-01-02") // For database query (YYYY-MM-DD)
+
+	ads.logger.Sugar().Infow("Fetching prices for comparison",
 		"requestedDate", coingeckoDate,
-		"todayDate", todayDate,
+		"comparisonDate", todayDate,
+		"comparisonDateDB", todayDateDB,
 	)
 
 	var todayErr, todayStrategyErr error
-	todayTokenPrices, todayErr := ads.fetchETHPrices(ctx, tokens, tokenToCoinGeckoID, todayDate, "token (today)")
+	todayTokenPrices, todayErr := ads.fetchETHPrices(ctx, tokens, tokenToCoinGeckoID, todayDate, "token (2 days ago)")
 	if todayErr != nil {
-		ads.logger.Sugar().Warnw("Failed to fetch today's token prices for comparison", "error", todayErr)
+		ads.logger.Sugar().Warnw("Failed to fetch token prices for comparison", "error", todayErr)
 	}
 
-	todayStrategyPrices, todayStrategyErr := ads.fetchETHPrices(ctx, strategies, strategyToCoinGeckoID, todayDate, "strategy (today)")
+	todayStrategyPrices, todayStrategyErr := ads.fetchETHPrices(ctx, strategies, strategyToCoinGeckoID, todayDate, "strategy (2 days ago)")
 	if todayStrategyErr != nil {
-		ads.logger.Sugar().Warnw("Failed to fetch today's strategy prices for comparison", "error", todayStrategyErr)
+		ads.logger.Sugar().Warnw("Failed to fetch strategy prices for comparison", "error", todayStrategyErr)
 	}
 
 	// Build and execute query - TypeScript-style: Use rewards as-is (assumes database contains net staker rewards)
@@ -345,7 +349,7 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 	var todayResults []*OperatorStrategyApr
 	res = ads.db.Raw(todayQuery,
 		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("date", todayDate),
+		sql.Named("date", todayDateDB),
 		sql.Named("supportedRewardTokens", pq.Array(supportedRewardTokens)),
 	).Scan(&todayResults)
 
@@ -353,7 +357,11 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		return nil, res.Error
 	}
 
-	ads.logger.Sugar().Infow("Today's APR Results", "results", todayResults)
+	ads.logger.Sugar().Infow("APR Results for 2 days ago",
+		"comparisonDate", todayDate,
+		"comparisonDateDB", todayDateDB,
+		"results", todayResults,
+	)
 
 	return results, nil
 }
