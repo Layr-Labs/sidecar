@@ -58,25 +58,40 @@ func NewAprDataService(
 func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, operatorAddress string, date string) ([]*OperatorStrategyApr, error) {
 	operatorAddress = strings.ToLower(operatorAddress)
 
-	// Parse the date
+	// Parse the date - this will be the END date of our range
 	parsedDate, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		return nil, fmt.Errorf("invalid date format: %v", err)
 	}
 
-	// Check if data exists
+	// Create 7-day date range ending on the specified date (like TypeScript)
+	// TypeScript uses: startDate = today - 9, endDate = today - 2  (7-day range)
+	// We'll use: startDate = date - 6, endDate = date (7-day range)
+	startDate := parsedDate.AddDate(0, 0, -9)
+	endDate := parsedDate.AddDate(0, 0, -2)
+
+	ads.logger.Sugar().Infow("Using date range for APR calculation",
+		"inputDate", date,
+		"startDate", startDate.Format("2006-01-02"),
+		"endDate", endDate.Format("2006-01-02"),
+		"rangeDays", 7,
+	)
+
+	// Check if data exists in the date range
 	var count int64
 	dataCheckQuery := `
 		SELECT COUNT(*) 
 		FROM staker_operator 
 		WHERE operator = @operatorAddress 
-		AND DATE(snapshot) = @date
+		AND DATE(snapshot) >= @startDate
+		AND DATE(snapshot) <= @endDate
 		AND strategy != '0x0000000000000000000000000000000000000000'
 	`
 
 	res := ads.db.Raw(dataCheckQuery,
 		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("date", parsedDate.Format("2006-01-02")),
+		sql.Named("startDate", startDate.Format("2006-01-02")),
+		sql.Named("endDate", endDate.Format("2006-01-02")),
 	).Count(&count)
 
 	if res.Error != nil {
@@ -91,19 +106,21 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		return []*OperatorStrategyApr{}, nil
 	}
 
-	// Get strategies and tokens for this date
+	// Get strategies and tokens for this date range
 	strategiesQuery := `
 		SELECT DISTINCT strategy 
 		FROM staker_operator 
 		WHERE operator = @operatorAddress 
-		AND DATE(snapshot) = @date
+		AND DATE(snapshot) >= @startDate
+		AND DATE(snapshot) <= @endDate
 		AND strategy != '0x0000000000000000000000000000000000000000'
 	`
 
 	var strategies []string
 	res = ads.db.Raw(strategiesQuery,
 		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("date", parsedDate.Format("2006-01-02")),
+		sql.Named("startDate", startDate.Format("2006-01-02")),
+		sql.Named("endDate", endDate.Format("2006-01-02")),
 	).Scan(&strategies)
 
 	if res.Error != nil {
@@ -115,27 +132,30 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		SELECT DISTINCT token 
 		FROM staker_operator 
 		WHERE operator = @operatorAddress 
-		AND DATE(snapshot) = @date
+		AND DATE(snapshot) >= @startDate
+		AND DATE(snapshot) <= @endDate
 		AND token != '0x0000000000000000000000000000000000000000'
 	`
 
 	var tokens []string
 	res = ads.db.Raw(tokensQuery,
 		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("date", parsedDate.Format("2006-01-02")),
+		sql.Named("startDate", startDate.Format("2006-01-02")),
+		sql.Named("endDate", endDate.Format("2006-01-02")),
 	).Scan(&tokens)
 
 	if res.Error != nil {
 		return nil, res.Error
 	}
 
-	// Get shares data for strategies
+	// Get shares data for strategies (use MAX shares across the date range)
 	strategyShares := make(map[string]*big.Int)
 	sharesQuery := `
 		SELECT strategy, MAX(shares) as shares
 		FROM staker_operator 
 		WHERE operator = @operatorAddress 
-		AND DATE(snapshot) = @date
+		AND DATE(snapshot) >= @startDate
+		AND DATE(snapshot) <= @endDate
 		AND strategy != '0x0000000000000000000000000000000000000000'
 		GROUP BY strategy
 	`
@@ -148,7 +168,8 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 	var sharesResults []StrategyShares
 	res = ads.db.Raw(sharesQuery,
 		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("date", parsedDate.Format("2006-01-02")),
+		sql.Named("startDate", startDate.Format("2006-01-02")),
+		sql.Named("endDate", endDate.Format("2006-01-02")),
 	).Scan(&sharesResults)
 
 	if res.Error != nil {
@@ -203,30 +224,20 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		"comparisonDateDB", todayDateDB,
 	)
 
-	var todayErr, todayStrategyErr error
-	todayTokenPrices, todayErr := ads.fetchETHPrices(ctx, tokens, tokenToCoinGeckoID, todayDate, "token (2 days ago)")
-	if todayErr != nil {
-		ads.logger.Sugar().Warnw("Failed to fetch token prices for comparison", "error", todayErr)
-	}
-
-	todayStrategyPrices, todayStrategyErr := ads.fetchETHPrices(ctx, strategies, strategyToCoinGeckoID, todayDate, "strategy (2 days ago)")
-	if todayStrategyErr != nil {
-		ads.logger.Sugar().Warnw("Failed to fetch strategy prices for comparison", "error", todayStrategyErr)
-	}
-
-	// Build and execute query - TypeScript-style: Use rewards as-is (assumes database contains net staker rewards)
+	// Build and execute query - TypeScript-style: Use rewards aggregated across date range
 	query := `
 		WITH strategy_token_rewards AS (
 			SELECT 
 				strategy,
 				token,
-				-- Use rewards directly (assumes database contains net staker rewards after commission)
+				-- Sum rewards across the date range (like TypeScript does)
 				SUM(amount::numeric) as daily_rewards,
 				MAX(shares::numeric) as total_shares
 			FROM staker_operator
 			WHERE 
 				operator = @operatorAddress
-				AND DATE(snapshot) = @date
+				AND DATE(snapshot) >= @startDate
+				AND DATE(snapshot) <= @endDate
 				AND strategy != '0x0000000000000000000000000000000000000000'
 			GROUP BY strategy, token
 		),
@@ -283,7 +294,8 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 	var results []*OperatorStrategyApr
 	res = ads.db.Raw(query,
 		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("date", parsedDate.Format("2006-01-02")),
+		sql.Named("startDate", startDate.Format("2006-01-02")),
+		sql.Named("endDate", endDate.Format("2006-01-02")),
 		sql.Named("supportedRewardTokens", pq.Array(supportedRewardTokens)),
 	).Scan(&results)
 
@@ -291,76 +303,28 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		return nil, res.Error
 	}
 
-	todayQuery := `
-		WITH strategy_token_rewards AS (
-			SELECT 
-				strategy,
-				token,
-				-- Use rewards directly (assumes database contains net staker rewards after commission)
-				SUM(amount::numeric) as daily_rewards,
-				MAX(shares::numeric) as total_shares
-			FROM staker_operator
-			WHERE 
-				operator = @operatorAddress
-				AND DATE(snapshot) = @date
-				AND strategy != '0x0000000000000000000000000000000000000000'
-			GROUP BY strategy, token
-		),
-		strategy_aggregated AS (
-			SELECT 
-				strategy,
-				SUM(
-					CASE 
-						WHEN token = ANY(@supportedRewardTokens) 
-						THEN (daily_rewards / POWER(10, 18)) * (
-							CASE token
-								` + ads.buildTokenPriceCases(todayTokenPrices) + `
-								ELSE 0
-							END
-						)
-						ELSE 0 
-					END
-				) as daily_rewards_in_eth,
-				(
-					CASE strategy
-						` + ads.buildStrategyAmountCases(strategyAmounts) + `
-						ELSE MAX(total_shares)
-					END
-				) / POWER(10, 18) * (
-					CASE strategy
-						` + ads.buildStrategyPriceCases(todayStrategyPrices) + `
-						ELSE 1.0
-					END
-				) as total_shares_in_eth
-			FROM strategy_token_rewards
-			GROUP BY strategy
-		)
-		SELECT 
-			strategy,
-			CASE 
-				WHEN total_shares_in_eth > 0 
-				THEN ROUND(((daily_rewards_in_eth / total_shares_in_eth) * 365 * 100)::numeric, 4)::text
-				ELSE '0'
-			END as apr
-		FROM strategy_aggregated
-		WHERE total_shares_in_eth > 0
-		ORDER BY strategy
-	`
-	var todayResults []*OperatorStrategyApr
-	res = ads.db.Raw(todayQuery,
-		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("date", todayDateDB),
-		sql.Named("supportedRewardTokens", pq.Array(supportedRewardTokens)),
-	).Scan(&todayResults)
-
-	if res.Error != nil {
-		return nil, res.Error
-	}
-
-	ads.logger.Sugar().Infow("APR Results for 2 days ago",
-		"comparisonDate", todayDate,
-		"comparisonDateDB", todayDateDB,
-		"results", todayResults,
+	// Log detailed APR calculation components for debugging
+	ads.logger.Sugar().Infow("APR Calculation Debug Info",
+		"date", parsedDate.Format("2006-01-02"),
+		"operatorAddress", operatorAddress,
+		"strategyShares", func() map[string]string {
+			result := make(map[string]string)
+			for strategy, shares := range strategyShares {
+				result[strategy] = shares.String()
+			}
+			return result
+		}(),
+		"strategyAmounts", func() map[string]string {
+			result := make(map[string]string)
+			for strategy, amount := range strategyAmounts {
+				result[strategy] = amount.String()
+			}
+			return result
+		}(),
+		"tokenPrices", tokenPrices,
+		"strategyPrices", strategyPrices,
+		"supportedRewardTokens", supportedRewardTokens,
+		"aprResults", results,
 	)
 
 	return results, nil
