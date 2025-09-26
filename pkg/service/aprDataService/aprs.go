@@ -192,6 +192,24 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		return nil, fmt.Errorf("failed to fetch strategy prices: %w", err)
 	}
 
+	// For comparison: fetch today's prices to see what APR would be with current prices
+	todayDate := time.Now().Format("02-01-2006")
+	ads.logger.Sugar().Infow("Fetching today's prices for APR comparison",
+		"requestedDate", coingeckoDate,
+		"todayDate", todayDate,
+	)
+
+	var todayErr, todayStrategyErr error
+	todayTokenPrices, todayErr := ads.fetchETHPrices(ctx, tokens, tokenToCoinGeckoID, todayDate, "token (today)")
+	if todayErr != nil {
+		ads.logger.Sugar().Warnw("Failed to fetch today's token prices for comparison", "error", todayErr)
+	}
+
+	todayStrategyPrices, todayStrategyErr := ads.fetchETHPrices(ctx, strategies, strategyToCoinGeckoID, todayDate, "strategy (today)")
+	if todayStrategyErr != nil {
+		ads.logger.Sugar().Warnw("Failed to fetch today's strategy prices for comparison", "error", todayStrategyErr)
+	}
+
 	// Build and execute query - TypeScript-style: Use rewards as-is (assumes database contains net staker rewards)
 	query := `
 		WITH strategy_token_rewards AS (
@@ -268,6 +286,74 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 	if res.Error != nil {
 		return nil, res.Error
 	}
+
+	todayQuery := `
+		WITH strategy_token_rewards AS (
+			SELECT 
+				strategy,
+				token,
+				-- Use rewards directly (assumes database contains net staker rewards after commission)
+				SUM(amount::numeric) as daily_rewards,
+				MAX(shares::numeric) as total_shares
+			FROM staker_operator
+			WHERE 
+				operator = @operatorAddress
+				AND DATE(snapshot) = @date
+				AND strategy != '0x0000000000000000000000000000000000000000'
+			GROUP BY strategy, token
+		),
+		strategy_aggregated AS (
+			SELECT 
+				strategy,
+				SUM(
+					CASE 
+						WHEN token = ANY(@supportedRewardTokens) 
+						THEN (daily_rewards / POWER(10, 18)) * (
+							CASE token
+								` + ads.buildTokenPriceCases(todayTokenPrices) + `
+								ELSE 0
+							END
+						)
+						ELSE 0 
+					END
+				) as daily_rewards_in_eth,
+				(
+					CASE strategy
+						` + ads.buildStrategyAmountCases(strategyAmounts) + `
+						ELSE MAX(total_shares)
+					END
+				) / POWER(10, 18) * (
+					CASE strategy
+						` + ads.buildStrategyPriceCases(todayStrategyPrices) + `
+						ELSE 1.0
+					END
+				) as total_shares_in_eth
+			FROM strategy_token_rewards
+			GROUP BY strategy
+		)
+		SELECT 
+			strategy,
+			CASE 
+				WHEN total_shares_in_eth > 0 
+				THEN ROUND(((daily_rewards_in_eth / total_shares_in_eth) * 365 * 100)::numeric, 4)::text
+				ELSE '0'
+			END as apr
+		FROM strategy_aggregated
+		WHERE total_shares_in_eth > 0
+		ORDER BY strategy
+	`
+	var todayResults []*OperatorStrategyApr
+	res = ads.db.Raw(todayQuery,
+		sql.Named("operatorAddress", operatorAddress),
+		sql.Named("date", todayDate),
+		sql.Named("supportedRewardTokens", pq.Array(supportedRewardTokens)),
+	).Scan(&todayResults)
+
+	if res.Error != nil {
+		return nil, res.Error
+	}
+
+	ads.logger.Sugar().Infow("Today's APR Results", "results", todayResults)
 
 	return results, nil
 }
