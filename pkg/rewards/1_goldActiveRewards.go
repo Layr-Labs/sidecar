@@ -15,7 +15,7 @@ create table {{.destTableName}} as
 WITH active_rewards_modified as (
     SELECT *,
            amount/(duration/86400) as tokens_per_day,
-           cast(@cutoffDate AS TIMESTAMP(6)) as global_end_inclusive -- Inclusive means we DO USE this day as a snapshot
+           cast(@cutoffDate AS TIMESTAMP(6)) + INTERVAL '1 day' - INTERVAL '1 second' as global_end_inclusive -- Use end of cutoff day to include all rewards ending on cutoff date
     FROM combined_rewards
         WHERE
     		end_timestamp >= TIMESTAMP '{{.rewardsStart}}'
