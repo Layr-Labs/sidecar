@@ -64,13 +64,36 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		return nil, fmt.Errorf("invalid date format: %v", err)
 	}
 
+	// First, let's check what reward types actually exist in the database for debugging
+	rewardTypesQuery := `
+		SELECT DISTINCT reward_type 
+		FROM staker_operator 
+		WHERE operator = @operatorAddress 
+		AND DATE(snapshot) = @date
+		ORDER BY reward_type
+	`
+	var existingRewardTypes []string
+	dbRes := ads.db.Raw(rewardTypesQuery,
+		sql.Named("operatorAddress", operatorAddress),
+		sql.Named("date", parsedDate.Format("2006-01-02")),
+	).Scan(&existingRewardTypes)
+
+	if dbRes.Error == nil {
+		ads.logger.Sugar().Infow("Found reward types in database for debugging",
+			"inputDate", date,
+			"parsedDate", parsedDate.Format("2006-01-02"),
+			"existingRewardTypes", existingRewardTypes,
+			"expectedRewardTypes", []string{"rfaeOperator", "rfaeStaker", "stakerReward", "operatorReward", "stakerOpsetReward", "operatorOpsetReward", "avsOpsetReward"},
+		)
+	}
+
 	ads.logger.Sugar().Infow("Using single date for APR calculation with reward type filtering (matching TypeScript)",
 		"inputDate", date,
 		"parsedDate", parsedDate.Format("2006-01-02"),
 		"rewardTypes", []string{"rfaeOperator", "rfaeStaker", "stakerReward", "operatorReward", "stakerOpsetReward", "operatorOpsetReward", "avsOpsetReward"},
 	)
 
-	// Check if data exists for the single date
+	// Check if data exists for the single date (temporarily without reward type filtering)
 	var count int64
 	dataCheckQuery := `
 		SELECT COUNT(*) 
@@ -78,7 +101,6 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		WHERE operator = @operatorAddress 
 		AND DATE(snapshot) = @date
 		AND strategy != '0x0000000000000000000000000000000000000000'
-		AND reward_type IN ('rfaeOperator', 'rfaeStaker', 'stakerReward', 'operatorReward', 'stakerOpsetReward', 'operatorOpsetReward', 'avsOpsetReward')
 	`
 
 	res := ads.db.Raw(dataCheckQuery,
@@ -98,14 +120,13 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		return []*OperatorStrategyApr{}, nil
 	}
 
-	// Get strategies and tokens for this date
+	// Get strategies and tokens for this date (temporarily without reward type filtering)
 	strategiesQuery := `
 		SELECT DISTINCT strategy 
 		FROM staker_operator 
 		WHERE operator = @operatorAddress 
 		AND DATE(snapshot) = @date
 		AND strategy != '0x0000000000000000000000000000000000000000'
-		AND reward_type IN ('rfaeOperator', 'rfaeStaker', 'stakerReward', 'operatorReward', 'stakerOpsetReward', 'operatorOpsetReward', 'avsOpsetReward')
 	`
 
 	var strategies []string
@@ -118,14 +139,13 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		return nil, res.Error
 	}
 
-	// Get unique tokens
+	// Get unique tokens (temporarily without reward type filtering)
 	tokensQuery := `
 		SELECT DISTINCT token 
 		FROM staker_operator 
 		WHERE operator = @operatorAddress 
 		AND DATE(snapshot) = @date
 		AND token != '0x0000000000000000000000000000000000000000'
-		AND reward_type IN ('rfaeOperator', 'rfaeStaker', 'stakerReward', 'operatorReward', 'stakerOpsetReward', 'operatorOpsetReward', 'avsOpsetReward')
 	`
 
 	var tokens []string
@@ -138,7 +158,7 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		return nil, res.Error
 	}
 
-	// Get shares data for strategies
+	// Get shares data for strategies (temporarily without reward type filtering)
 	strategyShares := make(map[string]*big.Int)
 	sharesQuery := `
 		SELECT strategy, MAX(shares) as shares
@@ -146,7 +166,6 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		WHERE operator = @operatorAddress 
 		AND DATE(snapshot) = @date
 		AND strategy != '0x0000000000000000000000000000000000000000'
-		AND reward_type IN ('rfaeOperator', 'rfaeStaker', 'stakerReward', 'operatorReward', 'stakerOpsetReward', 'operatorOpsetReward', 'avsOpsetReward')
 		GROUP BY strategy
 	`
 
@@ -213,12 +232,13 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		"comparisonDateDB", todayDateDB,
 	)
 
-	// Build and execute query - single date approach with reward type filtering (matches TypeScript)
+	// Build and execute query - temporarily without reward type filtering to debug
 	query := `
 		WITH strategy_token_rewards AS (
 			SELECT 
 				strategy,
 				token,
+				reward_type,
 				-- Use rewards directly from single date
 				SUM(amount::numeric) as daily_rewards,
 				MAX(shares::numeric) as total_shares
@@ -227,12 +247,12 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 				operator = @operatorAddress
 				AND DATE(snapshot) = @date
 				AND strategy != '0x0000000000000000000000000000000000000000'
-				AND reward_type IN ('rfaeOperator', 'rfaeStaker', 'stakerReward', 'operatorReward', 'stakerOpsetReward', 'operatorOpsetReward', 'avsOpsetReward')
-			GROUP BY strategy, token
+			GROUP BY strategy, token, reward_type
 		),
 		strategy_aggregated AS (
 			SELECT 
 				strategy,
+				STRING_AGG(DISTINCT reward_type, ', ') as reward_types,
 				SUM(
 					CASE 
 						WHEN token = ANY(@supportedRewardTokens) 
@@ -261,6 +281,7 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		)
 		SELECT 
 			strategy,
+			reward_types,
 			CASE 
 				WHEN total_shares_in_eth > 0 
 				THEN ROUND(((daily_rewards_in_eth / total_shares_in_eth) * 365 * 100)::numeric, 4)::text
@@ -280,16 +301,43 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		supportedRewardTokens = append(supportedRewardTokens, "0x0000000000000000000000000000000000000000")
 	}
 
-	var results []*OperatorStrategyApr
+	// Temporary debug struct to capture reward types
+	type DebugOperatorStrategyApr struct {
+		Strategy    string `gorm:"column:strategy"`
+		RewardTypes string `gorm:"column:reward_types"`
+		Apr         string `gorm:"column:apr"`
+	}
+
+	var debugResults []DebugOperatorStrategyApr
 	res = ads.db.Raw(query,
 		sql.Named("operatorAddress", operatorAddress),
 		sql.Named("date", parsedDate.Format("2006-01-02")),
 		sql.Named("supportedRewardTokens", pq.Array(supportedRewardTokens)),
-	).Scan(&results)
+	).Scan(&debugResults)
+
+	// Convert to regular results and log reward types
+	var results []*OperatorStrategyApr
+	for _, debugResult := range debugResults {
+		results = append(results, &OperatorStrategyApr{
+			Strategy: debugResult.Strategy,
+			Apr:      debugResult.Apr,
+		})
+	}
 
 	if res.Error != nil {
 		return nil, res.Error
 	}
+
+	// Log reward types found for each strategy
+	ads.logger.Sugar().Infow("Reward types by strategy",
+		"debugResults", func() map[string]string {
+			result := make(map[string]string)
+			for _, dr := range debugResults {
+				result[dr.Strategy] = dr.RewardTypes
+			}
+			return result
+		}(),
+	)
 
 	// Log detailed APR calculation components for debugging
 	ads.logger.Sugar().Infow("APR Calculation Debug Info",
