@@ -316,16 +316,34 @@ func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddre
 	allTokenAddresses := make([]string, 0)
 
 	if len(strategyAddresses) > 0 {
+		ads.logger.Sugar().Infow("Getting underlying tokens for strategies", "strategies", strategyAddresses)
+
 		underlyingTokens, err := ads.strategyCaller.GetUnderlyingTokens(ctx, strategyAddresses)
 		if err != nil {
+			ads.logger.Sugar().Errorw("Failed to get underlying tokens", "error", err, "strategies", strategyAddresses)
 			return nil, nil, fmt.Errorf("failed to get underlying tokens: %w", err)
 		}
 
+		ads.logger.Sugar().Infow("Retrieved underlying tokens", "underlyingTokens", underlyingTokens)
+
 		for strategyAddr, tokenAddr := range underlyingTokens {
+			ads.logger.Sugar().Infow("Processing strategy",
+				"strategy", strategyAddr,
+				"underlyingToken", tokenAddr.Hex(),
+				"isZeroAddress", tokenAddr.Hex() == "0x0000000000000000000000000000000000000000",
+			)
+
 			if tokenAddr.Hex() != "0x0000000000000000000000000000000000000000" {
 				tokenAddrStr := strings.ToLower(tokenAddr.Hex())
 				strategyToToken[strings.ToLower(strategyAddr)] = tokenAddrStr
 				allTokenAddresses = append(allTokenAddresses, tokenAddrStr)
+
+				ads.logger.Sugar().Infow("Added strategy to token mapping",
+					"strategy", strings.ToLower(strategyAddr),
+					"underlyingToken", tokenAddrStr,
+				)
+			} else {
+				ads.logger.Sugar().Warnw("Strategy returned zero address for underlying token", "strategy", strategyAddr)
 			}
 		}
 	}
@@ -414,14 +432,22 @@ func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddre
 	underlyingTokenCoinGeckoMap := make(map[string]string) // underlying token -> coingecko ID
 
 	if len(deduplicatedTokens) > 0 {
+		ads.logger.Sugar().Infow("Getting CoinGecko IDs for tokens", "tokens", deduplicatedTokens)
+
 		coinGeckoIDs, err := ads.coingeckoClient.GetCoinIDsByContractAddresses(ctx, deduplicatedTokens)
 		if err != nil {
 			ads.logger.Sugar().Warnw("Failed to get CoinGecko IDs, proceeding with empty token mappings", "error", err)
+		} else {
+			ads.logger.Sugar().Infow("Retrieved CoinGecko IDs", "coinGeckoIDs", coinGeckoIDs)
 		}
+
 		for tokenAddr, coinGeckoID := range coinGeckoIDs {
 			if coinGeckoID != "" {
 				normalizedAddr := strings.ToLower(tokenAddr)
 				underlyingTokenCoinGeckoMap[normalizedAddr] = coinGeckoID
+				ads.logger.Sugar().Infow("Mapped token to CoinGecko ID", "token", normalizedAddr, "coinGeckoID", coinGeckoID)
+			} else {
+				ads.logger.Sugar().Warnw("Empty CoinGecko ID for token", "token", tokenAddr)
 			}
 		}
 	}
@@ -456,9 +482,28 @@ func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddre
 
 	// Step 3: Build strategy to CoinGecko ID mapping
 	strategyToCoinGecko := make(map[string]string)
+	ads.logger.Sugar().Infow("Building strategy to CoinGecko mapping", "strategyToToken", strategyToToken)
+
 	for strategyAddr, tokenAddr := range strategyToToken {
 		if coinGeckoID, exists := tokenToCoinGecko[tokenAddr]; exists {
 			strategyToCoinGecko[strategyAddr] = coinGeckoID
+			ads.logger.Sugar().Infow("Mapped strategy to CoinGecko ID",
+				"strategy", strategyAddr,
+				"underlyingToken", tokenAddr,
+				"coinGeckoID", coinGeckoID,
+			)
+		} else {
+			ads.logger.Sugar().Warnw("No CoinGecko ID found for strategy's underlying token",
+				"strategy", strategyAddr,
+				"underlyingToken", tokenAddr,
+				"availableTokens", func() []string {
+					keys := make([]string, 0, len(tokenToCoinGecko))
+					for k := range tokenToCoinGecko {
+						keys = append(keys, k)
+					}
+					return keys
+				}(),
+			)
 		}
 	}
 
