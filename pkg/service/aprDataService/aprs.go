@@ -64,34 +64,26 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		return nil, fmt.Errorf("invalid date format: %v", err)
 	}
 
-	// Create 7-day date range ending on the specified date (like TypeScript)
-	// TypeScript uses: startDate = today - 9, endDate = today - 2  (7-day range)
-	// We'll use: startDate = date - 6, endDate = date (7-day range)
-	startDate := parsedDate.AddDate(0, 0, -9)
-	endDate := parsedDate.AddDate(0, 0, -2)
-
-	ads.logger.Sugar().Infow("Using date range for APR calculation",
+	ads.logger.Sugar().Infow("Using single date for APR calculation with reward type filtering (matching TypeScript)",
 		"inputDate", date,
-		"startDate", startDate.Format("2006-01-02"),
-		"endDate", endDate.Format("2006-01-02"),
-		"rangeDays", 7,
+		"parsedDate", parsedDate.Format("2006-01-02"),
+		"rewardTypes", []string{"rfaeOperator", "rfaeStaker", "stakerReward", "operatorReward", "stakerOpsetReward", "operatorOpsetReward", "avsOpsetReward"},
 	)
 
-	// Check if data exists in the date range
+	// Check if data exists for the single date
 	var count int64
 	dataCheckQuery := `
 		SELECT COUNT(*) 
 		FROM staker_operator 
 		WHERE operator = @operatorAddress 
-		AND DATE(snapshot) >= @startDate
-		AND DATE(snapshot) <= @endDate
+		AND DATE(snapshot) = @date
 		AND strategy != '0x0000000000000000000000000000000000000000'
+		AND reward_type IN ('rfaeOperator', 'rfaeStaker', 'stakerReward', 'operatorReward', 'stakerOpsetReward', 'operatorOpsetReward', 'avsOpsetReward')
 	`
 
 	res := ads.db.Raw(dataCheckQuery,
 		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("startDate", startDate.Format("2006-01-02")),
-		sql.Named("endDate", endDate.Format("2006-01-02")),
+		sql.Named("date", parsedDate.Format("2006-01-02")),
 	).Count(&count)
 
 	if res.Error != nil {
@@ -106,21 +98,20 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		return []*OperatorStrategyApr{}, nil
 	}
 
-	// Get strategies and tokens for this date range
+	// Get strategies and tokens for this date
 	strategiesQuery := `
 		SELECT DISTINCT strategy 
 		FROM staker_operator 
 		WHERE operator = @operatorAddress 
-		AND DATE(snapshot) >= @startDate
-		AND DATE(snapshot) <= @endDate
+		AND DATE(snapshot) = @date
 		AND strategy != '0x0000000000000000000000000000000000000000'
+		AND reward_type IN ('rfaeOperator', 'rfaeStaker', 'stakerReward', 'operatorReward', 'stakerOpsetReward', 'operatorOpsetReward', 'avsOpsetReward')
 	`
 
 	var strategies []string
 	res = ads.db.Raw(strategiesQuery,
 		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("startDate", startDate.Format("2006-01-02")),
-		sql.Named("endDate", endDate.Format("2006-01-02")),
+		sql.Named("date", parsedDate.Format("2006-01-02")),
 	).Scan(&strategies)
 
 	if res.Error != nil {
@@ -132,31 +123,30 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		SELECT DISTINCT token 
 		FROM staker_operator 
 		WHERE operator = @operatorAddress 
-		AND DATE(snapshot) >= @startDate
-		AND DATE(snapshot) <= @endDate
+		AND DATE(snapshot) = @date
 		AND token != '0x0000000000000000000000000000000000000000'
+		AND reward_type IN ('rfaeOperator', 'rfaeStaker', 'stakerReward', 'operatorReward', 'stakerOpsetReward', 'operatorOpsetReward', 'avsOpsetReward')
 	`
 
 	var tokens []string
 	res = ads.db.Raw(tokensQuery,
 		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("startDate", startDate.Format("2006-01-02")),
-		sql.Named("endDate", endDate.Format("2006-01-02")),
+		sql.Named("date", parsedDate.Format("2006-01-02")),
 	).Scan(&tokens)
 
 	if res.Error != nil {
 		return nil, res.Error
 	}
 
-	// Get shares data for strategies (use MAX shares across the date range)
+	// Get shares data for strategies
 	strategyShares := make(map[string]*big.Int)
 	sharesQuery := `
 		SELECT strategy, MAX(shares) as shares
 		FROM staker_operator 
 		WHERE operator = @operatorAddress 
-		AND DATE(snapshot) >= @startDate
-		AND DATE(snapshot) <= @endDate
+		AND DATE(snapshot) = @date
 		AND strategy != '0x0000000000000000000000000000000000000000'
+		AND reward_type IN ('rfaeOperator', 'rfaeStaker', 'stakerReward', 'operatorReward', 'stakerOpsetReward', 'operatorOpsetReward', 'avsOpsetReward')
 		GROUP BY strategy
 	`
 
@@ -168,8 +158,7 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 	var sharesResults []StrategyShares
 	res = ads.db.Raw(sharesQuery,
 		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("startDate", startDate.Format("2006-01-02")),
-		sql.Named("endDate", endDate.Format("2006-01-02")),
+		sql.Named("date", parsedDate.Format("2006-01-02")),
 	).Scan(&sharesResults)
 
 	if res.Error != nil {
@@ -224,21 +213,21 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		"comparisonDateDB", todayDateDB,
 	)
 
-	// Build and execute query - TypeScript-style: Use rewards aggregated across date range
+	// Build and execute query - single date approach with reward type filtering (matches TypeScript)
 	query := `
 		WITH strategy_token_rewards AS (
 			SELECT 
 				strategy,
 				token,
-				-- Sum rewards across the date range (like TypeScript does)
+				-- Use rewards directly from single date
 				SUM(amount::numeric) as daily_rewards,
 				MAX(shares::numeric) as total_shares
 			FROM staker_operator
 			WHERE 
 				operator = @operatorAddress
-				AND DATE(snapshot) >= @startDate
-				AND DATE(snapshot) <= @endDate
+				AND DATE(snapshot) = @date
 				AND strategy != '0x0000000000000000000000000000000000000000'
+				AND reward_type IN ('rfaeOperator', 'rfaeStaker', 'stakerReward', 'operatorReward', 'stakerOpsetReward', 'operatorOpsetReward', 'avsOpsetReward')
 			GROUP BY strategy, token
 		),
 		strategy_aggregated AS (
@@ -294,8 +283,7 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 	var results []*OperatorStrategyApr
 	res = ads.db.Raw(query,
 		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("startDate", startDate.Format("2006-01-02")),
-		sql.Named("endDate", endDate.Format("2006-01-02")),
+		sql.Named("date", parsedDate.Format("2006-01-02")),
 		sql.Named("supportedRewardTokens", pq.Array(supportedRewardTokens)),
 	).Scan(&results)
 
