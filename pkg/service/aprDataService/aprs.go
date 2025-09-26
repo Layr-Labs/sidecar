@@ -308,6 +308,9 @@ func (ads *AprDataService) buildStrategyAmountCases(strategyAmounts map[string]*
 
 // buildCoinGeckoMaps dynamically builds CoinGecko ID mappings, gracefully handling unsupported tokens
 func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddresses []string, additionalTokenAddresses []string) (map[string]string, map[string]string, error) {
+	// Special hardcoded token address that should always be treated as a strategy
+	const SPECIAL_STRATEGY_TOKEN = "0xc12e4d31e92cedc1ad4c8c23dbce2c5f7cb52998"
+
 	// Step 1: Get underlying tokens for strategies
 	strategyToToken := make(map[string]string)
 	allTokenAddresses := make([]string, 0)
@@ -327,42 +330,74 @@ func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddre
 		}
 	}
 
-	// Check if additional tokens are strategy tokens (like ezSKATE) and resolve to underlying tokens
+	// Handle additional token addresses
 	resolvedTokens := make([]string, 0)
-	if len(additionalTokenAddresses) > 0 && ads.strategyCaller != nil {
-		// Try to get underlying tokens for additional token addresses
-		underlyingTokens, err := ads.strategyCaller.GetUnderlyingTokens(ctx, additionalTokenAddresses)
+	strategyTokenAddresses := make([]string, 0) // Tokens that should be treated as strategies
+	directTokenAddresses := make([]string, 0)   // Tokens that should be used directly
+
+	// Separate tokens based on whether they should be treated as strategies
+	for _, tokenAddr := range additionalTokenAddresses {
+		normalizedAddr := strings.ToLower(tokenAddr)
+		if normalizedAddr == strings.ToLower(SPECIAL_STRATEGY_TOKEN) {
+			// This address should always be treated as a strategy
+			strategyTokenAddresses = append(strategyTokenAddresses, tokenAddr)
+		} else {
+			// This address should be used directly as a token
+			directTokenAddresses = append(directTokenAddresses, tokenAddr)
+		}
+	}
+
+	// Process addresses that should be used directly as tokens
+	for _, tokenAddr := range directTokenAddresses {
+		resolvedTokens = append(resolvedTokens, strings.ToLower(tokenAddr))
+	}
+
+	// Add resolved tokens to all token addresses
+	allTokenAddresses = append(allTokenAddresses, resolvedTokens...)
+
+	// For special strategy tokens, we need to track the mapping from original to underlying
+	specialTokenMappings := make(map[string]string) // original -> underlying
+
+	// Process addresses that should be treated as strategies (use underlyingToken)
+	if len(strategyTokenAddresses) > 0 && ads.strategyCaller != nil {
+		underlyingTokens, err := ads.strategyCaller.GetUnderlyingTokens(ctx, strategyTokenAddresses)
 		if err != nil {
-			ads.logger.Sugar().Warnw("Failed to resolve additional tokens as strategies, using original addresses", "error", err)
+			ads.logger.Sugar().Warnw("Failed to resolve strategy tokens, using original addresses", "error", err)
 			// Fall back to original addresses
-			for _, tokenAddr := range additionalTokenAddresses {
-				resolvedTokens = append(resolvedTokens, strings.ToLower(tokenAddr))
+			for _, tokenAddr := range strategyTokenAddresses {
+				resolvedAddr := strings.ToLower(tokenAddr)
+				allTokenAddresses = append(allTokenAddresses, resolvedAddr)
+				specialTokenMappings[resolvedAddr] = resolvedAddr // Map to itself as fallback
 			}
 		} else {
-			for _, tokenAddr := range additionalTokenAddresses {
+			for _, tokenAddr := range strategyTokenAddresses {
 				if underlyingAddr, exists := underlyingTokens[tokenAddr]; exists && underlyingAddr.Hex() != "0x0000000000000000000000000000000000000000" {
-					// This is a strategy token (like ezSKATE), use its underlying token (SKATE)
+					// Successfully resolved to underlying token
 					resolvedAddr := strings.ToLower(underlyingAddr.Hex())
-					resolvedTokens = append(resolvedTokens, resolvedAddr)
+					originalAddr := strings.ToLower(tokenAddr)
+
+					// Add the underlying token to get its CoinGecko ID
+					allTokenAddresses = append(allTokenAddresses, resolvedAddr)
+
+					// Track mapping from original address to underlying address
+					specialTokenMappings[originalAddr] = resolvedAddr
+
 					ads.logger.Sugar().Infow("Resolved strategy token to underlying token",
 						"originalToken", tokenAddr,
 						"underlyingToken", resolvedAddr,
 					)
 				} else {
-					// Not a strategy token, use original address
-					resolvedTokens = append(resolvedTokens, strings.ToLower(tokenAddr))
+					// Failed to resolve, use original address as fallback
+					resolvedAddr := strings.ToLower(tokenAddr)
+					allTokenAddresses = append(allTokenAddresses, resolvedAddr)
+					specialTokenMappings[resolvedAddr] = resolvedAddr // Map to itself as fallback
+					ads.logger.Sugar().Warnw("Failed to resolve strategy token, using original address",
+						"originalToken", tokenAddr,
+					)
 				}
 			}
 		}
-	} else {
-		// No strategy caller available, use original addresses
-		for _, tokenAddr := range additionalTokenAddresses {
-			resolvedTokens = append(resolvedTokens, strings.ToLower(tokenAddr))
-		}
 	}
-
-	// Add resolved tokens to all token addresses
-	allTokenAddresses = append(allTokenAddresses, resolvedTokens...)
 
 	// Deduplicate tokens
 	uniqueTokens := make(map[string]bool)
@@ -376,6 +411,8 @@ func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddre
 
 	// Step 2: Get CoinGecko IDs for tokens (gracefully handle failures)
 	tokenToCoinGecko := make(map[string]string)
+	underlyingTokenCoinGeckoMap := make(map[string]string) // underlying token -> coingecko ID
+
 	if len(deduplicatedTokens) > 0 {
 		coinGeckoIDs, err := ads.coingeckoClient.GetCoinIDsByContractAddresses(ctx, deduplicatedTokens)
 		if err != nil {
@@ -383,8 +420,37 @@ func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddre
 		}
 		for tokenAddr, coinGeckoID := range coinGeckoIDs {
 			if coinGeckoID != "" {
-				tokenToCoinGecko[strings.ToLower(tokenAddr)] = coinGeckoID
+				normalizedAddr := strings.ToLower(tokenAddr)
+				underlyingTokenCoinGeckoMap[normalizedAddr] = coinGeckoID
 			}
+		}
+	}
+
+	// Build final tokenToCoinGecko mapping
+	// For regular tokens, map directly
+	for _, tokenAddr := range directTokenAddresses {
+		normalizedAddr := strings.ToLower(tokenAddr)
+		if coinGeckoID, exists := underlyingTokenCoinGeckoMap[normalizedAddr]; exists {
+			tokenToCoinGecko[normalizedAddr] = coinGeckoID
+		}
+	}
+
+	// For underlying tokens from strategies, also map them to CoinGecko IDs
+	for _, underlyingTokenAddr := range strategyToToken {
+		if coinGeckoID, exists := underlyingTokenCoinGeckoMap[underlyingTokenAddr]; exists {
+			tokenToCoinGecko[underlyingTokenAddr] = coinGeckoID
+		}
+	}
+
+	// For special strategy tokens, map original address to CoinGecko ID of underlying token
+	for originalAddr, underlyingAddr := range specialTokenMappings {
+		if coinGeckoID, exists := underlyingTokenCoinGeckoMap[underlyingAddr]; exists {
+			tokenToCoinGecko[originalAddr] = coinGeckoID
+			ads.logger.Sugar().Infow("Mapped special strategy token to CoinGecko ID",
+				"originalToken", originalAddr,
+				"underlyingToken", underlyingAddr,
+				"coinGeckoID", coinGeckoID,
+			)
 		}
 	}
 
@@ -395,6 +461,14 @@ func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddre
 			strategyToCoinGecko[strategyAddr] = coinGeckoID
 		}
 	}
+
+	// Log the final mappings
+	ads.logger.Sugar().Infow("buildCoinGeckoMaps results",
+		"strategyToCoinGecko", strategyToCoinGecko,
+		"tokenToCoinGecko", tokenToCoinGecko,
+		"strategyCount", len(strategyToCoinGecko),
+		"tokenCount", len(tokenToCoinGecko),
+	)
 
 	return strategyToCoinGecko, tokenToCoinGecko, nil
 }
