@@ -311,26 +311,12 @@ func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddre
 	// Special hardcoded token address that should always be treated as a strategy
 	const SPECIAL_STRATEGY_TOKEN = "0xc12e4d31e92cedc1ad4c8c23dbce2c5f7cb52998"
 
-	// Hardcoded strategy overrides for cases where underlyingToken doesn't return the desired token
-	strategyOverrides := map[string]string{
-		"0xacb55c530acdb2849e6d4f36992cd8c9d50ed8f7": "0xec53bf9167f50cdeb3ae105f56099aaab9061f83", // EIGEN strategy override
-	}
-
-	// Hardcoded token overrides for special strategy tokens
-	tokenOverrides := map[string]string{
-		"0xc12e4d31e92cedc1ad4c8c23dbce2c5f7cb52998": "0x61dbbbb552dc893ab3aad09f289f811e67cef285", // Special strategy token override
-	}
-
 	// Step 1: Get underlying tokens for strategies
 	strategyToToken := make(map[string]string)
 	allTokenAddresses := make([]string, 0)
 
 	if len(strategyAddresses) > 0 {
-		ads.logger.Sugar().Infow("Getting underlying tokens for strategies",
-			"strategies", strategyAddresses,
-			"strategyOverrides", strategyOverrides,
-			"tokenOverrides", tokenOverrides,
-		)
+		ads.logger.Sugar().Infow("Getting underlying tokens for strategies", "strategies", strategyAddresses)
 
 		underlyingTokens, err := ads.strategyCaller.GetUnderlyingTokens(ctx, strategyAddresses)
 		if err != nil {
@@ -341,35 +327,11 @@ func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddre
 		ads.logger.Sugar().Infow("Retrieved underlying tokens", "underlyingTokens", underlyingTokens)
 
 		for strategyAddr, tokenAddr := range underlyingTokens {
-			normalizedStrategyAddr := strings.ToLower(strategyAddr)
-
-			// Check for hardcoded overrides first
-			var finalTokenAddr string
-			if overrideToken, hasOverride := strategyOverrides[normalizedStrategyAddr]; hasOverride {
-				finalTokenAddr = strings.ToLower(overrideToken)
-				ads.logger.Sugar().Infow("Using hardcoded override for strategy",
-					"strategy", strategyAddr,
-					"contractUnderlyingToken", tokenAddr.Hex(),
-					"overrideToken", finalTokenAddr,
-				)
-			} else if tokenAddr.Hex() != "0x0000000000000000000000000000000000000000" {
-				finalTokenAddr = strings.ToLower(tokenAddr.Hex())
-				ads.logger.Sugar().Infow("Using contract underlying token for strategy",
-					"strategy", strategyAddr,
-					"underlyingToken", finalTokenAddr,
-				)
-			} else {
-				ads.logger.Sugar().Warnw("Strategy returned zero address for underlying token", "strategy", strategyAddr)
-				continue
+			if tokenAddr.Hex() != "0x0000000000000000000000000000000000000000" {
+				tokenAddrStr := strings.ToLower(tokenAddr.Hex())
+				strategyToToken[strings.ToLower(strategyAddr)] = tokenAddrStr
+				allTokenAddresses = append(allTokenAddresses, tokenAddrStr)
 			}
-
-			strategyToToken[normalizedStrategyAddr] = finalTokenAddr
-			allTokenAddresses = append(allTokenAddresses, finalTokenAddr)
-
-			ads.logger.Sugar().Infow("Added strategy to token mapping",
-				"strategy", normalizedStrategyAddr,
-				"finalToken", finalTokenAddr,
-			)
 		}
 	}
 
@@ -414,36 +376,24 @@ func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddre
 			}
 		} else {
 			for _, tokenAddr := range strategyTokenAddresses {
-				originalAddr := strings.ToLower(tokenAddr)
-
-				// Check for token overrides first
-				var finalTokenAddr string
-				if overrideToken, hasOverride := tokenOverrides[originalAddr]; hasOverride {
-					finalTokenAddr = strings.ToLower(overrideToken)
-					ads.logger.Sugar().Infow("Using hardcoded token override for special strategy token",
-						"originalToken", tokenAddr,
-						"overrideToken", finalTokenAddr,
-					)
-				} else if underlyingAddr, exists := underlyingTokens[tokenAddr]; exists && underlyingAddr.Hex() != "0x0000000000000000000000000000000000000000" {
+				if underlyingAddr, exists := underlyingTokens[tokenAddr]; exists && underlyingAddr.Hex() != "0x0000000000000000000000000000000000000000" {
 					// Successfully resolved to underlying token
-					finalTokenAddr = strings.ToLower(underlyingAddr.Hex())
+					resolvedAddr := strings.ToLower(underlyingAddr.Hex())
+					resolvedTokens = append(resolvedTokens, resolvedAddr)
+					specialTokenMappings[strings.ToLower(tokenAddr)] = resolvedAddr
 					ads.logger.Sugar().Infow("Resolved strategy token to underlying token",
 						"originalToken", tokenAddr,
-						"underlyingToken", finalTokenAddr,
+						"underlyingToken", resolvedAddr,
 					)
 				} else {
 					// Failed to resolve, use original address as fallback
-					finalTokenAddr = originalAddr
+					resolvedAddr := strings.ToLower(tokenAddr)
+					resolvedTokens = append(resolvedTokens, resolvedAddr)
+					specialTokenMappings[resolvedAddr] = resolvedAddr
 					ads.logger.Sugar().Warnw("Failed to resolve strategy token, using original address",
 						"originalToken", tokenAddr,
 					)
 				}
-
-				// Add the final token to get its CoinGecko ID
-				allTokenAddresses = append(allTokenAddresses, finalTokenAddr)
-
-				// Track mapping from original address to final token address
-				specialTokenMappings[originalAddr] = finalTokenAddr
 			}
 		}
 	}
@@ -537,6 +487,12 @@ func (ads *AprDataService) buildCoinGeckoMaps(ctx context.Context, strategyAddre
 			)
 		}
 	}
+
+	// Add direct CoinGecko ID mappings
+	strategyToCoinGecko["0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0"] = "ethereum"   // Beacon Chain ETH strategy -> ethereum
+	strategyToCoinGecko["0xacb55c530acdb2849e6d4f36992cd8c9d50ed8f7"] = "eigenlayer" // EIGEN strategy -> [fill in CoinGecko ID]
+
+	tokenToCoinGecko["0xc12e4d31e92cedc1ad4c8c23dbce2c5f7cb52998"] = "skate" // Special strategy token -> [fill in CoinGecko ID]
 
 	// Log the final mappings
 	ads.logger.Sugar().Infow("buildCoinGeckoMaps results",
