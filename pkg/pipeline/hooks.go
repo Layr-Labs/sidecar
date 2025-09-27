@@ -22,15 +22,17 @@ func (p *Pipeline) HandleBlockProcessedHook(
 	logs []*storage.TransactionLog,
 	stateRoot *stateManager.StateRoot,
 	committedState map[string][]interface{},
+	metaCommittedState map[string][]interface{},
 ) {
 	p.eventBus.Publish(&eventBusTypes.Event{
 		Name: eventBusTypes.Event_BlockProcessed,
 		Data: &eventBusTypes.BlockProcessedData{
-			Block:          block,
-			Transactions:   transactions,
-			Logs:           logs,
-			StateRoot:      stateRoot,
-			CommittedState: committedState,
+			Block:              block,
+			Transactions:       transactions,
+			Logs:               logs,
+			StateRoot:          stateRoot,
+			CommittedState:     committedState,
+			MetaCommittedState: metaCommittedState,
 		},
 	})
 }
