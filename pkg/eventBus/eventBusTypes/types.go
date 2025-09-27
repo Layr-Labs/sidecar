@@ -4,9 +4,10 @@ package eventBusTypes
 
 import (
 	"context"
+	"sync"
+
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
-	"sync"
 )
 
 // EventName is a string type that identifies different types of events.
@@ -111,4 +112,6 @@ type BlockProcessedData struct {
 	StateRoot *stateManager.StateRoot
 	// CommittedState contains the committed state changes
 	CommittedState map[string][]interface{}
+	// MetaCommittedState contains metaState changes (separate from eigenState)
+	MetaCommittedState map[string][]interface{}
 }

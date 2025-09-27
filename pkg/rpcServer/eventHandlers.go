@@ -200,6 +200,12 @@ func (rpc *RpcServer) buildBlockResponse(blockData *eventBusTypes.BlockProcessed
 			return nil, err
 		}
 		resp.Changes = changes
+
+		metaChanges, err := rpc.parseMetaCommittedChanges(blockData.MetaCommittedState)
+		if err != nil {
+			return nil, err
+		}
+		resp.MetaChanges = metaChanges
 	}
 	return resp, nil
 }
