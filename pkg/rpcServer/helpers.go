@@ -2,7 +2,9 @@ package rpcServer
 
 import (
 	"fmt"
+
 	v1EigenState "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/eigenState"
+	v1MetaState "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/metaState"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/avsOperators"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/completedSlashingWithdrawals"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/defaultOperatorSplits"
@@ -28,6 +30,8 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/submittedDistributionRoots"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
+	"github.com/Layr-Labs/sidecar/pkg/metaState/generationReservationCreated"
+	metaTypes "github.com/Layr-Labs/sidecar/pkg/metaState/types"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -188,6 +192,26 @@ func (rpc *RpcServer) parseCommittedChanges(committedStateByModel map[string][]i
 				})
 			default:
 				rpc.Logger.Sugar().Debugw("Unknown model name", "modelName", modelName)
+			}
+		}
+	}
+	return parsedChanges, nil
+}
+
+func (rpc *RpcServer) parseMetaCommittedChanges(metaCommittedStateByModel map[string][]interface{}) ([]*v1MetaState.MetaStateChange, error) {
+	parsedChanges := make([]*v1MetaState.MetaStateChange, 0)
+
+	for modelName, changes := range metaCommittedStateByModel {
+		for _, change := range changes {
+			switch modelName {
+			case generationReservationCreated.GenerationReservationCreatedModelName:
+				parsedChanges = append(parsedChanges, &v1MetaState.MetaStateChange{
+					Change: &v1MetaState.MetaStateChange_GenerationReservationCreated{
+						GenerationReservationCreated: convertMetaGenerationReservationCreatedToEventType(change),
+					},
+				})
+			default:
+				rpc.Logger.Sugar().Debugw("Unknown metaState model name", "modelName", modelName)
 			}
 		}
 	}
@@ -586,6 +610,19 @@ func convertOperatorMaxMagnitudeToStateChange(change interface{}) *v1EigenState.
 		Strategy:     typedChange.Strategy,
 		MaxMagnitude: typedChange.MaxMagnitude,
 		TransactionMetadata: &v1EigenState.TransactionMetadata{
+			TransactionHash: typedChange.TransactionHash,
+			LogIndex:        typedChange.LogIndex,
+			BlockHeight:     typedChange.BlockNumber,
+		},
+	}
+}
+
+func convertMetaGenerationReservationCreatedToEventType(change interface{}) *v1MetaState.GenerationReservationCreated {
+	typedChange := change.(*metaTypes.GenerationReservationCreated)
+	return &v1MetaState.GenerationReservationCreated{
+		Avs:           typedChange.Avs,
+		OperatorSetId: typedChange.OperatorSetId,
+		TransactionMetadata: &v1MetaState.TransactionMetadata{
 			TransactionHash: typedChange.TransactionHash,
 			LogIndex:        typedChange.LogIndex,
 			BlockHeight:     typedChange.BlockNumber,
