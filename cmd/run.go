@@ -3,12 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/tracer"
 	"github.com/Layr-Labs/sidecar/pkg/coreContracts"
 	coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations"
 	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-	"log"
-	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/version"
@@ -20,6 +21,7 @@ import (
 	etherscanClient "github.com/Layr-Labs/sidecar/pkg/clients/etherscan"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
+	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialStrategyCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
@@ -38,6 +40,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
+	"github.com/Layr-Labs/sidecar/pkg/service/aprDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/slashingDataService"
@@ -152,6 +155,7 @@ var runCmd = &cobra.Command{
 		fetchr := fetcher.NewFetcher(client, &fetcher.FetcherConfig{UseGetBlockReceipts: cfg.EthereumRpcConfig.UseGetBlockReceipts}, contractStore, l)
 
 		cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, cfg.EthereumRpcConfig.ContractCallBatchSize, l)
+		sc := sequentialStrategyCaller.NewSequentialStrategyCaller(client, l)
 
 		idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 
@@ -169,6 +173,7 @@ var runCmd = &cobra.Command{
 		pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 		rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
 		sds := slashingDataService.NewSlashingDataService(grm, l, cfg)
+		ads := aprDataService.NewAprDataService(grm, l, cfg, sc)
 
 		go rcq.Process()
 
@@ -187,7 +192,7 @@ var runCmd = &cobra.Command{
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
 			HttpPort: cfg.RpcConfig.HttpPort,
-		}, mds, contractStore, cm, rc, rcq, eb, rps, pds, rds, sds, scc, sink, l, cfg)
+		}, mds, contractStore, cm, rc, rcq, eb, rps, pds, rds, sds, ads, scc, sink, l, cfg)
 
 		// RPC channel to notify the RPC server to shutdown gracefully
 		rpcChannel := make(chan bool)

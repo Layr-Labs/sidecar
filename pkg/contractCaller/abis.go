@@ -108,3 +108,38 @@ const AvsServiceManagerAbi = ` [
     "stateMutability": "nonpayable"
   }
 ]`
+
+const StrategyAbi = `[
+  {
+    "type": "function",
+    "name": "sharesToUnderlying",
+    "inputs": [
+      {
+        "name": "shares",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "underlyingToken",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  }
+]`

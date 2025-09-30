@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"github.com/Layr-Labs/sidecar/pkg/coreContracts"
 	coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
+	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialStrategyCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
@@ -31,6 +33,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
+	"github.com/Layr-Labs/sidecar/pkg/service/aprDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/slashingDataService"
@@ -134,6 +137,9 @@ func main() {
 	rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
 	sds := slashingDataService.NewSlashingDataService(grm, l, cfg)
 
+	sc := sequentialStrategyCaller.NewSequentialStrategyCaller(client, l)
+	ads := aprDataService.NewAprDataService(grm, l, cfg, sc)
+
 	scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)
 	if err != nil {
 		l.Sugar().Fatalw("Failed to create sidecar client", zap.Error(err))
@@ -147,7 +153,7 @@ func main() {
 	rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 		GrpcPort: cfg.RpcConfig.GrpcPort,
 		HttpPort: cfg.RpcConfig.HttpPort,
-	}, mds, contractStore, cm, rc, rcq, eb, rps, pds, rds, sds, scc, sdc, l, cfg)
+	}, mds, contractStore, cm, rc, rcq, eb, rps, pds, rds, sds, ads, scc, sdc, l, cfg)
 
 	// RPC channel to notify the RPC server to shutdown gracefully
 	rpcChannel := make(chan bool)
