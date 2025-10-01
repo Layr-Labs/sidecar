@@ -157,6 +157,7 @@ type Config struct {
 	RestoreSnapshotConfig RestoreSnapshotConfig
 	RpcConfig             RpcConfig
 	Chain                 Chain
+	IsL2                  bool // Whether this is an L2 network (true) or L1 (false)
 	Rewards               RewardsConfig
 	DataDogConfig         DataDogConfig
 	PrometheusConfig      PrometheusConfig
@@ -185,6 +186,7 @@ func StringWithDefaults(values ...string) string {
 
 var (
 	Debug               = "debug"
+	IsL2                = "is-l2"
 	DatabaseHost        = "database.host"
 	DatabasePort        = "database.port"
 	DatabaseUser        = "database.user"
@@ -249,6 +251,7 @@ func NewConfig() *Config {
 	return &Config{
 		Debug: viper.GetBool(normalizeFlagName("debug")),
 		Chain: Chain(StringWithDefault(viper.GetString(normalizeFlagName("chain")), "holesky")),
+		IsL2:  viper.GetBool(normalizeFlagName(IsL2)),
 
 		EthereumRpcConfig: EthereumRpcConfig{
 			BaseUrl:               viper.GetString(normalizeFlagName(EthereumRpcBaseUrl)),
