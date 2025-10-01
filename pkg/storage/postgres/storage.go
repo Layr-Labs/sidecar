@@ -161,6 +161,11 @@ func (s *PostgresBlockStore) GetLatestBlock() (*storage.Block, error) {
 	if result.Error != nil {
 		return nil, fmt.Errorf("Failed to get latest block: %w", result.Error)
 	}
+
+	if result.RowsAffected == 0 {
+		return nil, nil
+	}
+
 	return block, nil
 }
 
