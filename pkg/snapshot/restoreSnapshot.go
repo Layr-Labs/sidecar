@@ -2,10 +2,6 @@ package snapshot
 
 import (
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/snapshot/snapshotManifest"
-	"github.com/pkg/errors"
-	"github.com/schollz/progressbar/v3"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,6 +10,11 @@ import (
 	"path"
 	"slices"
 	"strings"
+
+	"github.com/Layr-Labs/sidecar/pkg/snapshot/snapshotManifest"
+	"github.com/pkg/errors"
+	"github.com/schollz/progressbar/v3"
+	"go.uber.org/zap"
 )
 
 // defaultRestoreOptions returns the default command-line options for pg_restore.
@@ -239,6 +240,48 @@ func (ss *SnapshotService) performRestore(snapshotFile *SnapshotFile, cfg *Resto
 	return res, nil
 }
 
+// createGoldTableForSlim creates the gold_table if it doesn't exist for slim snapshots.
+// This table is excluded from slim snapshots but may be needed by the application.
+func (ss *SnapshotService) createGoldTableForSlim(cfg *RestoreSnapshotConfig) error {
+	schema := cfg.DBConfig.SchemaName
+	if schema == "" {
+		schema = "public"
+	}
+
+	createTableSQL := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %[1]s.gold_table (
+		earner varchar not null,
+		snapshot date NOT NULL,
+		reward_hash varchar not null,
+		token varchar not null,
+		amount numeric not null
+	);
+	CREATE INDEX IF NOT EXISTS idx_gold_table_earner ON %[1]s.gold_table (earner);
+	CREATE INDEX IF NOT EXISTS idx_gold_table_earner_tokens ON %[1]s.gold_table (earner, token);
+	CREATE INDEX IF NOT EXISTS idx_gold_table_reward_hash ON %[1]s.gold_table (reward_hash);
+	CREATE INDEX IF NOT EXISTS idx_gold_table_snapshot ON %[1]s.gold_table (snapshot);`, schema)
+
+	ss.logger.Sugar().Infow("Creating gold_table for slim snapshot", zap.String("schema", schema))
+
+	fullCmdPath, err := getCmdPath("psql")
+	if err != nil {
+		return fmt.Errorf("error getting psql path: %w", err)
+	}
+
+	cmdFlags := ss.pgConnectFlags(cfg.DBConfig)
+	cmdFlags = append(cmdFlags, "-c", createTableSQL)
+
+	cmd := exec.Command(fullCmdPath, cmdFlags...)
+	cmd.Env = append(cmd.Env, ss.buildPostgresEnvVars(cfg.DBConfig)...)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error creating gold_table: %w, output: %s", err, string(output))
+	}
+
+	ss.logger.Sugar().Infow("Successfully created gold_table for slim snapshot")
+	return nil
+}
+
 // RestoreFromSnapshot restores a database from a snapshot according to the provided configuration.
 // It can download a snapshot from a URL or use a local snapshot file.
 // If no input is provided, it attempts to find a compatible snapshot in the manifest.
@@ -318,5 +361,13 @@ func (ss *SnapshotService) RestoreFromSnapshot(cfg *RestoreSnapshotConfig) error
 		)
 		return fmt.Errorf("error restoring snapshot %s", res.Error.CmdOutput)
 	}
+
+	// For slim snapshots, create gold_table since it's excluded from the snapshot
+	if cfg.Kind == Kind_Slim {
+		if err := ss.createGoldTableForSlim(cfg); err != nil {
+			ss.logger.Sugar().Warnw("Failed to create gold_table for slim snapshot", zap.Error(err))
+		}
+	}
+
 	return nil
 }
