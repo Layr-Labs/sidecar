@@ -20,7 +20,7 @@ latest_share_snapshots AS (
     MAX(sss.snapshot) as latest_share_snapshot
   FROM {{.activeRewardsTable}} ap
   CROSS JOIN (SELECT DISTINCT snapshot, strategy FROM staker_share_snapshots) sss
-  WHERE ap.reward_type = 'all_stakers'
+  WHERE ap.reward_type = 'all_earners'
     AND sss.strategy = ap.strategy
     AND sss.snapshot <= ap.snapshot
   GROUP BY ap.reward_hash, ap.snapshot, ap.strategy
@@ -45,7 +45,7 @@ reward_snapshot_stakers AS (
   JOIN staker_share_snapshots sss ON
     sss.strategy = lss.strategy AND
     sss.snapshot = lss.latest_share_snapshot
-  WHERE ap.reward_type = 'all_stakers'
+  WHERE ap.reward_type = 'all_earners'
   -- Parse out negative shares and zero multiplier so there is no division by zero case
   AND sss.shares > 0 and ap.multiplier != 0
 ),
