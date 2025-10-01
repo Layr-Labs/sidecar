@@ -88,3 +88,28 @@ func (msm *MetaStateManager) CommitFinalState(blockNumber uint64) (map[string][]
 	}
 	return committedState, nil
 }
+
+// DeleteCorruptedState deletes meta state stored that may be incomplete or corrupted
+//
+// @param startBlock the block number to start deleting state from (inclusive)
+// @param endBlock the block number to end deleting state from (inclusive). If 0, delete all state from startBlock.
+func (msm *MetaStateManager) DeleteCorruptedState(startBlock uint64, endBlock uint64) error {
+	for _, model := range msm.metaStateModels {
+		err := model.DeleteState(startBlock, endBlock)
+		if err != nil {
+			msm.logger.Sugar().Errorw("Failed to delete corrupted state from meta state model",
+				"startBlock", startBlock,
+				"endBlock", endBlock,
+				"model", model.ModelName(),
+				"error", err,
+			)
+			return err
+		}
+		msm.logger.Sugar().Infow("Successfully deleted corrupted state from meta state model",
+			"startBlock", startBlock,
+			"endBlock", endBlock,
+			"model", model.ModelName(),
+		)
+	}
+	return nil
+}
