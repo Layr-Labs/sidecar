@@ -445,7 +445,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				zap.String("cutoffDate", cutoffDate),
 				zap.Uint64("blockNumber", blockNumber),
 			)
-			accountTree, _, _, err := p.rewardsCalculator.MerkelizeRewardsForSnapshot(cutoffDate)
+			accountTree, _, _, err := p.rewardsCalculator.MerkelizeRewardsForSnapshot(rewardsCalculationEnd)
 			if err != nil {
 				p.Logger.Sugar().Errorw("Failed to merkelize rewards for snapshot date",
 					zap.String("cutoffDate", cutoffDate), zap.Error(err),
