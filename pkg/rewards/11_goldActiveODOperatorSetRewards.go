@@ -17,7 +17,7 @@ WITH
 active_rewards_modified AS (
     SELECT 
         *,
-        CAST(@cutoffDate AS TIMESTAMP(6)) + INTERVAL '1 day' - INTERVAL '1 second' AS global_end_inclusive -- Use end of cutoff day to include all rewards ending on cutoff date
+        CAST(@cutoffDate AS TIMESTAMP(6)) AS global_end_inclusive -- Inclusive means we DO USE this day as a snapshot
     FROM operator_directed_operator_set_rewards
     WHERE end_timestamp >= TIMESTAMP '{{.rewardsStart}}'
       AND start_timestamp <= TIMESTAMP '{{.cutoffDate}}'

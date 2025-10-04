@@ -32,36 +32,23 @@ WITH combined_operators AS (
     )
   ) all_operators
 ),
-		-- Get the operators who will earn rewards for the reward submission at the given snapshot
-		reward_snapshot_operators as (
-			SELECT
-				ap.reward_hash,
-				ap.snapshot,
-				ap.token,
-				ap.tokens_per_day_decimal,
-				ap.avs,
-				ap.strategy,
-				ap.multiplier,
-				ap.reward_type,
-				ap.reward_submission_date,
-				co.operator
-			FROM {{.activeRewardsTable}} ap
-			JOIN combined_operators co
-			ON ap.snapshot = co.snapshot
-			WHERE ap.reward_type = 'all_earners'
-		),
--- Get the latest available staker delegation snapshot on or before the reward snapshot date
-latest_staker_delegation_snapshots AS (
-  SELECT 
-    rso.reward_hash,
-    rso.snapshot as reward_snapshot,
-    rso.operator,
-    MAX(sds.snapshot) as latest_delegation_snapshot
-  FROM reward_snapshot_operators rso
-  CROSS JOIN (SELECT DISTINCT snapshot, operator FROM staker_delegation_snapshots) sds
-  WHERE sds.operator = rso.operator
-    AND sds.snapshot <= rso.snapshot
-  GROUP BY rso.reward_hash, rso.snapshot, rso.operator
+-- Get the operators who will earn rewards for the reward submission at the given snapshot
+reward_snapshot_operators as (
+  SELECT
+    ap.reward_hash,
+    ap.snapshot,
+    ap.token,
+    ap.tokens_per_day_decimal,
+    ap.avs,
+    ap.strategy,
+    ap.multiplier,
+    ap.reward_type,
+    ap.reward_submission_date,
+    co.operator
+  FROM {{.activeRewardsTable}} ap
+  JOIN combined_operators co
+  ON ap.snapshot = co.snapshot
+  WHERE ap.reward_type = 'all_earners'
 ),
 -- Get the stakers that were delegated to the operator for the snapshot 
 staker_delegated_operators AS (
@@ -69,31 +56,22 @@ staker_delegated_operators AS (
     rso.*,
     sds.staker
   FROM reward_snapshot_operators rso
-  JOIN latest_staker_delegation_snapshots lds ON 
-    rso.reward_hash = lds.reward_hash AND
-    rso.snapshot = lds.reward_snapshot AND
-    rso.operator = lds.operator
-  JOIN staker_delegation_snapshots sds ON
-    sds.operator = lds.operator AND
-    sds.snapshot = lds.latest_delegation_snapshot
+  JOIN staker_delegation_snapshots sds
+  ON
+    rso.operator = sds.operator AND
+    rso.snapshot = sds.snapshot
 ),
 -- Get the shares of each strategy the staker has delegated to the operator
--- Use conservative matching for share snapshots (like Table 2 fix)
 staker_strategy_shares AS (
   SELECT
     sdo.*,
     sss.shares
   FROM staker_delegated_operators sdo
-  JOIN staker_share_snapshots sss ON
+  JOIN staker_share_snapshots sss
+  ON
     sdo.staker = sss.staker AND
-    sdo.strategy = sss.strategy AND
-    sss.snapshot = (
-      SELECT MAX(sss2.snapshot) 
-      FROM staker_share_snapshots sss2 
-      WHERE sss2.staker = sdo.staker 
-        AND sss2.strategy = sdo.strategy 
-        AND sss2.snapshot <= sdo.snapshot
-    )
+    sdo.snapshot = sss.snapshot AND
+    sdo.strategy = sss.strategy
   -- Parse out negative shares and zero multiplier so there is no division by zero case
   WHERE sss.shares > 0 and sdo.multiplier != 0
 ),

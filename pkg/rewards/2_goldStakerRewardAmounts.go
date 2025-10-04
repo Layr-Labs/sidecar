@@ -11,21 +11,7 @@ import (
 
 const _2_goldStakerRewardAmountsQuery = `
 create table {{.destTableName}} as 
-WITH 
--- Get the latest available operator AVS registration snapshot on or before the reward snapshot date
-latest_operator_avs_snapshots AS (
-  SELECT 
-    ap.reward_hash,
-    ap.snapshot as reward_snapshot,
-    ap.avs,
-    (SELECT MAX(oar.snapshot) 
-     FROM operator_avs_registration_snapshots oar 
-     WHERE oar.avs = ap.avs 
-       AND oar.snapshot <= ap.snapshot) as latest_operator_snapshot
-  FROM {{.activeRewardsTable}} ap
-  WHERE ap.reward_type = 'avs'
-),
-reward_snapshot_operators as (
+WITH reward_snapshot_operators as (
   SELECT
     ap.reward_hash,
     ap.snapshot as snapshot,
@@ -39,13 +25,9 @@ reward_snapshot_operators as (
     ap.reward_submission_date,
     oar.operator
   FROM {{.activeRewardsTable}} ap
-  JOIN latest_operator_avs_snapshots loas ON 
-    ap.reward_hash = loas.reward_hash AND
-    ap.snapshot = loas.reward_snapshot AND
-    ap.avs = loas.avs
   JOIN operator_avs_registration_snapshots oar ON
-    oar.avs = loas.avs AND
-    oar.snapshot = loas.latest_operator_snapshot
+    oar.avs = ap.avs AND
+    oar.snapshot = ap.snapshot
   WHERE ap.reward_type = 'avs'
 ),
 _operator_restaked_strategies AS (
@@ -77,16 +59,11 @@ staker_avs_strategy_shares AS (
     sdo.*,
     sss.shares
   FROM staker_delegated_operators sdo
-  JOIN staker_share_snapshots sss ON
+  JOIN staker_share_snapshots sss
+  ON
     sdo.staker = sss.staker AND
-    sdo.strategy = sss.strategy AND
-    sss.snapshot = (
-      SELECT MAX(sss2.snapshot) 
-      FROM staker_share_snapshots sss2 
-      WHERE sss2.staker = sdo.staker 
-        AND sss2.strategy = sdo.strategy 
-        AND sss2.snapshot <= sdo.snapshot
-    )
+    sdo.snapshot = sss.snapshot AND
+    sdo.strategy = sss.strategy
   -- Parse out negative shares and zero multiplier so there is no division by zero case
   WHERE sss.shares > 0 and sdo.multiplier != 0
 ),

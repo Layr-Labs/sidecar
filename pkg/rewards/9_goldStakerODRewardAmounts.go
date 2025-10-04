@@ -49,50 +49,26 @@ staker_splits AS (
        AND rso.snapshot = oas.snapshot
     LEFT JOIN default_operator_split_snapshots dos ON (rso.snapshot = dos.snapshot)
 ),
--- Get the latest available staker delegation snapshot on or before the reward snapshot date
-latest_staker_delegation_snapshots AS (
-    SELECT 
-        ors.reward_hash,
-        ors.snapshot as reward_snapshot,
-        ors.operator,
-        (SELECT MAX(sds.snapshot) 
-         FROM staker_delegation_snapshots sds 
-         WHERE sds.operator = ors.operator 
-           AND sds.snapshot <= ors.snapshot) as latest_delegation_snapshot
-    FROM staker_splits ors
-),
 -- Get the stakers that were delegated to the operator for the snapshot
 staker_delegated_operators AS (
     SELECT
         ors.*,
         sds.staker
     FROM staker_splits ors
-    JOIN latest_staker_delegation_snapshots lds ON 
-        ors.reward_hash = lds.reward_hash AND
-        ors.snapshot = lds.reward_snapshot AND
-        ors.operator = lds.operator
-    JOIN staker_delegation_snapshots sds ON
-        sds.operator = lds.operator AND
-        sds.snapshot = lds.latest_delegation_snapshot
+    JOIN staker_delegation_snapshots sds
+        ON ors.operator = sds.operator 
+       AND ors.snapshot = sds.snapshot
 ),
-
 -- Get the shares for stakers delegated to the operator
--- Use conservative matching for share snapshots (same approach as Table 5)
 staker_avs_strategy_shares AS (
     SELECT
         sdo.*,
         sss.shares
     FROM staker_delegated_operators sdo
-    JOIN staker_share_snapshots sss ON
-        sdo.staker = sss.staker AND
-        sdo.strategy = sss.strategy AND
-        sss.snapshot = (
-            SELECT MAX(sss2.snapshot) 
-            FROM staker_share_snapshots sss2 
-            WHERE sss2.staker = sdo.staker 
-              AND sss2.strategy = sdo.strategy 
-              AND sss2.snapshot <= sdo.snapshot
-        )
+    JOIN staker_share_snapshots sss
+        ON sdo.staker = sss.staker 
+       AND sdo.snapshot = sss.snapshot 
+       AND sdo.strategy = sss.strategy
     -- Filter out negative shares and zero multiplier to avoid division by zero
     WHERE sss.shares > 0 AND sdo.multiplier != 0
 ),
