@@ -11,6 +11,12 @@ type OperatorSet struct {
 	OperatorSetId uint64
 }
 
+// Standalone OperatorSet for ListOperatorSets
+type ProtocolOperatorSet struct {
+	Id  uint64
+	Avs string
+}
+
 // ListOperatorsForStaker returns operators that a staker has delegated to
 func (pds *ProtocolDataService) ListOperatorsForStaker(ctx context.Context, staker string, blockHeight uint64) ([]string, error) {
 	staker = strings.ToLower(staker)
@@ -87,6 +93,23 @@ func (pds *ProtocolDataService) ListOperatorsForAvs(ctx context.Context, avs str
 		sql.Named("avs", avs),
 		sql.Named("blockHeight", blockHeight),
 	).Scan(&operatorSets)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+
+	return operatorSets, nil
+}
+
+// ListOperatorSets returns all existing operator sets
+func (pds *ProtocolDataService) ListOperatorSets(ctx context.Context) ([]ProtocolOperatorSet, error) {
+	query := `
+		select distinct operator_set_id, avs
+		from operator_sets
+		order by operator_set_id, avs
+	`
+
+	var operatorSets []ProtocolOperatorSet
+	res := pds.db.Raw(query).Scan(&operatorSets)
 	if res.Error != nil {
 		return nil, res.Error
 	}

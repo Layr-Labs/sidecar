@@ -62,6 +62,17 @@ func (rpc *RpcServer) ListOperatorsForAvs(ctx context.Context, request *operator
 	}, nil
 }
 
+func (rpc *RpcServer) ListOperatorSets(ctx context.Context, request *operatorSetsV1.ListOperatorSetsRequest) (*operatorSetsV1.ListOperatorSetsResponse, error) {
+	operatorSets, err := rpc.protocolDataService.ListOperatorSets(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &operatorSetsV1.ListOperatorSetsResponse{
+		OperatorSets: convertProtocolOperatorSetsToProto(operatorSets),
+	}, nil
+}
+
 // convertOperatorStringsToProto converts operator address strings to protobuf Operator messages
 func convertOperatorStringsToProto(operatorAddresses []string) []*operatorSetsV1.Operator {
 	operators := make([]*operatorSetsV1.Operator, 0, len(operatorAddresses))
@@ -95,4 +106,18 @@ func convertOperatorAvsRegistrationsToProto(operatorSets []protocolDataService.O
 	}
 
 	return operators
+}
+
+// convertProtocolOperatorSetsToProto converts protocol operator sets to protobuf OperatorSet messages
+func convertProtocolOperatorSetsToProto(operatorSets []protocolDataService.ProtocolOperatorSet) []*operatorSetsV1.OperatorSet {
+	protoOperatorSets := make([]*operatorSetsV1.OperatorSet, 0, len(operatorSets))
+
+	for _, operatorSet := range operatorSets {
+		protoOperatorSets = append(protoOperatorSets, &operatorSetsV1.OperatorSet{
+			Id:  operatorSet.Id,
+			Avs: operatorSet.Avs,
+		})
+	}
+
+	return protoOperatorSets
 }
