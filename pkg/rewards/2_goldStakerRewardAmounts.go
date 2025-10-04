@@ -73,24 +73,16 @@ staker_weights AS (
     SUM(multiplier * shares) OVER (PARTITION BY staker, reward_hash, snapshot) AS staker_weight
   FROM staker_avs_strategy_shares
 ),
--- Get distinct stakers since their weights are already calculated
-distinct_stakers AS (
-  SELECT *
-  FROM (
-      SELECT *,
-        -- We can use an arbitrary order here since the staker_weight is the same for each (staker, strategy, hash, snapshot)
-        -- We use strategy ASC for better debuggability
-        ROW_NUMBER() OVER (PARTITION BY reward_hash, snapshot, staker ORDER BY strategy ASC) as rn
-      FROM staker_weights
-  ) t
-  WHERE rn = 1
-  ORDER BY reward_hash, snapshot, staker
-),
--- Calculate sum of all staker weights for each reward and snapshot
-staker_weight_sum AS (
+-- Get distinct stakers with total weights calculated efficiently
+distinct_stakers_with_totals AS (
   SELECT *,
-    SUM(staker_weight) OVER (PARTITION BY reward_hash, snapshot) as total_weight
-  FROM distinct_stakers
+    SUM(staker_weight) OVER (PARTITION BY reward_hash, snapshot) as total_weight,
+    ROW_NUMBER() OVER (PARTITION BY reward_hash, snapshot, staker ORDER BY strategy ASC) as rn
+  FROM staker_weights
+),
+-- Filter to distinct stakers only
+staker_weight_sum AS (
+  SELECT * FROM distinct_stakers_with_totals WHERE rn = 1
 ),
 -- Calculate staker proportion of tokens for each reward and snapshot
 staker_proportion AS (
