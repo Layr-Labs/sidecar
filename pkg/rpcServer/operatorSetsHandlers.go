@@ -52,13 +52,13 @@ func (rpc *RpcServer) ListOperatorsForAvs(ctx context.Context, request *operator
 		return nil, errors.New("avs address is required")
 	}
 
-	operatorRegistrations, err := rpc.protocolDataService.ListOperatorsForAvs(ctx, avsAddress, blockHeight)
+	operators, err := rpc.protocolDataService.ListOperatorsForAvs(ctx, avsAddress, blockHeight)
 	if err != nil {
 		return nil, err
 	}
 
 	return &operatorSetsV1.ListOperatorsForAvsResponse{
-		Operators: convertOperatorAvsRegistrationsToProto(operatorRegistrations),
+		Operators: convertOperatorStringsToProto(operators),
 	}, nil
 }
 
@@ -86,35 +86,13 @@ func convertOperatorStringsToProto(operatorAddresses []string) []*operatorSetsV1
 	return operators
 }
 
-// convertOperatorAvsRegistrationsToProto converts operator AVS registrations to protobuf Operator messages with operator set info
-func convertOperatorAvsRegistrationsToProto(operatorSets []protocolDataService.OperatorSet) []*operatorSetsV1.Operator {
-	operators := make([]*operatorSetsV1.Operator, 0, len(operatorSets))
-
-	for _, operatorSet := range operatorSets {
-		operator := &operatorSetsV1.Operator{
-			Operator: operatorSet.Operator,
-		}
-
-		// Always populate the operator set info since OperatorSetId is uint64 (not pointer)
-		operator.OperatorSets = []*operatorSetsV1.OperatorSet{
-			{
-				Id: operatorSet.OperatorSetId,
-			},
-		}
-
-		operators = append(operators, operator)
-	}
-
-	return operators
-}
-
 // convertProtocolOperatorSetsToProto converts protocol operator sets to protobuf OperatorSet messages
-func convertProtocolOperatorSetsToProto(operatorSets []protocolDataService.ProtocolOperatorSet) []*operatorSetsV1.OperatorSet {
+func convertProtocolOperatorSetsToProto(operatorSets []protocolDataService.OperatorSet) []*operatorSetsV1.OperatorSet {
 	protoOperatorSets := make([]*operatorSetsV1.OperatorSet, 0, len(operatorSets))
 
 	for _, operatorSet := range operatorSets {
 		protoOperatorSets = append(protoOperatorSets, &operatorSetsV1.OperatorSet{
-			Id:  operatorSet.Id,
+			Id:  operatorSet.OperatorSetId,
 			Avs: operatorSet.Avs,
 		})
 	}

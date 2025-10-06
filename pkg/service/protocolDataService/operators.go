@@ -7,14 +7,8 @@ import (
 )
 
 type OperatorSet struct {
-	Operator      string
-	OperatorSetId uint64
-}
-
-// Standalone OperatorSet for ListOperatorSets
-type ProtocolOperatorSet struct {
-	Id  uint64
-	Avs string
+	Avs           string
+	OperatorSetId uint32
 }
 
 // ListOperatorsForStaker returns operators that a staker has delegated to
@@ -73,7 +67,7 @@ func (pds *ProtocolDataService) ListOperatorsForStrategy(ctx context.Context, st
 }
 
 // ListOperatorsForAvs returns operators registered to an AVS
-func (pds *ProtocolDataService) ListOperatorsForAvs(ctx context.Context, avs string, blockHeight uint64) ([]OperatorSet, error) {
+func (pds *ProtocolDataService) ListOperatorsForAvs(ctx context.Context, avs string, blockHeight uint64) ([]string, error) {
 	avs = strings.ToLower(avs)
 	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
@@ -88,27 +82,27 @@ func (pds *ProtocolDataService) ListOperatorsForAvs(ctx context.Context, avs str
 			and snapshot <= (select block_time from blocks where number = @blockHeight)
 	`
 
-	var operatorSets []OperatorSet
+	var operators []string
 	res := pds.db.Raw(query,
 		sql.Named("avs", avs),
 		sql.Named("blockHeight", blockHeight),
-	).Scan(&operatorSets)
+	).Scan(&operators)
 	if res.Error != nil {
 		return nil, res.Error
 	}
 
-	return operatorSets, nil
+	return operators, nil
 }
 
 // ListOperatorSets returns all existing operator sets
-func (pds *ProtocolDataService) ListOperatorSets(ctx context.Context) ([]ProtocolOperatorSet, error) {
+func (pds *ProtocolDataService) ListOperatorSets(ctx context.Context) ([]OperatorSet, error) {
 	query := `
 		select distinct operator_set_id, avs
 		from operator_sets
 		order by operator_set_id, avs
 	`
 
-	var operatorSets []ProtocolOperatorSet
+	var operatorSets []OperatorSet
 	res := pds.db.Raw(query).Scan(&operatorSets)
 	if res.Error != nil {
 		return nil, res.Error
