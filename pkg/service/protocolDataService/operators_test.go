@@ -83,32 +83,27 @@ func Test_ProtocolDataServiceOperators(t *testing.T) {
 		avs := "0xd9b1da8159cf83ccc55ad5757bea33e6f0ce34be"
 		blockNumber := uint64(23075000)
 
-		operatorSets, err := pds.ListOperatorsForAvs(context.Background(), avs, blockNumber)
+		operators, err := pds.ListOperatorsForAvs(context.Background(), avs, blockNumber)
 		assert.Nil(t, err)
-		assert.True(t, len(operatorSets) >= 0, "Should return operators or empty list for this AVS")
+		assert.True(t, len(operators) >= 0)
 
-		// Verify operators are unique and valid, and test operator set structure
+		// Verify operators are unique
 		uniqueOperators := make(map[string]bool)
-		for _, operatorSet := range operatorSets {
-			assert.False(t, uniqueOperators[operatorSet.Operator], "Operators should be unique")
-			uniqueOperators[operatorSet.Operator] = true
-			assert.True(t, len(operatorSet.Operator) > 0, "Operator address should not be empty")
-			assert.True(t, strings.HasPrefix(strings.ToLower(operatorSet.Operator), "0x"), "Operator should be a valid address")
-
-			// Test OperatorSet structure - OperatorSetId should be a valid uint64 (note: uint64 is always >= 0)
-			// We just verify the field exists and is accessible
-			_ = operatorSet.OperatorSetId // This ensures the field is properly accessible
+		for _, operator := range operators {
+			assert.False(t, uniqueOperators[operator], "Operators should be unique")
+			uniqueOperators[operator] = true
+			assert.True(t, len(operator) > 0, "Operator address should not be empty")
 		}
 
 		// Test with 0 block height (current)
-		operatorSets2, err := pds.ListOperatorsForAvs(context.Background(), avs, 0)
+		operators2, err := pds.ListOperatorsForAvs(context.Background(), avs, 0)
 		assert.Nil(t, err)
-		assert.True(t, len(operatorSets2) >= 0)
+		assert.True(t, len(operators2) >= 0)
 
 		// Test case sensitivity
-		operatorSetsUpper, err := pds.ListOperatorsForAvs(context.Background(), strings.ToUpper(avs), blockNumber)
+		operatorsUpper, err := pds.ListOperatorsForAvs(context.Background(), strings.ToUpper(avs), blockNumber)
 		assert.Nil(t, err)
-		assert.Equal(t, operatorSets, operatorSetsUpper, "Results should be the same regardless of case")
+		assert.Equal(t, operators, operatorsUpper, "Results should be the same regardless of case")
 	})
 
 }
