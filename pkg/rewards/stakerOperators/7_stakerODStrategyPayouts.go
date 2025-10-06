@@ -1,8 +1,12 @@
 package stakerOperators
 
 import (
-	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"fmt"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"go.uber.org/zap"
 )
 
 // _7_stakerODStrategyPayoutQuery is a constant value that represents a query.
@@ -39,7 +43,7 @@ type StakerODStrategyPayout struct {
 	Snapshot     time.Time
 }
 
-func (sog *StakerOperatorsGenerator) GenerateAndInsert7StakerODStrategyPayouts(cutoffDate string) error {
+func (sog *StakerOperatorsGenerator) GenerateAndInsert7StakerODStrategyPayouts(cutoffDate string, generatedRewardsSnapshotId uint64) error {
 	rewardsV2Enabled, err := sog.globalConfig.IsRewardsV2EnabledForCutoffDate(cutoffDate)
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
@@ -50,29 +54,25 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert7StakerODStrategyPayouts(c
 		return nil
 	}
 
-	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
-	destTableName := allTableNames[rewardsUtils.Sot_7_StakerODStrategyPayouts]
+	destTableName := sog.getTempStakerODStrategyPayoutTableName(cutoffDate, generatedRewardsSnapshotId)
 
-	sog.logger.Sugar().Infow("Generating and inserting 7_stakerODStrategyPayouts",
+	sog.logger.Sugar().Infow("Generating temp 7_stakerODStrategyPayouts",
 		"cutoffDate", cutoffDate,
+		"destTableName", destTableName,
 	)
 
-	if err := rewardsUtils.DropTableIfExists(sog.db, destTableName, sog.logger); err != nil {
-		sog.logger.Sugar().Errorw("Failed to drop table", "error", err)
+	// Drop existing temp table
+	if err := sog.DropTempStakerODStrategyPayoutTable(cutoffDate, generatedRewardsSnapshotId); err != nil {
+		sog.logger.Sugar().Errorw("Failed to drop existing temp staker OD strategy payout table", "error", err)
 		return err
 	}
 
-	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
-		rewardsUtils.Table_9_StakerODRewardAmounts: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_9_StakerODRewardAmounts],
-	}, cutoffDate)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
-		return err
-	}
+	tempStakerODRewardAmountsTable := sog.getTempStakerODRewardAmountsTableName(cutoffDate, generatedRewardsSnapshotId)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_7_stakerODStrategyPayoutQuery, map[string]interface{}{
 		"destTableName":              destTableName,
-		"stakerODRewardAmountsTable": rewardsTables[rewardsUtils.Table_9_StakerODRewardAmounts],
+		"stakerODRewardAmountsTable": tempStakerODRewardAmountsTable,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 7_stakerODStrategyPayouts query", "error", err)
@@ -82,8 +82,34 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert7StakerODStrategyPayouts(c
 	res := sog.db.Exec(query)
 
 	if res.Error != nil {
-		sog.logger.Sugar().Errorw("Failed to generate 7_stakerODStrategyPayouts", "error", res.Error)
-		return err
+		sog.logger.Sugar().Errorw("Failed to generate temp 7_stakerODStrategyPayouts", "error", res.Error)
+		return res.Error
 	}
 	return nil
+}
+
+func (sog *StakerOperatorsGenerator) getTempStakerODStrategyPayoutTableName(cutoffDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(cutoffDate)
+	return fmt.Sprintf("tmp_staker_operators_7_staker_od_strategy_payout_%s_%d", camelDate, generatedRewardSnapshotId)
+}
+
+func (sog *StakerOperatorsGenerator) DropTempStakerODStrategyPayoutTable(cutoffDate string, generatedRewardsSnapshotId uint64) error {
+	tempTableName := sog.getTempStakerODStrategyPayoutTableName(cutoffDate, generatedRewardsSnapshotId)
+
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName)
+	res := sog.db.Exec(query)
+	if res.Error != nil {
+		sog.logger.Sugar().Errorw("Failed to drop temp staker OD strategy payout table", "error", res.Error)
+		return res.Error
+	}
+	sog.logger.Sugar().Infow("Successfully dropped temp staker OD strategy payout table",
+		zap.String("tempTableName", tempTableName),
+		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
+	)
+	return nil
+}
+
+func (sog *StakerOperatorsGenerator) getTempStakerODRewardAmountsTableName(cutoffDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(cutoffDate)
+	return fmt.Sprintf("tmp_rewards_gold_9_staker_od_reward_amounts_%s_%d", camelDate, generatedRewardSnapshotId)
 }

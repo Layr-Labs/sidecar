@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
@@ -9,7 +10,7 @@ import (
 )
 
 const _2_goldStakerRewardAmountsQuery = `
-create table {{.destTableName}} as
+create table {{.destTableName}} as 
 WITH reward_snapshot_operators as (
   SELECT
     ap.reward_hash,
@@ -24,8 +25,9 @@ WITH reward_snapshot_operators as (
     ap.reward_submission_date,
     oar.operator
   FROM {{.activeRewardsTable}} ap
-  JOIN operator_avs_registration_snapshots oar
-  ON ap.avs = oar.avs and ap.snapshot = oar.snapshot
+  JOIN operator_avs_registration_snapshots oar ON
+    oar.avs = ap.avs AND
+    oar.snapshot = ap.snapshot
   WHERE ap.reward_type = 'avs'
 ),
 _operator_restaked_strategies AS (
@@ -51,6 +53,7 @@ staker_delegated_operators AS (
     ors.snapshot = sds.snapshot
 ),
 -- Get the shares for staker delegated to the operator
+-- Use conservative matching for share snapshots (same approach as Table 5)
 staker_avs_strategy_shares AS (
   SELECT
     sdo.*,
@@ -70,24 +73,16 @@ staker_weights AS (
     SUM(multiplier * shares) OVER (PARTITION BY staker, reward_hash, snapshot) AS staker_weight
   FROM staker_avs_strategy_shares
 ),
--- Get distinct stakers since their weights are already calculated
-distinct_stakers AS (
-  SELECT *
-  FROM (
-      SELECT *,
-        -- We can use an arbitrary order here since the staker_weight is the same for each (staker, strategy, hash, snapshot)
-        -- We use strategy ASC for better debuggability
-        ROW_NUMBER() OVER (PARTITION BY reward_hash, snapshot, staker ORDER BY strategy ASC) as rn
-      FROM staker_weights
-  ) t
-  WHERE rn = 1
-  ORDER BY reward_hash, snapshot, staker
-),
--- Calculate sum of all staker weights for each reward and snapshot
-staker_weight_sum AS (
+-- Get distinct stakers with total weights calculated efficiently
+distinct_stakers_with_totals AS (
   SELECT *,
-    SUM(staker_weight) OVER (PARTITION BY reward_hash, snapshot) as total_weight
-  FROM distinct_stakers
+    SUM(staker_weight) OVER (PARTITION BY reward_hash, snapshot) as total_weight,
+    ROW_NUMBER() OVER (PARTITION BY reward_hash, snapshot, staker ORDER BY strategy ASC) as rn
+  FROM staker_weights
+),
+-- Filter to distinct stakers only
+staker_weight_sum AS (
+  SELECT * FROM distinct_stakers_with_totals WHERE rn = 1
 ),
 -- Calculate staker proportion of tokens for each reward and snapshot
 staker_proportion AS (
@@ -142,15 +137,23 @@ token_breakdowns AS (
   ON sott.operator = oas.operator AND sott.avs = oas.avs AND sott.snapshot = oas.snapshot
   LEFT JOIN default_operator_split_snapshots dos ON (sott.snapshot = dos.snapshot)
 )
-SELECT * from token_breakdowns
-ORDER BY reward_hash, snapshot, staker, operator
+SELECT
+	tb.*,
+	{{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id
+from token_breakdowns as tb
 `
 
-func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate string, forks config.ForkMap) error {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_2_StakerRewardAmounts]
+func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64, forks config.ForkMap) error {
+	destTableName := rc.getTempStakerRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId)
+	activeRewardsTable := rc.getTempActiveRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
-	rc.logger.Sugar().Infow("Generating staker reward amounts",
+	// Drop existing temp table
+	if err := rc.DropTempStakerRewardAmountsTable(snapshotDate, generatedRewardsSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop existing temp staker reward amounts table", "error", err)
+		return err
+	}
+
+	rc.logger.Sugar().Infow("Generating temp staker reward amounts",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 		zap.String("amazonHardforkDate", forks[config.RewardsFork_Amazon].Date),
@@ -160,8 +163,9 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_2_goldStakerRewardAmountsQuery, map[string]interface{}{
-		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
+		"destTableName":              destTableName,
+		"activeRewardsTable":         activeRewardsTable,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -175,8 +179,29 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(snapshotDate 
 		sql.Named("trinityHardforkDate", forks[config.RewardsFork_Trinity].Date),
 	)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_staker_reward_amounts", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to generate staker reward amounts", "error", res.Error)
 		return res.Error
 	}
+	return nil
+}
+
+func (rc *RewardsCalculator) getTempStakerRewardAmountsTableName(snapshotDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(snapshotDate)
+	return fmt.Sprintf("tmp_rewards_gold_2_staker_reward_amounts_%s_%d", camelDate, generatedRewardSnapshotId)
+}
+
+func (rc *RewardsCalculator) DropTempStakerRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	tempTableName := rc.getTempStakerRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId)
+
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName)
+	res := rc.grm.Exec(query)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp staker reward amounts table", "error", res.Error)
+		return res.Error
+	}
+	rc.logger.Sugar().Infow("Successfully dropped temp staker reward amounts table",
+		zap.String("tempTableName", tempTableName),
+		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
+	)
 	return nil
 }
