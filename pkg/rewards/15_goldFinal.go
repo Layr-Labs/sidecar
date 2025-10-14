@@ -1,14 +1,14 @@
 package rewards
 
 import (
-	"database/sql"
+	"time"
 
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
 
-const _15_goldStagingQuery = `
-create table {{.destTableName}} as
+const _15_goldFinalQuery = `
+INSERT INTO {{.destTableName}} (earner, snapshot, reward_hash, token, amount, generated_rewards_snapshot_id)
 WITH staker_rewards AS (
   -- We can select DISTINCT here because the staker's tokens are the same for each strategy in the reward hash
   SELECT DISTINCT
@@ -162,15 +162,15 @@ deduped_earners AS (
     reward_hash,
     token
 )
-SELECT *
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id
 FROM deduped_earners
+ON CONFLICT (earner, token, reward_hash, snapshot) DO NOTHING
 `
 
-func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string) error {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_15_GoldStaging]
+func (rc *RewardsCalculator) GenerateGoldFinalTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	destTableName := rewardsUtils.RewardsTable_GoldTable
 
-	rc.logger.Sugar().Infow("Generating gold staging",
+	rc.logger.Sugar().Infow("Generating gold final",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
@@ -189,21 +189,22 @@ func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string) err
 	}
 	rc.logger.Sugar().Infow("Is RewardsV2_1 enabled?", "enabled", isRewardsV2_1Enabled)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_15_goldStagingQuery, map[string]interface{}{
+	query, err := rewardsUtils.RenderQueryTemplate(_15_goldFinalQuery, map[string]interface{}{
 		"destTableName":                           destTableName,
-		"stakerRewardAmountsTable":                allTableNames[rewardsUtils.Table_2_StakerRewardAmounts],
-		"operatorRewardAmountsTable":              allTableNames[rewardsUtils.Table_3_OperatorRewardAmounts],
-		"rewardsForAllTable":                      allTableNames[rewardsUtils.Table_4_RewardsForAll],
-		"rfaeStakerTable":                         allTableNames[rewardsUtils.Table_5_RfaeStakers],
-		"rfaeOperatorTable":                       allTableNames[rewardsUtils.Table_6_RfaeOperators],
-		"operatorODRewardAmountsTable":            allTableNames[rewardsUtils.Table_8_OperatorODRewardAmounts],
-		"stakerODRewardAmountsTable":              allTableNames[rewardsUtils.Table_9_StakerODRewardAmounts],
-		"avsODRewardAmountsTable":                 allTableNames[rewardsUtils.Table_10_AvsODRewardAmounts],
+		"stakerRewardAmountsTable":                rc.getTempStakerRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId),
+		"operatorRewardAmountsTable":              rc.getTempOperatorRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId),
+		"rewardsForAllTable":                      rc.getTempRewardsForAllTableName(snapshotDate, generatedRewardsSnapshotId),
+		"rfaeStakerTable":                         rc.getTempRfaeStakersTableName(snapshotDate, generatedRewardsSnapshotId),
+		"rfaeOperatorTable":                       rc.getTempRfaeOperatorsTableName(snapshotDate, generatedRewardsSnapshotId),
+		"operatorODRewardAmountsTable":            rc.getTempOperatorODRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId),
+		"stakerODRewardAmountsTable":              rc.getTempStakerODRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId),
+		"avsODRewardAmountsTable":                 rc.getTempAvsODRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId),
 		"enableRewardsV2":                         isRewardsV2Enabled,
-		"operatorODOperatorSetRewardAmountsTable": allTableNames[rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts],
-		"stakerODOperatorSetRewardAmountsTable":   allTableNames[rewardsUtils.Table_13_StakerODOperatorSetRewardAmounts],
-		"avsODOperatorSetRewardAmountsTable":      allTableNames[rewardsUtils.Table_14_AvsODOperatorSetRewardAmounts],
+		"operatorODOperatorSetRewardAmountsTable": rc.getTempOperatorODOperatorSetRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId),
+		"stakerODOperatorSetRewardAmountsTable":   rc.getTempStakerODOperatorSetRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId),
+		"avsODOperatorSetRewardAmountsTable":      rc.getTempAvsODOperatorSetRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId),
 		"enableRewardsV2_1":                       isRewardsV2_1Enabled,
+		"generatedRewardsSnapshotId":              generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -212,45 +213,26 @@ func (rc *RewardsCalculator) GenerateGold15StagingTable(snapshotDate string) err
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_staging", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to create gold_final", "error", res.Error)
 		return res.Error
 	}
 	return nil
 }
 
-type GoldStagingRow struct {
+type GoldRow struct {
 	Earner     string
-	Snapshot   string
+	Snapshot   time.Time
 	RewardHash string
 	Token      string
 	Amount     string
 }
 
-func (rc *RewardsCalculator) ListGoldStagingRowsForSnapshot(snapshotDate string) ([]*GoldStagingRow, error) {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-
-	results := make([]*GoldStagingRow, 0)
-	query := `
-	SELECT
-		earner,
-		snapshot::text as snapshot,
-		reward_hash,
-		token,
-		amount
-	FROM {{.goldStagingTable}} WHERE DATE(snapshot) < @cutoffDate`
-	query, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
-		"goldStagingTable": allTableNames[rewardsUtils.Table_15_GoldStaging],
-	})
-	if err != nil {
-		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
-		return nil, err
-	}
-	res := rc.grm.Raw(query,
-		sql.Named("cutoffDate", snapshotDate),
-	).Scan(&results)
+func (rc *RewardsCalculator) ListGoldRows() ([]*GoldRow, error) {
+	var goldRows []*GoldRow
+	res := rc.grm.Raw("select * from gold_table").Scan(&goldRows)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to list gold staging rows", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to list gold rows", "error", res.Error)
 		return nil, res.Error
 	}
-	return results, nil
+	return goldRows, nil
 }

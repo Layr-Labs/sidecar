@@ -1,6 +1,9 @@
 package rewards
 
 import (
+	"fmt"
+
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
@@ -33,21 +36,28 @@ distinct_operators AS (
   ) t
   WHERE rn = 1
 )
-SELECT * FROM distinct_operators
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM distinct_operators
 `
 
-func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string) error {
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_6_RfaeOperators]
+func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	destTableName := rc.getTempRfaeOperatorsTableName(snapshotDate, generatedRewardsSnapshotId)
+	tempRfaeStakersTable := rc.getTempRfaeStakersTableName(snapshotDate, generatedRewardsSnapshotId)
 
-	rc.logger.Sugar().Infow("Generating rfae operators table",
+	if err := rc.DropTempRfaeOperatorsTable(snapshotDate, generatedRewardsSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop existing temp rfae operators table", "error", err)
+		return err
+	}
+
+	rc.logger.Sugar().Infow("Generating temp rfae operators table",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
+		zap.String("sourceTable", tempRfaeStakersTable),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_6_goldRfaeOperatorsQuery, map[string]interface{}{
-		"destTableName":    destTableName,
-		"rfaeStakersTable": allTableNames[rewardsUtils.Table_5_RfaeStakers],
+		"destTableName":              destTableName,
+		"rfaeStakersTable":           tempRfaeStakersTable,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -56,8 +66,29 @@ func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_rfae_operators", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to create temp rfae operators", "error", res.Error)
 		return res.Error
 	}
+	return nil
+}
+
+func (rc *RewardsCalculator) getTempRfaeOperatorsTableName(snapshotDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(snapshotDate)
+	return fmt.Sprintf("tmp_rewards_gold_6_rfae_operators_%s_%d", camelDate, generatedRewardSnapshotId)
+}
+
+func (rc *RewardsCalculator) DropTempRfaeOperatorsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	tempTableName := rc.getTempRfaeOperatorsTableName(snapshotDate, generatedRewardsSnapshotId)
+
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName)
+	res := rc.grm.Exec(query)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp rfae operators table", "error", res.Error)
+		return res.Error
+	}
+	rc.logger.Sugar().Infow("Successfully dropped temp rfae operators table",
+		zap.String("tempTableName", tempTableName),
+		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
+	)
 	return nil
 }

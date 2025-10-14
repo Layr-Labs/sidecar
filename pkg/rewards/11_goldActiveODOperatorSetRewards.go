@@ -2,13 +2,16 @@ package rewards
 
 import (
 	"database/sql"
+	"fmt"
+
+	"github.com/Layr-Labs/sidecar/internal/config"
 
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
 
 var _11_goldActiveODOperatorSetRewardsQuery = `
-CREATE TABLE {{.destTableName}} AS
+create table {{.destTableName}} as
 WITH 
 -- Step 1: Modify active rewards and compute tokens per day
 active_rewards_modified AS (
@@ -44,14 +47,21 @@ active_rewards_updated_end_timestamps AS (
         block_date AS reward_submission_date
     FROM active_rewards_modified
 ),
-
+-- Optimized: Get the latest snapshot for each reward hash
+reward_progress AS (
+    SELECT 
+        reward_hash, 
+        MAX(snapshot) as last_snapshot
+    FROM gold_table 
+    GROUP BY reward_hash
+),
 -- Step 3: For each reward hash, find the latest snapshot
 active_rewards_updated_start_timestamps AS (
     SELECT
         ap.avs,
         ap.operator_set_id,
         ap.operator,
-        COALESCE(MAX(g.snapshot), ap.reward_start_exclusive) AS reward_start_exclusive,
+        COALESCE(g.last_snapshot, ap.reward_start_exclusive) AS reward_start_exclusive,
         ap.reward_end_inclusive,
         ap.token,
         -- We use floor to ensure we are always underestimating total tokens per day
@@ -63,7 +73,7 @@ active_rewards_updated_start_timestamps AS (
         ap.global_end_inclusive,
         ap.reward_submission_date
     FROM active_rewards_updated_end_timestamps ap
-    LEFT JOIN gold_table g 
+    LEFT JOIN reward_progress g 
         ON g.reward_hash = ap.reward_hash
     GROUP BY 
         ap.avs, 
@@ -75,10 +85,11 @@ active_rewards_updated_start_timestamps AS (
         ap.multiplier, 
         ap.strategy, 
         ap.reward_hash, 
-        ap.duration,
+        ap.duration, 
         ap.global_end_inclusive, 
         ap.reward_start_exclusive, 
-        ap.reward_submission_date
+        ap.reward_submission_date,
+        g.last_snapshot
 ),
 
 -- Step 4: Filter out invalid reward ranges
@@ -168,7 +179,10 @@ active_rewards_final AS (
     FROM active_rewards_with_registered_snapshots ar
 )
 
-SELECT * FROM active_rewards_final
+SELECT
+    *,
+    {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id
+FROM active_rewards_final
 `
 
 // Generate11GoldActiveODOperatorSetRewards generates active operator-directed rewards for the gold_11_active_od_operator_set_rewards table
@@ -176,7 +190,7 @@ SELECT * FROM active_rewards_final
 // @param snapshotDate: The upper bound of when to calculate rewards to
 // @param startDate: The lower bound of when to calculate rewards from. If we're running rewards for the first time,
 // this will be "1970-01-01". If this is a subsequent run, this will be the last snapshot date.
-func (r *RewardsCalculator) GenerateGold11ActiveODOperatorSetRewards(snapshotDate string) error {
+func (r *RewardsCalculator) GenerateGold11ActiveODOperatorSetRewards(snapshotDate string, generatedRewardsSnapshotId uint64) error {
 	rewardsV2_1Enabled, err := r.globalConfig.IsRewardsV2_1EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to check if rewards v2.1 is enabled", "error", err)
@@ -187,8 +201,12 @@ func (r *RewardsCalculator) GenerateGold11ActiveODOperatorSetRewards(snapshotDat
 		return nil
 	}
 
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards]
+	destTableName := r.getTempActiveODOperatorSetRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
+
+	if err := r.DropTempActiveODOperatorSetRewardsTable(snapshotDate, generatedRewardsSnapshotId); err != nil {
+		r.logger.Sugar().Errorw("Failed to drop temp active odos rewards table before copying", "error", err)
+		return err
+	}
 
 	rewardsStart := "1970-01-01 00:00:00" // This will always start as this date and get's updated later in the query
 
@@ -199,9 +217,10 @@ func (r *RewardsCalculator) GenerateGold11ActiveODOperatorSetRewards(snapshotDat
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_11_goldActiveODOperatorSetRewardsQuery, map[string]interface{}{
-		"destTableName": destTableName,
-		"rewardsStart":  rewardsStart,
-		"cutoffDate":    snapshotDate,
+		"destTableName":              destTableName,
+		"rewardsStart":               rewardsStart,
+		"cutoffDate":                 snapshotDate,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -213,6 +232,24 @@ func (r *RewardsCalculator) GenerateGold11ActiveODOperatorSetRewards(snapshotDat
 	)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate active od operator set rewards", "error", res.Error)
+		return res.Error
+	}
+	return nil
+}
+
+func (rc *RewardsCalculator) getTempActiveODOperatorSetRewardsTableName(snapshotDate string, generatedRewardsSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(snapshotDate)
+	// shortened version to stay below the postgres 63 char limit
+	return fmt.Sprintf("tmp_rewards_gold_11_active_odos_rewards_%s_%d", camelDate, generatedRewardsSnapshotId)
+}
+
+func (rc *RewardsCalculator) DropTempActiveODOperatorSetRewardsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	tempTableName := rc.getTempActiveODOperatorSetRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
+
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName)
+	res := rc.grm.Exec(query)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp active od operator set rewards table", "error", res.Error)
 		return res.Error
 	}
 	return nil

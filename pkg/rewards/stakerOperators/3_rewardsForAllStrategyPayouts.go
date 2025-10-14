@@ -1,8 +1,12 @@
 package stakerOperators
 
 import (
-	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"fmt"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	"go.uber.org/zap"
 )
 
 const _3_rewardsForAllStrategyPayoutsQuery = `
@@ -68,30 +72,27 @@ type RewardsForAllStrategyPayout struct {
 	StakerStrategyTokens string
 }
 
-func (sog *StakerOperatorsGenerator) GenerateAndInsert3RewardsForAllStrategyPayout(cutoffDate string) error {
-	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
-	destTableName := allTableNames[rewardsUtils.Sot_3_RewardsForAllStrategyPayout]
+func (sog *StakerOperatorsGenerator) GenerateAndInsert3RewardsForAllStrategyPayout(cutoffDate string, generatedRewardsSnapshotId uint64) error {
+	destTableName := sog.getTempRewardsForAllStrategyPayoutTableName(cutoffDate, generatedRewardsSnapshotId)
 
-	sog.logger.Sugar().Infow("Generating and inserting 3_rewardsForAllStrategyPayouts",
+	sog.logger.Sugar().Infow("Generating temp 3_rewardsForAllStrategyPayouts",
 		"cutoffDate", cutoffDate,
+		"destTableName", destTableName,
 	)
 
-	if err := rewardsUtils.DropTableIfExists(sog.db, destTableName, sog.logger); err != nil {
-		sog.logger.Sugar().Errorw("Failed to drop table", "error", err)
+	// Drop existing temp table
+	if err := sog.DropTempRewardsForAllStrategyPayoutTable(cutoffDate, generatedRewardsSnapshotId); err != nil {
+		sog.logger.Sugar().Errorw("Failed to drop existing temp rewards for all strategy payout table", "error", err)
 		return err
 	}
 
-	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
-		rewardsUtils.Table_1_ActiveRewards: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_1_ActiveRewards],
-	}, cutoffDate)
-	if err != nil {
-		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
-		return err
-	}
+	// Use temp tables from gold rewards
+	tempActiveRewardsTable := sog.getTempActiveRewardsTableName(cutoffDate, generatedRewardsSnapshotId)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_3_rewardsForAllStrategyPayoutsQuery, map[string]interface{}{
-		"destTableName":      destTableName,
-		"activeRewardsTable": rewardsTables[rewardsUtils.Table_1_ActiveRewards],
+		"destTableName":              destTableName,
+		"activeRewardsTable":         tempActiveRewardsTable,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 3_rewardsForAllStrategyPayouts query", "error", err)
@@ -101,8 +102,8 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert3RewardsForAllStrategyPayo
 	res := sog.db.Exec(query)
 
 	if res.Error != nil {
-		sog.logger.Sugar().Errorw("Failed to generate 3_rewardsForAllStrategyPayouts", "error", res.Error)
-		return err
+		sog.logger.Sugar().Errorw("Failed to generate temp 3_rewardsForAllStrategyPayouts", "error", res.Error)
+		return res.Error
 	}
 	return nil
 }
@@ -115,4 +116,25 @@ func (sog *StakerOperatorsGenerator) List3RewardsForAllStrategyPayout() ([]*Rewa
 		return nil, res.Error
 	}
 	return rewards, nil
+}
+
+func (sog *StakerOperatorsGenerator) getTempRewardsForAllStrategyPayoutTableName(cutoffDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(cutoffDate)
+	return fmt.Sprintf("tmp_staker_operators_3_rewards_for_all_strategy_payout_%s_%d", camelDate, generatedRewardSnapshotId)
+}
+
+func (sog *StakerOperatorsGenerator) DropTempRewardsForAllStrategyPayoutTable(cutoffDate string, generatedRewardsSnapshotId uint64) error {
+	tempTableName := sog.getTempRewardsForAllStrategyPayoutTableName(cutoffDate, generatedRewardsSnapshotId)
+
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName)
+	res := sog.db.Exec(query)
+	if res.Error != nil {
+		sog.logger.Sugar().Errorw("Failed to drop temp rewards for all strategy payout table", "error", res.Error)
+		return res.Error
+	}
+	sog.logger.Sugar().Infow("Successfully dropped temp rewards for all strategy payout table",
+		zap.String("tempTableName", tempTableName),
+		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
+	)
+	return nil
 }

@@ -1,12 +1,15 @@
 package rewards
 
 import (
+	"fmt"
+
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
 
 const _10_goldAvsODRewardAmountsQuery = `
-CREATE TABLE {{.destTableName}} AS
+create table {{.destTableName}} as
 
 -- Step 1: Get the rows where operators have not registered for the AVS or if the AVS does not exist
 WITH reward_snapshot_operators AS (
@@ -57,10 +60,10 @@ operator_token_sums AS (
 )
 
 -- Step 4: Output the final table
-SELECT * FROM operator_token_sums
+SELECT *, {{.generatedRewardsSnapshotId}} as generated_rewards_snapshot_id FROM operator_token_sums
 `
 
-func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
 	rewardsV2Enabled, err := rc.globalConfig.IsRewardsV2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2 is enabled", "error", err)
@@ -71,17 +74,24 @@ func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate 
 		return nil
 	}
 
-	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_10_AvsODRewardAmounts]
+	destTableName := rc.getTempAvsODRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId)
+	activeOdRewardsTableName := rc.getTempActiveODRewardsTableName(snapshotDate, generatedRewardsSnapshotId)
 
-	rc.logger.Sugar().Infow("Generating Avs OD reward amounts",
+	// Drop existing temp table
+	if err := rc.DropTempAvsODRewardAmountsTable(snapshotDate, generatedRewardsSnapshotId); err != nil {
+		rc.logger.Sugar().Errorw("Failed to drop existing temp avs OD reward amounts table", "error", err)
+		return err
+	}
+
+	rc.logger.Sugar().Infow("Generating temp Avs OD reward amounts",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_10_goldAvsODRewardAmountsQuery, map[string]interface{}{
-		"destTableName":        destTableName,
-		"activeODRewardsTable": allTableNames[rewardsUtils.Table_7_ActiveODRewards],
+		"destTableName":              destTableName,
+		"activeODRewardsTable":       activeOdRewardsTableName,
+		"generatedRewardsSnapshotId": generatedRewardsSnapshotId,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -90,8 +100,30 @@ func (rc *RewardsCalculator) GenerateGold10AvsODRewardAmountsTable(snapshotDate 
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_avs_od_reward_amounts", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to create temp avs OD reward amounts", "error", res.Error)
 		return res.Error
 	}
+	return nil
+}
+
+// Helper functions for temp table management
+func (rc *RewardsCalculator) getTempAvsODRewardAmountsTableName(snapshotDate string, generatedRewardSnapshotId uint64) string {
+	camelDate := config.KebabToSnakeCase(snapshotDate)
+	return fmt.Sprintf("tmp_rewards_gold_10_avs_od_reward_amounts_%s_%d", camelDate, generatedRewardSnapshotId)
+}
+
+func (rc *RewardsCalculator) DropTempAvsODRewardAmountsTable(snapshotDate string, generatedRewardsSnapshotId uint64) error {
+	tempTableName := rc.getTempAvsODRewardAmountsTableName(snapshotDate, generatedRewardsSnapshotId)
+
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", tempTableName)
+	res := rc.grm.Exec(query)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to drop temp avs OD reward amounts table", "error", res.Error)
+		return res.Error
+	}
+	rc.logger.Sugar().Infow("Successfully dropped temp avs OD reward amounts table",
+		zap.String("tempTableName", tempTableName),
+		zap.Uint64("generatedRewardsSnapshotId", generatedRewardsSnapshotId),
+	)
 	return nil
 }
