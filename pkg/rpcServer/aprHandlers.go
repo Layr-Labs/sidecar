@@ -50,5 +50,31 @@ func (rpc *RpcServer) GetDailyAprForEarnerStrategy(
 	ctx context.Context,
 	request *pdsV1.GetDailyAprForEarnerStrategyRequest,
 ) (*pdsV1.GetDailyAprForEarnerStrategyResponse, error) {
-	return nil, errors.New("not implemented")
+	// Only allow this endpoint to work on mainnet
+	if rpc.globalConfig.Chain != "mainnet" {
+		return nil, errors.New("this endpoint is only available on mainnet")
+	}
+
+	earnerAddress := request.GetEarnerAddress()
+	strategy := request.GetStrategy()
+	date := request.GetDate()
+
+	if earnerAddress == "" {
+		return nil, errors.New("earner address is required")
+	}
+	if strategy == "" {
+		return nil, errors.New("strategy is required")
+	}
+	if date == "" {
+		return nil, errors.New("date is required")
+	}
+
+	apr, err := rpc.aprDataService.GetDailyAprForEarnerStrategy(ctx, earnerAddress, strategy, date)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pdsV1.GetDailyAprForEarnerStrategyResponse{
+		Apr: apr,
+	}, nil
 }

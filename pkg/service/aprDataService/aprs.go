@@ -2,7 +2,6 @@ package aprDataService
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"math/big"
 	"strings"
@@ -53,64 +52,143 @@ func NewAprDataService(
 	}
 }
 
+// AprQueryParams holds parameters for APR queries
+type AprQueryParams struct {
+	OperatorAddress string
+	EarnerAddress   string
+	Strategy        string
+	Date            string
+}
+
+type AprQueryResult struct {
+	Strategy    string `gorm:"column:strategy"`
+	RewardTypes string `gorm:"column:reward_types"`
+	Apr         string `gorm:"column:apr"`
+}
+
 // GetDailyOperatorStrategyAprs calculates the daily APR for all strategies for a given operator
 func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, operatorAddress string, date string) ([]*OperatorStrategyApr, error) {
-	operatorAddress = strings.ToLower(operatorAddress)
+	params := AprQueryParams{
+		OperatorAddress: operatorAddress,
+		Date:            date,
+	}
 
-	parsedDate, err := time.Parse("2006-01-02", date)
+	queryResults, err := ads.calculateDailyAprs(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	var aprResults []*OperatorStrategyApr
+	for _, queryResult := range queryResults {
+		aprResults = append(aprResults, &OperatorStrategyApr{
+			Strategy: queryResult.Strategy,
+			Apr:      queryResult.Apr,
+		})
+	}
+
+	return aprResults, nil
+}
+
+// GetDailyAprForEarnerStrategy calculates the daily APR for a specific earner and strategy combination
+func (ads *AprDataService) GetDailyAprForEarnerStrategy(ctx context.Context, earnerAddress string, strategy string, date string) (string, error) {
+	params := AprQueryParams{
+		EarnerAddress: earnerAddress,
+		Strategy:      strategy,
+		Date:          date,
+	}
+
+	queryResults, err := ads.calculateDailyAprs(ctx, params)
+	if err != nil {
+		return "", err
+	}
+
+	if len(queryResults) == 0 {
+		return "0", nil
+	}
+
+	// Return the APR for the single strategy (there should only be one result)
+	return queryResults[0].Apr, nil
+}
+
+// calculateDailyAprs is a shared internal function for calculating APRs
+func (ads *AprDataService) calculateDailyAprs(ctx context.Context, params AprQueryParams) ([]AprQueryResult, error) {
+	parsedDate, err := time.Parse("2006-01-02", params.Date)
 	if err != nil {
 		return nil, fmt.Errorf("invalid date format: %v", err)
 	}
 
+	// Build WHERE clause conditions based on provided parameters
+	var whereConditions []string
+	namedParams := make(map[string]interface{})
+
+	if params.OperatorAddress != "" {
+		whereConditions = append(whereConditions, "operator = @operatorAddress")
+		namedParams["operatorAddress"] = strings.ToLower(params.OperatorAddress)
+	}
+
+	if params.EarnerAddress != "" {
+		whereConditions = append(whereConditions, "earner = @earnerAddress")
+		namedParams["earnerAddress"] = strings.ToLower(params.EarnerAddress)
+	}
+
+	if params.Strategy != "" {
+		whereConditions = append(whereConditions, "strategy = @strategy")
+		namedParams["strategy"] = strings.ToLower(params.Strategy)
+	}
+
+	whereConditions = append(whereConditions, "DATE(snapshot) = @date")
+	whereConditions = append(whereConditions, "strategy != '0x0000000000000000000000000000000000000000'")
+	namedParams["date"] = parsedDate.Format("2006-01-02")
+
+	whereClause := strings.Join(whereConditions, " AND ")
+
+	// Check if data exists
 	var exists bool
-	dataCheckQuery := `
+	dataCheckQuery := fmt.Sprintf(`
 		SELECT EXISTS (
 			SELECT 1 
 			FROM staker_operator 
-			WHERE operator = @operatorAddress 
-			AND DATE(snapshot) = @date
-			AND strategy != '0x0000000000000000000000000000000000000000'
+			WHERE %s
 		)
-	`
+	`, whereClause)
 
-	res := ads.db.Raw(dataCheckQuery,
-		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("date", parsedDate.Format("2006-01-02")),
-	).Scan(&exists)
-
+	res := ads.db.Raw(dataCheckQuery, namedParams).Scan(&exists)
 	if res.Error != nil {
 		return nil, res.Error
 	}
 
 	if !exists {
-		ads.logger.Sugar().Warnw("No data found for the given operator and date",
-			zap.String("operator", operatorAddress),
-			zap.String("date", date),
-		)
-		return []*OperatorStrategyApr{}, nil
+		logFields := []zap.Field{zap.String("date", params.Date)}
+		if params.OperatorAddress != "" {
+			logFields = append(logFields, zap.String("operator", params.OperatorAddress))
+		}
+		if params.EarnerAddress != "" {
+			logFields = append(logFields, zap.String("earner", params.EarnerAddress))
+		}
+		if params.Strategy != "" {
+			logFields = append(logFields, zap.String("strategy", params.Strategy))
+		}
+		ads.logger.Warn("No data found for the given parameters", logFields...)
+		return []AprQueryResult{}, nil
 	}
 
-	query := `
+	// Query for strategy and token data
+	query := fmt.Sprintf(`
 		SELECT 
 			strategy,
 			token,
 			MAX(shares) as shares
 		FROM staker_operator 
-		WHERE operator = @operatorAddress 
-		AND DATE(snapshot) = @date
-		AND strategy != '0x0000000000000000000000000000000000000000'
+		WHERE %s
 		GROUP BY strategy, token
-	`
+	`, whereClause)
+
 	var results []struct {
 		Strategy string `gorm:"column:strategy"`
 		Token    string `gorm:"column:token"`
 		Shares   string `gorm:"column:shares"`
 	}
-	res = ads.db.Raw(query,
-		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("date", parsedDate.Format("2006-01-02")),
-	).Scan(&results)
-
+	res = ads.db.Raw(query, namedParams).Scan(&results)
 	if res.Error != nil {
 		return nil, res.Error
 	}
@@ -171,7 +249,7 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 
 	tokenDecimals := ads.getTokenDecimals(ctx, tokens)
 
-	aprQuery := `
+	aprQuery := fmt.Sprintf(`
 		WITH strategy_token_rewards AS (
 			SELECT 
 				strategy,
@@ -182,9 +260,7 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 				MAX(shares::numeric) as total_shares
 			FROM staker_operator
 			WHERE 
-				operator = @operatorAddress
-				AND DATE(snapshot) = @date
-				AND strategy != '0x0000000000000000000000000000000000000000'
+				%s
 				-- Only include staker rewards, not operator rewards
 				AND reward_type IN ('staker_reward', 'staker_od_reward', 'staker_od_operator_set_reward', 'rfae_staker')
 			GROUP BY strategy, token, reward_type
@@ -196,24 +272,24 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 				SUM(
 					(daily_rewards / (
 						CASE token
-							` + ads.buildTokenDecimalsCases(tokenDecimals) + `
+							%s
 							ELSE POWER(10, 18)
 						END
 					)) * (
 						CASE token
-							` + ads.buildTokenPriceCases(tokenPrices) + `
+							%s
 							ELSE 0
 						END
 					)
 				) as daily_rewards_in_eth,
 				(
 					CASE strategy
-						` + ads.buildStrategyAmountCases(strategyAmounts) + `
+						%s
 						ELSE MAX(total_shares)
 					END
 				) / POWER(10, 18) * (
 					CASE strategy
-						` + ads.buildStrategyPriceCases(strategyPrices) + `
+						%s
 						ELSE 1.0
 					END
 				) as total_shares_in_eth
@@ -231,33 +307,19 @@ func (ads *AprDataService) GetDailyOperatorStrategyAprs(ctx context.Context, ope
 		FROM strategy_aggregated
 		WHERE total_shares_in_eth > 0
 		ORDER BY strategy
-	`
+	`, whereClause,
+		ads.buildTokenDecimalsCases(tokenDecimals),
+		ads.buildTokenPriceCases(tokenPrices),
+		ads.buildStrategyAmountCases(strategyAmounts),
+		ads.buildStrategyPriceCases(strategyPrices))
 
-	type QueryResult struct {
-		Strategy    string `gorm:"column:strategy"`
-		RewardTypes string `gorm:"column:reward_types"`
-		Apr         string `gorm:"column:apr"`
-	}
-
-	var queryResults []QueryResult
-	res = ads.db.Raw(aprQuery,
-		sql.Named("operatorAddress", operatorAddress),
-		sql.Named("date", parsedDate.Format("2006-01-02")),
-	).Scan(&queryResults)
-
+	var queryResults []AprQueryResult
+	res = ads.db.Raw(aprQuery, namedParams).Scan(&queryResults)
 	if res.Error != nil {
 		return nil, res.Error
 	}
 
-	var aprResults []*OperatorStrategyApr
-	for _, queryResult := range queryResults {
-		aprResults = append(aprResults, &OperatorStrategyApr{
-			Strategy: queryResult.Strategy,
-			Apr:      queryResult.Apr,
-		})
-	}
-
-	return aprResults, nil
+	return queryResults, nil
 }
 
 // Helper functions for building SQL cases
