@@ -31,6 +31,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/submittedDistributionRoots"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/generationReservationCreated"
+	"github.com/Layr-Labs/sidecar/pkg/metaState/keyRotationScheduled"
 	metaTypes "github.com/Layr-Labs/sidecar/pkg/metaState/types"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -210,6 +211,21 @@ func (rpc *RpcServer) parseMetaCommittedChanges(metaCommittedStateByModel map[st
 						GenerationReservationCreated: convertMetaGenerationReservationCreatedToEventType(change),
 					},
 				})
+			case keyRotationScheduled.KeyRotationScheduledModelName:
+				// Handle both KeyRotationScheduled events and KeyRotationScheduledTrigger
+				switch c := change.(type) {
+				case *metaTypes.KeyRotationScheduled:
+					// This is an event, we don't send it as metaState change to transporter
+					// Events are stored in DB only
+					continue
+				case *metaTypes.KeyRotationScheduledTrigger:
+					// This is a trigger, send it to transporter
+					parsedChanges = append(parsedChanges, &v1MetaState.MetaStateChange{
+						Change: &v1MetaState.MetaStateChange_KeyRotationScheduledTrigger{
+							KeyRotationScheduledTrigger: convertKeyRotationScheduledTriggerToEventType(c),
+						},
+					})
+				}
 			default:
 				rpc.Logger.Sugar().Debugw("Unknown metaState model name", "modelName", modelName)
 			}
@@ -627,5 +643,11 @@ func convertMetaGenerationReservationCreatedToEventType(change interface{}) *v1M
 			LogIndex:        typedChange.LogIndex,
 			BlockHeight:     typedChange.BlockNumber,
 		},
+	}
+}
+
+func convertKeyRotationScheduledTriggerToEventType(typedChange *metaTypes.KeyRotationScheduledTrigger) *v1MetaState.KeyRotationScheduledTrigger {
+	return &v1MetaState.KeyRotationScheduledTrigger{
+		ActivateAt: timestamppb.New(typedChange.ActivateAt),
 	}
 }

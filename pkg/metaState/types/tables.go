@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 type RewardsClaimed struct {
 	Root            string
 	Earner          string
@@ -87,4 +89,26 @@ type TaskVerified struct {
 
 func (*TaskVerified) TableName() string {
 	return "task_verified"
+}
+
+type KeyRotationScheduled struct {
+	Avs             string
+	OperatorSetId   uint32
+	Operator        string
+	CurveType       string
+	OldPubkey       string
+	NewPubkey       string
+	ActivateAt      uint64
+	TransactionHash string
+	BlockNumber     uint64
+	LogIndex        uint64
+	Processed       bool // Track if daily transport was triggered for this rotation
+}
+
+func (*KeyRotationScheduled) TableName() string {
+	return "key_rotation_scheduled"
+}
+
+type KeyRotationScheduledTrigger struct {
+	ActivateAt time.Time
 }
