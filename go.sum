@@ -40,6 +40,8 @@ github.com/Layr-Labs/protocol-apis v1.19.1-0.20251006135743-6c9f5624d46a h1:2XHG
 github.com/Layr-Labs/protocol-apis v1.19.1-0.20251006135743-6c9f5624d46a/go.mod h1:ZJTZitWS+MnfHND/RF5DMQoFDXnjtP/Xu2Yoxf+hS+Q=
 github.com/Layr-Labs/protocol-apis v1.19.1-0.20251015210202-e55f5115a35b h1:HgmpgoXow/T0FFuSgu49IBZkZwMmLjS2PEcdyqZLqwE=
 github.com/Layr-Labs/protocol-apis v1.19.1-0.20251015210202-e55f5115a35b/go.mod h1:ZJTZitWS+MnfHND/RF5DMQoFDXnjtP/Xu2Yoxf+hS+Q=
+github.com/Layr-Labs/protocol-apis v1.19.1-0.20251016194847-45136389af73 h1:K7PsonZlvhQL50NmyIAAYgn9gP9c7qQ8Go3LJ8uxsWs=
+github.com/Layr-Labs/protocol-apis v1.19.1-0.20251016194847-45136389af73/go.mod h1:ZJTZitWS+MnfHND/RF5DMQoFDXnjtP/Xu2Yoxf+hS+Q=
 github.com/Microsoft/go-winio v0.5.0/go.mod h1:JPGBdM1cNvN/6ISo+n8V5iA4v8pBzdOpzfwIujj1a84=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=

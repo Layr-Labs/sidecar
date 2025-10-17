@@ -212,20 +212,12 @@ func (rpc *RpcServer) parseMetaCommittedChanges(metaCommittedStateByModel map[st
 					},
 				})
 			case keyRotationScheduled.KeyRotationScheduledModelName:
-				// Handle both KeyRotationScheduled events and KeyRotationScheduledTrigger
-				switch c := change.(type) {
-				case *metaTypes.KeyRotationScheduled:
-					// This is an event, we don't send it as metaState change to transporter
-					// Events are stored in DB only
-					continue
-				case *metaTypes.KeyRotationScheduledTrigger:
-					// This is a trigger, send it to transporter
-					parsedChanges = append(parsedChanges, &v1MetaState.MetaStateChange{
-						Change: &v1MetaState.MetaStateChange_KeyRotationScheduledTrigger{
-							KeyRotationScheduledTrigger: convertKeyRotationScheduledTriggerToEventType(c),
-						},
-					})
-				}
+				// Send KeyRotationScheduled events to transporter for Redis storage
+				parsedChanges = append(parsedChanges, &v1MetaState.MetaStateChange{
+					Change: &v1MetaState.MetaStateChange_KeyRotationScheduled{
+						KeyRotationScheduled: convertKeyRotationScheduledToEventType(change),
+					},
+				})
 			default:
 				rpc.Logger.Sugar().Debugw("Unknown metaState model name", "modelName", modelName)
 			}
@@ -633,6 +625,24 @@ func convertOperatorMaxMagnitudeToStateChange(change interface{}) *v1EigenState.
 	}
 }
 
+func convertKeyRotationScheduledToEventType(change interface{}) *v1MetaState.KeyRotationScheduled {
+	typedChange := change.(*metaTypes.KeyRotationScheduled)
+	return &v1MetaState.KeyRotationScheduled{
+		Avs:           typedChange.Avs,
+		OperatorSetId: typedChange.OperatorSetId,
+		Operator:      typedChange.Operator,
+		CurveType:     typedChange.CurveType,
+		OldPubkey:     typedChange.OldPubkey,
+		NewPubkey:     typedChange.NewPubkey,
+		ActivateAt:    typedChange.ActivateAt,
+		TransactionMetadata: &v1MetaState.TransactionMetadata{
+			TransactionHash: typedChange.TransactionHash,
+			BlockHeight:     typedChange.BlockNumber,
+			LogIndex:        typedChange.LogIndex,
+		},
+	}
+}
+
 func convertMetaGenerationReservationCreatedToEventType(change interface{}) *v1MetaState.GenerationReservationCreated {
 	typedChange := change.(*metaTypes.GenerationReservationCreated)
 	return &v1MetaState.GenerationReservationCreated{
@@ -643,11 +653,5 @@ func convertMetaGenerationReservationCreatedToEventType(change interface{}) *v1M
 			LogIndex:        typedChange.LogIndex,
 			BlockHeight:     typedChange.BlockNumber,
 		},
-	}
-}
-
-func convertKeyRotationScheduledTriggerToEventType(typedChange *metaTypes.KeyRotationScheduledTrigger) *v1MetaState.KeyRotationScheduledTrigger {
-	return &v1MetaState.KeyRotationScheduledTrigger{
-		ActivateAt: timestamppb.New(typedChange.ActivateAt),
 	}
 }

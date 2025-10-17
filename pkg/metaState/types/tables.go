@@ -1,7 +1,5 @@
 package types
 
-import "time"
-
 type RewardsClaimed struct {
 	Root            string
 	Earner          string
@@ -107,8 +105,4 @@ type KeyRotationScheduled struct {
 
 func (*KeyRotationScheduled) TableName() string {
 	return "key_rotation_scheduled"
-}
-
-type KeyRotationScheduledTrigger struct {
-	ActivateAt time.Time
 }
