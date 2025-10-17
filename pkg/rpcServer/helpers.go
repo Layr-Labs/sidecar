@@ -31,6 +31,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/submittedDistributionRoots"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/generationReservationCreated"
+	"github.com/Layr-Labs/sidecar/pkg/metaState/keyRotationScheduled"
 	metaTypes "github.com/Layr-Labs/sidecar/pkg/metaState/types"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -208,6 +209,13 @@ func (rpc *RpcServer) parseMetaCommittedChanges(metaCommittedStateByModel map[st
 				parsedChanges = append(parsedChanges, &v1MetaState.MetaStateChange{
 					Change: &v1MetaState.MetaStateChange_GenerationReservationCreated{
 						GenerationReservationCreated: convertMetaGenerationReservationCreatedToEventType(change),
+					},
+				})
+			case keyRotationScheduled.KeyRotationScheduledModelName:
+				// Send KeyRotationScheduled events to transporter for Redis storage
+				parsedChanges = append(parsedChanges, &v1MetaState.MetaStateChange{
+					Change: &v1MetaState.MetaStateChange_KeyRotationScheduled{
+						KeyRotationScheduled: convertKeyRotationScheduledToEventType(change),
 					},
 				})
 			default:
@@ -613,6 +621,24 @@ func convertOperatorMaxMagnitudeToStateChange(change interface{}) *v1EigenState.
 			TransactionHash: typedChange.TransactionHash,
 			LogIndex:        typedChange.LogIndex,
 			BlockHeight:     typedChange.BlockNumber,
+		},
+	}
+}
+
+func convertKeyRotationScheduledToEventType(change interface{}) *v1MetaState.KeyRotationScheduled {
+	typedChange := change.(*metaTypes.KeyRotationScheduled)
+	return &v1MetaState.KeyRotationScheduled{
+		Avs:           typedChange.Avs,
+		OperatorSetId: typedChange.OperatorSetId,
+		Operator:      typedChange.Operator,
+		CurveType:     typedChange.CurveType,
+		OldPubkey:     typedChange.OldPubkey,
+		NewPubkey:     typedChange.NewPubkey,
+		ActivateAt:    typedChange.ActivateAt,
+		TransactionMetadata: &v1MetaState.TransactionMetadata{
+			TransactionHash: typedChange.TransactionHash,
+			BlockHeight:     typedChange.BlockNumber,
+			LogIndex:        typedChange.LogIndex,
 		},
 	}
 }

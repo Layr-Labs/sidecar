@@ -365,6 +365,7 @@ type ContractAddresses struct {
 	BN254CertificateVerifier string
 	OperatorTableUpdater     string
 	ReleaseManager           string
+	KeyRegistrar             string
 }
 
 func (c *Config) ChainIsOneOf(chains ...Chain) bool {
@@ -386,6 +387,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			BN254CertificateVerifier: "0x2a147b325f3eae5a2c2d752e8988407f9efedd75",
 			OperatorTableUpdater:     "0xd35d262f8de519513590f94d9b197262ce322a58",
 			ReleaseManager:           "0x7da89a7d9767edceeb6ade3d7f0f9ba4b6872944",
+			KeyRegistrar:             "0x2647069a19b3ffad96fae9278b9a1368dec83d27",
 		}
 	} else if c.Chain == Chain_Holesky {
 		return &ContractAddresses{
@@ -395,6 +397,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			DelegationManager:  "0xa44151489861fe9e3055d95adc98fbd462b948e7",
 			AvsDirectory:       "0x055733000064333caddbc92763c58bf0192ffebf",
 			AllocationManager:  "0x78469728304326cbc65f8f95fa756b0b73164462",
+			KeyRegistrar:       "0xc757e10e33d6d4fb0e0a08786e125b4334aa7457",
 		}
 	} else if c.Chain == Chain_Sepolia {
 		return &ContractAddresses{
@@ -410,6 +413,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			BN254CertificateVerifier: "0xff58a373c18268f483c1f5ca03cf885c0c43373a",
 			OperatorTableUpdater:     "0xb02a15c6bd0882b35e9936a9579f35fb26e11476",
 			ReleaseManager:           "0x59c8d715dca616e032b744a753c017c9f3e16bf4",
+			KeyRegistrar:             "0xa4db30d08d8bbca00d40600bee9f029984db162a",
 		}
 	} else if c.Chain == Chain_Hoodi {
 		return &ContractAddresses{
@@ -419,6 +423,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			EigenpodManager:    "0xcd1442415fc5c29aa848a49d2e232720be07976c",
 			RewardsCoordinator: "0x29e8572678e0c272350aa0b4b8f304e47ebcd5e7",
 			StrategyManager:    "0xee45e76ddbedda2918b8c7e3035cd37eab3b5d41",
+			KeyRegistrar:       "0x5737e38a260545d8feccb4cae2cfd984da4130ed",
 		}
 	} else if c.Chain == Chain_Mainnet {
 		return &ContractAddresses{
@@ -434,6 +439,7 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			BN254CertificateVerifier: "0x3f55654b2b2b86bb11be2f72657f9c33bf88120a",
 			OperatorTableUpdater:     "0x5557e1fe3068a1e823ce5dcd052c6c352e2617b5",
 			ReleaseManager:           "0xeda3cad031c0cf367cf3f517ee0dc98f9ba80c8f",
+			KeyRegistrar:             "0x54f4bc6bdebe479173a2bbdc31dd7178408a57a4",
 		}
 	} else {
 		return nil
