@@ -1,6 +1,7 @@
 package protocolDataService
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"database/sql/driver"
@@ -9,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"text/template"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -146,13 +148,15 @@ func (pds *ProtocolDataService) GetTotalDelegatedOperatorSharesForStrategy(ctx c
 	if err != nil {
 		return nil, err
 	}
-	// Build dynamic WHERE clause for operator filter
-	operatorFilter := ""
-	if operator != "" {
-		operatorFilter = "and operator = @operator"
+
+	if pagination == nil {
+		pagination = &types.Pagination{
+			Page:     0,
+			PageSize: 100,
+		}
 	}
 
-	query := fmt.Sprintf(`
+	queryTemplate := `
 		with operator_stakers as (
 			select
 				staker,
@@ -164,7 +168,7 @@ func (pds *ProtocolDataService) GetTotalDelegatedOperatorSharesForStrategy(ctx c
 			from staker_delegation_changes
 			where
 				block_number <= @blockHeight
-				%s
+				{{if .HasOperator}}and operator = @operator{{end}}
 			order by block_number desc, log_index desc
 		),
 		distinct_delegated_stakers as (
@@ -211,18 +215,33 @@ func (pds *ProtocolDataService) GetTotalDelegatedOperatorSharesForStrategy(ctx c
 			shares
 		from final_results
 		where shares > 0
-		order by shares::numeric desc;
-	`, operatorFilter)
+		order by shares::numeric desc
+		{{if .HasPagination}}LIMIT @limit{{if .HasOffset}} OFFSET @offset{{end}}{{end}};
+	`
 
-	// Add pagination
-	if pagination != nil {
-		query += ` LIMIT @limit`
-		if pagination.Page > 0 {
-			query += ` OFFSET @offset`
-		}
+	// Template data for conditional rendering
+	templateData := struct {
+		HasOperator   bool
+		HasPagination bool
+		HasOffset     bool
+	}{
+		HasOperator:   operator != "",
+		HasPagination: pagination != nil,
+		HasOffset:     pagination != nil && pagination.Page > 0,
 	}
 
-	// Build query parameters conditionally
+	tmpl, err := template.New("delegatedStakesQuery").Parse(queryTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse query template: %w", err)
+	}
+
+	var queryBuffer bytes.Buffer
+	if err := tmpl.Execute(&queryBuffer, templateData); err != nil {
+		return nil, fmt.Errorf("failed to execute query template: %w", err)
+	}
+
+	query := queryBuffer.String()
+
 	queryParams := []interface{}{
 		sql.Named("strategy", strings.ToLower(strategy)),
 		sql.Named("blockHeight", blockHeight),
@@ -255,7 +274,6 @@ func (pds *ProtocolDataService) GetTotalDelegatedOperatorSharesForStrategy(ctx c
 		return []*OperatorDelegatedStake{}, nil
 	}
 
-	// Convert results to OperatorDelegatedStake
 	operatorStakes := make([]*OperatorDelegatedStake, len(results))
 	for i, result := range results {
 		operatorStakes[i] = &OperatorDelegatedStake{

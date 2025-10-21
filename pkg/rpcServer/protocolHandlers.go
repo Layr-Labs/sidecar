@@ -79,8 +79,9 @@ func (rpc *RpcServer) ListOperatorsDelegatedStakesForStrategy(ctx context.Contex
 		return nil, errors.New("strategy address is required")
 	}
 
-	pagination := types.NewDefaultPagination()
+	var pagination *types.Pagination
 	if p := request.GetPagination(); p != nil {
+		pagination = types.NewDefaultPagination()
 		pagination.Load(p.GetPageNumber(), p.GetPageSize())
 	}
 
