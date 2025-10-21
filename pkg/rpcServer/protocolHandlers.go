@@ -71,6 +71,43 @@ func (rpc *RpcServer) GetOperatorDelegatedStakeForStrategy(ctx context.Context, 
 	}, nil
 }
 
+func (rpc *RpcServer) ListOperatorsDelegatedStakesForStrategy(ctx context.Context, request *protocolV1.ListOperatorsDelegatedStakesForStrategyRequest) (*protocolV1.ListOperatorsDelegatedStakesForStrategyResponse, error) {
+	strategy := request.GetStrategyAddress()
+	blockHeight := request.GetBlockHeight()
+
+	if strategy == "" {
+		return nil, errors.New("strategy address is required")
+	}
+
+	pagination := types.NewDefaultPagination()
+	if p := request.GetPagination(); p != nil {
+		pagination.Load(p.GetPageNumber(), p.GetPageSize())
+	}
+
+	operatorStakes, err := rpc.protocolDataService.GetTotalDelegatedOperatorSharesForStrategy(ctx, "", strategy, blockHeight, pagination)
+	if err != nil {
+		return nil, err
+	}
+
+	var nextPage *common.Pagination
+	if uint32(len(operatorStakes)) == pagination.PageSize {
+		nextPage = &common.Pagination{
+			PageNumber: pagination.Page + 1,
+			PageSize:   pagination.PageSize,
+		}
+	}
+
+	return &protocolV1.ListOperatorsDelegatedStakesForStrategyResponse{
+		Operators: utils.Map(operatorStakes, func(stake *protocolDataService.OperatorDelegatedStake, i uint64) *protocolV1.OperatorDelegatedStake {
+			return &protocolV1.OperatorDelegatedStake{
+				OperatorAddress: stake.Operator,
+				Shares:          stake.Shares,
+			}
+		}),
+		NextPage: nextPage,
+	}, nil
+}
+
 func (rpc *RpcServer) GetDelegatedStakersForOperator(ctx context.Context, request *protocolV1.GetDelegatedStakersForOperatorRequest) (*protocolV1.GetDelegatedStakersForOperatorResponse, error) {
 	operator := request.GetOperatorAddress()
 	if operator == "" {
