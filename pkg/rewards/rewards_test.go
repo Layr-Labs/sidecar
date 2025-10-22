@@ -399,7 +399,7 @@ func Test_Rewards(t *testing.T) {
 			fmt.Printf("Running gold_15_staging\n")
 			err = rc.GenerateGold15StagingTable(snapshotDate)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_15_GoldStaging])
+			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_18_GoldStaging])
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_15_staging: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
