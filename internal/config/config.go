@@ -862,6 +862,14 @@ func (c *Config) IsRewardsV2_1EnabledForCutoffDate(cutoffDate string) (bool, err
 }
 
 func (c *Config) IsRewardsV2_2EnabledForCutoffDate(cutoffDate string) (bool, error) {
+<<<<<<< HEAD
+=======
+	// Check global flag first - if disabled, return false regardless of date
+	if !c.Rewards.RewardsV2_2Enabled {
+		return false, nil
+	}
+
+>>>>>>> e7a0eb58 (feat: implement Operator Set Rewards with Unique & Total Stake)
 	forks, err := c.GetRewardsSqlForkDates()
 	if err != nil {
 		return false, err
@@ -870,7 +878,10 @@ func (c *Config) IsRewardsV2_2EnabledForCutoffDate(cutoffDate string) (bool, err
 	if err != nil {
 		return false, errors.Join(fmt.Errorf("failed to parse cutoff date %s", cutoffDate), err)
 	}
+<<<<<<< HEAD
 	// TODO: Need to change to fork sabine
+=======
+>>>>>>> e7a0eb58 (feat: implement Operator Set Rewards with Unique & Total Stake)
 	pecosForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Pecos].Date)
 	if err != nil {
 		return false, errors.Join(fmt.Errorf("failed to parse Pecos fork date %s", forks[RewardsFork_Pecos].Date), err)
