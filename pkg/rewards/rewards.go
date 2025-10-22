@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 
 	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
@@ -732,6 +733,22 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	}
 	rc.logger.Sugar().Debugw("Generated operator set strategy registration snapshots")
 
+	// ------------------------------------------------------------------------
+	// Rewards V2.2 snapshots (Unique Stake)
+	// ------------------------------------------------------------------------
+	v2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
+		return err
+	}
+	if v2_2Enabled {
+		if err = rc.GenerateAndInsertOperatorAllocationSnapshots(snapshotDate); err != nil {
+			rc.logger.Sugar().Errorw("Failed to generate operator allocation snapshots", "error", err)
+			return err
+		}
+		rc.logger.Sugar().Debugw("Generated operator allocation snapshots")
+	}
+
 	return nil
 }
 
@@ -745,9 +762,23 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
-	if err := rc.GenerateGold2StakerRewardAmountsTable(snapshotDate, forks); err != nil {
-		rc.logger.Sugar().Errorw("Failed to generate staker reward amounts", "error", err)
+	// Check if v2.2 is enabled for this snapshot date
+	v2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
 		return err
+	}
+
+	if v2_2Enabled {
+		if err := rc.GenerateGold2StakerRewardAmountsV2_2Table(snapshotDate, forks); err != nil {
+			rc.logger.Sugar().Errorw("Failed to generate v2.2 staker reward amounts", "error", err)
+			return err
+		}
+	} else {
+		if err := rc.GenerateGold2StakerRewardAmountsTable(snapshotDate, forks); err != nil {
+			rc.logger.Sugar().Errorw("Failed to generate staker reward amounts", "error", err)
+			return err
+		}
 	}
 
 	if err := rc.GenerateGold3OperatorRewardAmountsTable(snapshotDate); err != nil {

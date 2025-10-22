@@ -29,6 +29,8 @@ var (
 	Table_15_GoldStaging                        = "gold_15_staging"
 	Table_16_GoldTable                          = "gold_table"
 
+	Table_OperatorAllocationSnapshots = "operator_allocation_snapshots"
+
 	Sot_1_StakerStrategyPayouts                = "sot_1_staker_strategy_payouts"
 	Sot_2_OperatorStrategyPayouts              = "sot_2_operator_strategy_payouts"
 	Sot_3_RewardsForAllStrategyPayout          = "sot_3_rewards_for_all_strategy_payout"
@@ -61,6 +63,8 @@ var goldTableBaseNames = map[string]string{
 	Table_14_AvsODOperatorSetRewardAmounts:      Table_14_AvsODOperatorSetRewardAmounts,
 	Table_15_GoldStaging:                        Table_15_GoldStaging,
 	Table_16_GoldTable:                          Table_16_GoldTable,
+
+	Table_OperatorAllocationSnapshots: Table_OperatorAllocationSnapshots,
 
 	Sot_1_StakerStrategyPayouts:                Sot_1_StakerStrategyPayouts,
 	Sot_2_OperatorStrategyPayouts:              Sot_2_OperatorStrategyPayouts,
