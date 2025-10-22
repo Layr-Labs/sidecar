@@ -78,6 +78,7 @@ func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTab
 		rc.logger.Sugar().Infow("Rewards v2.1 is not enabled for this cutoff date, skipping GenerateGold12OperatorODOperatorSetRewardAmountsTable")
 		return nil
 	}
+
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 	destTableName := allTableNames[rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts]
 
