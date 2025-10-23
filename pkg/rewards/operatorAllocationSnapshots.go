@@ -74,12 +74,31 @@ func (rc *RewardsCalculator) GenerateAndInsertOperatorAllocationSnapshots(snapsh
 		zap.String("destTableName", destTableName),
 	)
 
-	// Get the latest block (we'll use snapshot date in the query instead)
-	latestBlock, err := rc.blockStore.GetLatestBlock()
-	if err != nil {
-		rc.logger.Sugar().Errorw("Failed to get latest block", "error", err)
-		return err
+	// CRITICAL: Get the block height AT the snapshot date for retroactive rewards support
+	// This ensures we only include allocations that were effective at that historical point in time
+	type BlockAtDate struct {
+		BlockNumber uint64
 	}
+	var blockAtDate BlockAtDate
+
+	blockQuery := `
+		SELECT number as block_number
+		FROM blocks
+		WHERE block_time::date <= @snapshotDate::date
+		ORDER BY block_time DESC
+		LIMIT 1
+	`
+
+	res := rc.grm.Raw(blockQuery, sql.Named("snapshotDate", snapshotDate)).Scan(&blockAtDate)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to get block at snapshot date", "error", res.Error)
+		return res.Error
+	}
+
+	rc.logger.Sugar().Infow("Using block height for snapshot",
+		zap.String("snapshotDate", snapshotDate),
+		zap.Uint64("blockNumber", blockAtDate.BlockNumber),
+	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(operatorAllocationSnapshotsQuery, map[string]interface{}{
 		"destTableName": destTableName,
@@ -90,9 +109,9 @@ func (rc *RewardsCalculator) GenerateAndInsertOperatorAllocationSnapshots(snapsh
 		return err
 	}
 
-	res := rc.grm.Exec(query,
+	res = rc.grm.Exec(query,
 		sql.Named("cutoffDate", snapshotDate),
-		sql.Named("cutoffDate_blockHeight", latestBlock.Number),
+		sql.Named("cutoffDate_blockHeight", blockAtDate.BlockNumber),
 	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator allocation snapshots", "error", res.Error)

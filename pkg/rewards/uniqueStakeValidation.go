@@ -43,12 +43,31 @@ func (rc *RewardsCalculator) ValidateUniqueStakeAllocationsForRewardSubmission(
 		zap.Strings("operators", operators),
 	)
 
-	// Get the latest block (we'll use snapshot date in the query instead)
-	latestBlock, err := rc.blockStore.GetLatestBlock()
-	if err != nil {
-		rc.logger.Sugar().Errorw("Failed to get latest block", "error", err)
-		return err
+	// CRITICAL: Get the block height AT the snapshot date for retroactive rewards support
+	// This ensures we only validate allocations that were effective at that historical point in time
+	type BlockAtDate struct {
+		BlockNumber uint64
 	}
+	var blockAtDate BlockAtDate
+
+	blockQuery := `
+		SELECT number as block_number
+		FROM blocks
+		WHERE block_time::date <= @snapshotDate::date
+		ORDER BY block_time DESC
+		LIMIT 1
+	`
+
+	res := rc.grm.Raw(blockQuery, sql.Named("snapshotDate", snapshotDate)).Scan(&blockAtDate)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to get block at snapshot date", "error", res.Error)
+		return res.Error
+	}
+
+	rc.logger.Sugar().Debugw("Validating unique stake allocations at block",
+		zap.String("snapshotDate", snapshotDate),
+		zap.Uint64("blockNumber", blockAtDate.BlockNumber),
+	)
 
 	// Query to check operator allocations
 	query := `
@@ -121,12 +140,12 @@ func (rc *RewardsCalculator) ValidateUniqueStakeAllocationsForRewardSubmission(
 	}
 
 	var results []AllocationResult
-	res := rc.grm.Raw(query,
+	res = rc.grm.Raw(query,
 		sql.Named("avs", avs),
 		sql.Named("operatorSetId", operatorSetId),
 		sql.Named("operators", operators),
 		sql.Named("strategies", strategies),
-		sql.Named("cutoffBlockHeight", latestBlock.Number),
+		sql.Named("cutoffBlockHeight", blockAtDate.BlockNumber),
 		sql.Named("snapshotDate", snapshotDate),
 	).Scan(&results)
 
