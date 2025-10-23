@@ -1,6 +1,7 @@
 package protocolDataService
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"database/sql/driver"
@@ -9,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"text/template"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -139,9 +141,22 @@ func (pds *ProtocolDataService) ListDelegatedStrategiesForOperator(ctx context.C
 	return strategies, nil
 }
 
-// getTotalDelegatedOperatorSharesForStrategy returns the total shares delegated to an operator for a given strategy at a given block height.
-func (pds *ProtocolDataService) getTotalDelegatedOperatorSharesForStrategy(ctx context.Context, operator string, strategy string, blockHeight uint64) (string, error) {
-	query := `
+// GetTotalDelegatedOperatorSharesForStrategy returns the shares delegated to operators for a given strategy at a given block height.
+// If operator is empty, returns all operators. If operator is specified, returns just that operator.
+func (pds *ProtocolDataService) GetTotalDelegatedOperatorSharesForStrategy(ctx context.Context, operator string, strategy string, blockHeight uint64, pagination *types.Pagination) ([]*OperatorDelegatedStake, error) {
+	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	if pagination == nil {
+		pagination = &types.Pagination{
+			Page:     0,
+			PageSize: 100,
+		}
+	}
+
+	queryTemplate := `
 		with operator_stakers as (
 			select
 				staker,
@@ -152,8 +167,8 @@ func (pds *ProtocolDataService) getTotalDelegatedOperatorSharesForStrategy(ctx c
 				row_number() over (partition by staker order by block_number desc, log_index asc) as rn
 			from staker_delegation_changes
 			where
-				operator = @operator
-				and block_number <= @blockHeight
+				block_number <= @blockHeight
+				{{if .HasOperator}}and operator = @operator{{end}}
 			order by block_number desc, log_index desc
 		),
 		distinct_delegated_stakers as (
@@ -196,29 +211,82 @@ func (pds *ProtocolDataService) getTotalDelegatedOperatorSharesForStrategy(ctx c
 			group by 1
 		)
 		select
-			*
+			operator,
+			shares
 		from final_results
-		where shares > 0;
+		where shares > 0
+		order by shares::numeric desc
+		{{if .HasPagination}}LIMIT @limit{{if .HasOffset}} OFFSET @offset{{end}}{{end}};
 	`
 
-	var results struct {
-		Operator string
-		Shares   string
+	// Template data for conditional rendering
+	templateData := struct {
+		HasOperator   bool
+		HasPagination bool
+		HasOffset     bool
+	}{
+		HasOperator:   operator != "",
+		HasPagination: pagination != nil,
+		HasOffset:     pagination != nil && pagination.Page > 0,
 	}
 
-	res := pds.db.Raw(query,
-		sql.Named("operator", strings.ToLower(operator)),
+	tmpl, err := template.New("delegatedStakesQuery").Parse(queryTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse query template: %w", err)
+	}
+
+	var queryBuffer bytes.Buffer
+	if err := tmpl.Execute(&queryBuffer, templateData); err != nil {
+		return nil, fmt.Errorf("failed to execute query template: %w", err)
+	}
+
+	query := queryBuffer.String()
+
+	queryParams := []interface{}{
 		sql.Named("strategy", strings.ToLower(strategy)),
 		sql.Named("blockHeight", blockHeight),
-	).Scan(&results)
+	}
+
+	if operator != "" {
+		queryParams = append(queryParams, sql.Named("operator", strings.ToLower(operator)))
+	}
+
+	if pagination != nil {
+		queryParams = append(queryParams, sql.Named("limit", pagination.PageSize))
+		if pagination.Page > 0 {
+			queryParams = append(queryParams, sql.Named("offset", pagination.Page*pagination.PageSize))
+		}
+	}
+
+	type result struct {
+		Operator string `gorm:"column:operator"`
+		Shares   string `gorm:"column:shares"`
+	}
+
+	var results []result
+	res := pds.db.Raw(query, queryParams...).Scan(&results)
 
 	if res.Error != nil {
-		return "", res.Error
+		return nil, res.Error
 	}
-	return results.Shares, nil
+
+	if len(results) == 0 {
+		return []*OperatorDelegatedStake{}, nil
+	}
+
+	operatorStakes := make([]*OperatorDelegatedStake, len(results))
+	for i, result := range results {
+		operatorStakes[i] = &OperatorDelegatedStake{
+			Operator: result.Operator,
+			Shares:   result.Shares,
+		}
+	}
+
+	return operatorStakes, nil
 }
 
 type OperatorDelegatedStake struct {
+	Operator     string
 	Shares       string
 	AvsAddresses []string
 }
@@ -244,11 +312,16 @@ func (pds *ProtocolDataService) GetOperatorDelegatedStake(ctx context.Context, o
 		defer wg.Done()
 		result := &ResultCollector[string]{}
 
-		shares, err := pds.getTotalDelegatedOperatorSharesForStrategy(ctx, operator, strategy, blockHeight)
+		operatorShares, err := pds.GetTotalDelegatedOperatorSharesForStrategy(ctx, operator, strategy, blockHeight, nil)
 		if err != nil {
 			result.Error = err
 		} else {
-			result.Result = shares
+			// For single operator queries, return the shares of the first (and only) result
+			if len(operatorShares) > 0 {
+				result.Result = operatorShares[0].Shares
+			} else {
+				result.Result = "0"
+			}
 		}
 		sharesChan <- result
 	}()

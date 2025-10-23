@@ -12,6 +12,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateMigrator"
 	"github.com/Layr-Labs/sidecar/pkg/logger"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
+	"github.com/Layr-Labs/sidecar/pkg/service/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -134,6 +135,87 @@ func Test_ProtocolDataService(t *testing.T) {
 			assert.True(t, len(shares) > 0)
 			for _, share := range shares {
 				assert.True(t, len(share.AvsAddresses) > 0)
+			}
+		})
+	})
+
+	t.Run("Test GetTotalDelegatedOperatorSharesForStrategy", func(t *testing.T) {
+		strategy := "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"
+		blockNumber := uint64(3204393)
+
+		t.Run("Without operator filter (all operators)", func(t *testing.T) {
+			// Test with empty operator string to get all operators
+			operatorStakes, err := pds.GetTotalDelegatedOperatorSharesForStrategy(context.Background(), "", strategy, blockNumber, nil)
+			assert.Nil(t, err)
+			assert.True(t, len(operatorStakes) > 0, "Should return multiple operators")
+
+			// Verify the structure of returned data
+			for _, stake := range operatorStakes {
+				assert.NotEmpty(t, stake.Operator, "Operator address should not be empty")
+				assert.NotEmpty(t, stake.Shares, "Shares should not be empty")
+			}
+		})
+
+		t.Run("With specific operator filter", func(t *testing.T) {
+			// Test with specific operator to test HasOperator template logic
+			operator := "0xb5ead7a953052da8212da7e9462d65f91205d06d"
+			operatorStakes, err := pds.GetTotalDelegatedOperatorSharesForStrategy(context.Background(), operator, strategy, blockNumber, nil)
+			assert.Nil(t, err)
+
+			// Should return only the specified operator
+			if len(operatorStakes) > 0 {
+				assert.Equal(t, 1, len(operatorStakes), "Should return exactly one operator")
+				assert.Equal(t, operator, operatorStakes[0].Operator)
+				assert.NotEmpty(t, operatorStakes[0].Shares)
+			}
+		})
+
+		t.Run("With nil pagination (uses default)", func(t *testing.T) {
+			// Test with nil pagination to ensure default is applied
+			operatorStakes, err := pds.GetTotalDelegatedOperatorSharesForStrategy(context.Background(), "", strategy, blockNumber, nil)
+			assert.Nil(t, err)
+			assert.True(t, len(operatorStakes) > 0)
+			// Default page size is 100, so should not exceed that
+			assert.True(t, len(operatorStakes) <= 100, "Should respect default page size of 100")
+		})
+
+		t.Run("With custom pagination (first page)", func(t *testing.T) {
+			// Test with custom pagination on first page (no offset)
+			pagination := &types.Pagination{
+				Page:     0,
+				PageSize: 5,
+			}
+			operatorStakes, err := pds.GetTotalDelegatedOperatorSharesForStrategy(context.Background(), "", strategy, blockNumber, pagination)
+			assert.Nil(t, err)
+			assert.True(t, len(operatorStakes) > 0)
+			assert.True(t, len(operatorStakes) <= 5, "Should respect custom page size of 5")
+		})
+
+		t.Run("With custom pagination (second page with offset)", func(t *testing.T) {
+			// Test with page > 0 to test HasOffset template logic
+			pagination := &types.Pagination{
+				Page:     1,
+				PageSize: 5,
+			}
+			operatorStakes, err := pds.GetTotalDelegatedOperatorSharesForStrategy(context.Background(), "", strategy, blockNumber, pagination)
+			assert.Nil(t, err)
+			// May or may not have results depending on total data, but should not error
+			assert.True(t, len(operatorStakes) <= 5, "Should respect custom page size of 5")
+		})
+
+		t.Run("With operator and pagination combined", func(t *testing.T) {
+			// Test combining operator filter with pagination
+			operator := "0xb5ead7a953052da8212da7e9462d65f91205d06d"
+			pagination := &types.Pagination{
+				Page:     0,
+				PageSize: 10,
+			}
+			operatorStakes, err := pds.GetTotalDelegatedOperatorSharesForStrategy(context.Background(), operator, strategy, blockNumber, pagination)
+			assert.Nil(t, err)
+
+			if len(operatorStakes) > 0 {
+				assert.Equal(t, operator, operatorStakes[0].Operator)
+				assert.True(t, len(operatorStakes) <= 10, "Should respect page size")
 			}
 		})
 	})
