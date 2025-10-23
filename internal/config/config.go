@@ -781,6 +781,23 @@ func (c *Config) IsRewardsV2_1EnabledForCutoffDate(cutoffDate string) (bool, err
 	return cutoffDateTime.Compare(mississippiForkDateTime) >= 0, nil
 }
 
+func (c *Config) IsRewardsV2_2EnabledForCutoffDate(cutoffDate string) (bool, error) {
+	forks, err := c.GetRewardsSqlForkDates()
+	if err != nil {
+		return false, err
+	}
+	cutoffDateTime, err := time.Parse(time.DateOnly, cutoffDate)
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("failed to parse cutoff date %s", cutoffDate), err)
+	}
+	pecosForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Pecos].Date)
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("failed to parse Pecos fork date %s", forks[RewardsFork_Pecos].Date), err)
+	}
+
+	return cutoffDateTime.Compare(pecosForkDateTime) >= 0, nil
+}
+
 // CanIgnoreIncorrectRewardsRoot returns true if the rewards root can be ignored for the given block number
 //
 // Due to inconsistencies in the rewards root calculation on testnet, we know that some roots
