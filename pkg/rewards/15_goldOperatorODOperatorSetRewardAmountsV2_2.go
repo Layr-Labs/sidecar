@@ -5,10 +5,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const _12_goldOperatorODOperatorSetRewardAmountsQuery = `
+const _15_goldOperatorODOperatorSetRewardAmountsV2_2Query = `
 CREATE TABLE {{.destTableName}} AS
 
--- Step 1: Get the rows where operators have registered for the operator set
+-- Step 1: Get the rows where operators have registered for the operator set AND have allocated unique stake
 WITH reward_snapshot_operators AS (
     SELECT
         ap.reward_hash,
@@ -29,6 +29,20 @@ WITH reward_snapshot_operators AS (
        AND ap.operator = osor.operator
 ),
 
+-- V2.2: Filter operators who have allocated unique stake to this operator set
+-- This ensures only operators who have committed unique stake can receive operator rewards
+operators_with_unique_stake AS (
+    SELECT DISTINCT
+        rso.*
+    FROM reward_snapshot_operators rso
+    JOIN {{.operatorAllocationSnapshotsTable}} oas
+        ON rso.operator = oas.operator
+        AND rso.avs = oas.avs
+        AND rso.operator_set_id = oas.operator_set_id
+        AND rso.snapshot = oas.snapshot
+    WHERE oas.magnitude > 0  -- Only include operators with active unique stake allocations
+),
+
 -- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
 -- Since the above result is a flattened operator-directed reward submission across strategies.
 distinct_operators AS (
@@ -42,7 +56,7 @@ distinct_operators AS (
                 PARTITION BY reward_hash, snapshot, operator 
                 ORDER BY strategy ASC
             ) AS rn
-        FROM reward_snapshot_operators
+        FROM operators_with_unique_stake
     ) t
     -- Keep only the first row for each (operator, reward hash, snapshot)
     WHERE rn = 1
@@ -68,28 +82,30 @@ operator_splits AS (
 SELECT * FROM operator_splits
 `
 
-func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTable(snapshotDate string) error {
-	rewardsV2_1Enabled, err := rc.globalConfig.IsRewardsV2_1EnabledForCutoffDate(snapshotDate)
+func (rc *RewardsCalculator) GenerateGold15OperatorODOperatorSetRewardAmountsV2_2Table(snapshotDate string) error {
+	// Skip if v2.2 is not enabled
+	rewardsV2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
-		rc.logger.Sugar().Errorw("Failed to check if rewards v2.1 is enabled", "error", err)
+		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
 		return err
 	}
-	if !rewardsV2_1Enabled {
-		rc.logger.Sugar().Infow("Rewards v2.1 is not enabled for this cutoff date, skipping GenerateGold12OperatorODOperatorSetRewardAmountsTable")
+	if !rewardsV2_2Enabled {
+		rc.logger.Sugar().Infow("Rewards v2.2 is not enabled, skipping v2.2 table 15")
 		return nil
 	}
 
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts]
+	destTableName := allTableNames[rewardsUtils.Table_15_OperatorODOperatorSetRewardAmountsV2_2]
 
-	rc.logger.Sugar().Infow("Generating Operator OD operator set reward amounts",
+	rc.logger.Sugar().Infow("Generating v2.2 Operator OD operator set reward amounts with unique stake",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_12_goldOperatorODOperatorSetRewardAmountsQuery, map[string]interface{}{
-		"destTableName":        destTableName,
-		"activeODRewardsTable": allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
+	query, err := rewardsUtils.RenderQueryTemplate(_15_goldOperatorODOperatorSetRewardAmountsV2_2Query, map[string]interface{}{
+		"destTableName":                    destTableName,
+		"activeODRewardsTable":             allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
+		"operatorAllocationSnapshotsTable": allTableNames[rewardsUtils.Table_OperatorAllocationSnapshots],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -98,7 +114,7 @@ func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTab
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_operator_od_operator_set_reward_amounts", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to create gold_operator_od_operator_set_reward_amounts v2.2", "error", res.Error)
 		return res.Error
 	}
 	return nil
