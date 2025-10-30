@@ -814,16 +814,23 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
-	if err := rc.GenerateGold12OperatorODOperatorSetRewardAmountsTable(snapshotDate); err != nil {
-		rc.logger.Sugar().Errorw("Failed to generate operator od operator set rewards", "error", err)
-		return err
-	}
-
 	// Check if v2.2 is enabled for operator set rewards
 	v2_2EnabledForOperatorSet, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled for operator set", "error", err)
 		return err
+	}
+
+	if v2_2EnabledForOperatorSet {
+		if err := rc.GenerateGold12OperatorODOperatorSetRewardAmountsV2_2Table(snapshotDate); err != nil {
+			rc.logger.Sugar().Errorw("Failed to generate v2.2 operator od operator set rewards with unique stake", "error", err)
+			return err
+		}
+	} else {
+		if err := rc.GenerateGold12OperatorODOperatorSetRewardAmountsTable(snapshotDate); err != nil {
+			rc.logger.Sugar().Errorw("Failed to generate operator od operator set rewards", "error", err)
+			return err
+		}
 	}
 
 	if v2_2EnabledForOperatorSet {
@@ -838,9 +845,16 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		}
 	}
 
-	if err := rc.GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate, forks); err != nil {
-		rc.logger.Sugar().Errorw("Failed to generate avs od operator set rewards", "error", err)
-		return err
+	if v2_2EnabledForOperatorSet {
+		if err := rc.GenerateGold14AvsODOperatorSetRewardAmountsV2_2Table(snapshotDate, forks); err != nil {
+			rc.logger.Sugar().Errorw("Failed to generate v2.2 avs od operator set rewards with unique stake validation", "error", err)
+			return err
+		}
+	} else {
+		if err := rc.GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate, forks); err != nil {
+			rc.logger.Sugar().Errorw("Failed to generate avs od operator set rewards", "error", err)
+			return err
+		}
 	}
 
 	if err := rc.GenerateGold15StagingTable(snapshotDate); err != nil {

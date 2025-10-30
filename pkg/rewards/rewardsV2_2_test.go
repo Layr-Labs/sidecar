@@ -1,6 +1,7 @@
 package rewards
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 	"testing"
@@ -9,9 +10,11 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
-func Test_RewardsV2_1(t *testing.T) {
+func Test_RewardsV2_2(t *testing.T) {
 	if !rewardsTestsEnabled() {
 		t.Skipf("Skipping %s", t.Name())
 		return
@@ -24,9 +27,12 @@ func Test_RewardsV2_1(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Enable v2.2 for testing
+	cfg.Rewards.RewardsV2_2Enabled = true
+
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 
-	t.Run("Should initialize the rewards calculator", func(t *testing.T) {
+	t.Run("Should initialize the rewards calculator with v2.2", func(t *testing.T) {
 		rc, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
 		assert.Nil(t, err)
 		if err != nil {
@@ -83,10 +89,14 @@ func Test_RewardsV2_1(t *testing.T) {
 		err = hydrateOperatorDirectedOperatorSetRewardSubmissionsTable(grm, l)
 		assert.Nil(t, err)
 
+		// RewardsV2_2 tables - Operator allocations for unique stake
+		err = hydrateOperatorAllocations(grm, l)
+		assert.Nil(t, err)
+
 		t.Log("Hydrated tables")
 
 		snapshotDates := []string{
-			"2025-02-05",
+			"2025-02-10", // Date after Pecos fork for v2.2
 		}
 
 		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
@@ -206,7 +216,7 @@ func Test_RewardsV2_1(t *testing.T) {
 			testStart = time.Now()
 
 			// ------------------------------------------------------------------------
-			// Rewards V2.1
+			// Rewards V2.1 (Should be skipped when v2.2 is enabled)
 			// ------------------------------------------------------------------------
 
 			rewardsV2_1Enabled, err := cfg.IsRewardsV2_1EnabledForCutoffDate(snapshotDate)
@@ -222,42 +232,50 @@ func Test_RewardsV2_1(t *testing.T) {
 			}
 			testStart = time.Now()
 
-			fmt.Printf("Running gold_12_operator_od_operator_set_rewards\n")
-			err = rc.GenerateGold12OperatorODOperatorSetRewardAmountsTable(snapshotDate)
+			// ------------------------------------------------------------------------
+			// Rewards V2.2 (Unique Stake)
+			// ------------------------------------------------------------------------
+
+			rewardsV2_2Enabled, err := cfg.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
 			assert.Nil(t, err)
-			if rewardsV2_1Enabled {
-				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts])
+			assert.True(t, rewardsV2_2Enabled, "v2.2 should be enabled for this test")
+
+			fmt.Printf("Running gold_15_operator_od_operator_set_rewards_v2_2\n")
+			err = rc.GenerateGold12OperatorODOperatorSetRewardAmountsV2_2Table(snapshotDate)
+			assert.Nil(t, err)
+			if rewardsV2_2Enabled {
+				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_15_OperatorODOperatorSetRewardAmountsV2_2])
 				assert.Nil(t, err)
-				fmt.Printf("\tRows in gold_12_operator_od_operator_set_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
+				fmt.Printf("\tRows in gold_15_operator_od_operator_set_rewards_v2_2: %v - [time: %v]\n", rows, time.Since(testStart))
 			}
 			testStart = time.Now()
 
-			fmt.Printf("Running gold_13_staker_od_operator_set_rewards\n")
-			err = rc.GenerateGold13StakerODOperatorSetRewardAmountsTable(snapshotDate)
+			fmt.Printf("Running gold_16_staker_od_operator_set_rewards_v2_2\n")
+			err = rc.GenerateGold13StakerODOperatorSetRewardAmountsV2_2Table(snapshotDate)
 			assert.Nil(t, err)
-			if rewardsV2_1Enabled {
-				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_13_StakerODOperatorSetRewardAmounts])
+			if rewardsV2_2Enabled {
+				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_16_StakerODOperatorSetRewardAmountsV2_2])
 				assert.Nil(t, err)
-				fmt.Printf("\tRows in gold_13_staker_od_operator_set_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
+				fmt.Printf("\tRows in gold_16_staker_od_operator_set_rewards_v2_2: %v - [time: %v]\n", rows, time.Since(testStart))
 			}
 			testStart = time.Now()
 
-			fmt.Printf("Running gold_14_avs_od_operator_set_rewards\n")
-			err = rc.GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate, forks)
+			fmt.Printf("Running gold_17_avs_od_operator_set_rewards_v2_2\n")
+			err = rc.GenerateGold14AvsODOperatorSetRewardAmountsV2_2Table(snapshotDate, forks)
 			assert.Nil(t, err)
-			if rewardsV2_1Enabled {
-				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_14_AvsODOperatorSetRewardAmounts])
+			if rewardsV2_2Enabled {
+				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_17_AvsODOperatorSetRewardAmountsV2_2])
 				assert.Nil(t, err)
-				fmt.Printf("\tRows in gold_14_avs_od_operator_set_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
+				fmt.Printf("\tRows in gold_17_avs_od_operator_set_rewards_v2_2: %v - [time: %v]\n", rows, time.Since(testStart))
 			}
 			testStart = time.Now()
 
-			fmt.Printf("Running gold_15_staging\n")
+			fmt.Printf("Running gold_18_staging\n")
 			err = rc.GenerateGold15StagingTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_18_GoldStaging])
 			assert.Nil(t, err)
-			fmt.Printf("\tRows in gold_15_staging: %v - [time: %v]\n", rows, time.Since(testStart))
+			fmt.Printf("\tRows in gold_18_staging: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_final_table\n")
@@ -276,12 +294,18 @@ func Test_RewardsV2_1(t *testing.T) {
 					strings.EqualFold(row.Earner, strings.ToLower("0xaFF71569D30ED876987088a62E0EA881EBc761E6")) {
 					t.Logf("%d: %s %s %s %s %s", i, row.Earner, row.Snapshot.String(), row.RewardHash, row.Token, row.Amount)
 				}
-				// t.Logf("%d: %s %s %s %s %s", i, row.Earner, row.Snapshot.String(), row.RewardHash, row.Token, row.Amount)
 			}
 
 			t.Logf("Generating staker operators table")
 			err = rc.sog.GenerateStakerOperatorsTable(snapshotDate)
 			assert.Nil(t, err)
+
+			// V2.2 specific validation - ensure operator allocations snapshot was created
+			operatorAllocSnapshotTable := goldTableNames[rewardsUtils.Table_OperatorAllocationSnapshots]
+			rows, err = getRowCountForTable(grm, operatorAllocSnapshotTable)
+			assert.Nil(t, err)
+			t.Logf("Operator allocation snapshots: %v", rows)
+			assert.True(t, rows > 0, "Operator allocation snapshots should be created for v2.2")
 
 			fmt.Printf("Total duration for rewards compute %s: %v\n", snapshotDate, time.Since(snapshotStartTime))
 			testStart = time.Now()
@@ -292,4 +316,64 @@ func Test_RewardsV2_1(t *testing.T) {
 			// teardownRewards(dbFileName, cfg, grm, l)
 		})
 	})
+}
+
+// hydrateOperatorAllocations creates test data for operator allocations (unique stake)
+func hydrateOperatorAllocations(grm *gorm.DB, l *zap.Logger) error {
+	records := []map[string]interface{}{
+		// Operator 1 allocates stake to operator set 0
+		{
+			"operator":         "0xa067defa8e919ebad10f3c4168a77e29a46e0b3f",
+			"avs":              "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0",
+			"strategy":         "0x93c4b944d05dfe6df7645a86cd2206016c51564d",
+			"magnitude":        "1000000000000000000", // 1 ETH
+			"avs_directory":    "0x1234567890123456789012345678901234567890",
+			"operator_set_id":  0,
+			"effective_block":  100,
+			"block_time":       "2025-02-01 00:00:00",
+			"transaction_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+			"log_index":        1,
+			"block_number":     100,
+		},
+		// Operator 2 allocates stake to operator set 1
+		{
+			"operator":         "0x9e91cc6d7a6ada3e2f1f1c4eaa39e35d8e7a6c29",
+			"avs":              "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0",
+			"strategy":         "0x93c4b944d05dfe6df7645a86cd2206016c51564d",
+			"magnitude":        "2000000000000000000", // 2 ETH
+			"avs_directory":    "0x1234567890123456789012345678901234567890",
+			"operator_set_id":  1,
+			"effective_block":  100,
+			"block_time":       "2025-02-01 00:00:00",
+			"transaction_hash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+			"log_index":        2,
+			"block_number":     100,
+		},
+	}
+
+	for _, record := range records {
+		res := grm.Exec(`
+			INSERT INTO operator_allocations 
+			(operator, avs, strategy, magnitude, avs_directory, operator_set_id, effective_block, block_time, transaction_hash, log_index, block_number)
+			VALUES (@operator, @avs, @strategy, @magnitude, @avs_directory, @operator_set_id, @effective_block, @block_time, @transaction_hash, @log_index, @block_number)
+		`,
+			sql.Named("operator", record["operator"]),
+			sql.Named("avs", record["avs"]),
+			sql.Named("strategy", record["strategy"]),
+			sql.Named("magnitude", record["magnitude"]),
+			sql.Named("avs_directory", record["avs_directory"]),
+			sql.Named("operator_set_id", record["operator_set_id"]),
+			sql.Named("effective_block", record["effective_block"]),
+			sql.Named("block_time", record["block_time"]),
+			sql.Named("transaction_hash", record["transaction_hash"]),
+			sql.Named("log_index", record["log_index"]),
+			sql.Named("block_number", record["block_number"]),
+		)
+		if res.Error != nil {
+			l.Sugar().Errorw("Failed to insert operator allocation", "error", res.Error)
+			return res.Error
+		}
+	}
+
+	return nil
 }

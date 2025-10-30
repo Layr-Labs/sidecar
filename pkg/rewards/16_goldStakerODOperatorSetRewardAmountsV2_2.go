@@ -5,7 +5,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const _13_goldStakerODOperatorSetRewardAmountsV2_2Query = `
+const _16_goldStakerODOperatorSetRewardAmountsV2_2Query = `
 CREATE TABLE {{.destTableName}} AS
 
 -- V2.2: Operator Set Rewards with UNIQUE STAKE instead of total stake
@@ -177,7 +177,7 @@ func (rc *RewardsCalculator) GenerateGold13StakerODOperatorSetRewardAmountsV2_2T
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_13_goldStakerODOperatorSetRewardAmountsV2_2Query, map[string]interface{}{
+	query, err := rewardsUtils.RenderQueryTemplate(_16_goldStakerODOperatorSetRewardAmountsV2_2Query, map[string]interface{}{
 		"destTableName":                    destTableName,
 		"activeODRewardsTable":             activeODRewardsTable,
 		"operatorAllocationSnapshotsTable": operatorAllocationSnapshotsTable,

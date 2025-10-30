@@ -103,6 +103,7 @@ type RewardsConfig struct {
 	ValidateRewardsRoot          bool
 	GenerateStakerOperatorsTable bool
 	CalculateRewardsDaily        bool
+	RewardsV2_2Enabled           bool
 }
 
 type StatsdConfig struct {
@@ -211,6 +212,7 @@ var (
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
 	RewardsCalculateRewardsDaily        = "rewards.calculate_rewards_daily"
+	RewardsV2_2Enabled                  = "rewards.v2_2_enabled"
 
 	EthereumRpcBaseUrl               = "ethereum.rpc_url"
 	EthereumRpcContractCallBatchSize = "ethereum.contract_call_batch_size"
@@ -296,6 +298,7 @@ func NewConfig() *Config {
 			ValidateRewardsRoot:          viper.GetBool(normalizeFlagName(RewardsValidateRewardsRoot)),
 			GenerateStakerOperatorsTable: viper.GetBool(normalizeFlagName(RewardsGenerateStakerOperatorsTable)),
 			CalculateRewardsDaily:        viper.GetBool(normalizeFlagName(RewardsCalculateRewardsDaily)),
+			RewardsV2_2Enabled:           viper.GetBool(normalizeFlagName(RewardsV2_2Enabled)),
 		},
 
 		DataDogConfig: DataDogConfig{
@@ -782,6 +785,11 @@ func (c *Config) IsRewardsV2_1EnabledForCutoffDate(cutoffDate string) (bool, err
 }
 
 func (c *Config) IsRewardsV2_2EnabledForCutoffDate(cutoffDate string) (bool, error) {
+	// Check global flag first - if disabled, return false regardless of date
+	if !c.Rewards.RewardsV2_2Enabled {
+		return false, nil
+	}
+
 	forks, err := c.GetRewardsSqlForkDates()
 	if err != nil {
 		return false, err
