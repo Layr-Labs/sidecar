@@ -530,16 +530,10 @@ func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context
 				AND block_number <= @blockHeight
 		),
 
-		completed_regular_roots AS (
+		completed_roots AS (
 			SELECT output_data->>'withdrawalRoot' as withdrawal_root
 			FROM events 
-			WHERE event_name = 'WithdrawalCompleted'
-		),
-
-		completed_slashing_roots AS (
-			SELECT output_data->>'withdrawalRoot' as withdrawal_root
-			FROM events 
-			WHERE event_name = 'SlashingWithdrawalCompleted'
+			WHERE event_name IN ('WithdrawalCompleted', 'SlashingWithdrawalCompleted')
 			UNION
 			SELECT withdrawal_root FROM completed_slashing_withdrawals
 			WHERE block_number <= @blockHeight
@@ -561,7 +555,7 @@ func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context
 			) AS expanded
 			WHERE event_name = 'WithdrawalQueued'
 				AND strategy IN @strategies
-				AND output_data->>'withdrawalRoot' NOT IN (SELECT withdrawal_root FROM completed_regular_roots)
+				AND output_data->>'withdrawalRoot' NOT IN (SELECT withdrawal_root FROM completed_roots)
 		),
 
 		queued_slashing AS (
@@ -574,7 +568,7 @@ func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context
 				operator
 			FROM queued_slashing_withdrawals
 			WHERE strategy IN @strategies
-				AND withdrawal_root NOT IN (SELECT withdrawal_root FROM completed_slashing_roots)
+				AND withdrawal_root NOT IN (SELECT withdrawal_root FROM completed_roots)
 		),
 
 		-- Get all magnitude events for slashing withdrawals
