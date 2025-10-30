@@ -78,6 +78,17 @@ func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsTab
 		rc.logger.Sugar().Infow("Rewards v2.1 is not enabled for this cutoff date, skipping GenerateGold12OperatorODOperatorSetRewardAmountsTable")
 		return nil
 	}
+
+	// Skip if v2.2 is enabled - use v2.2 version instead
+	rewardsV2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
+		return err
+	}
+	if rewardsV2_2Enabled {
+		rc.logger.Sugar().Infow("Rewards v2.2 is enabled, skipping v2.1 table 12")
+		return nil
+	}
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 	destTableName := allTableNames[rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts]
 

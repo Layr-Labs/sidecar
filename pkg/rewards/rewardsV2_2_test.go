@@ -241,7 +241,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			assert.True(t, rewardsV2_2Enabled, "v2.2 should be enabled for this test")
 
 			fmt.Printf("Running gold_15_operator_od_operator_set_rewards_v2_2\n")
-			err = rc.GenerateGold12OperatorODOperatorSetRewardAmountsV2_2Table(snapshotDate)
+			err = rc.GenerateGold15OperatorODOperatorSetRewardAmountsV2_2Table(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_2Enabled {
 				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_15_OperatorODOperatorSetRewardAmountsV2_2])
@@ -251,7 +251,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_16_staker_od_operator_set_rewards_v2_2\n")
-			err = rc.GenerateGold13StakerODOperatorSetRewardAmountsV2_2Table(snapshotDate)
+			err = rc.GenerateGold16StakerODOperatorSetRewardAmountsV2_2Table(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_2Enabled {
 				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_16_StakerODOperatorSetRewardAmountsV2_2])
@@ -261,7 +261,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_17_avs_od_operator_set_rewards_v2_2\n")
-			err = rc.GenerateGold14AvsODOperatorSetRewardAmountsV2_2Table(snapshotDate, forks)
+			err = rc.GenerateGold17AvsODOperatorSetRewardAmountsV2_2Table(snapshotDate, forks)
 			assert.Nil(t, err)
 			if rewardsV2_2Enabled {
 				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_17_AvsODOperatorSetRewardAmountsV2_2])

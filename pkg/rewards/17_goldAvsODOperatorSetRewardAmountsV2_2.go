@@ -225,9 +225,20 @@ combined_avs_refund_amounts AS (
 SELECT * FROM combined_avs_refund_amounts
 `
 
-func (rc *RewardsCalculator) GenerateGold14AvsODOperatorSetRewardAmountsV2_2Table(snapshotDate string, forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold17AvsODOperatorSetRewardAmountsV2_2Table(snapshotDate string, forks config.ForkMap) error {
+	// Skip if v2.2 is not enabled
+	rewardsV2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
+		return err
+	}
+	if !rewardsV2_2Enabled {
+		rc.logger.Sugar().Infow("Rewards v2.2 is not enabled, skipping v2.2 table 17")
+		return nil
+	}
+
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_14_AvsODOperatorSetRewardAmounts]
+	destTableName := allTableNames[rewardsUtils.Table_17_AvsODOperatorSetRewardAmountsV2_2]
 
 	rc.logger.Sugar().Infow("Generating v2.2 AVS OD operator set reward amounts with unique stake validation",
 		zap.String("cutoffDate", snapshotDate),

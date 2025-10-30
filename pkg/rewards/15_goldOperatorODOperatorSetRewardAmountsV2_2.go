@@ -82,9 +82,20 @@ operator_splits AS (
 SELECT * FROM operator_splits
 `
 
-func (rc *RewardsCalculator) GenerateGold12OperatorODOperatorSetRewardAmountsV2_2Table(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold15OperatorODOperatorSetRewardAmountsV2_2Table(snapshotDate string) error {
+	// Skip if v2.2 is not enabled
+	rewardsV2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
+		return err
+	}
+	if !rewardsV2_2Enabled {
+		rc.logger.Sugar().Infow("Rewards v2.2 is not enabled, skipping v2.2 table 15")
+		return nil
+	}
+
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts]
+	destTableName := allTableNames[rewardsUtils.Table_15_OperatorODOperatorSetRewardAmountsV2_2]
 
 	rc.logger.Sugar().Infow("Generating v2.2 Operator OD operator set reward amounts with unique stake",
 		zap.String("cutoffDate", snapshotDate),

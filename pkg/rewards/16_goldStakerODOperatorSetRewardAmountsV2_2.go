@@ -166,9 +166,20 @@ staker_reward_amounts AS (
 SELECT * FROM staker_reward_amounts
 `
 
-func (rc *RewardsCalculator) GenerateGold13StakerODOperatorSetRewardAmountsV2_2Table(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold16StakerODOperatorSetRewardAmountsV2_2Table(snapshotDate string) error {
+	// Skip if v2.2 is not enabled
+	rewardsV2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
+		return err
+	}
+	if !rewardsV2_2Enabled {
+		rc.logger.Sugar().Infow("Rewards v2.2 is not enabled, skipping v2.2 table 16")
+		return nil
+	}
+
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_13_StakerODOperatorSetRewardAmounts]
+	destTableName := allTableNames[rewardsUtils.Table_16_StakerODOperatorSetRewardAmountsV2_2]
 	activeODRewardsTable := allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards]
 	operatorAllocationSnapshotsTable := allTableNames[rewardsUtils.Table_OperatorAllocationSnapshots]
 
