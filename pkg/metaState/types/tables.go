@@ -100,7 +100,6 @@ type KeyRotationScheduled struct {
 	TransactionHash string
 	BlockNumber     uint64
 	LogIndex        uint64
-	Processed       bool // Track if daily transport was triggered for this rotation
 }
 
 func (*KeyRotationScheduled) TableName() string {

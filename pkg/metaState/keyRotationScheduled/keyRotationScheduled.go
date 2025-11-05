@@ -99,7 +99,6 @@ func (krsm *KeyRotationScheduledModel) HandleTransactionLog(log *storage.Transac
 		BlockNumber:     log.BlockNumber,
 		TransactionHash: log.TransactionHash,
 		LogIndex:        log.LogIndex,
-		Processed:       false, // Will be updated by transporter when processed
 	}
 
 	krsm.accumulatedState[log.BlockNumber] = append(krsm.accumulatedState[log.BlockNumber], keyRotationScheduled)
