@@ -675,6 +675,51 @@ func (pds *ProtocolDataService) ListWithdrawalsForStrategies(ctx context.Context
 	return withdrawals, nil
 }
 
+type KeyRotationScheduled struct {
+	Avs             string
+	OperatorSetId   uint32
+	Operator        string
+	CurveType       string
+	OldPubkey       string
+	NewPubkey       string
+	ActivateAt      uint64
+	TransactionHash string
+	BlockNumber     uint64
+	LogIndex        uint64
+}
+
+func (pds *ProtocolDataService) GetPendingKeyRotations(ctx context.Context, minActivateAt uint64, maxActivateAt uint64) ([]*KeyRotationScheduled, error) {
+	query := pds.db.Table("key_rotation_scheduled")
+
+	// Get current block to determine current timestamp
+	currentBlock, err := pds.GetCurrentBlockHeight(ctx, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current block height: %w", err)
+	}
+	if currentBlock == nil {
+		return nil, fmt.Errorf("no current block found")
+	}
+
+	// Only return rotations where activate_at is in the future (greater than current block time)
+	currentTimestamp := uint64(currentBlock.BlockTime.Unix())
+	query = query.Where("activate_at > ?", currentTimestamp)
+
+	if minActivateAt > 0 {
+		query = query.Where("activate_at >= ?", minActivateAt)
+	}
+	if maxActivateAt > 0 {
+		query = query.Where("activate_at <= ?", maxActivateAt)
+	}
+
+	var rotations []*KeyRotationScheduled
+	res := query.Order("activate_at ASC, block_number ASC, log_index ASC").Find(&rotations)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+
+	return rotations, nil
+}
+
 func (pds *ProtocolDataService) GetStateRoot(ctx context.Context, blockHeight uint64) (*stateManager.StateRoot, error) {
 	var stateRoot *stateManager.StateRoot
 

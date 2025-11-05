@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/common"
+	metaStateV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/metaState"
 	protocolV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/protocol"
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/types"
@@ -425,5 +426,34 @@ func (s *RpcServer) ListWithdrawalsForStrategies(ctx context.Context, request *p
 			}
 		}),
 		NextPage: nextPage,
+	}, nil
+}
+
+func (s *RpcServer) GetPendingKeyRotationTimestamps(ctx context.Context, request *protocolV1.GetPendingKeyRotationTimestampsRequest) (*protocolV1.GetPendingKeyRotationTimestampsResponse, error) {
+	minActivateAt := request.GetMinActivateAt()
+	maxActivateAt := request.GetMaxActivateAt()
+
+	rotations, err := s.protocolDataService.GetPendingKeyRotations(ctx, minActivateAt, maxActivateAt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocolV1.GetPendingKeyRotationTimestampsResponse{
+		Rotations: utils.Map(rotations, func(rotation *protocolDataService.KeyRotationScheduled, i uint64) *metaStateV1.KeyRotationScheduled {
+			return &metaStateV1.KeyRotationScheduled{
+				Avs:           rotation.Avs,
+				OperatorSetId: rotation.OperatorSetId,
+				Operator:      rotation.Operator,
+				CurveType:     rotation.CurveType,
+				OldPubkey:     rotation.OldPubkey,
+				NewPubkey:     rotation.NewPubkey,
+				ActivateAt:    rotation.ActivateAt,
+				TransactionMetadata: &metaStateV1.TransactionMetadata{
+					TransactionHash: rotation.TransactionHash,
+					LogIndex:        rotation.LogIndex,
+					BlockHeight:     rotation.BlockNumber,
+				},
+			}
+		}),
 	}, nil
 }
