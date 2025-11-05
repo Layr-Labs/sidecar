@@ -38,7 +38,7 @@ func setup() (
 	error,
 ) {
 	cfg := config.NewConfig()
-	cfg.Chain = config.Chain_Sepolia
+	cfg.Chain = config.Chain_Holesky
 	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
@@ -72,7 +72,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	baseUrl := "https://cold-young-star.ethereum-sepolia.quiknode.pro/b5e10f48aae17b355a033d2b53ed2703579d16f4/"
+	baseUrl := "https://holesky.drpc.org"
 	ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
 	ethConfig.BaseUrl = baseUrl
 

@@ -46,12 +46,12 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	string,
 ) {
 	const (
-		rpcUrl = "https://cold-young-star.ethereum-sepolia.quiknode.pro/b5e10f48aae17b355a033d2b53ed2703579d16f4/"
+		rpcUrl = "https://holesky.drpc.org"
 	)
 
 	cfg := config.NewConfig()
 	cfg.Debug = os.Getenv(config.Debug) == "true"
-	cfg.Chain = config.Chain_Sepolia
+	cfg.Chain = config.Chain_Holesky
 	cfg.EthereumRpcConfig.BaseUrl = rpcUrl
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
