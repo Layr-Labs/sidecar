@@ -3,10 +3,11 @@ package indexer
 import (
 	"context"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/coreContracts"
-	coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations"
 	"testing"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/coreContracts"
+	coreContractMigrations "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations"
 
 	"os"
 
@@ -37,7 +38,7 @@ func setup() (
 	error,
 ) {
 	cfg := config.NewConfig()
-	cfg.Chain = config.Chain_Holesky
+	cfg.Chain = config.Chain_Sepolia
 	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
@@ -71,7 +72,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	baseUrl := "https://special-yolo-river.ethereum-holesky.quiknode.pro/2d21099a19e7c896a22b9fcc23dc8ce80f2214a5/"
+	baseUrl := "https://cold-young-star.ethereum-sepolia.quiknode.pro/b5e10f48aae17b355a033d2b53ed2703579d16f4/"
 	ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
 	ethConfig.BaseUrl = baseUrl
 

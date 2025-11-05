@@ -4,6 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
+	"os"
+	"testing"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
@@ -27,9 +31,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"log"
-	"os"
-	"testing"
 )
 
 func setup(ethConfig *ethereum.EthereumClientConfig) (
@@ -45,12 +46,12 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	string,
 ) {
 	const (
-		rpcUrl = "https://special-yolo-river.ethereum-holesky.quiknode.pro/2d21099a19e7c896a22b9fcc23dc8ce80f2214a5/"
+		rpcUrl = "https://cold-young-star.ethereum-sepolia.quiknode.pro/b5e10f48aae17b355a033d2b53ed2703579d16f4/"
 	)
 
 	cfg := config.NewConfig()
 	cfg.Debug = os.Getenv(config.Debug) == "true"
-	cfg.Chain = config.Chain_Holesky
+	cfg.Chain = config.Chain_Sepolia
 	cfg.EthereumRpcConfig.BaseUrl = rpcUrl
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
