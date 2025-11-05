@@ -4,6 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
+	"os"
+	"testing"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/abiFetcher"
@@ -27,9 +31,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"log"
-	"os"
-	"testing"
 )
 
 func setup(ethConfig *ethereum.EthereumClientConfig) (
@@ -45,7 +46,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	string,
 ) {
 	const (
-		rpcUrl = "https://special-yolo-river.ethereum-holesky.quiknode.pro/2d21099a19e7c896a22b9fcc23dc8ce80f2214a5/"
+		rpcUrl = "https://holesky.drpc.org"
 	)
 
 	cfg := config.NewConfig()
