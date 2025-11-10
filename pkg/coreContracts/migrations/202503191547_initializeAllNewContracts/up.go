@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/sidecar/pkg/coreContracts/helpers"
@@ -132,6 +133,11 @@ func massageContractData(data *CoreContractsData) *helpers.ContractsToImport {
 type ContractMigration struct{}
 
 func (m *ContractMigration) Up(db *gorm.DB, cs contractStore.ContractStore, l *zap.Logger, cfg *config.Config) (*types.MigrationResult, error) {
+	if cfg.Chain == config.Chain_PreprodHoodi {
+		l.Sugar().Infow("Skipping migration", zap.String("chain", cfg.Chain.String()))
+		return nil, nil
+	}
+
 	data, err := loadContractData(cfg)
 	if err != nil {
 		return nil, err

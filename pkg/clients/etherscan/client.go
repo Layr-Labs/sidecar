@@ -59,6 +59,8 @@ func (ec *EtherscanClient) getBaseUrl() (string, error) {
 		chainId = "11155111"
 	case config.Chain_Hoodi:
 		chainId = "560048"
+	case config.Chain_PreprodHoodi:
+		chainId = "560048"
 	case config.Chain_Preprod:
 		chainId = "17000"
 	default:

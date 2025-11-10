@@ -25,11 +25,12 @@ func (c Chain) String() string {
 type ForkName string
 
 const (
-	Chain_Mainnet Chain = "mainnet"
-	Chain_Holesky Chain = "holesky"
-	Chain_Preprod Chain = "preprod"
-	Chain_Sepolia Chain = "sepolia"
-	Chain_Hoodi   Chain = "hoodi"
+	Chain_Mainnet      Chain = "mainnet"
+	Chain_Holesky      Chain = "holesky"
+	Chain_Preprod      Chain = "preprod"
+	Chain_Sepolia      Chain = "sepolia"
+	Chain_Hoodi        Chain = "hoodi"
+	Chain_PreprodHoodi Chain = "preprod-hoodi"
 
 	ENV_PREFIX = "SIDECAR"
 )
@@ -345,11 +346,12 @@ func (c *Config) GetAVSDirectoryForChain() string {
 }
 
 var AVSDirectoryAddresses = map[Chain]string{
-	Chain_Preprod: "0x141d6995556135D4997b2ff72EB443Be300353bC",
-	Chain_Holesky: "0x055733000064333CaDDbC92763c58BF0192fFeBf",
-	Chain_Mainnet: "0x135dda560e946695d6f155dacafc6f1f25c1f5af",
-	Chain_Sepolia: "0xa789c91ecddae96865913130b786140ee17af545",
-	Chain_Hoodi:   "0xd58f6844f79eb1fbd9f7091d05f7cb30d3363926",
+	Chain_Preprod:      "0x141d6995556135D4997b2ff72EB443Be300353bC",
+	Chain_Holesky:      "0x055733000064333CaDDbC92763c58BF0192fFeBf",
+	Chain_Mainnet:      "0x135dda560e946695d6f155dacafc6f1f25c1f5af",
+	Chain_Sepolia:      "0xa789c91ecddae96865913130b786140ee17af545",
+	Chain_Hoodi:        "0xd58f6844f79eb1fbd9f7091d05f7cb30d3363926",
+	Chain_PreprodHoodi: "0xa5a53a6df5a0807fbdfe70eae1e7b0fb984f6710",
 }
 
 type ContractAddresses struct {
@@ -425,6 +427,17 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 			StrategyManager:    "0xee45e76ddbedda2918b8c7e3035cd37eab3b5d41",
 			KeyRegistrar:       "0x5737e38a260545d8feccb4cae2cfd984da4130ed",
 		}
+	} else if c.Chain == Chain_PreprodHoodi {
+		return &ContractAddresses{
+			AllocationManager:  "0x720b23a1fd296ae030ef56b435f25b263e3c2632",
+			AvsDirectory:       "0xa5a53a6df5a0807fbdfe70eae1e7b0fb984f6710",
+			DelegationManager:  "0xc9366ab4a299e0937ec15a6c256c4481c05a24fd",
+			EigenpodManager:    "0x1b018d34dcbdbf900a0dcedb4ec261efc6734521",
+			RewardsCoordinator: "0xfc67a24cdb9ee82f6111082274c62d8b2aae3abc",
+			StrategyManager:    "0xb22ef643e1e067c994019a4c19e403253c05c2b0",
+			KeyRegistrar:       "0x1ea1ebe904178f9697891a92c229cabebc60b121",
+			ReleaseManager:     "0x889178789da53247e14fc03a948ab67f43021721",
+		}
 	} else if c.Chain == Chain_Mainnet {
 		return &ContractAddresses{
 			RewardsCoordinator:       "0x7750d328b314effa365a0402ccfd489b80b0adda",
@@ -478,6 +491,8 @@ func (c *Config) GetGenesisBlockNumber() uint64 {
 	case Chain_Sepolia:
 		return 8086200
 	case Chain_Hoodi:
+		return 165000
+	case Chain_PreprodHoodi:
 		return 165000
 	case Chain_Mainnet:
 		return 17445563
@@ -627,6 +642,34 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 0,
 			},
 		}, nil
+	case Chain_PreprodHoodi:
+		return ForkMap{
+			RewardsFork_Amazon:  Fork{Date: "1970-01-01"},
+			RewardsFork_Nile:    Fork{Date: "1970-01-01"},
+			RewardsFork_Panama:  Fork{Date: "1970-01-01"},
+			RewardsFork_Arno:    Fork{Date: "1970-01-01"},
+			RewardsFork_Trinity: Fork{Date: "1970-01-01"},
+			RewardsFork_Mississippi: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Brazos: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Colorado: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Red: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Pecos: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+		}, nil
 	case Chain_Mainnet:
 		return ForkMap{
 			RewardsFork_Amazon: Fork{
@@ -700,6 +743,10 @@ func (c *Config) GetModelForks() (ModelForkMap, error) {
 		return ModelForkMap{
 			ModelFork_Austin: 0, // doesnt apply to hoodi
 		}, nil
+	case Chain_PreprodHoodi:
+		return ModelForkMap{
+			ModelFork_Austin: 0, // doesnt apply to preprodhoodi
+		}, nil
 	case Chain_Mainnet:
 		return ModelForkMap{
 			ModelFork_Austin: 0, // doesnt apply to mainnet
@@ -746,6 +793,8 @@ func (c *Config) GetOperatorRestakedStrategiesStartBlock() uint64 {
 	case Chain_Sepolia:
 		return 8086200
 	case Chain_Hoodi:
+		return 165000
+	case Chain_PreprodHoodi:
 		return 165000
 	case Chain_Mainnet:
 		return 19616400
@@ -814,6 +863,7 @@ func (c *Config) CanIgnoreIncorrectRewardsRoot(blockNumber uint64) bool {
 		}
 	case Chain_Sepolia:
 	case Chain_Hoodi:
+	case Chain_PreprodHoodi:
 	case Chain_Mainnet:
 	}
 	return false
