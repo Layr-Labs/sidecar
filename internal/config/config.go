@@ -47,6 +47,7 @@ const (
 	RewardsFork_Colorado    ForkName = "colorado"
 	RewardsFork_Red         ForkName = "red"
 	RewardsFork_Pecos       ForkName = "pecos"
+	RewardsFork_Sabine      ForkName = "sabine"
 )
 
 func normalizeFlagName(name string) string {
@@ -558,6 +559,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-05-14",
 				BlockNumber: 3840004,
 			},
+			RewardsFork_Sabine: Fork{
+				Date:        "2025-11-18", // TODO: Set actual fork date
+				BlockNumber: 0,            // TODO: Set actual fork block number
+			},
 		}, nil
 	case Chain_Holesky:
 		return ForkMap{
@@ -596,6 +601,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-05-14",
 				BlockNumber: 3840004,
 			},
+			RewardsFork_Sabine: Fork{
+				Date:        "2025-11-18", // TODO: Set actual fork date
+				BlockNumber: 0,            // TODO: Set actual fork block number
+			},
 		}, nil
 	case Chain_Sepolia:
 		return ForkMap{
@@ -623,6 +632,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 			RewardsFork_Pecos: Fork{
 				Date:        "2025-05-14",
 				BlockNumber: 8327038,
+			},
+			RewardsFork_Sabine: Fork{
+				Date:        "1970-01-01", // Enabled from genesis on Sepolia
+				BlockNumber: 0,
 			},
 		}, nil
 	case Chain_Hoodi:
@@ -652,6 +665,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "1970-01-01",
 				BlockNumber: 0,
 			},
+			RewardsFork_Sabine: Fork{
+				Date:        "1970-01-01", // Enabled from genesis on Hoodi
+				BlockNumber: 0,
+			},
 		}, nil
 	case Chain_PreprodHoodi:
 		return ForkMap{
@@ -678,6 +695,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 			},
 			RewardsFork_Pecos: Fork{
 				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Sabine: Fork{
+				Date:        "1970-01-01", // Enabled from genesis on PreprodHoodi
 				BlockNumber: 0,
 			},
 		}, nil
@@ -721,6 +742,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 			RewardsFork_Pecos: Fork{
 				Date:        "2025-05-14",
 				BlockNumber: 22483225,
+			},
+			RewardsFork_Sabine: Fork{
+				Date:        "2025-12-01", // TODO: Set actual mainnet fork date
+				BlockNumber: 0,            // TODO: Set actual mainnet fork block number
 			},
 		}, nil
 	}
