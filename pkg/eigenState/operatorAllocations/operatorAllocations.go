@@ -472,9 +472,8 @@ func (oa *OperatorAllocationModel) determineEffectiveDate(
 	newMagnitude *big.Int,
 	previousMagnitude *big.Int,
 ) time.Time {
-	// Compare magnitudes to determine if this is an allocation or deallocation
+	blockTimestamp = blockTimestamp.UTC()
 	comparison := newMagnitude.Cmp(previousMagnitude)
-	// Truncate to midnight (start of day)
 	date := blockTimestamp.Truncate(24 * time.Hour)
 
 	if comparison > 0 {
