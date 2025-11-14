@@ -3,6 +3,12 @@ package operatorAllocations
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
+	"slices"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/base"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -10,10 +16,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"math/big"
-	"slices"
-	"sort"
-	"strings"
 )
 
 type OperatorAllocation struct {
@@ -26,6 +28,8 @@ type OperatorAllocation struct {
 	BlockNumber     uint64
 	TransactionHash string
 	LogIndex        uint64
+	EffectiveDate   string // Rounded date when allocation takes effect (YYYY-MM-DD)
+	BlockTimestamp  string
 }
 
 type OperatorAllocationModel struct {
@@ -101,7 +105,7 @@ func (oa *OperatorAllocationModel) handleOperatorAllocationCreatedEvent(log *sto
 
 	magnitude, success := new(big.Int).SetString(outputData.Magnitude.String(), 10)
 	if !success {
-		err := fmt.Errorf("Failed to parse magnitude: %s", outputData.Magnitude.String())
+		err := fmt.Errorf("failed to parse magnitude: %s", outputData.Magnitude.String())
 		oa.logger.Sugar().Errorw("Failed to parse magnitude", zap.Error(err))
 		return nil, err
 	}
@@ -116,6 +120,28 @@ func (oa *OperatorAllocationModel) handleOperatorAllocationCreatedEvent(log *sto
 		BlockNumber:     log.BlockNumber,
 		TransactionHash: log.TransactionHash,
 		LogIndex:        log.LogIndex,
+	}
+
+	// Sabine fork: Apply rounding logic and populate date fields
+	isSabineForkActive, err := oa.IsActiveForSabineForkBlockHeight(log.BlockNumber)
+	if err != nil {
+		return nil, err
+	}
+	if isSabineForkActive {
+		effectiveDateStr, blockTimestampStr, err := oa.calculateAllocationDates(
+			log.BlockNumber,
+			magnitude,
+			strings.ToLower(outputData.Operator),
+			strings.ToLower(outputData.OperatorSet.Avs),
+			strings.ToLower(outputData.Strategy),
+			outputData.OperatorSet.Id,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		split.EffectiveDate = effectiveDateStr
+		split.BlockTimestamp = blockTimestampStr
 	}
 
 	return split, nil
@@ -338,4 +364,124 @@ func (oa *OperatorAllocationModel) IsActiveForBlockHeight(blockHeight uint64) (b
 	}
 
 	return blockHeight >= forks[config.RewardsFork_Brazos].BlockNumber, nil
+}
+
+func (oa *OperatorAllocationModel) IsActiveForSabineForkBlockHeight(blockHeight uint64) (bool, error) {
+	forks, err := oa.globalConfig.GetRewardsSqlForkDates()
+	if err != nil {
+		oa.logger.Sugar().Errorw("Failed to get rewards sql fork dates", zap.Error(err))
+		return false, err
+	}
+
+	return blockHeight >= forks[config.RewardsFork_Sabine].BlockNumber, nil
+}
+
+// calculateAllocationDates calculates the effective date and block timestamp for an allocation
+// This encapsulates the logic for querying block data and applying rounding rules
+func (oa *OperatorAllocationModel) calculateAllocationDates(
+	blockNumber uint64,
+	magnitude *big.Int,
+	operator string,
+	avs string,
+	strategy string,
+	operatorSetId uint64,
+) (effectiveDateStr string, blockTimestampStr string, err error) {
+	// 1. Get block timestamp from blocks table
+	var block storage.Block
+	result := oa.DB.Where("number = ?", blockNumber).First(&block)
+	if result.Error != nil {
+		oa.logger.Sugar().Errorw("Failed to query block timestamp",
+			zap.Error(result.Error),
+			zap.Uint64("blockNumber", blockNumber),
+		)
+		return "", "", fmt.Errorf("failed to query block timestamp: %w", result.Error)
+	}
+
+	// 2. Get previous allocation magnitude for comparison
+	previousMagnitude, err := oa.getPreviousAllocationMagnitude(
+		operator,
+		avs,
+		strategy,
+		operatorSetId,
+		blockNumber,
+	)
+	if err != nil {
+		oa.logger.Sugar().Errorw("Failed to get previous allocation magnitude",
+			zap.Error(err),
+			zap.Uint64("blockNumber", blockNumber),
+			zap.String("operator", operator),
+			zap.String("avs", avs),
+			zap.String("strategy", strategy),
+			zap.Uint64("operatorSetId", operatorSetId),
+		)
+		return "", "", fmt.Errorf("failed to get previous allocation magnitude: %w", err)
+	}
+
+	// 3. Determine effective date using rounding rules
+	effectiveDate := oa.determineEffectiveDate(block.BlockTime, magnitude, previousMagnitude)
+
+	// 4. Format and return date strings
+	effectiveDateStr = effectiveDate.Format("2006-01-02")
+	blockTimestampStr = block.BlockTime.Format(time.RFC3339)
+
+	return effectiveDateStr, blockTimestampStr, nil
+}
+
+// getPreviousAllocationMagnitude retrieves the most recent allocation magnitude
+// for the given operator-avs-strategy combination before the specified block number
+func (oa *OperatorAllocationModel) getPreviousAllocationMagnitude(
+	operator string,
+	avs string,
+	strategy string,
+	operatorSetId uint64,
+	currentBlockNumber uint64,
+) (*big.Int, error) {
+	var previousAllocation OperatorAllocation
+
+	result := oa.DB.
+		Where("operator = ?", operator).
+		Where("avs = ?", avs).
+		Where("strategy = ?", strategy).
+		Where("operator_set_id = ?", operatorSetId).
+		Where("block_number < ?", currentBlockNumber).
+		Order("block_number DESC, log_index DESC").
+		Limit(1).
+		First(&previousAllocation)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			// No previous allocation found, return 0
+			return big.NewInt(0), nil
+		}
+		return nil, result.Error
+	}
+
+	magnitude, success := new(big.Int).SetString(previousAllocation.Magnitude, 10)
+	if !success {
+		return nil, fmt.Errorf("failed to parse previous magnitude: %s", previousAllocation.Magnitude)
+	}
+
+	return magnitude, nil
+}
+
+// determineEffectiveDate determines the effective date for an allocation based on rounding rules
+// - Allocation (increase): Round UP to next day
+// - Deallocation (decrease): Round DOWN to current day
+func (oa *OperatorAllocationModel) determineEffectiveDate(
+	blockTimestamp time.Time,
+	newMagnitude *big.Int,
+	previousMagnitude *big.Int,
+) time.Time {
+	blockTimestamp = blockTimestamp.UTC()
+	comparison := newMagnitude.Cmp(previousMagnitude)
+
+	year, month, day := blockTimestamp.Date()
+	midnightUTC := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+
+	if comparison > 0 {
+		// Allocation (increase) - always round up to next day
+		return midnightUTC.Add(24 * time.Hour)
+	}
+	// Deallocation (decrease or no change) - round down to current day
+	return midnightUTC
 }
