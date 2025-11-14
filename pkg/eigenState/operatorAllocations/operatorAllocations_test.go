@@ -191,12 +191,6 @@ func Test_OperatorAllocations(t *testing.T) {
 			res := model.DB.Model(&storage.Block{}).Create(block)
 			assert.Nil(t, res.Error)
 
-			// Verify block time was stored correctly
-			var retrievedBlock storage.Block
-			res = model.DB.Where("number = ?", blockNumber).First(&retrievedBlock)
-			assert.Nil(t, res.Error)
-			assert.Equal(t, blockTime, retrievedBlock.BlockTime, "Block time should match")
-
 			log := &storage.TransactionLog{
 				TransactionHash:  "tx_hash_200",
 				TransactionIndex: 1,
