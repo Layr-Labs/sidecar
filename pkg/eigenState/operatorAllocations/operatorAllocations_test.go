@@ -175,6 +175,10 @@ func Test_OperatorAllocations(t *testing.T) {
 		model, err := NewOperatorAllocationModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
+		// Clean up any existing test data to ensure isolation
+		err = grm.Exec("DELETE FROM operator_allocations").Error
+		assert.Nil(t, err)
+
 		operator := "0x93a797473810c125ece22f25a2087b6ceb8ce886"
 		avs := "0x69aa865947f6c9191b02954b1dd1a44131541226"
 		strategy := "0x947e522010e22856071f8fb03e735fedfccd6e9f"

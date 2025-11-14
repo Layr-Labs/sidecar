@@ -474,13 +474,14 @@ func (oa *OperatorAllocationModel) determineEffectiveDate(
 ) time.Time {
 	blockTimestamp = blockTimestamp.UTC()
 	comparison := newMagnitude.Cmp(previousMagnitude)
-	date := blockTimestamp.Truncate(24 * time.Hour)
+
+	year, month, day := blockTimestamp.Date()
+	midnightUTC := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 
 	if comparison > 0 {
 		// Allocation (increase) - always round up to next day
-		date = date.Add(24 * time.Hour)
-		return date
+		return midnightUTC.Add(24 * time.Hour)
 	}
 	// Deallocation (decrease or no change) - round down to current day
-	return date
+	return midnightUTC
 }
