@@ -477,10 +477,10 @@ func (oa *OperatorAllocationModel) determineEffectiveDate(
 	date := blockTimestamp.Truncate(24 * time.Hour)
 
 	if comparison > 0 {
-		if blockTimestamp.Unix() > date.Unix() {
-			date = date.Add(24 * time.Hour)
-		}
+		// Allocation (increase) - always round up to next day
+		date = date.Add(24 * time.Hour)
 		return date
 	}
+	// Deallocation (decrease or no change) - round down to current day
 	return date
 }
