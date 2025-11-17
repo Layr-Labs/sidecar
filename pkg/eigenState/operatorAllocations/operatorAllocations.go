@@ -29,7 +29,6 @@ type OperatorAllocation struct {
 	TransactionHash string
 	LogIndex        uint64
 	EffectiveDate   string // Rounded date when allocation takes effect (YYYY-MM-DD)
-	BlockTimestamp  string
 }
 
 type OperatorAllocationModel struct {
@@ -128,7 +127,7 @@ func (oa *OperatorAllocationModel) handleOperatorAllocationCreatedEvent(log *sto
 		return nil, err
 	}
 	if isSabineForkActive {
-		effectiveDateStr, blockTimestampStr, err := oa.calculateAllocationDates(
+		effectiveDateStr, err := oa.calculateAllocationDates(
 			log.BlockNumber,
 			magnitude,
 			strings.ToLower(outputData.Operator),
@@ -141,7 +140,6 @@ func (oa *OperatorAllocationModel) handleOperatorAllocationCreatedEvent(log *sto
 		}
 
 		split.EffectiveDate = effectiveDateStr
-		split.BlockTimestamp = blockTimestampStr
 	}
 
 	return split, nil
@@ -376,8 +374,9 @@ func (oa *OperatorAllocationModel) IsActiveForSabineForkBlockHeight(blockHeight 
 	return blockHeight >= forks[config.RewardsFork_Sabine].BlockNumber, nil
 }
 
-// calculateAllocationDates calculates the effective date and block timestamp for an allocation
+// calculateAllocationDates calculates the effective date for an allocation
 // This encapsulates the logic for querying block data and applying rounding rules
+// Block timestamp can be derived from block_number FK to blocks table
 func (oa *OperatorAllocationModel) calculateAllocationDates(
 	blockNumber uint64,
 	magnitude *big.Int,
@@ -385,7 +384,7 @@ func (oa *OperatorAllocationModel) calculateAllocationDates(
 	avs string,
 	strategy string,
 	operatorSetId uint64,
-) (effectiveDateStr string, blockTimestampStr string, err error) {
+) (effectiveDateStr string, err error) {
 	// 1. Get block timestamp from blocks table
 	var block storage.Block
 	result := oa.DB.Where("number = ?", blockNumber).First(&block)
@@ -394,7 +393,7 @@ func (oa *OperatorAllocationModel) calculateAllocationDates(
 			zap.Error(result.Error),
 			zap.Uint64("blockNumber", blockNumber),
 		)
-		return "", "", fmt.Errorf("failed to query block timestamp: %w", result.Error)
+		return "", fmt.Errorf("failed to query block timestamp: %w", result.Error)
 	}
 
 	// 2. Get previous allocation magnitude for comparison
@@ -414,17 +413,16 @@ func (oa *OperatorAllocationModel) calculateAllocationDates(
 			zap.String("strategy", strategy),
 			zap.Uint64("operatorSetId", operatorSetId),
 		)
-		return "", "", fmt.Errorf("failed to get previous allocation magnitude: %w", err)
+		return "", fmt.Errorf("failed to get previous allocation magnitude: %w", err)
 	}
 
 	// 3. Determine effective date using rounding rules
 	effectiveDate := oa.determineEffectiveDate(block.BlockTime, magnitude, previousMagnitude)
 
-	// 4. Format and return date strings
+	// 4. Format and return date string
 	effectiveDateStr = effectiveDate.Format("2006-01-02")
-	blockTimestampStr = block.BlockTime.Format(time.RFC3339)
 
-	return effectiveDateStr, blockTimestampStr, nil
+	return effectiveDateStr, nil
 }
 
 // getPreviousAllocationMagnitude retrieves the most recent allocation magnitude
