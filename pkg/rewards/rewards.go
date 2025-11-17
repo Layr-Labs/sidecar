@@ -644,6 +644,13 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	}
 	rc.logger.Sugar().Debugw("Generated staker shares")
 
+	// Generate withdrawal queue shares - stakers continue earning while in 14-day queue
+	if err = rc.GenerateAndInsertWithdrawalQueueShares(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate withdrawal queue shares", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated withdrawal queue shares")
+
 	if err = rc.GenerateAndInsertOperatorShares(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator shares", "error", err)
 		return err
@@ -679,6 +686,13 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated staker share snapshots")
+
+	// Adjust staker share snapshots to include withdrawal queue shares
+	if err = rc.AdjustStakerShareSnapshotsForWithdrawalQueue(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to adjust staker share snapshots for withdrawal queue", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Adjusted staker share snapshots for withdrawal queue")
 
 	if err = rc.GenerateAndInsertStakerDelegationSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", err)
