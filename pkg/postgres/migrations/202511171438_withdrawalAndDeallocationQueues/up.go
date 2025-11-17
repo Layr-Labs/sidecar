@@ -1,4 +1,4 @@
-package _202511171438_withdrawalQueueShareSnapshots
+package _202511171438_withdrawalAndDeallocationQueues
 
 import (
 	"database/sql"
@@ -37,6 +37,34 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 
 		// Index for staker lookups
 		`create index if not exists idx_withdrawal_queue_share_snapshots_staker on withdrawal_queue_share_snapshots(staker, snapshot)`,
+
+		// =============================================================================
+		// PART 5: Create deallocation_queue_snapshots table for operator allocation tracking
+		// =============================================================================
+
+		// Table to track operator allocation decreases that haven't reached effective_date yet
+		// Operators continue earning on old (higher) allocation until effective_date
+		// Similar concept to withdrawal queue but for operator deallocations
+		`create table if not exists deallocation_queue_snapshots (
+			operator varchar not null,
+			avs varchar not null,
+			strategy varchar not null,
+			magnitude_decrease numeric not null,
+			block_date date not null,
+			effective_date date not null,
+			snapshot date not null,
+			primary key (operator, avs, strategy, snapshot),
+			constraint uniq_deallocation_queue_snapshots unique (operator, avs, strategy, snapshot)
+		)`,
+
+		// Index for querying deallocation queue snapshots by snapshot date
+		`create index if not exists idx_deallocation_queue_snapshots_snapshot on deallocation_queue_snapshots(snapshot)`,
+
+		// Index for operator lookups
+		`create index if not exists idx_deallocation_queue_snapshots_operator on deallocation_queue_snapshots(operator, snapshot)`,
+
+		// Index for AVS lookups
+		`create index if not exists idx_deallocation_queue_snapshots_avs on deallocation_queue_snapshots(avs, snapshot)`,
 	}
 
 	for _, query := range queries {
@@ -50,5 +78,5 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 }
 
 func (m *Migration) GetName() string {
-	return "202511171438_withdrawalQueueShareSnapshots"
+	return "202511171438_withdrawalAndDeallocationQueues"
 }
