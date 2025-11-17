@@ -559,10 +559,6 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-05-14",
 				BlockNumber: 3840004,
 			},
-			RewardsFork_Sabine: Fork{
-				Date:        "2025-11-18", // TODO: Set actual fork date
-				BlockNumber: 0,            // TODO: Set actual fork block number
-			},
 		}, nil
 	case Chain_Holesky:
 		return ForkMap{
@@ -601,10 +597,6 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-05-14",
 				BlockNumber: 3840004,
 			},
-			RewardsFork_Sabine: Fork{
-				Date:        "2025-11-18", // TODO: Set actual fork date
-				BlockNumber: 0,            // TODO: Set actual fork block number
-			},
 		}, nil
 	case Chain_Sepolia:
 		return ForkMap{
@@ -634,8 +626,8 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 8327038,
 			},
 			RewardsFork_Sabine: Fork{
-				Date:        "1970-01-01", // Enabled from genesis on Sepolia
-				BlockNumber: 0,
+				Date:        "2025-12-19",
+				BlockNumber: 9903838,
 			},
 		}, nil
 	case Chain_Hoodi:
@@ -666,8 +658,8 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 0,
 			},
 			RewardsFork_Sabine: Fork{
-				Date:        "1970-01-01", // Enabled from genesis on Hoodi
-				BlockNumber: 0,
+				Date:        "2025-12-19",
+				BlockNumber: 1871733,
 			},
 		}, nil
 	case Chain_PreprodHoodi:
@@ -698,8 +690,8 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 0,
 			},
 			RewardsFork_Sabine: Fork{
-				Date:        "1970-01-01", // Enabled from genesis on PreprodHoodi
-				BlockNumber: 0,
+				Date:        "2025-12-19",
+				BlockNumber: 1871733,
 			},
 		}, nil
 	case Chain_Mainnet:
@@ -744,8 +736,8 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 22483225,
 			},
 			RewardsFork_Sabine: Fork{
-				Date:        "2025-12-01", // TODO: Set actual mainnet fork date
-				BlockNumber: 0,            // TODO: Set actual mainnet fork block number
+				Date:        "2026-01-19",
+				BlockNumber: 24274311,
 			},
 		}, nil
 	}
