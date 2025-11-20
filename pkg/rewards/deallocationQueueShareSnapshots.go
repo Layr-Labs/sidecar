@@ -42,7 +42,7 @@ const deallocationQueueShareSnapshotsQuery = `
 		from operator_allocations oa
 		inner join blocks b on oa.block_number = b.number
 		where
-			oa.effective_date is not null  -- Only Sabine fork records
+			oa.effective_date is not null
 			-- Allocation already recorded before or on snapshot
 			and date(b.block_time) <= '{{.snapshotDate}}'
 			-- Effective date is in the future relative to snapshot
@@ -85,8 +85,6 @@ const deallocationQueueShareSnapshotsQuery = `
 	on conflict on constraint uniq_deallocation_queue_snapshots do nothing;
 `
 
-// DeallocationQueueSnapshot represents operator allocation decreases that haven't
-// reached their effective_date yet, and should still be counted for rewards.
 type DeallocationQueueSnapshot struct {
 	Operator          string `gorm:"column:operator;primaryKey"`
 	Avs               string `gorm:"column:avs;primaryKey"`
@@ -101,13 +99,7 @@ func (DeallocationQueueSnapshot) TableName() string {
 	return "deallocation_queue_snapshots"
 }
 
-// GenerateAndInsertDeallocationQueueSnapshots calculates and inserts operator allocation
-// decreases that should still be counted for rewards because their effective_date hasn't
-// been reached yet.
-//
-// This feature is only active after the Sabine fork (when effective_date is populated).
 func (r *RewardsCalculator) GenerateAndInsertDeallocationQueueSnapshots(snapshotDate string) error {
-	// Check if we're past the Sabine fork
 	forks, err := r.globalConfig.GetRewardsSqlForkDates()
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to get rewards fork dates", "error", err)
@@ -120,7 +112,6 @@ func (r *RewardsCalculator) GenerateAndInsertDeallocationQueueSnapshots(snapshot
 		return nil
 	}
 
-	// Get the block number for the snapshot date to compare with fork block
 	var maxBlock uint64
 	res := r.grm.Raw(`
 		SELECT COALESCE(MAX(number), 0) as max_block
@@ -133,7 +124,6 @@ func (r *RewardsCalculator) GenerateAndInsertDeallocationQueueSnapshots(snapshot
 		return res.Error
 	}
 
-	// Only apply deallocation queue logic if we're past the Sabine fork
 	if maxBlock < sabineFork.BlockNumber {
 		r.logger.Sugar().Debugw("Snapshot date is before Sabine fork, skipping deallocation queue logic",
 			zap.String("snapshotDate", snapshotDate),
@@ -168,38 +158,41 @@ func (r *RewardsCalculator) GenerateAndInsertDeallocationQueueSnapshots(snapshot
 	return nil
 }
 
-// ListDeallocationQueueSnapshots returns all deallocation queue snapshots for debugging
-func (r *RewardsCalculator) ListDeallocationQueueSnapshots() ([]*DeallocationQueueSnapshot, error) {
-	var snapshots []*DeallocationQueueSnapshot
-	res := r.grm.Model(&DeallocationQueueSnapshot{}).Find(&snapshots)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to list deallocation queue snapshots", "error", res.Error)
-		return nil, res.Error
+func (r *RewardsCalculator) AdjustOperatorShareSnapshotsForDeallocationQueue(snapshotDate string) error {
+	adjustQuery := `
+	insert into operator_share_snapshots(operator, strategy, shares, snapshot)
+		select
+			dqs.operator,
+			dqs.strategy,
+			sum(dqs.magnitude_decrease::numeric)::text as shares,
+			dqs.snapshot as snapshot
+		from deallocation_queue_snapshots dqs
+		where dqs.snapshot = '{{.snapshotDate}}'
+		group by dqs.operator, dqs.strategy, dqs.snapshot
+		on conflict on constraint uniq_operator_share_snapshots
+		do update set shares = operator_share_snapshots.shares + EXCLUDED.shares;`
+
+	query, err := rewardsUtils.RenderQueryTemplate(adjustQuery, map[string]interface{}{
+		"snapshotDate": snapshotDate,
+	})
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to render deallocation queue adjustment query template", "error", err)
+		return err
 	}
-	return snapshots, nil
-}
 
-// adjustOperatorAllocationSnapshotsForDeallocationQueueQuery adds deallocation queue
-// allocations back to operator allocation snapshots.
-//
-// This is similar to withdrawal queue adjustment but for operator allocations.
-// We add back the magnitude_decrease to the current allocation to get the pre-deallocation value.
-const adjustOperatorAllocationSnapshotsForDeallocationQueueQuery = `
-	-- NOT YET IMPLEMENTED
-	-- This would need to integrate with operator allocation snapshots used in rewards v2.2
-	-- For now, this is a placeholder for future operator set rewards calculation
-	-- TODO: Integrate with operator set rewards calculation
-`
+	res := r.grm.Debug().Exec(query)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to adjust operator_share_snapshots for deallocation queue",
+			zap.String("snapshotDate", snapshotDate),
+			zap.Error(res.Error),
+		)
+		return res.Error
+	}
 
-// AdjustOperatorAllocationSnapshotsForDeallocationQueue adds deallocation queue
-// allocations back to operator allocation snapshots.
-//
-// NOTE: This is a placeholder for integration with operator set rewards (v2.2).
-// The actual adjustment logic will depend on how operator allocations are used in rewards.
-func (r *RewardsCalculator) AdjustOperatorAllocationSnapshotsForDeallocationQueue(snapshotDate string) error {
-	// TODO: Implement adjustment logic once operator set rewards calculation structure is finalized
-	r.logger.Sugar().Debugw("Deallocation queue adjustment not yet implemented",
+	r.logger.Sugar().Infow("Adjusted operator share snapshots for deallocation queue",
 		zap.String("snapshotDate", snapshotDate),
+		zap.Int64("rowsAffected", res.RowsAffected),
 	)
+
 	return nil
 }

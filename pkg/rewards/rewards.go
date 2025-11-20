@@ -680,6 +680,7 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated operator allocation snapshots")
+
 	// Generate deallocation queue snapshots - operators continue earning on old allocation until effective_date
 	if err = rc.GenerateAndInsertDeallocationQueueSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate deallocation queue snapshots", "error", err)
@@ -687,13 +688,18 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	}
 	rc.logger.Sugar().Debugw("Generated deallocation queue snapshots")
 
+	if err = rc.AdjustOperatorShareSnapshotsForDeallocationQueue(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to adjust operator share snapshots for deallocation queue", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Adjusted operator share snapshots for deallocation queue")
+
 	if err = rc.GenerateAndInsertStakerShareSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", err)
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated staker share snapshots")
 
-	// Adjust staker share snapshots to include withdrawal queue shares
 	if err = rc.AdjustStakerShareSnapshotsForWithdrawalQueue(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to adjust staker share snapshots for withdrawal queue", "error", err)
 		return err

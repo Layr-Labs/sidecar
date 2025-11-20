@@ -73,10 +73,6 @@ func (WithdrawalQueueShareSnapshot) TableName() string {
 	return "withdrawal_queue_share_snapshots"
 }
 
-// GenerateAndInsertWithdrawalQueueShares calculates and inserts shares in withdrawal queue
-// that should still earn rewards for the given snapshot date.
-//
-// This feature is only active after the Sabine fork.
 func (r *RewardsCalculator) GenerateAndInsertWithdrawalQueueShares(snapshotDate string) error {
 	forks, err := r.globalConfig.GetRewardsSqlForkDates()
 	if err != nil {
@@ -90,7 +86,6 @@ func (r *RewardsCalculator) GenerateAndInsertWithdrawalQueueShares(snapshotDate 
 		return nil
 	}
 
-	// Get the block number for the snapshot date to compare with fork block
 	var maxBlock uint64
 	res := r.grm.Raw(`
 		SELECT COALESCE(MAX(number), 0) as max_block
@@ -136,45 +131,20 @@ func (r *RewardsCalculator) GenerateAndInsertWithdrawalQueueShares(snapshotDate 
 	return nil
 }
 
-// ListWithdrawalQueueShareSnapshots returns all withdrawal queue share snapshots for debugging
-func (r *RewardsCalculator) ListWithdrawalQueueShareSnapshots() ([]*WithdrawalQueueShareSnapshot, error) {
-	var snapshots []*WithdrawalQueueShareSnapshot
-	res := r.grm.Model(&WithdrawalQueueShareSnapshot{}).Find(&snapshots)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to list withdrawal queue share snapshots", "error", res.Error)
-		return nil, res.Error
-	}
-	return snapshots, nil
-}
-
-// adjustStakerShareSnapshotsForWithdrawalQueueQuery adds withdrawal queue shares
-// to existing staker_share_snapshots for the given snapshot date.
-//
-// This is executed AFTER GenerateAndInsertStakerShareSnapshots to add back shares
-// that are in the withdrawal queue and should still earn rewards.
-const adjustStakerShareSnapshotsForWithdrawalQueueQuery = `
-	-- Add withdrawal queue shares to existing staker share snapshots
-	-- If a staker/strategy already exists, add to their shares
-	-- Otherwise, insert a new row
-	insert into staker_share_snapshots(staker, strategy, shares, snapshot)
-	select
-		wqss.staker,
-		wqss.strategy,
-		wqss.shares,
-		wqss.snapshot as snapshot
-	from withdrawal_queue_share_snapshots wqss
-	where wqss.snapshot = '{{.snapshotDate}}'
-	on conflict on constraint uniq_staker_share_snapshots
-	do update set
-		-- Add withdrawal queue shares to existing snapshot shares
-		shares = staker_share_snapshots.shares + EXCLUDED.shares;
-`
-
-// AdjustStakerShareSnapshotsForWithdrawalQueue adds withdrawal queue shares to
-// staker share snapshots. This ensures stakers continue earning rewards while
-// their withdrawals are in the 14-day queue.
 func (r *RewardsCalculator) AdjustStakerShareSnapshotsForWithdrawalQueue(snapshotDate string) error {
-	query, err := rewardsUtils.RenderQueryTemplate(adjustStakerShareSnapshotsForWithdrawalQueueQuery, map[string]interface{}{
+	adjustQuery := `
+	insert into staker_share_snapshots(staker, strategy, shares, snapshot)
+		select
+			wqss.staker,
+			wqss.strategy,
+			wqss.shares,
+			wqss.snapshot as snapshot
+		from withdrawal_queue_share_snapshots wqss
+		where wqss.snapshot = '{{.snapshotDate}}'
+		on conflict on constraint uniq_staker_share_snapshots
+		do update set shares = staker_share_snapshots.shares + EXCLUDED.shares;`
+
+	query, err := rewardsUtils.RenderQueryTemplate(adjustQuery, map[string]interface{}{
 		"snapshotDate": snapshotDate,
 	})
 	if err != nil {
