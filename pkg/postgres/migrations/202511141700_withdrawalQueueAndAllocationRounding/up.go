@@ -21,7 +21,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 		`alter table queued_slashing_withdrawals add column if not exists completion_block_number bigint`,
 
 		// Add FK constraint for completion block
-		`alter table queued_slashing_withdrawals add constraint if not exists fk_completion_block foreign key (completion_block_number) references blocks(number) on delete set null`,
+		`alter table queued_slashing_withdrawals add constraint fk_completion_block foreign key (completion_block_number) references blocks(number) on delete set null`,
 
 		// =============================================================================
 		// PART 2: Create indexes for efficient withdrawal queue queries
