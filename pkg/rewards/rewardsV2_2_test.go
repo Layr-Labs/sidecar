@@ -241,45 +241,45 @@ func Test_RewardsV2_2(t *testing.T) {
 			assert.True(t, rewardsV2_2Enabled, "v2.2 should be enabled for this test")
 
 			fmt.Printf("Running gold_15_operator_od_operator_set_rewards_v2_2\n")
-			err = rc.GenerateGold15OperatorODOperatorSetRewardAmountsV2_2Table(snapshotDate)
+			err = rc.GenerateGold15OperatorOperatorSetUniqueStakeRewardsTable(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_2Enabled {
-				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_15_OperatorODOperatorSetRewardAmountsV2_2])
+				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_15_OperatorOperatorSetUniqueStakeRewards])
 				assert.Nil(t, err)
 				fmt.Printf("\tRows in gold_15_operator_od_operator_set_rewards_v2_2: %v - [time: %v]\n", rows, time.Since(testStart))
 			}
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_16_staker_od_operator_set_rewards_v2_2\n")
-			err = rc.GenerateGold16StakerODOperatorSetRewardAmountsV2_2Table(snapshotDate)
+			err = rc.GenerateGold16StakerOperatorSetUniqueStakeRewardsTable(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_2Enabled {
-				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_16_StakerODOperatorSetRewardAmountsV2_2])
+				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_16_StakerOperatorSetUniqueStakeRewards])
 				assert.Nil(t, err)
 				fmt.Printf("\tRows in gold_16_staker_od_operator_set_rewards_v2_2: %v - [time: %v]\n", rows, time.Since(testStart))
 			}
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_17_avs_od_operator_set_rewards_v2_2\n")
-			err = rc.GenerateGold17AvsODOperatorSetRewardAmountsV2_2Table(snapshotDate, forks)
+			err = rc.GenerateGold17AvsOperatorSetUniqueStakeRewardsTable(snapshotDate, forks)
 			assert.Nil(t, err)
 			if rewardsV2_2Enabled {
-				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_17_AvsODOperatorSetRewardAmountsV2_2])
+				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_17_AvsOperatorSetUniqueStakeRewards])
 				assert.Nil(t, err)
 				fmt.Printf("\tRows in gold_17_avs_od_operator_set_rewards_v2_2: %v - [time: %v]\n", rows, time.Since(testStart))
 			}
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_18_staging\n")
-			err = rc.GenerateGold15StagingTable(snapshotDate)
+			err = rc.GenerateGold21StagingTable(snapshotDate)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_18_GoldStaging])
+			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_21_GoldStaging])
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_18_staging: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_final_table\n")
-			err = rc.GenerateGold16FinalTable(snapshotDate)
+			err = rc.GenerateGold22FinalTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, "gold_table")
 			assert.Nil(t, err)
