@@ -74,7 +74,7 @@ require (
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-resty/resty/v2 v2.7.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
+	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
