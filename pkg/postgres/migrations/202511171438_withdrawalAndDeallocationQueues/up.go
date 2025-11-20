@@ -15,12 +15,11 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 
 		// =============================================================================
-		// PART 4: Create withdrawal_queue_share_snapshots table for rewards calculation
+		// PART 1: Create withdrawal_queue_share_snapshots table for rewards calculation
 		// =============================================================================
 
 		// Table to track shares in withdrawal queue that should still earn rewards
 		// Stakers continue earning while in 14-day queue because they're still taking slashing risk
-		// Follows naming convention: *_snapshots suffix for snapshot tables (consistent with staker_share_snapshots, etc.)
 		`create table if not exists withdrawal_queue_share_snapshots (
 			staker varchar not null,
 			strategy varchar not null,
@@ -39,7 +38,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 		`create index if not exists idx_withdrawal_queue_share_snapshots_staker on withdrawal_queue_share_snapshots(staker, snapshot)`,
 
 		// =============================================================================
-		// PART 5: Create deallocation_queue_snapshots table for operator allocation tracking
+		// PART 2: Create deallocation_queue_snapshots table for operator allocation tracking
 		// =============================================================================
 
 		// Table to track operator allocation decreases that haven't reached effective_date yet
