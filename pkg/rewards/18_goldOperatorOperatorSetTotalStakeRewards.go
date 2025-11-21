@@ -8,10 +8,6 @@ import (
 const _18_goldOperatorOperatorSetTotalStakeRewardsQuery = `
 CREATE TABLE {{.destTableName}} AS
 
--- V2.2: Total Stake Weighted Rewards for Operator Sets
--- Key difference from Unique Stake: Uses total delegated stake instead of allocated unique stake
--- No allocation validation required - just operator registration to set
-
 -- Step 1: Get registered operators for the operator set
 WITH reward_snapshot_operators AS (
     SELECT
@@ -102,7 +98,6 @@ SELECT * FROM operator_splits
 `
 
 func (rc *RewardsCalculator) GenerateGold18OperatorOperatorSetTotalStakeRewardsTable(snapshotDate string) error {
-	// Skip if v2.2 is not enabled
 	rewardsV2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
