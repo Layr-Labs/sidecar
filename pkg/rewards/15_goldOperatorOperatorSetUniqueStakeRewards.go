@@ -29,7 +29,6 @@ WITH reward_snapshot_operators AS (
        AND ap.operator = osor.operator
 ),
 
--- V2.2: Calculate effective allocated stake using formula: operatorStake * magnitude / maxMagnitude
 operators_with_allocated_stake AS (
     SELECT
         rso.*,
@@ -118,7 +117,6 @@ SELECT * FROM operator_splits
 `
 
 func (rc *RewardsCalculator) GenerateGold15OperatorOperatorSetUniqueStakeRewardsTable(snapshotDate string) error {
-	// Skip if v2.2 is not enabled
 	rewardsV2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)

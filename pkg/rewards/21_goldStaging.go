@@ -204,11 +204,11 @@ combined_rewards AS (
 {{ end }}
 {{ if .enableRewardsV2_2 }}
   UNION ALL
-  SELECT * FROM operator_od_operator_set_rewards_v2_2_unique_stake
+  SELECT * FROM operator_operator_set_unique_stake_rewards
   UNION ALL
-  SELECT * FROM staker_od_operator_set_rewards_v2_2_unique_stake
+  SELECT * FROM staker_operator_set_unique_stake_rewards
   UNION ALL
-  SELECT * FROM avs_od_operator_set_rewards_v2_2_unique_stake
+  SELECT * FROM avs_operator_set_unique_stake_rewards
   UNION ALL
   SELECT * FROM operator_operator_set_total_stake_rewards
   UNION ALL
@@ -267,27 +267,27 @@ func (rc *RewardsCalculator) GenerateGold21StagingTable(snapshotDate string) err
 	rc.logger.Sugar().Infow("Is RewardsV2_2 enabled?", "enabled", isRewardsV2_2Enabled)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_18_goldStagingQuery, map[string]interface{}{
-		"destTableName":                               destTableName,
-		"stakerRewardAmountsTable":                    allTableNames[rewardsUtils.Table_2_StakerRewardAmounts],
-		"operatorRewardAmountsTable":                  allTableNames[rewardsUtils.Table_3_OperatorRewardAmounts],
-		"rewardsForAllTable":                          allTableNames[rewardsUtils.Table_4_RewardsForAll],
-		"rfaeStakerTable":                             allTableNames[rewardsUtils.Table_5_RfaeStakers],
-		"rfaeOperatorTable":                           allTableNames[rewardsUtils.Table_6_RfaeOperators],
-		"operatorODRewardAmountsTable":                allTableNames[rewardsUtils.Table_8_OperatorODRewardAmounts],
-		"stakerODRewardAmountsTable":                  allTableNames[rewardsUtils.Table_9_StakerODRewardAmounts],
-		"avsODRewardAmountsTable":                     allTableNames[rewardsUtils.Table_10_AvsODRewardAmounts],
-		"enableRewardsV2":                             isRewardsV2Enabled,
-		"operatorODOperatorSetRewardAmountsTable":     allTableNames[rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts],
-		"stakerODOperatorSetRewardAmountsTable":       allTableNames[rewardsUtils.Table_13_StakerODOperatorSetRewardAmounts],
-		"avsODOperatorSetRewardAmountsTable":          allTableNames[rewardsUtils.Table_14_AvsODOperatorSetRewardAmounts],
-		"enableRewardsV2_1":                           isRewardsV2_1Enabled,
-		"operatorODOperatorSetRewardAmountsTableV2_2": allTableNames[rewardsUtils.Table_15_OperatorOperatorSetUniqueStakeRewards],
-		"stakerODOperatorSetRewardAmountsTableV2_2":   allTableNames[rewardsUtils.Table_16_StakerOperatorSetUniqueStakeRewards],
-		"avsODOperatorSetRewardAmountsTableV2_2":      allTableNames[rewardsUtils.Table_17_AvsOperatorSetUniqueStakeRewards],
-		"operatorOperatorSetTotalStakeRewardsTable":   allTableNames[rewardsUtils.Table_18_OperatorOperatorSetTotalStakeRewards],
-		"stakerOperatorSetTotalStakeRewardsTable":     allTableNames[rewardsUtils.Table_19_StakerOperatorSetTotalStakeRewards],
-		"avsOperatorSetTotalStakeRewardsTable":        allTableNames[rewardsUtils.Table_20_AvsOperatorSetTotalStakeRewards],
-		"enableRewardsV2_2":                           isRewardsV2_2Enabled,
+		"destTableName":                              destTableName,
+		"stakerRewardAmountsTable":                   allTableNames[rewardsUtils.Table_2_StakerRewardAmounts],
+		"operatorRewardAmountsTable":                 allTableNames[rewardsUtils.Table_3_OperatorRewardAmounts],
+		"rewardsForAllTable":                         allTableNames[rewardsUtils.Table_4_RewardsForAll],
+		"rfaeStakerTable":                            allTableNames[rewardsUtils.Table_5_RfaeStakers],
+		"rfaeOperatorTable":                          allTableNames[rewardsUtils.Table_6_RfaeOperators],
+		"operatorODRewardAmountsTable":               allTableNames[rewardsUtils.Table_8_OperatorODRewardAmounts],
+		"stakerODRewardAmountsTable":                 allTableNames[rewardsUtils.Table_9_StakerODRewardAmounts],
+		"avsODRewardAmountsTable":                    allTableNames[rewardsUtils.Table_10_AvsODRewardAmounts],
+		"enableRewardsV2":                            isRewardsV2Enabled,
+		"operatorODOperatorSetRewardAmountsTable":    allTableNames[rewardsUtils.Table_12_OperatorODOperatorSetRewardAmounts],
+		"stakerODOperatorSetRewardAmountsTable":      allTableNames[rewardsUtils.Table_13_StakerODOperatorSetRewardAmounts],
+		"avsODOperatorSetRewardAmountsTable":         allTableNames[rewardsUtils.Table_14_AvsODOperatorSetRewardAmounts],
+		"enableRewardsV2_1":                          isRewardsV2_1Enabled,
+		"operatorOperatorSetUniqueStakeRewardsTable": allTableNames[rewardsUtils.Table_15_OperatorOperatorSetUniqueStakeRewards],
+		"stakerOperatorSetUniqueStakeRewardsTable":   allTableNames[rewardsUtils.Table_16_StakerOperatorSetUniqueStakeRewards],
+		"avsOperatorSetUniqueStakeRewardsTable":      allTableNames[rewardsUtils.Table_17_AvsOperatorSetUniqueStakeRewards],
+		"operatorOperatorSetTotalStakeRewardsTable":  allTableNames[rewardsUtils.Table_18_OperatorOperatorSetTotalStakeRewards],
+		"stakerOperatorSetTotalStakeRewardsTable":    allTableNames[rewardsUtils.Table_19_StakerOperatorSetTotalStakeRewards],
+		"avsOperatorSetTotalStakeRewardsTable":       allTableNames[rewardsUtils.Table_20_AvsOperatorSetTotalStakeRewards],
+		"enableRewardsV2_2":                          isRewardsV2_2Enabled,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

@@ -8,13 +8,7 @@ import (
 const _19_goldStakerOperatorSetTotalStakeRewardsQuery = `
 CREATE TABLE {{.destTableName}} AS
 
--- V2.2: Staker Rewards for Total Stake Weighted Operator Set Rewards
--- Simplified approach (same as file 16):
--- 1. Get operator rewards from file 18 (already stake-weighted based on total delegated stake)
--- 2. Calculate each staker's proportion of operator's total delegated stake
--- 3. Multiply proportion by operator's staker_split amount
-
--- Step 1: Get operator rewards and staker splits from previous table (file 18)
+-- Step 1: Get operator rewards and staker splits from previous table 18
 WITH operator_rewards AS (
     SELECT
         reward_hash,
@@ -96,7 +90,6 @@ SELECT * FROM staker_rewards
 `
 
 func (rc *RewardsCalculator) GenerateGold19StakerOperatorSetTotalStakeRewardsTable(snapshotDate string) error {
-	// Skip if v2.2 is not enabled
 	rewardsV2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
