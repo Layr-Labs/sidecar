@@ -22,8 +22,7 @@ WITH not_registered_operators AS (
         ap.operator_set_id AS operator_set_id,
         ap.operator AS operator,
         ap.strategy,
-        ap.multiplier,
-        ap.reward_submission_date
+        ap.multiplier
     FROM {{.activeODRewardsTable}} ap
     WHERE
         ap.num_registered_snapshots = 0
@@ -61,7 +60,7 @@ avs_operator_refund_sums AS (
     FROM distinct_not_registered_operators
 ),
 
--- V2.2: Step 4a - Get operators who ARE registered but have NOT allocated unique stake
+-- Step 4a: Get operators who ARE registered but have NOT allocated unique stake
 -- These operators should have their rewards refunded to the AVS
 registered_operators AS (
     SELECT
@@ -73,8 +72,7 @@ registered_operators AS (
         ap.operator_set_id,
         ap.operator,
         ap.strategy,
-        ap.multiplier,
-        ap.reward_submission_date
+        ap.multiplier
     FROM {{.activeODRewardsTable}} ap
     JOIN operator_set_operator_registration_snapshots osor
         ON ap.avs = osor.avs 
@@ -82,10 +80,9 @@ registered_operators AS (
         AND ap.snapshot = osor.snapshot 
         AND ap.operator = osor.operator
     WHERE ap.num_registered_snapshots != 0
-      AND ap.reward_submission_date >= @coloradoHardforkDate
 ),
 
--- V2.2: Step 4b - Find operators without unique stake allocations
+-- Step 4b: Find operators without unique stake allocations
 operators_without_unique_stake AS (
     SELECT
         ro.*
@@ -98,7 +95,7 @@ operators_without_unique_stake AS (
     WHERE oas.operator IS NULL OR oas.magnitude = 0
 ),
 
--- V2.2: Step 4c - Dedupe and calculate refunds for operators without unique stake
+-- Step 4c: Dedupe and calculate refunds for operators without unique stake
 distinct_operators_without_unique_stake AS (
     SELECT *
     FROM (
@@ -113,7 +110,7 @@ distinct_operators_without_unique_stake AS (
     WHERE rn = 1
 ),
 
--- V2.2: Step 4d - Calculate total refund for operators without unique stake
+-- Step 4d: Calculate total refund for operators without unique stake
 avs_no_unique_stake_refund_sums AS (
     SELECT
         reward_hash,
@@ -216,7 +213,7 @@ avs_staker_refund_sums AS (
 combined_avs_refund_amounts AS (
     SELECT * FROM avs_operator_refund_sums
     UNION ALL
-    SELECT * FROM avs_no_unique_stake_refund_sums  -- V2.2: New refund case
+    SELECT * FROM avs_no_unique_stake_refund_sums
     UNION ALL
     SELECT * FROM avs_staker_refund_sums
 )
@@ -226,7 +223,6 @@ SELECT * FROM combined_avs_refund_amounts
 `
 
 func (rc *RewardsCalculator) GenerateGold17AvsOperatorSetUniqueStakeRewardsTable(snapshotDate string, forks config.ForkMap) error {
-	// Skip if v2.2 is not enabled
 	rewardsV2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
