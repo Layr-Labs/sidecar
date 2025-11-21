@@ -71,7 +71,7 @@ func (krsm *KeyRotationScheduledModel) IsInterestingLog(log *storage.Transaction
 type LogOutput struct {
 	OperatorSet *OperatorSet `json:"operatorSet"`
 	Operator    string       `json:"operator"`
-	CurveType   string       `json:"curveType"`
+	CurveType   uint8        `json:"curveType"`
 	OldPubkey   string       `json:"oldPubkey"`
 	NewPubkey   string       `json:"newPubkey"`
 	ActivateAt  uint64       `json:"activateAt"`
@@ -92,7 +92,7 @@ func (krsm *KeyRotationScheduledModel) HandleTransactionLog(log *storage.Transac
 		Avs:             strings.ToLower(outputData.OperatorSet.Avs),
 		OperatorSetId:   uint32(outputData.OperatorSet.Id),
 		Operator:        strings.ToLower(outputData.Operator),
-		CurveType:       strings.ToLower(outputData.CurveType),
+		CurveType:       fmt.Sprintf("%d", outputData.CurveType),
 		OldPubkey:       strings.ToLower(outputData.OldPubkey),
 		NewPubkey:       strings.ToLower(outputData.NewPubkey),
 		ActivateAt:      outputData.ActivateAt,
