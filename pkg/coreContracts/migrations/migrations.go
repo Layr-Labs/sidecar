@@ -12,6 +12,7 @@ import (
 	_202509251838_updateStrategyAndDelegationImpl "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202509251838_updateStrategyAndDelegationImpl"
 	_202511101200_preprodHoodiDeployment "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202511101200_preprodHoodiDeployment"
 	_202511170958_preprodHoodiMultichain "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202511170958_preprodHoodiMultichain"
+	_202511211117_upgradePreprodHoodi "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202511211117_upgradePreprodHoodi"
 	"github.com/Layr-Labs/sidecar/pkg/coreContracts/types"
 )
 
@@ -28,5 +29,6 @@ func GetCoreContractMigrations() []types.ICoreContractMigration {
 		&_202509251838_updateStrategyAndDelegationImpl.ContractMigration{},
 		&_202511101200_preprodHoodiDeployment.ContractMigration{},
 		&_202511170958_preprodHoodiMultichain.ContractMigration{},
+		&_202511211117_upgradePreprodHoodi.ContractMigration{},
 	}
 }
