@@ -1,8 +1,6 @@
 package rewards
 
 import (
-	"database/sql"
-
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
@@ -242,7 +240,7 @@ func (rc *RewardsCalculator) GenerateGold20AvsOperatorSetTotalStakeRewardsTable(
 		return err
 	}
 
-	res := rc.grm.Exec(query, sql.Named("coloradoHardforkDate", forks[config.RewardsFork_Colorado].Date))
+	res := rc.grm.Exec(query)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_avs_operator_set_total_stake_rewards v2.2", "error", res.Error)
 		return res.Error

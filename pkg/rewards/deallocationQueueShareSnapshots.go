@@ -164,13 +164,13 @@ func (r *RewardsCalculator) AdjustOperatorShareSnapshotsForDeallocationQueue(sna
 		select
 			dqs.operator,
 			dqs.strategy,
-			sum(dqs.magnitude_decrease::numeric)::text as shares,
+			sum(dqs.magnitude_decrease::numeric) as shares,
 			dqs.snapshot as snapshot
 		from deallocation_queue_snapshots dqs
 		where dqs.snapshot = '{{.snapshotDate}}'
 		group by dqs.operator, dqs.strategy, dqs.snapshot
 		on conflict on constraint uniq_operator_share_snapshots
-		do update set shares = operator_share_snapshots.shares + EXCLUDED.shares;`
+		do update set shares = operator_share_snapshots.shares::numeric + EXCLUDED.shares::numeric;`
 
 	query, err := rewardsUtils.RenderQueryTemplate(adjustQuery, map[string]interface{}{
 		"snapshotDate": snapshotDate,
