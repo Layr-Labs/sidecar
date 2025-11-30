@@ -153,3 +153,12 @@ type OperatorDirectedOperatorSetRewards struct {
 	BlockTime      time.Time
 	BlockDate      string
 }
+
+type OperatorAllocationSnapshot struct {
+	Operator      string
+	Avs           string
+	Strategy      string
+	OperatorSetId uint64
+	Magnitude     string
+	Snapshot      time.Time
+}

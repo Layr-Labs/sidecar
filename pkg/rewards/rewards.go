@@ -668,6 +668,12 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	}
 	rc.logger.Sugar().Debugw("Generated operator share snapshots")
 
+	if err = rc.GenerateAndInsertOperatorAllocationSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator allocation snapshots", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated operator allocation snapshots")
+
 	if err = rc.GenerateAndInsertStakerShareSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", err)
 		return err
