@@ -25,10 +25,21 @@ import (
 // NOTE: This handles DECREASES (deallocations). Increases (allocations) are simpler
 // because they round UP, so they naturally start earning on effective_date.
 const deallocationQueueShareSnapshotsQuery = `
+	insert into deallocation_queue_snapshots(
+		operator,
+		avs,
+		operator_set_id,
+		strategy,
+		magnitude_decrease,
+		block_date,
+		effective_date,
+		snapshot
+	)
 	with deallocation_adjustments as (
 		select
 			oa.operator,
 			oa.avs,
+			oa.operator_set_id,
 			oa.strategy,
 			oa.magnitude as new_magnitude,
 			oa.effective_date,
@@ -36,7 +47,7 @@ const deallocationQueueShareSnapshotsQuery = `
 			oa.block_number,
 			-- Get previous allocation to calculate the difference
 			lag(oa.magnitude) over (
-				partition by oa.operator, oa.avs, oa.strategy
+				partition by oa.operator, oa.avs, oa.operator_set_id, oa.strategy
 				order by oa.block_number, oa.log_index
 			) as prev_magnitude
 		from operator_allocations oa
@@ -52,6 +63,7 @@ const deallocationQueueShareSnapshotsQuery = `
 		select
 			operator,
 			avs,
+			operator_set_id,
 			strategy,
 			new_magnitude,
 			prev_magnitude,
@@ -64,18 +76,10 @@ const deallocationQueueShareSnapshotsQuery = `
 			prev_magnitude is not null
 			and new_magnitude::numeric < prev_magnitude::numeric
 	)
-	insert into deallocation_queue_snapshots(
-		operator,
-		avs,
-		strategy,
-		magnitude_decrease,
-		block_date,
-		effective_date,
-		snapshot
-	)
 	select
 		operator,
 		avs,
+		operator_set_id,
 		strategy,
 		magnitude_decrease,
 		block_date,
@@ -88,6 +92,7 @@ const deallocationQueueShareSnapshotsQuery = `
 type DeallocationQueueSnapshot struct {
 	Operator          string `gorm:"column:operator;primaryKey"`
 	Avs               string `gorm:"column:avs;primaryKey"`
+	OperatorSetId     uint64 `gorm:"column:operator_set_id;primaryKey"`
 	Strategy          string `gorm:"column:strategy;primaryKey"`
 	MagnitudeDecrease string `gorm:"column:magnitude_decrease"`
 	BlockDate         string `gorm:"column:block_date"`

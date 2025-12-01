@@ -47,13 +47,14 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 		`create table if not exists deallocation_queue_snapshots (
 			operator varchar not null,
 			avs varchar not null,
+			operator_set_id bigint not null,
 			strategy varchar not null,
 			magnitude_decrease numeric not null,
 			block_date date not null,
 			effective_date date not null,
 			snapshot date not null,
-			primary key (operator, avs, strategy, snapshot),
-			constraint uniq_deallocation_queue_snapshots unique (operator, avs, strategy, snapshot)
+			primary key (operator, avs, operator_set_id, strategy, snapshot),
+			constraint uniq_deallocation_queue_snapshots unique (operator, avs, operator_set_id, strategy, snapshot)
 		)`,
 
 		// Index for querying deallocation queue snapshots by snapshot date
