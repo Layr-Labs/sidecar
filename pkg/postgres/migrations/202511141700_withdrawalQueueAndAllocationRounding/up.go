@@ -14,14 +14,11 @@ type Migration struct {
 func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		// =============================================================================
-		// PART 1: Enhance queued_slashing_withdrawals to support withdrawal queue
+		// PART 1: Withdrawal queue - no schema changes needed
 		// =============================================================================
-
-		// Add completion tracking (timestamps can be derived from blocks table via FK)
-		`alter table queued_slashing_withdrawals add column if not exists completion_block_number bigint`,
-
-		// Add FK constraint for completion block
-		`alter table queued_slashing_withdrawals add constraint fk_completion_block foreign key (completion_block_number) references blocks(number) on delete set null`,
+		// Note: Withdrawal queue logic uses withdrawable_date to determine when
+		// shares should stop earning rewards. The withdrawable_date is calculated as
+		// queued_date + 14 days. No additional columns needed in queued_slashing_withdrawals.
 
 		// =============================================================================
 		// PART 2: Create operator_allocation_snapshots table for rewards calculation
@@ -35,8 +32,21 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			strategy varchar not null,
 			operator_set_id bigint not null,
 			magnitude numeric not null,
-			snapshot date not null
+			snapshot date not null,
+			primary key (operator, avs, strategy, operator_set_id, snapshot)
 		)`,
+
+		// =============================================================================
+		// PART 3: Update operator_allocations table for allocation/deallocation rounding
+		// =============================================================================
+
+		// Add effective_date column for allocation/deallocation rounding
+		// This is a computed value based on magnitude changes (round UP for increases, DOWN for decreases)
+		// block_timestamp can be derived from block_number FK to blocks table
+		`alter table operator_allocations add column if not exists effective_date date`,
+
+		// Create index for effective_date queries (includes operator_set_id for proper partitioning)
+		`create index if not exists idx_operator_allocations_effective_date on operator_allocations(operator, avs, strategy, operator_set_id, effective_date)`,
 	}
 
 	for _, query := range queries {
