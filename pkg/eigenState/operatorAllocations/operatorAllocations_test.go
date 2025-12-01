@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -52,6 +53,15 @@ func Test_OperatorAllocations(t *testing.T) {
 
 		blockNumber := uint64(102)
 
+		// Create the block first (required for foreign key constraint)
+		block := &storage.Block{
+			Number:    blockNumber,
+			Hash:      "test_hash",
+			BlockTime: time.Now(),
+		}
+		res := grm.Model(&storage.Block{}).Create(block)
+		assert.Nil(t, res.Error)
+
 		log := &storage.TransactionLog{
 			TransactionHash:  "some hash",
 			TransactionIndex: big.NewInt(100).Uint64(),
@@ -87,7 +97,7 @@ func Test_OperatorAllocations(t *testing.T) {
 
 		results := make([]*OperatorAllocation, 0)
 		query := `select * from operator_allocations where block_number = ?`
-		res := model.DB.Raw(query, blockNumber).Scan(&results)
+		res = model.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, len(results))
 
