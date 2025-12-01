@@ -11,7 +11,7 @@ const operatorAllocationSnapshotsQuery = `
 		SELECT *,
 			   ROW_NUMBER() OVER (PARTITION BY operator, avs, strategy, operator_set_id, cast(block_time AS DATE) ORDER BY block_time DESC, log_index DESC) AS rn
 		FROM operator_allocations oa
-		INNER JOIN blocks b ON oa.block_number = b.number
+		INNER JOIN blocks b ON oa.effective_block = b.number
 		WHERE b.block_time < TIMESTAMP '{{.cutoffDate}}'
 	),
 	-- Get the latest record for each day
@@ -42,8 +42,8 @@ const operatorAllocationSnapshotsQuery = `
 			-- Deallocation (decrease or no change): Round DOWN to current day
 			CASE
 				WHEN LAG(magnitude) OVER (PARTITION BY operator, avs, strategy, operator_set_id ORDER BY block_time, block_number, log_index) IS NULL THEN
-					-- First allocation: round down to current day (conservative default)
-					date_trunc('day', block_time)
+					-- First allocation: round up to next day
+					date_trunc('day', block_time) + INTERVAL '1' day
 				WHEN magnitude > LAG(magnitude) OVER (PARTITION BY operator, avs, strategy, operator_set_id ORDER BY block_time, block_number, log_index) THEN
 					-- Increase: round up to next day
 					date_trunc('day', block_time) + INTERVAL '1' day
