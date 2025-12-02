@@ -14,7 +14,7 @@ type Migration struct {
 func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		// VIEW combines base shares + withdrawal queue adjustments
-		`create view if not exists staker_share_snapshots_final as
+		`create or replace view staker_share_snapshots_final as
 		select
 			coalesce(base.staker, wq.staker) as staker,
 			coalesce(base.strategy, wq.strategy) as strategy,
