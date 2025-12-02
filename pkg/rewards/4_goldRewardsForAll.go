@@ -20,7 +20,7 @@ WITH reward_snapshot_stakers AS (
     sss.staker,
     sss.shares
   FROM {{.activeRewardsTable}} ap
-  JOIN staker_share_snapshots as sss
+  JOIN staker_share_snapshots_final as sss
   ON ap.strategy = sss.strategy and ap.snapshot = sss.snapshot
   WHERE ap.reward_type = 'all_stakers'
   -- Parse out negative shares and zero multiplier so there is no division by zero case
