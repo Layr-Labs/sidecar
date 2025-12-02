@@ -6,25 +6,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// withdrawalQueueSharesQuery calculates shares that should still earn rewards
-// because they are in the withdrawal queue (taking slashing risk).
-//
-// Logic:
-// - Withdrawals are queued when SlashingWithdrawalQueued event occurs
-// - Shares become withdrawable after 14 days (withdrawable_date)
-// - Until withdrawable_date, shares should still earn rewards
-// - After withdrawable_date, staker can withdraw at any time (no longer forced risk)
-//
-// For a given snapshot_date, we add back shares where:
-// - queued_date <= snapshot_date (withdrawal was already queued)
-// - withdrawable_date > snapshot_date (shares still in forced queue period)
-//
-// NOTE: We do NOT check 'completed = false' because:
-// 1. Withdrawal can be completed anytime after withdrawable_date
-// 2. Once withdrawable_date passes, staker is no longer forced to take risk
-// 3. So rewards should stop at withdrawable_date, not completion_date
-//
-// The query joins with blocks table to derive timestamps from block_number.
+// Shares in withdrawal queue still earn rewards during 14-day period (stakers taking slashing risk)
+// Rewards stop at withdrawable_date, not completion_date
 const withdrawalQueueShareSnapshotsQuery = `
 	with withdrawal_queue_adjustments as (
 		select
@@ -131,40 +114,4 @@ func (r *RewardsCalculator) GenerateAndInsertWithdrawalQueueShares(snapshotDate 
 	return nil
 }
 
-func (r *RewardsCalculator) AdjustStakerShareSnapshotsForWithdrawalQueue(snapshotDate string) error {
-	adjustQuery := `
-	insert into staker_share_snapshots(staker, strategy, shares, snapshot)
-		select
-			wqss.staker,
-			wqss.strategy,
-			wqss.shares,
-			wqss.snapshot as snapshot
-		from withdrawal_queue_share_snapshots wqss
-		where wqss.snapshot = '{{.snapshotDate}}'
-		on conflict on constraint uniq_staker_share_snapshots
-		do update set shares = staker_share_snapshots.shares + EXCLUDED.shares;`
-
-	query, err := rewardsUtils.RenderQueryTemplate(adjustQuery, map[string]interface{}{
-		"snapshotDate": snapshotDate,
-	})
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to render withdrawal queue adjustment query template", "error", err)
-		return err
-	}
-
-	res := r.grm.Debug().Exec(query)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to adjust staker_share_snapshots for withdrawal queue",
-			zap.String("snapshotDate", snapshotDate),
-			zap.Error(res.Error),
-		)
-		return res.Error
-	}
-
-	r.logger.Sugar().Infow("Adjusted staker share snapshots for withdrawal queue",
-		zap.String("snapshotDate", snapshotDate),
-		zap.Int64("rowsAffected", res.RowsAffected),
-	)
-
-	return nil
-}
+// NOTE: Adjustments handled by staker_share_snapshots_final VIEW
