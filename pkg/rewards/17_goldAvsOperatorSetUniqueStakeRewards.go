@@ -60,8 +60,9 @@ avs_operator_refund_sums AS (
     FROM distinct_not_registered_operators
 ),
 
--- Step 4a: Get operators who ARE registered but have NOT allocated unique stake
--- These operators should have their rewards refunded to the AVS
+-- Step 4: Get operators who ARE registered but have NO allocated stake with magnitude > 0
+-- This combines the previous scenarios of "no unique stake" and "strategies not registered"
+-- If the operator doesn't have allocated stake with magnitude > 0, they get no rewards, so refund
 registered_operators AS (
     SELECT
         ap.reward_hash,
@@ -75,43 +76,46 @@ registered_operators AS (
         ap.multiplier
     FROM {{.activeODRewardsTable}} ap
     JOIN operator_set_operator_registration_snapshots osor
-        ON ap.avs = osor.avs 
+        ON ap.avs = osor.avs
         AND ap.operator_set_id = osor.operator_set_id
-        AND ap.snapshot = osor.snapshot 
+        AND ap.snapshot = osor.snapshot
         AND ap.operator = osor.operator
     WHERE ap.num_registered_snapshots != 0
 ),
 
--- Step 4b: Find operators without unique stake allocations
-operators_without_unique_stake AS (
+-- Step 5: Find operators without allocated stake (magnitude > 0)
+operators_without_allocated_stake AS (
     SELECT
         ro.*
     FROM registered_operators ro
-    LEFT JOIN {{.operatorAllocationSnapshotsTable}} oas
-        ON ro.operator = oas.operator
-        AND ro.avs = oas.avs
-        AND ro.operator_set_id = oas.operator_set_id
-        AND ro.snapshot = oas.snapshot
-    WHERE oas.operator IS NULL OR oas.magnitude = 0
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM {{.operatorAllocationSnapshotsTable}} oas
+        WHERE oas.operator = ro.operator
+            AND oas.avs = ro.avs
+            AND oas.operator_set_id = ro.operator_set_id
+            AND oas.snapshot = ro.snapshot
+            AND oas.magnitude > 0
+    )
 ),
 
--- Step 4c: Dedupe and calculate refunds for operators without unique stake
-distinct_operators_without_unique_stake AS (
+-- Step 6: Dedupe and calculate refunds for operators without allocated stake
+distinct_operators_without_allocated_stake AS (
     SELECT *
     FROM (
-        SELECT 
+        SELECT
             *,
             ROW_NUMBER() OVER (
-                PARTITION BY reward_hash, snapshot, operator 
+                PARTITION BY reward_hash, snapshot, operator
                 ORDER BY strategy ASC
             ) AS rn
-        FROM operators_without_unique_stake
+        FROM operators_without_allocated_stake
     ) t
     WHERE rn = 1
 ),
 
--- Step 4d: Calculate total refund for operators without unique stake
-avs_no_unique_stake_refund_sums AS (
+-- Step 7: Calculate total refund for operators without allocated stake
+avs_no_allocated_stake_refund_sums AS (
     SELECT
         reward_hash,
         snapshot,
@@ -120,102 +124,14 @@ avs_no_unique_stake_refund_sums AS (
         operator_set_id,
         operator,
         SUM(tokens_per_registered_snapshot_decimal) OVER (PARTITION BY reward_hash, snapshot) AS avs_tokens
-    FROM distinct_operators_without_unique_stake
+    FROM distinct_operators_without_allocated_stake
 ),
 
--- Step 5: Find rows where operators are registered WITH unique stake but strategies are not registered for the operator set
--- First, get all rows where operators are registered AND have unique stake
-registered_operators_with_unique_stake AS (
-    SELECT
-        ro.*
-    FROM registered_operators ro
-    JOIN {{.operatorAllocationSnapshotsTable}} oas
-        ON ro.operator = oas.operator
-        AND ro.avs = oas.avs
-        AND ro.operator_set_id = oas.operator_set_id
-        AND ro.snapshot = oas.snapshot
-    WHERE oas.magnitude > 0
-),
-
--- Step 6: For each reward/snapshot/operator_set, check if any strategies are registered
-strategies_registered AS (
-    SELECT DISTINCT
-        ro.reward_hash,
-        ro.snapshot,
-        ro.avs,
-        ro.operator_set_id
-    FROM registered_operators_with_unique_stake ro
-    JOIN operator_set_strategy_registration_snapshots ossr
-        ON ro.avs = ossr.avs
-        AND ro.operator_set_id = ossr.operator_set_id
-        AND ro.snapshot = ossr.snapshot
-        AND ro.strategy = ossr.strategy
-),
-
--- Step 7: Find reward/snapshot combinations where operators registered WITH unique stake but no strategies registered
-strategies_not_registered AS (
-    SELECT 
-        ro.*
-    FROM registered_operators_with_unique_stake ro
-    LEFT JOIN strategies_registered sr
-        ON ro.reward_hash = sr.reward_hash
-        AND ro.snapshot = sr.snapshot
-        AND ro.avs = sr.avs
-        AND ro.operator_set_id = sr.operator_set_id
-    WHERE sr.reward_hash IS NULL
-),
-
--- Step 8: Calculate the staker split for each reward with dynamic split logic
--- If no split is found, default to 1000 (10%)
-staker_splits AS (
-    SELECT 
-        snr.*,
-        snr.tokens_per_registered_snapshot_decimal - FLOOR(snr.tokens_per_registered_snapshot_decimal * COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS DECIMAL)) AS staker_split
-    FROM strategies_not_registered snr
-    LEFT JOIN operator_set_split_snapshots oss
-        ON snr.operator = oss.operator 
-        AND snr.avs = oss.avs 
-        AND snr.operator_set_id = oss.operator_set_id
-        AND snr.snapshot = oss.snapshot
-    LEFT JOIN default_operator_split_snapshots dos ON (snr.snapshot = dos.snapshot)
-),
-
--- Step 9: Dedupe the staker splits across across strategies for each (operator, reward hash, snapshot)
--- Since the above result is a flattened operator-directed reward submission across strategies.
-distinct_staker_splits AS (
-    SELECT *
-    FROM (
-        SELECT 
-            *,
-            ROW_NUMBER() OVER (
-                PARTITION BY reward_hash, snapshot, operator 
-                ORDER BY strategy ASC
-            ) AS rn
-        FROM staker_splits
-    ) t
-    WHERE rn = 1
-),
-
--- Step 10: Sum the staker tokens for each (reward hash, snapshot) that should be refunded
-avs_staker_refund_sums AS (
-    SELECT
-        reward_hash,
-        snapshot,
-        token,
-        avs,
-        operator_set_id,
-        operator,
-        SUM(staker_split) OVER (PARTITION BY reward_hash, snapshot) AS avs_tokens
-    FROM distinct_staker_splits
-),
-
--- Step 11: Combine all refund cases into one result
+-- Step 8: Combine all refund cases into one result
 combined_avs_refund_amounts AS (
     SELECT * FROM avs_operator_refund_sums
     UNION ALL
-    SELECT * FROM avs_no_unique_stake_refund_sums
-    UNION ALL
-    SELECT * FROM avs_staker_refund_sums
+    SELECT * FROM avs_no_allocated_stake_refund_sums
 )
 
 -- Output the final table
