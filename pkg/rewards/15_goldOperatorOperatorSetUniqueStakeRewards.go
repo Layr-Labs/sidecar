@@ -36,11 +36,9 @@ operators_with_allocated_stake AS (
         oas.max_magnitude,
         oss.shares as operator_total_shares,
         -- Calculate effective allocated stake for this strategy
-        CAST(
-            CAST(oss.shares AS DECIMAL(78,0)) *
-            CAST(oas.magnitude AS DECIMAL(78,0)) /
-            CAST(oas.max_magnitude AS DECIMAL(78,0))
-        AS VARCHAR) as allocated_stake
+        CAST(oss.shares AS DECIMAL(78,0)) *
+        CAST(oas.magnitude AS DECIMAL(78,0)) /
+        CAST(oas.max_magnitude AS DECIMAL(78,0)) as allocated_stake
     FROM reward_snapshot_operators rso
     JOIN {{.operatorAllocationSnapshotsTable}} oas
         ON rso.operator = oas.operator
@@ -71,7 +69,7 @@ operators_with_unique_stake AS (
         multiplier,
         reward_submission_date,
         -- Sum the weighted allocated stake across strategies
-        SUM(CAST(allocated_stake AS DECIMAL(78,0)) * multiplier) OVER (
+        SUM(allocated_stake * multiplier) OVER (
             PARTITION BY reward_hash, snapshot, operator
         ) as operator_allocated_weight
     FROM operators_with_allocated_stake

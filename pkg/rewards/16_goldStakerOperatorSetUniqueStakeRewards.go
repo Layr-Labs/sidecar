@@ -54,7 +54,7 @@ staker_strategy_shares AS (
 staker_weights AS (
     SELECT
         *,
-        CAST(shares AS DECIMAL(78,0)) * multiplier as staker_weight
+        shares * multiplier as staker_weight
     FROM staker_strategy_shares
 ),
 
@@ -66,23 +66,28 @@ staker_weight_with_totals AS (
     FROM staker_weights
 ),
 
--- Step 6: Calculate staker proportions and rewards
+-- Step 6: Calculate staker proportions with 15 decimal place precision
+staker_proportions AS (
+    SELECT
+        *,
+        CASE
+            WHEN total_operator_weight > 0 THEN
+                FLOOR((staker_weight / total_operator_weight) * 1000000000000000) / 1000000000000000
+            ELSE 0
+        END as staker_proportion
+    FROM staker_weight_with_totals
+),
+
+-- Step 7: Calculate staker rewards
 staker_rewards AS (
     SELECT
         *,
-        -- Staker's proportion of operator's total delegated stake
         CASE
             WHEN total_operator_weight > 0 THEN
-                staker_weight / total_operator_weight
-            ELSE 0
-        END as staker_proportion,
-        -- Staker's reward = proportion * operator's staker_split_total
-        CASE
-            WHEN total_operator_weight > 0 THEN
-                FLOOR((staker_weight / total_operator_weight) * staker_split_total)
+                FLOOR(staker_proportion * staker_split_total)
             ELSE 0
         END as staker_tokens
-    FROM staker_weight_with_totals
+    FROM staker_proportions
 )
 
 -- Output the final table
