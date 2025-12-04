@@ -114,4 +114,5 @@ func (r *RewardsCalculator) GenerateAndInsertWithdrawalQueueShares(snapshotDate 
 	return nil
 }
 
-// NOTE: Adjustments handled by staker_share_snapshots_final VIEW
+// NOTE: Adjustments are materialized into staker_share_snapshots during generation
+// The withdrawal_queue_share_snapshots table serves as an audit trail and source data

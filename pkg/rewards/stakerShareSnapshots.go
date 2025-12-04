@@ -39,22 +39,50 @@ const stakerShareSnapshotsQuery = `
 	cleaned_records as (
 	  SELECT * FROM staker_share_windows
 	  WHERE start_time < end_time
+	),
+	base_snapshots as (
+		SELECT
+			staker,
+			strategy,
+			shares,
+			cast(day AS DATE) AS snapshot
+		FROM
+			cleaned_records
+		CROSS JOIN
+			generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+	),
+	-- Materialize withdrawal queue adjustments into final snapshots
+	-- Per Sean's feedback: "Why not adjust the query that populates the staker_share_snapshots table to account for this case?"
+	-- This materializes the combined result (base + withdrawal queue) into staker_share_snapshots
+	withdrawal_queue_adjustments as (
+		SELECT
+			wqs.staker,
+			wqs.strategy,
+			wqs.shares,
+			wqs.snapshot
+		FROM withdrawal_queue_share_snapshots wqs
+		WHERE wqs.snapshot = DATE '{{.snapshotDate}}'
+	),
+	combined_snapshots as (
+		SELECT
+			coalesce(base.staker, wq.staker) as staker,
+			coalesce(base.strategy, wq.strategy) as strategy,
+			(coalesce(base.shares::numeric, 0) + coalesce(wq.shares::numeric, 0))::text as shares,
+			coalesce(base.snapshot, wq.snapshot) as snapshot
+		FROM base_snapshots base
+		FULL OUTER JOIN withdrawal_queue_adjustments wq
+			ON base.staker = wq.staker
+			AND base.strategy = wq.strategy
+			AND base.snapshot = wq.snapshot
 	)
-	SELECT
-		staker,
-		strategy,
-		shares,
-		cast(day AS DATE) AS snapshot
-	FROM
-		cleaned_records
-	CROSS JOIN
-		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+	SELECT * FROM combined_snapshots
 	on conflict on constraint uniq_staker_share_snapshots do nothing;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(snapshotDate string) error {
 	query, err := rewardsUtils.RenderQueryTemplate(stakerShareSnapshotsQuery, map[string]interface{}{
-		"cutoffDate": snapshotDate,
+		"cutoffDate":   snapshotDate,
+		"snapshotDate": snapshotDate,
 	})
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to render query template", "error", err)

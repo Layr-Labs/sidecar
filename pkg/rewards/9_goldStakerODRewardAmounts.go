@@ -65,7 +65,7 @@ staker_avs_strategy_shares AS (
         sdo.*,
         sss.shares
     FROM staker_delegated_operators sdo
-    JOIN staker_share_snapshots_final sss
+    JOIN staker_share_snapshots sss
         ON sdo.staker = sss.staker 
        AND sdo.snapshot = sss.snapshot 
        AND sdo.strategy = sss.strategy
