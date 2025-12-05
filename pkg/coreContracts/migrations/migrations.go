@@ -14,6 +14,7 @@ import (
 	_202511170958_preprodHoodiMultichain "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202511170958_preprodHoodiMultichain"
 	_202511211117_upgradePreprodHoodi "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202511211117_upgradePreprodHoodi"
 	_202512050924_upgradeTestnetHoodi "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202512050924_upgradeTestnetHoodi"
+	_202512060110_upgradeTestnetSepolia "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202512060110_upgradeTestnetSepolia"
 	"github.com/Layr-Labs/sidecar/pkg/coreContracts/types"
 )
 
@@ -32,5 +33,6 @@ func GetCoreContractMigrations() []types.ICoreContractMigration {
 		&_202511170958_preprodHoodiMultichain.ContractMigration{},
 		&_202511211117_upgradePreprodHoodi.ContractMigration{},
 		&_202512050924_upgradeTestnetHoodi.ContractMigration{},
+		&_202512060110_upgradeTestnetSepolia.ContractMigration{},
 	}
 }
