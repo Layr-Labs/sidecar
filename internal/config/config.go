@@ -419,13 +419,19 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 		}
 	} else if c.Chain == Chain_Hoodi {
 		return &ContractAddresses{
-			AllocationManager:  "0x95a7431400f362f3647a69535c5666ca0133caa0",
-			AvsDirectory:       "0xd58f6844f79eb1fbd9f7091d05f7cb30d3363926",
-			DelegationManager:  "0x867837a9722c512e0862d8c2e15b8be220e8b87d",
-			EigenpodManager:    "0xcd1442415fc5c29aa848a49d2e232720be07976c",
-			RewardsCoordinator: "0x29e8572678e0c272350aa0b4b8f304e47ebcd5e7",
-			StrategyManager:    "0xee45e76ddbedda2918b8c7e3035cd37eab3b5d41",
-			KeyRegistrar:       "0x5737e38a260545d8feccb4cae2cfd984da4130ed",
+			AllocationManager:        "0x95a7431400f362f3647a69535c5666ca0133caa0",
+			AvsDirectory:             "0xd58f6844f79eb1fbd9f7091d05f7cb30d3363926",
+			DelegationManager:        "0x867837a9722c512e0862d8c2e15b8be220e8b87d",
+			EigenpodManager:          "0xcd1442415fc5c29aa848a49d2e232720be07976c",
+			RewardsCoordinator:       "0x29e8572678e0c272350aa0b4b8f304e47ebcd5e7",
+			StrategyManager:          "0xee45e76ddbedda2918b8c7e3035cd37eab3b5d41",
+			KeyRegistrar:             "0x5737e38a260545d8feccb4cae2cfd984da4130ed",
+			ReleaseManager:           "0xe863060013cb95473b96f7c3e1444e3e3df65671",
+			CrossChainRegistry:       "0x9269432451965996be7796582c062cb0795d3e8b",
+			OperatorTableUpdater:     "0xb02a15c6bd0882b35e9936a9579f35fb26e11476",
+			ECDSACertificateVerifier: "0xb3cd1a457dea9a9a6f6406c6419b1c326670a96f",
+			BN254CertificateVerifier: "0xff58a373c18268f483c1f5ca03cf885c0c43373a",
+			TaskMailbox:              "0xb99cc53e8db7018f557606c2a5b066527bf96b26",
 		}
 	} else if c.Chain == Chain_PreprodHoodi {
 		return &ContractAddresses{
