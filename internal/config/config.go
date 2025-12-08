@@ -47,6 +47,7 @@ const (
 	RewardsFork_Colorado    ForkName = "colorado"
 	RewardsFork_Red         ForkName = "red"
 	RewardsFork_Pecos       ForkName = "pecos"
+	RewardsFork_Sabine      ForkName = "sabine"
 )
 
 func normalizeFlagName(name string) string {
@@ -104,6 +105,7 @@ type RewardsConfig struct {
 	ValidateRewardsRoot          bool
 	GenerateStakerOperatorsTable bool
 	CalculateRewardsDaily        bool
+	RewardsV2_2Enabled           bool
 }
 
 type StatsdConfig struct {
@@ -212,6 +214,7 @@ var (
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
 	RewardsCalculateRewardsDaily        = "rewards.calculate_rewards_daily"
+	RewardsV2_2Enabled                  = "rewards.v2_2_enabled"
 
 	EthereumRpcBaseUrl               = "ethereum.rpc_url"
 	EthereumRpcContractCallBatchSize = "ethereum.contract_call_batch_size"
@@ -297,6 +300,7 @@ func NewConfig() *Config {
 			ValidateRewardsRoot:          viper.GetBool(normalizeFlagName(RewardsValidateRewardsRoot)),
 			GenerateStakerOperatorsTable: viper.GetBool(normalizeFlagName(RewardsGenerateStakerOperatorsTable)),
 			CalculateRewardsDaily:        viper.GetBool(normalizeFlagName(RewardsCalculateRewardsDaily)),
+			RewardsV2_2Enabled:           viper.GetBool(normalizeFlagName(RewardsV2_2Enabled)),
 		},
 
 		DataDogConfig: DataDogConfig{
@@ -624,6 +628,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-05-14",
 				BlockNumber: 8327038,
 			},
+			RewardsFork_Sabine: Fork{
+				Date:        "2025-12-19",
+				BlockNumber: 9903838,
+			},
 		}, nil
 	case Chain_Hoodi:
 		return ForkMap{
@@ -652,6 +660,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "1970-01-01",
 				BlockNumber: 0,
 			},
+			RewardsFork_Sabine: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
 		}, nil
 	case Chain_PreprodHoodi:
 		return ForkMap{
@@ -677,6 +689,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 0,
 			},
 			RewardsFork_Pecos: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Sabine: Fork{
 				Date:        "1970-01-01",
 				BlockNumber: 0,
 			},
@@ -721,6 +737,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 			RewardsFork_Pecos: Fork{
 				Date:        "2025-05-14",
 				BlockNumber: 22483225,
+			},
+			RewardsFork_Sabine: Fork{
+				Date:        "2026-01-19",
+				BlockNumber: 24274311,
 			},
 		}, nil
 	}
@@ -845,6 +865,28 @@ func (c *Config) IsRewardsV2_1EnabledForCutoffDate(cutoffDate string) (bool, err
 	}
 
 	return cutoffDateTime.Compare(mississippiForkDateTime) >= 0, nil
+}
+
+func (c *Config) IsRewardsV2_2EnabledForCutoffDate(cutoffDate string) (bool, error) {
+	// Check global flag first - if disabled, return false regardless of date
+	if !c.Rewards.RewardsV2_2Enabled {
+		return false, nil
+	}
+
+	forks, err := c.GetRewardsSqlForkDates()
+	if err != nil {
+		return false, err
+	}
+	cutoffDateTime, err := time.Parse(time.DateOnly, cutoffDate)
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("failed to parse cutoff date %s", cutoffDate), err)
+	}
+	pecosForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Pecos].Date)
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("failed to parse Pecos fork date %s", forks[RewardsFork_Pecos].Date), err)
+	}
+
+	return cutoffDateTime.Compare(pecosForkDateTime) >= 0, nil
 }
 
 // CanIgnoreIncorrectRewardsRoot returns true if the rewards root can be ignored for the given block number

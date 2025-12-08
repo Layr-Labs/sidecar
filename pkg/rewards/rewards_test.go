@@ -151,9 +151,37 @@ func setupRewardsV2() (
 	cfg := tests.GetConfig()
 	cfg.Rewards.GenerateStakerOperatorsTable = true
 	cfg.Rewards.ValidateRewardsRoot = true
-	cfg.Chain = config.Chain_Preprod
+	cfg.Chain = config.Chain_PreprodHoodi
 
-	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+	// Get database config with defaults if env vars not set
+	dbConfig := tests.GetDbConfigFromEnv()
+
+	// Apply defaults if not set in environment
+	if dbConfig.Host == "" {
+		dbConfig.Host = "localhost"
+	}
+	if dbConfig.Port == 0 {
+		dbConfig.Port = 5432
+	}
+	if dbConfig.User == "" {
+		// Try to get PostgreSQL user from environment
+		pgUser := os.Getenv("PGUSER")
+		if pgUser == "" {
+			pgUser = os.Getenv("USER") // Use system username as fallback
+		}
+		if pgUser == "" {
+			pgUser = "postgres" // Final fallback
+		}
+		dbConfig.User = pgUser
+	}
+	if dbConfig.DbName == "" {
+		dbConfig.DbName = fmt.Sprintf("test_rewards_v2_2_%d", time.Now().Unix())
+	}
+	if dbConfig.SchemaName == "" {
+		dbConfig.SchemaName = "public"
+	}
+
+	cfg.DatabaseConfig = *dbConfig
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
@@ -397,15 +425,15 @@ func Test_Rewards(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_15_staging\n")
-			err = rc.GenerateGold15StagingTable(snapshotDate)
+			err = rc.GenerateGold21StagingTable(snapshotDate)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_15_GoldStaging])
+			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_21_GoldStaging])
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_15_staging: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_final_table\n")
-			err = rc.GenerateGold16FinalTable(snapshotDate)
+			err = rc.GenerateGold22FinalTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, "gold_table")
 			assert.Nil(t, err)

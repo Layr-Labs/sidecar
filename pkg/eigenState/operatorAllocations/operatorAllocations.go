@@ -3,6 +3,11 @@ package operatorAllocations
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
+	"slices"
+	"sort"
+	"strings"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/base"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -10,10 +15,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"math/big"
-	"slices"
-	"sort"
-	"strings"
 )
 
 type OperatorAllocation struct {
@@ -101,7 +102,7 @@ func (oa *OperatorAllocationModel) handleOperatorAllocationCreatedEvent(log *sto
 
 	magnitude, success := new(big.Int).SetString(outputData.Magnitude.String(), 10)
 	if !success {
-		err := fmt.Errorf("Failed to parse magnitude: %s", outputData.Magnitude.String())
+		err := fmt.Errorf("failed to parse magnitude: %s", outputData.Magnitude.String())
 		oa.logger.Sugar().Errorw("Failed to parse magnitude", zap.Error(err))
 		return nil, err
 	}
