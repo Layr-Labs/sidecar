@@ -51,17 +51,18 @@ const stakerShareSnapshotsQuery = `
 		CROSS JOIN
 			generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 	),
-	-- Materialize withdrawal queue adjustments into final snapshots
-	-- Per Sean's feedback: "Why not adjust the query that populates the staker_share_snapshots table to account for this case?"
-	-- This materializes the combined result (base + withdrawal queue) into staker_share_snapshots
+	-- Add shares in withdrawal queue (still earning during 14-day period)
 	withdrawal_queue_adjustments as (
 		SELECT
-			wqs.staker,
-			wqs.strategy,
-			wqs.shares,
-			wqs.snapshot
-		FROM withdrawal_queue_share_snapshots wqs
-		WHERE wqs.snapshot = DATE '{{.snapshotDate}}'
+			qsw.staker,
+			qsw.strategy,
+			qsw.shares_to_withdraw as shares,
+			DATE '{{.snapshotDate}}' as snapshot
+		FROM queued_slashing_withdrawals qsw
+		INNER JOIN blocks b_queued ON qsw.block_number = b_queued.number
+		WHERE
+			DATE(b_queued.block_time) <= '{{.snapshotDate}}'
+			AND DATE(b_queued.block_time) + INTERVAL '14 days' > '{{.snapshotDate}}'
 	),
 	combined_snapshots as (
 		SELECT
