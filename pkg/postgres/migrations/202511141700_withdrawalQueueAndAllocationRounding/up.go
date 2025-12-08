@@ -32,9 +32,13 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			strategy varchar not null,
 			operator_set_id bigint not null,
 			magnitude numeric not null,
+			max_magnitude numeric not null,
 			snapshot date not null,
 			primary key (operator, avs, strategy, operator_set_id, snapshot)
 		)`,
+
+		// Add max_magnitude column if table already exists without it
+		`ALTER TABLE operator_allocation_snapshots ADD COLUMN IF NOT EXISTS max_magnitude numeric NOT NULL DEFAULT '0'`,
 
 		// =============================================================================
 		// PART 3: Update operator_allocations table for allocation/deallocation rounding

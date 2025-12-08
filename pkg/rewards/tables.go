@@ -160,5 +160,6 @@ type OperatorAllocationSnapshot struct {
 	Strategy      string
 	OperatorSetId uint64
 	Magnitude     string
+	MaxMagnitude  string
 	Snapshot      time.Time
 }

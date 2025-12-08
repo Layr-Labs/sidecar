@@ -136,7 +136,7 @@ func (rc *RewardsCalculator) GenerateGold15OperatorOperatorSetUniqueStakeRewards
 	query, err := rewardsUtils.RenderQueryTemplate(_15_goldOperatorOperatorSetUniqueStakeRewardsQuery, map[string]interface{}{
 		"destTableName":                    destTableName,
 		"activeODRewardsTable":             allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
-		"operatorAllocationSnapshotsTable": allTableNames[rewardsUtils.Table_OperatorAllocationSnapshots],
+		"operatorAllocationSnapshotsTable": "operator_allocation_snapshots",
 		"operatorShareSnapshotsTable":      "operator_share_snapshots",
 	})
 	if err != nil {

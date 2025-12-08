@@ -159,7 +159,7 @@ func (rc *RewardsCalculator) GenerateGold17AvsOperatorSetUniqueStakeRewardsTable
 	query, err := rewardsUtils.RenderQueryTemplate(_17_goldAvsOperatorSetUniqueStakeRewardsQuery, map[string]interface{}{
 		"destTableName":                    destTableName,
 		"activeODRewardsTable":             allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
-		"operatorAllocationSnapshotsTable": allTableNames[rewardsUtils.Table_OperatorAllocationSnapshots],
+		"operatorAllocationSnapshotsTable": "operator_allocation_snapshots",
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

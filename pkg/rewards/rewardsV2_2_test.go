@@ -301,7 +301,8 @@ func Test_RewardsV2_2(t *testing.T) {
 			assert.Nil(t, err)
 
 			// V2.2 specific validation - ensure operator allocations snapshot was created
-			operatorAllocSnapshotTable := goldTableNames[rewardsUtils.Table_OperatorAllocationSnapshots]
+			// Note: operator_allocation_snapshots is a persistent table without date suffix
+			operatorAllocSnapshotTable := "operator_allocation_snapshots"
 			rows, err = getRowCountForTable(grm, operatorAllocSnapshotTable)
 			assert.Nil(t, err)
 			t.Logf("Operator allocation snapshots: %v", rows)

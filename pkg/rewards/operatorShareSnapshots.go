@@ -66,7 +66,7 @@ combined_snapshots as (
 	SELECT
 		coalesce(base.operator, alloc.operator) as operator,
 		coalesce(base.strategy, alloc.strategy) as strategy,
-		coalesce(alloc.total_magnitude::text, base.shares) as shares,
+		coalesce(alloc.total_magnitude, base.shares::numeric) as shares,
 		coalesce(base.snapshot, alloc.snapshot) as snapshot
 	FROM base_snapshots base
 	FULL OUTER JOIN allocation_adjustments alloc

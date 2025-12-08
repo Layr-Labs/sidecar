@@ -76,7 +76,8 @@ var goldTableBaseNames = map[string]string{
 	Table_21_GoldStaging:                           Table_21_GoldStaging,
 	Table_22_GoldTable:                             Table_22_GoldTable,
 
-	Table_OperatorAllocationSnapshots: Table_OperatorAllocationSnapshots,
+	// Note: Table_OperatorAllocationSnapshots is NOT added here because it's a persistent table
+	// without date suffix, similar to operator_share_snapshots
 
 	Sot_1_StakerStrategyPayouts:                Sot_1_StakerStrategyPayouts,
 	Sot_2_OperatorStrategyPayouts:              Sot_2_OperatorStrategyPayouts,
@@ -111,12 +112,9 @@ var GoldTableNameSearchPattern = map[string]string{
 	Table_15_OperatorOperatorSetUniqueStakeRewards: "gold_%_operator_operator_set_unique_stake_rewards",
 	Table_16_StakerOperatorSetUniqueStakeRewards:   "gold_%_staker_operator_set_unique_stake_rewards",
 	Table_17_AvsOperatorSetUniqueStakeRewards:      "gold_%_avs_operator_set_unique_stake_rewards",
-<<<<<<< HEAD
 	Table_18_OperatorOperatorSetTotalStakeRewards:  "gold_%_operator_operator_set_total_stake_rewards",
 	Table_19_StakerOperatorSetTotalStakeRewards:    "gold_%_staker_operator_set_total_stake_rewards",
 	Table_20_AvsOperatorSetTotalStakeRewards:       "gold_%_avs_operator_set_total_stake_rewards",
-=======
->>>>>>> e7a0eb58 (feat: implement Operator Set Rewards with Unique & Total Stake)
 	Table_21_GoldStaging:                           "gold_%_staging",
 
 	Sot_1_StakerStrategyPayouts:                "sot_%_staker_strategy_payouts",

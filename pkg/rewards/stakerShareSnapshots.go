@@ -68,7 +68,7 @@ const stakerShareSnapshotsQuery = `
 		SELECT
 			coalesce(base.staker, wq.staker) as staker,
 			coalesce(base.strategy, wq.strategy) as strategy,
-			(coalesce(base.shares::numeric, 0) + coalesce(wq.shares::numeric, 0))::text as shares,
+			(coalesce(base.shares::numeric, 0) + coalesce(wq.shares::numeric, 0)) as shares,
 			coalesce(base.snapshot, wq.snapshot) as snapshot
 		FROM base_snapshots base
 		FULL OUTER JOIN withdrawal_queue_adjustments wq

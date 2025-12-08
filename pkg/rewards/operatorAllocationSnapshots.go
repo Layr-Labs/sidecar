@@ -7,7 +7,7 @@ import (
 )
 
 const operatorAllocationSnapshotsQuery = `
-	insert into operator_allocation_snapshots(operator, avs, strategy, operator_set_id, magnitude, snapshot)
+	insert into operator_allocation_snapshots(operator, avs, strategy, operator_set_id, magnitude, max_magnitude, snapshot)
 	WITH ranked_allocation_records as (
 		SELECT *,
 			   ROW_NUMBER() OVER (PARTITION BY operator, avs, strategy, operator_set_id, cast(block_time AS DATE) ORDER BY block_time DESC, log_index DESC) AS rn
@@ -86,6 +86,37 @@ const operatorAllocationSnapshotsQuery = `
 	cleaned_records as (
 		SELECT * FROM allocation_windows
 		WHERE start_time < end_time
+	),
+	-- Get the latest max_magnitude for each (operator, strategy) as of the cutoff date
+	latest_max_magnitudes as (
+		SELECT
+			omm.operator,
+			omm.strategy,
+			omm.max_magnitude,
+			ROW_NUMBER() OVER (
+				PARTITION BY omm.operator, omm.strategy
+				ORDER BY omm.block_number DESC, omm.log_index DESC
+			) AS rn
+		FROM operator_max_magnitudes omm
+		INNER JOIN blocks b ON omm.block_number = b.number
+		WHERE b.block_time < TIMESTAMP '{{.cutoffDate}}'
+	),
+	-- Join allocations with max_magnitudes
+	allocations_with_max as (
+		SELECT
+			cr.operator,
+			cr.avs,
+			cr.strategy,
+			cr.operator_set_id,
+			cr.magnitude,
+			COALESCE(lmm.max_magnitude, '0') as max_magnitude,
+			cr.start_time,
+			cr.end_time
+		FROM cleaned_records cr
+		LEFT JOIN latest_max_magnitudes lmm
+			ON cr.operator = lmm.operator
+			AND cr.strategy = lmm.strategy
+			AND lmm.rn = 1
 	)
 	SELECT
 		operator,
@@ -93,9 +124,10 @@ const operatorAllocationSnapshotsQuery = `
 		strategy,
 		operator_set_id,
 		magnitude,
+		max_magnitude,
 		cast(day AS DATE) AS snapshot
 	FROM
-		cleaned_records
+		allocations_with_max
 	CROSS JOIN
 		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 	on conflict do nothing;

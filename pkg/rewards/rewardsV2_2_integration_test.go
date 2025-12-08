@@ -3,7 +3,6 @@ package rewards
 import (
 	"fmt"
 	"math/big"
-	"strings"
 	"testing"
 	"time"
 
@@ -268,14 +267,13 @@ func Test_RewardsV2_2_WithWithdrawalQueue_Integration(t *testing.T) {
 			err := rc.generateSnapshotData(snapshotDate)
 			require.NoError(t, err)
 
-			// Check operator allocation snapshots
+			// Check operator allocation snapshots (persistent table, not per-date)
 			var allocatedStake string
-			tableName := fmt.Sprintf("operator_allocation_snapshots_%s", strings.ReplaceAll(snapshotDate, "-", "_"))
-			query := fmt.Sprintf(`
+			query := `
 				SELECT COALESCE(SUM(magnitude::numeric), 0)::text
-				FROM %s
+				FROM operator_allocation_snapshots
 				WHERE snapshot = $1 AND operator = $2
-			`, tableName)
+			`
 			err = grm.Raw(query, snapshotDate, "operator1").Scan(&allocatedStake).Error
 			require.NoError(t, err)
 
