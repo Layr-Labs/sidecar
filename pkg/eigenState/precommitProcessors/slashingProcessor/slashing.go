@@ -80,5 +80,171 @@ func (sp *SlashingProcessor) Process(blockNumber uint64, models map[string]types
 		precommitDelegations = append(precommitDelegations, delegation)
 	}
 	stakerSharesModel.PrecommitDelegatedStakers[blockNumber] = precommitDelegations
+
+	// Also handle slashing adjustments for queued withdrawals
+	err := sp.processQueuedWithdrawalSlashing(blockNumber, models)
+	if err != nil {
+		sp.logger.Sugar().Errorw("Failed to process queued withdrawal slashing",
+			zap.Error(err),
+			zap.Uint64("blockNumber", blockNumber),
+		)
+		return err
+	}
+
+	return nil
+}
+
+// SlashingEvent represents a slashing event from the database
+type SlashingEvent struct {
+	Operator        string
+	Strategy        string
+	WadSlashed      string
+	TransactionHash string
+	LogIndex        uint64
+}
+
+// processQueuedWithdrawalSlashing creates adjustment records for queued withdrawals
+// when an operator is slashed, so that the effective withdrawal amount is reduced.
+func (sp *SlashingProcessor) processQueuedWithdrawalSlashing(blockNumber uint64, models map[string]types.IEigenStateModel) error {
+	// Query slashed_operator_shares table directly for this block's slashing events
+	var slashingEvents []SlashingEvent
+	err := sp.grm.Table("slashed_operator_shares").
+		Where("block_number = ?", blockNumber).
+		Find(&slashingEvents).Error
+
+	if err != nil {
+		sp.logger.Sugar().Errorw("Failed to query slashing events",
+			zap.Error(err),
+			zap.Uint64("blockNumber", blockNumber),
+		)
+		return err
+	}
+
+	if len(slashingEvents) == 0 {
+		sp.logger.Sugar().Debug("No slashing events found for block number", zap.Uint64("blockNumber", blockNumber))
+		return nil
+	}
+
+	// For each slashing event, find active queued withdrawals and create adjustment records
+	for i := range slashingEvents {
+		slashEvent := &slashingEvents[i]
+		err := sp.createSlashingAdjustments(slashEvent, blockNumber)
+		if err != nil {
+			sp.logger.Sugar().Errorw("Failed to create slashing adjustments",
+				zap.Error(err),
+				zap.Uint64("blockNumber", blockNumber),
+				zap.String("operator", slashEvent.Operator),
+				zap.String("strategy", slashEvent.Strategy),
+			)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent, blockNumber uint64) error {
+	// Find all active queued withdrawals for this operator/strategy
+	query := `
+		SELECT
+			qsw.staker,
+			qsw.strategy,
+			qsw.operator,
+			qsw.block_number as withdrawal_block_number,
+			? as slash_block_number,
+			-- Calculate cumulative slash multiplier: previous multipliers * (1 - current_slash)
+			COALESCE(
+				(SELECT slash_multiplier
+				 FROM queued_withdrawal_slashing_adjustments adj
+				 WHERE adj.staker = qsw.staker
+				 AND adj.strategy = qsw.strategy
+				 AND adj.operator = qsw.operator
+				 AND adj.withdrawal_block_number = qsw.block_number
+				 ORDER BY adj.slash_block_number DESC
+				 LIMIT 1),
+				1
+			) * (1 - LEAST(? / 1e18, 0)) as slash_multiplier,
+			? as block_number,
+			? as transaction_hash,
+			? as log_index
+		FROM queued_slashing_withdrawals qsw
+		INNER JOIN blocks b_queued ON qsw.block_number = b_queued.number
+		WHERE qsw.operator = ?
+		AND qsw.strategy = ?
+		-- Withdrawal was queued before this slash
+		AND qsw.block_number < ?
+		-- Still within 14-day window (not yet completable)
+		AND DATE(b_queued.block_time) + INTERVAL '14 days' > (
+			SELECT block_time FROM blocks WHERE number = ?
+		)
+		-- Backwards compatibility: only process records with valid data
+		AND qsw.staker IS NOT NULL
+		AND qsw.strategy IS NOT NULL
+		AND qsw.operator IS NOT NULL
+		AND qsw.shares_to_withdraw IS NOT NULL
+		AND b_queued.block_time IS NOT NULL
+	`
+
+	type AdjustmentRecord struct {
+		Staker                string
+		Strategy              string
+		Operator              string
+		WithdrawalBlockNumber uint64
+		SlashBlockNumber      uint64
+		SlashMultiplier       string
+		BlockNumber           uint64
+		TransactionHash       string
+		LogIndex              uint64
+	}
+
+	var adjustments []AdjustmentRecord
+	err := sp.grm.Raw(query,
+		blockNumber,                // slash_block_number
+		slashEvent.WadSlashed,      // slash percentage for calculation
+		blockNumber,                // block_number for record
+		slashEvent.TransactionHash, // transaction_hash for record
+		slashEvent.LogIndex,        // log_index for record
+		slashEvent.Operator,        // operator filter
+		slashEvent.Strategy,        // strategy filter
+		blockNumber,                // queued before slash
+		blockNumber,                // current block for 14-day check
+	).Scan(&adjustments).Error
+
+	if err != nil {
+		return fmt.Errorf("failed to find active withdrawals for slashing: %w", err)
+	}
+
+	if len(adjustments) == 0 {
+		sp.logger.Sugar().Debugw("No active queued withdrawals found for slashing event",
+			zap.String("operator", slashEvent.Operator),
+			zap.String("strategy", slashEvent.Strategy),
+			zap.Uint64("blockNumber", blockNumber),
+		)
+		return nil
+	}
+
+	// Insert adjustment records
+	for _, adj := range adjustments {
+		err := sp.grm.Table("queued_withdrawal_slashing_adjustments").Create(&adj).Error
+		if err != nil {
+			sp.logger.Sugar().Errorw("Failed to create slashing adjustment record",
+				zap.Error(err),
+				zap.String("staker", adj.Staker),
+				zap.String("strategy", adj.Strategy),
+				zap.Uint64("withdrawalBlockNumber", adj.WithdrawalBlockNumber),
+			)
+			return err
+		}
+
+		sp.logger.Sugar().Infow("Created queued withdrawal slashing adjustment",
+			zap.String("staker", adj.Staker),
+			zap.String("strategy", adj.Strategy),
+			zap.String("operator", adj.Operator),
+			zap.Uint64("withdrawalBlock", adj.WithdrawalBlockNumber),
+			zap.Uint64("slashBlock", adj.SlashBlockNumber),
+			zap.String("multiplier", adj.SlashMultiplier),
+		)
+	}
+
 	return nil
 }
