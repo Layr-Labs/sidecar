@@ -151,7 +151,7 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 			qsw.strategy,
 			qsw.operator,
 			qsw.block_number as withdrawal_block_number,
-			? as slash_block_number,
+			@slashBlockNumber as slash_block_number,
 			-- Calculate cumulative slash multiplier: previous multipliers * (1 - current_slash)
 			COALESCE(
 				(SELECT slash_multiplier
@@ -163,19 +163,19 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 				 ORDER BY adj.slash_block_number DESC
 				 LIMIT 1),
 				1
-			) * (1 - LEAST(? / 1e18, 0)) as slash_multiplier,
-			? as block_number,
-			? as transaction_hash,
-			? as log_index
+			) * (1 - LEAST(@wadSlashed / 1e18, 0)) as slash_multiplier,
+			@blockNumber as block_number,
+			@transactionHash as transaction_hash,
+			@logIndex as log_index
 		FROM queued_slashing_withdrawals qsw
 		INNER JOIN blocks b_queued ON qsw.block_number = b_queued.number
-		WHERE qsw.operator = ?
-		AND qsw.strategy = ?
+		WHERE qsw.operator = @operator
+		AND qsw.strategy = @strategy
 		-- Withdrawal was queued before this slash
-		AND qsw.block_number < ?
+		AND qsw.block_number < @slashBlockNumber
 		-- Still within 14-day window (not yet completable)
 		AND DATE(b_queued.block_time) + INTERVAL '14 days' > (
-			SELECT block_time FROM blocks WHERE number = ?
+			SELECT block_time FROM blocks WHERE number = @blockNumber
 		)
 		-- Backwards compatibility: only process records with valid data
 		AND qsw.staker IS NOT NULL
@@ -198,17 +198,15 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 	}
 
 	var adjustments []AdjustmentRecord
-	err := sp.grm.Raw(query,
-		blockNumber,                // slash_block_number
-		slashEvent.WadSlashed,      // slash percentage for calculation
-		blockNumber,                // block_number for record
-		slashEvent.TransactionHash, // transaction_hash for record
-		slashEvent.LogIndex,        // log_index for record
-		slashEvent.Operator,        // operator filter
-		slashEvent.Strategy,        // strategy filter
-		blockNumber,                // queued before slash
-		blockNumber,                // current block for 14-day check
-	).Scan(&adjustments).Error
+	err := sp.grm.Raw(query, map[string]any{
+		"slashBlockNumber": blockNumber,
+		"wadSlashed":       slashEvent.WadSlashed,
+		"blockNumber":      blockNumber,
+		"transactionHash":  slashEvent.TransactionHash,
+		"logIndex":         slashEvent.LogIndex,
+		"operator":         slashEvent.Operator,
+		"strategy":         slashEvent.Strategy,
+	}).Scan(&adjustments).Error
 
 	if err != nil {
 		return fmt.Errorf("failed to find active withdrawals for slashing: %w", err)
