@@ -36,9 +36,9 @@ operators_with_allocated_stake AS (
         oas.max_magnitude,
         oss.shares as operator_total_shares,
         -- Calculate effective allocated stake for this strategy
-        CAST(oss.shares AS DECIMAL(78,0)) *
-        CAST(oas.magnitude AS DECIMAL(78,0)) /
-        CAST(oas.max_magnitude AS DECIMAL(78,0)) as allocated_stake
+        CAST(oss.shares AS NUMERIC(78,0)) *
+        CAST(oas.magnitude AS NUMERIC(78,0)) /
+        CAST(oas.max_magnitude AS NUMERIC(78,0)) as allocated_stake
     FROM reward_snapshot_operators rso
     JOIN {{.operatorAllocationSnapshotsTable}} oas
         ON rso.operator = oas.operator
@@ -99,8 +99,8 @@ distinct_operators AS (
 operator_splits AS (
     SELECT 
         dop.*,
-        COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS DECIMAL) AS split_pct,
-        FLOOR(dop.tokens_per_registered_snapshot_decimal * COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS DECIMAL)) AS operator_tokens
+        COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS NUMERIC) AS split_pct,
+        FLOOR(dop.tokens_per_registered_snapshot_decimal * COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS NUMERIC)) AS operator_tokens
     FROM distinct_operators dop
     LEFT JOIN operator_set_split_snapshots oss
         ON dop.operator = oss.operator 

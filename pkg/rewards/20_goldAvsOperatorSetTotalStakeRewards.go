@@ -161,7 +161,7 @@ strategies_not_registered AS (
 staker_splits AS (
     SELECT
         snr.*,
-        snr.tokens_per_registered_snapshot_decimal - FLOOR(snr.tokens_per_registered_snapshot_decimal * COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS DECIMAL)) AS staker_split
+        snr.tokens_per_registered_snapshot_decimal - FLOOR(snr.tokens_per_registered_snapshot_decimal * COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS NUMERIC)) AS staker_split
     FROM strategies_not_registered snr
     LEFT JOIN operator_set_split_snapshots oss
         ON snr.operator = oss.operator

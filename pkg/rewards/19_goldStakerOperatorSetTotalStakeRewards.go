@@ -54,7 +54,7 @@ staker_strategy_shares AS (
 staker_weights AS (
     SELECT
         *,
-        CAST(shares AS DECIMAL(78,0)) * multiplier as staker_weight
+        CAST(shares AS NUMERIC(78,0)) * multiplier as staker_weight
     FROM staker_strategy_shares
 ),
 
