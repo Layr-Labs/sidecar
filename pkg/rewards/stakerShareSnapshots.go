@@ -68,7 +68,7 @@ const stakerShareSnapshotsQuery = `
 				 AND qsw.shares_to_withdraw IS NOT NULL
 				 AND b_queued.block_time IS NOT NULL
 				), 0
-			))::text as shares,
+			))::numeric as shares,
 			sr.snapshot_time
 		FROM snapshotted_records sr
 	),
