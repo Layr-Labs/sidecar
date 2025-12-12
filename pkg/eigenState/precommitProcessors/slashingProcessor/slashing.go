@@ -163,7 +163,7 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 				 ORDER BY adj.slash_block_number DESC
 				 LIMIT 1),
 				1
-			) * (1 - LEAST(@wadSlashed / 1e18, 0)) as slash_multiplier,
+			) * (1 - LEAST(@wadSlashed / 1e18, 1)) as slash_multiplier,
 			@blockNumber as block_number,
 			@transactionHash as transaction_hash,
 			@logIndex as log_index
@@ -171,8 +171,11 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 		INNER JOIN blocks b_queued ON qsw.block_number = b_queued.number
 		WHERE qsw.operator = @operator
 		AND qsw.strategy = @strategy
-		-- Withdrawal was queued before this slash
-		AND qsw.block_number < @slashBlockNumber
+		-- Withdrawal was queued before this slash (check block number AND log index for same-block events)
+		AND (
+			qsw.block_number < @slashBlockNumber
+			OR (qsw.block_number = @slashBlockNumber AND qsw.log_index < @logIndex)
+		)
 		-- Still within 14-day window (not yet completable)
 		AND DATE(b_queued.block_time) + INTERVAL '14 days' > (
 			SELECT block_time FROM blocks WHERE number = @blockNumber
