@@ -907,13 +907,12 @@ func (c *Config) IsRewardsV2_2EnabledForCutoffDate(cutoffDate string) (bool, err
 	if err != nil {
 		return false, errors.Join(fmt.Errorf("failed to parse cutoff date %s", cutoffDate), err)
 	}
-	// TODO: Need to change to fork sabine
-	pecosForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Pecos].Date)
+	sabineForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Sabine].Date)
 	if err != nil {
-		return false, errors.Join(fmt.Errorf("failed to parse Pecos fork date %s", forks[RewardsFork_Pecos].Date), err)
+		return false, errors.Join(fmt.Errorf("failed to parse Sabine fork date %s", forks[RewardsFork_Sabine].Date), err)
 	}
 
-	return cutoffDateTime.Compare(pecosForkDateTime) >= 0, nil
+	return cutoffDateTime.Compare(sabineForkDateTime) >= 0, nil
 }
 
 // CanIgnoreIncorrectRewardsRoot returns true if the rewards root can be ignored for the given block number
