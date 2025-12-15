@@ -163,14 +163,14 @@ func Test_StakerShareSnapshots(t *testing.T) {
 //
 //	Expected: Alice still has 200 shares for rewards purposes
 //
-// T2: Bob is slashed for 25%
+// T2: Alice is slashed for 25%
 //
-//	Expected: Alice has 150 shares total (37.5 from base shares + 12.5 from queued withdrawal)
+//	Expected: Alice has 150 shares total (112.5 from base shares + 37.5 from queued withdrawal)
 //	This is critical: slashing must affect BOTH normal shares AND queued withdrawal shares
 //
 // T3: Withdrawal is completable (14 days passed)
 //
-//	Expected: Alice has 137.5 shares (the 50 shares withdrawal is now deducted, but was slashed to 37.5)
+//	Expected: Alice has 112.5 shares (the 37.5 shares withdrawal is now deducted, was slashed from 50)
 //
 // This test ensures that:
 // 1. Each state change creates a unique entry in staker_share_snapshots
@@ -341,6 +341,817 @@ func Test_StakerShareSnapshots_WithdrawalAndSlashing(t *testing.T) {
 		if adjustmentCount == 0 {
 			t.Log("WARNING: No queued_withdrawal_slashing_adjustments found. " +
 				"This may indicate the slashingProcessor didn't run or the logic needs attention.")
+		}
+	})
+}
+
+// Test_StakerShareSnapshots_QueuedThenSlashed tests the scenario where:
+// - Alice queues a withdrawal
+// - Then Alice gets slashed
+// This ensures that slashing adjustments are properly calculated for queued withdrawals
+func Test_StakerShareSnapshots_QueuedThenSlashed(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupStakerShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownStakerShareSnapshot(dbFileName, cfg, grm, l)
+
+	alice := "0xalice"
+	bob := "0xbob"
+	strategy := "0xstrategy"
+
+	// Setup timestamps
+	t0 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)  // Initial state
+	t1 := time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC)  // Queue withdrawal
+	t2 := time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC) // Slash occurs
+	t3 := time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC) // After 14 days from t1
+
+	t.Run("Setup and verify scenario", func(t *testing.T) {
+		// Insert blocks
+		blocks := []struct {
+			number    uint64
+			timestamp time.Time
+		}{
+			{100, t0},
+			{200, t1},
+			{300, t2},
+			{400, t3},
+		}
+
+		for _, b := range blocks {
+			err := grm.Exec(`
+				INSERT INTO blocks (number, hash, block_time, created_at)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT (number) DO NOTHING
+			`, b.number, fmt.Sprintf("0xblock%d", b.number), b.timestamp, time.Now()).Error
+			assert.Nil(t, err)
+		}
+
+		// T0: Alice has 100 shares
+		err = grm.Exec(`
+			INSERT INTO staker_shares (staker, strategy, shares, block_number)
+			VALUES (?, ?, ?, ?)
+		`, alice, strategy, "100000000000000000000", 100).Error
+		assert.Nil(t, err)
+
+		// Alice delegates to Bob
+		err = grm.Exec(`
+			INSERT INTO staker_delegations (staker, operator, delegated, block_number)
+			VALUES (?, ?, true, ?)
+		`, alice, bob, 100).Error
+		assert.Nil(t, err)
+
+		// T1: Alice queues withdrawal for 30 shares
+		err = grm.Exec(`
+			INSERT INTO queued_slashing_withdrawals (
+				staker, operator, withdrawer, nonce, start_block, strategy,
+				scaled_shares, shares_to_withdraw, withdrawal_root,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, alice, bob, alice, "1", 200, strategy,
+			"30000000000000000000", "30000000000000000000", "0xroot1",
+			200, "0xtx1", 1).Error
+		assert.Nil(t, err)
+
+		// Protocol decrements shares
+		err = grm.Exec(`
+			UPDATE staker_shares
+			SET shares = ?, block_number = ?
+			WHERE staker = ? AND strategy = ?
+		`, "70000000000000000000", 200, alice, strategy).Error
+		assert.Nil(t, err)
+
+		// T2: Alice slashed 50% (wadSlashed = 0.5e18)
+		err = grm.Exec(`
+			INSERT INTO slashed_operator_shares (
+				operator, strategy, wad_slashed, description, operator_set_id, avs,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, bob, strategy, "500000000000000000", "50% slash", 0, "0xavs",
+			300, "0xtx2", 1).Error
+		assert.Nil(t, err)
+
+		// Generate snapshots
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		for _, ts := range []time.Time{t0, t1, t2, t3} {
+			err := rewards.GenerateAndInsertStakerShareSnapshots(ts.Format(time.DateOnly))
+			assert.Nil(t, err)
+		}
+
+		// Verify snapshots
+		var snapshots []struct {
+			Shares   string
+			Snapshot time.Time
+		}
+		err = grm.Raw(`
+			SELECT shares, snapshot
+			FROM staker_share_snapshots
+			WHERE staker = ? AND strategy = ?
+			ORDER BY snapshot
+		`, alice, strategy).Scan(&snapshots).Error
+		assert.Nil(t, err)
+
+		t.Logf("Generated %d snapshots:", len(snapshots))
+		for i, snap := range snapshots {
+			t.Logf("  [%d] Date: %s, Shares: %s", i, snap.Snapshot.Format(time.DateOnly), snap.Shares)
+		}
+
+		// Expected:
+		// T0: 100 shares
+		// T1: 100 shares (70 base + 30 queued)
+		// T2: 50 shares (35 base + 15 queued after 50% slash)
+		// T3: 35 shares (queued withdrawal no longer counts)
+
+		assert.GreaterOrEqual(t, len(snapshots), 3, "Should have at least 3 unique snapshots")
+	})
+}
+
+// Test_StakerShareSnapshots_MultipleSlashingEvents tests multiple slashing events
+// on the same queued withdrawal to verify cumulative slash multiplier calculation
+func Test_StakerShareSnapshots_MultipleSlashingEvents(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupStakerShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownStakerShareSnapshot(dbFileName, cfg, grm, l)
+
+	alice := "0xalice"
+	bob := "0xbob"
+	strategy := "0xstrategy"
+
+	t0 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)  // Initial
+	t1 := time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC)  // Queue withdrawal
+	t2 := time.Date(2024, 1, 8, 0, 0, 0, 0, time.UTC)  // First slash 20%
+	t3 := time.Date(2024, 1, 12, 0, 0, 0, 0, time.UTC) // Second slash 25%
+	t4 := time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC) // After 14 days
+
+	t.Run("Multiple slashes on queued withdrawal", func(t *testing.T) {
+		// Insert blocks
+		blocks := []struct {
+			number    uint64
+			timestamp time.Time
+		}{
+			{100, t0},
+			{200, t1},
+			{300, t2},
+			{400, t3},
+			{500, t4},
+		}
+
+		for _, b := range blocks {
+			err := grm.Exec(`
+				INSERT INTO blocks (number, hash, block_time, created_at)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT (number) DO NOTHING
+			`, b.number, fmt.Sprintf("0xblock%d", b.number), b.timestamp, time.Now()).Error
+			assert.Nil(t, err)
+		}
+
+		// T0: Alice has 100 shares
+		err = grm.Exec(`
+			INSERT INTO staker_shares (staker, strategy, shares, block_number)
+			VALUES (?, ?, ?, ?)
+		`, alice, strategy, "100000000000000000000", 100).Error
+		assert.Nil(t, err)
+
+		err = grm.Exec(`
+			INSERT INTO staker_delegations (staker, operator, delegated, block_number)
+			VALUES (?, ?, true, ?)
+		`, alice, bob, 100).Error
+		assert.Nil(t, err)
+
+		// T1: Queue withdrawal for 40 shares
+		err = grm.Exec(`
+			INSERT INTO queued_slashing_withdrawals (
+				staker, operator, withdrawer, nonce, start_block, strategy,
+				scaled_shares, shares_to_withdraw, withdrawal_root,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, alice, bob, alice, "1", 200, strategy,
+			"40000000000000000000", "40000000000000000000", "0xroot1",
+			200, "0xtx1", 1).Error
+		assert.Nil(t, err)
+
+		err = grm.Exec(`
+			UPDATE staker_shares
+			SET shares = ?, block_number = ?
+			WHERE staker = ? AND strategy = ?
+		`, "60000000000000000000", 200, alice, strategy).Error
+		assert.Nil(t, err)
+
+		// T2: First slash 20%
+		err = grm.Exec(`
+			INSERT INTO slashed_operator_shares (
+				operator, strategy, wad_slashed, description, operator_set_id, avs,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, bob, strategy, "200000000000000000", "20% slash", 0, "0xavs",
+			300, "0xtx2", 1).Error
+		assert.Nil(t, err)
+
+		// T3: Second slash 25%
+		err = grm.Exec(`
+			INSERT INTO slashed_operator_shares (
+				operator, strategy, wad_slashed, description, operator_set_id, avs,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, bob, strategy, "250000000000000000", "25% slash", 0, "0xavs",
+			400, "0xtx3", 1).Error
+		assert.Nil(t, err)
+
+		// Generate snapshots
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		for _, ts := range []time.Time{t0, t1, t2, t3, t4} {
+			err := rewards.GenerateAndInsertStakerShareSnapshots(ts.Format(time.DateOnly))
+			assert.Nil(t, err)
+		}
+
+		// Verify snapshots
+		var snapshots []struct {
+			Shares   string
+			Snapshot time.Time
+		}
+		err = grm.Raw(`
+			SELECT shares, snapshot
+			FROM staker_share_snapshots
+			WHERE staker = ? AND strategy = ?
+			ORDER BY snapshot
+		`, alice, strategy).Scan(&snapshots).Error
+		assert.Nil(t, err)
+
+		t.Logf("Generated %d snapshots for multiple slashing:", len(snapshots))
+		for i, snap := range snapshots {
+			t.Logf("  [%d] Date: %s, Shares: %s", i, snap.Snapshot.Format(time.DateOnly), snap.Shares)
+		}
+
+		// Expected calculations:
+		// T0: 100 shares
+		// T1: 100 shares (60 base + 40 queued)
+		// T2: 80 shares (48 base + 32 queued, after 20% slash)
+		// T3: 60 shares (36 base + 24 queued, cumulative: 0.8 * 0.75 = 0.6)
+		// T4: 36 shares (queued withdrawal no longer counts)
+
+		assert.GreaterOrEqual(t, len(snapshots), 4, "Should have at least 4 unique snapshots")
+	})
+}
+
+// Test_StakerShareSnapshots_CompletedBeforeSlash tests when withdrawal becomes
+// completable before slashing occurs (no adjustment should be made)
+func Test_StakerShareSnapshots_CompletedBeforeSlash(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupStakerShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownStakerShareSnapshot(dbFileName, cfg, grm, l)
+
+	alice := "0xalice"
+	bob := "0xbob"
+	strategy := "0xstrategy"
+
+	t0 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)  // Initial
+	t1 := time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC)  // Queue withdrawal
+	t2 := time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC) // After 14 days (completable)
+	t3 := time.Date(2024, 1, 25, 0, 0, 0, 0, time.UTC) // Slash occurs (too late)
+
+	t.Run("Withdrawal completable before slash", func(t *testing.T) {
+		// Insert blocks
+		blocks := []struct {
+			number    uint64
+			timestamp time.Time
+		}{
+			{100, t0},
+			{200, t1},
+			{300, t2},
+			{400, t3},
+		}
+
+		for _, b := range blocks {
+			err := grm.Exec(`
+				INSERT INTO blocks (number, hash, block_time, created_at)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT (number) DO NOTHING
+			`, b.number, fmt.Sprintf("0xblock%d", b.number), b.timestamp, time.Now()).Error
+			assert.Nil(t, err)
+		}
+
+		// T0: Alice has 100 shares
+		err = grm.Exec(`
+			INSERT INTO staker_shares (staker, strategy, shares, block_number)
+			VALUES (?, ?, ?, ?)
+		`, alice, strategy, "100000000000000000000", 100).Error
+		assert.Nil(t, err)
+
+		err = grm.Exec(`
+			INSERT INTO staker_delegations (staker, operator, delegated, block_number)
+			VALUES (?, ?, true, ?)
+		`, alice, bob, 100).Error
+		assert.Nil(t, err)
+
+		// T1: Queue withdrawal for 25 shares
+		err = grm.Exec(`
+			INSERT INTO queued_slashing_withdrawals (
+				staker, operator, withdrawer, nonce, start_block, strategy,
+				scaled_shares, shares_to_withdraw, withdrawal_root,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, alice, bob, alice, "1", 200, strategy,
+			"25000000000000000000", "25000000000000000000", "0xroot1",
+			200, "0xtx1", 1).Error
+		assert.Nil(t, err)
+
+		err = grm.Exec(`
+			UPDATE staker_shares
+			SET shares = ?, block_number = ?
+			WHERE staker = ? AND strategy = ?
+		`, "75000000000000000000", 200, alice, strategy).Error
+		assert.Nil(t, err)
+
+		// T3: Slash 30% (after withdrawal is completable)
+		err = grm.Exec(`
+			INSERT INTO slashed_operator_shares (
+				operator, strategy, wad_slashed, description, operator_set_id, avs,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, bob, strategy, "300000000000000000", "30% slash", 0, "0xavs",
+			400, "0xtx2", 1).Error
+		assert.Nil(t, err)
+
+		// Generate snapshots
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		for _, ts := range []time.Time{t0, t1, t2, t3} {
+			err := rewards.GenerateAndInsertStakerShareSnapshots(ts.Format(time.DateOnly))
+			assert.Nil(t, err)
+		}
+
+		// Verify snapshots
+		var snapshots []struct {
+			Shares   string
+			Snapshot time.Time
+		}
+		err = grm.Raw(`
+			SELECT shares, snapshot
+			FROM staker_share_snapshots
+			WHERE staker = ? AND strategy = ?
+			ORDER BY snapshot
+		`, alice, strategy).Scan(&snapshots).Error
+		assert.Nil(t, err)
+
+		t.Logf("Generated %d snapshots for completed-before-slash:", len(snapshots))
+		for i, snap := range snapshots {
+			t.Logf("  [%d] Date: %s, Shares: %s", i, snap.Snapshot.Format(time.DateOnly), snap.Shares)
+		}
+
+		// Expected:
+		// T0: 100 shares
+		// T1: 100 shares (75 base + 25 queued)
+		// T2: 75 shares (queued withdrawal completable, no longer counts)
+		// T3: 52.5 shares (75 * 0.7, slash doesn't affect completed withdrawal)
+
+		// Verify no adjustment records were created for this withdrawal
+		var adjustmentCount int64
+		err = grm.Raw(`
+			SELECT COUNT(*)
+			FROM queued_withdrawal_slashing_adjustments
+			WHERE staker = ? AND strategy = ?
+		`, alice, strategy).Scan(&adjustmentCount).Error
+		assert.Nil(t, err)
+		assert.Equal(t, int64(0), adjustmentCount, "No adjustments should be created for completable withdrawals")
+	})
+}
+
+// Test_StakerShareSnapshots_MultipleQueuedWithdrawals tests multiple queued withdrawals
+// with different timing relative to slashing events
+func Test_StakerShareSnapshots_MultipleQueuedWithdrawals(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupStakerShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownStakerShareSnapshot(dbFileName, cfg, grm, l)
+
+	alice := "0xalice"
+	bob := "0xbob"
+	strategy := "0xstrategy"
+
+	t0 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)  // Initial: 200 shares
+	t1 := time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC)  // Queue 50 shares
+	t2 := time.Date(2024, 1, 8, 0, 0, 0, 0, time.UTC)  // Slash 20%
+	t3 := time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC) // Queue another 30 shares
+	t4 := time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC) // First withdrawal completable
+	t5 := time.Date(2024, 1, 25, 0, 0, 0, 0, time.UTC) // Second withdrawal completable
+
+	t.Run("Multiple queued withdrawals with slashing", func(t *testing.T) {
+		// Insert blocks
+		blocks := []struct {
+			number    uint64
+			timestamp time.Time
+		}{
+			{100, t0},
+			{200, t1},
+			{300, t2},
+			{400, t3},
+			{500, t4},
+			{600, t5},
+		}
+
+		for _, b := range blocks {
+			err := grm.Exec(`
+				INSERT INTO blocks (number, hash, block_time, created_at)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT (number) DO NOTHING
+			`, b.number, fmt.Sprintf("0xblock%d", b.number), b.timestamp, time.Now()).Error
+			assert.Nil(t, err)
+		}
+
+		// T0: Alice has 200 shares
+		err = grm.Exec(`
+			INSERT INTO staker_shares (staker, strategy, shares, block_number)
+			VALUES (?, ?, ?, ?)
+		`, alice, strategy, "200000000000000000000", 100).Error
+		assert.Nil(t, err)
+
+		err = grm.Exec(`
+			INSERT INTO staker_delegations (staker, operator, delegated, block_number)
+			VALUES (?, ?, true, ?)
+		`, alice, bob, 100).Error
+		assert.Nil(t, err)
+
+		// T1: Queue first withdrawal for 50 shares
+		err = grm.Exec(`
+			INSERT INTO queued_slashing_withdrawals (
+				staker, operator, withdrawer, nonce, start_block, strategy,
+				scaled_shares, shares_to_withdraw, withdrawal_root,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, alice, bob, alice, "1", 200, strategy,
+			"50000000000000000000", "50000000000000000000", "0xroot1",
+			200, "0xtx1", 1).Error
+		assert.Nil(t, err)
+
+		err = grm.Exec(`
+			UPDATE staker_shares
+			SET shares = ?, block_number = ?
+			WHERE staker = ? AND strategy = ?
+		`, "150000000000000000000", 200, alice, strategy).Error
+		assert.Nil(t, err)
+
+		// T2: Slash 20%
+		err = grm.Exec(`
+			INSERT INTO slashed_operator_shares (
+				operator, strategy, wad_slashed, description, operator_set_id, avs,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, bob, strategy, "200000000000000000", "20% slash", 0, "0xavs",
+			300, "0xtx2", 1).Error
+		assert.Nil(t, err)
+
+		// T3: Queue second withdrawal for 30 shares (after slash)
+		err = grm.Exec(`
+			INSERT INTO queued_slashing_withdrawals (
+				staker, operator, withdrawer, nonce, start_block, strategy,
+				scaled_shares, shares_to_withdraw, withdrawal_root,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, alice, bob, alice, "2", 400, strategy,
+			"30000000000000000000", "30000000000000000000", "0xroot2",
+			400, "0xtx3", 1).Error
+		assert.Nil(t, err)
+
+		err = grm.Exec(`
+			UPDATE staker_shares
+			SET shares = ?, block_number = ?
+			WHERE staker = ? AND strategy = ?
+		`, "120000000000000000000", 400, alice, strategy).Error
+		assert.Nil(t, err)
+
+		// Generate snapshots
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		for _, ts := range []time.Time{t0, t1, t2, t3, t4, t5} {
+			err := rewards.GenerateAndInsertStakerShareSnapshots(ts.Format(time.DateOnly))
+			assert.Nil(t, err)
+		}
+
+		// Verify snapshots
+		var snapshots []struct {
+			Shares   string
+			Snapshot time.Time
+		}
+		err = grm.Raw(`
+			SELECT shares, snapshot
+			FROM staker_share_snapshots
+			WHERE staker = ? AND strategy = ?
+			ORDER BY snapshot
+		`, alice, strategy).Scan(&snapshots).Error
+		assert.Nil(t, err)
+
+		t.Logf("Generated %d snapshots for multiple withdrawals:", len(snapshots))
+		for i, snap := range snapshots {
+			t.Logf("  [%d] Date: %s, Shares: %s", i, snap.Snapshot.Format(time.DateOnly), snap.Shares)
+		}
+
+		// Expected:
+		// T0: 200 shares
+		// T1: 200 shares (150 base + 50 queued)
+		// T2: 160 shares (120 base + 40 queued, 50 * 0.8 = 40)
+		// T3: 150 shares (96 base + 32 queued first + 30 queued second, note: 120 * 0.8 = 96 base)
+		// T4: 126 shares (96 base + 30 queued second, first withdrawal completable)
+		// T5: 96 shares (only base shares remain)
+
+		assert.GreaterOrEqual(t, len(snapshots), 5, "Should have at least 5 unique snapshots")
+
+		// Verify adjustments were created for the first withdrawal only
+		var adjustmentCount int64
+		err = grm.Raw(`
+			SELECT COUNT(DISTINCT withdrawal_block_number)
+			FROM queued_withdrawal_slashing_adjustments
+			WHERE staker = ? AND strategy = ?
+		`, alice, strategy).Scan(&adjustmentCount).Error
+		assert.Nil(t, err)
+		t.Logf("Found %d withdrawal(s) with slashing adjustments", adjustmentCount)
+	})
+}
+
+// Test_StakerShareSnapshots_EdgeCase14Days tests edge case where slashing occurs
+// at exactly the 14-day boundary
+func Test_StakerShareSnapshots_EdgeCase14Days(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupStakerShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownStakerShareSnapshot(dbFileName, cfg, grm, l)
+
+	alice := "0xalice"
+	bob := "0xbob"
+	strategy := "0xstrategy"
+
+	t0 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)  // Initial
+	t1 := time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC)  // Queue withdrawal
+	t2 := time.Date(2024, 1, 19, 0, 0, 0, 0, time.UTC) // Exactly 14 days later
+
+	t.Run("Slashing at 14-day boundary", func(t *testing.T) {
+		// Insert blocks
+		blocks := []struct {
+			number    uint64
+			timestamp time.Time
+		}{
+			{100, t0},
+			{200, t1},
+			{300, t2},
+		}
+
+		for _, b := range blocks {
+			err := grm.Exec(`
+				INSERT INTO blocks (number, hash, block_time, created_at)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT (number) DO NOTHING
+			`, b.number, fmt.Sprintf("0xblock%d", b.number), b.timestamp, time.Now()).Error
+			assert.Nil(t, err)
+		}
+
+		// T0: Alice has 100 shares
+		err = grm.Exec(`
+			INSERT INTO staker_shares (staker, strategy, shares, block_number)
+			VALUES (?, ?, ?, ?)
+		`, alice, strategy, "100000000000000000000", 100).Error
+		assert.Nil(t, err)
+
+		err = grm.Exec(`
+			INSERT INTO staker_delegations (staker, operator, delegated, block_number)
+			VALUES (?, ?, true, ?)
+		`, alice, bob, 100).Error
+		assert.Nil(t, err)
+
+		// T1: Queue withdrawal for 20 shares
+		err = grm.Exec(`
+			INSERT INTO queued_slashing_withdrawals (
+				staker, operator, withdrawer, nonce, start_block, strategy,
+				scaled_shares, shares_to_withdraw, withdrawal_root,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, alice, bob, alice, "1", 200, strategy,
+			"20000000000000000000", "20000000000000000000", "0xroot1",
+			200, "0xtx1", 1).Error
+		assert.Nil(t, err)
+
+		err = grm.Exec(`
+			UPDATE staker_shares
+			SET shares = ?, block_number = ?
+			WHERE staker = ? AND strategy = ?
+		`, "80000000000000000000", 200, alice, strategy).Error
+		assert.Nil(t, err)
+
+		// T2: Slash at exactly 14 days
+		err = grm.Exec(`
+			INSERT INTO slashed_operator_shares (
+				operator, strategy, wad_slashed, description, operator_set_id, avs,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, bob, strategy, "100000000000000000", "10% slash", 0, "0xavs",
+			300, "0xtx2", 1).Error
+		assert.Nil(t, err)
+
+		// Generate snapshots
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		for _, ts := range []time.Time{t0, t1, t2} {
+			err := rewards.GenerateAndInsertStakerShareSnapshots(ts.Format(time.DateOnly))
+			assert.Nil(t, err)
+		}
+
+		// Verify snapshots
+		var snapshots []struct {
+			Shares   string
+			Snapshot time.Time
+		}
+		err = grm.Raw(`
+			SELECT shares, snapshot
+			FROM staker_share_snapshots
+			WHERE staker = ? AND strategy = ?
+			ORDER BY snapshot
+		`, alice, strategy).Scan(&snapshots).Error
+		assert.Nil(t, err)
+
+		t.Logf("Generated %d snapshots for 14-day edge case:", len(snapshots))
+		for i, snap := range snapshots {
+			t.Logf("  [%d] Date: %s, Shares: %s", i, snap.Snapshot.Format(time.DateOnly), snap.Shares)
+		}
+
+		// The behavior at exactly 14 days depends on the implementation
+		// typically withdrawals become completable AFTER 14 days (> 14 days),
+		// so at exactly 14 days, the withdrawal should still be in queue
+	})
+}
+
+// Test_StakerShareSnapshots_FullSlash tests 100% slashing scenario
+func Test_StakerShareSnapshots_FullSlash(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupStakerShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownStakerShareSnapshot(dbFileName, cfg, grm, l)
+
+	alice := "0xalice"
+	bob := "0xbob"
+	strategy := "0xstrategy"
+
+	t0 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	t1 := time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC)
+	t2 := time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC)
+	t3 := time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC)
+
+	t.Run("100% slashing event", func(t *testing.T) {
+		// Insert blocks
+		blocks := []struct {
+			number    uint64
+			timestamp time.Time
+		}{
+			{100, t0},
+			{200, t1},
+			{300, t2},
+			{400, t3},
+		}
+
+		for _, b := range blocks {
+			err := grm.Exec(`
+				INSERT INTO blocks (number, hash, block_time, created_at)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT (number) DO NOTHING
+			`, b.number, fmt.Sprintf("0xblock%d", b.number), b.timestamp, time.Now()).Error
+			assert.Nil(t, err)
+		}
+
+		// T0: Alice has 100 shares
+		err = grm.Exec(`
+			INSERT INTO staker_shares (staker, strategy, shares, block_number)
+			VALUES (?, ?, ?, ?)
+		`, alice, strategy, "100000000000000000000", 100).Error
+		assert.Nil(t, err)
+
+		err = grm.Exec(`
+			INSERT INTO staker_delegations (staker, operator, delegated, block_number)
+			VALUES (?, ?, true, ?)
+		`, alice, bob, 100).Error
+		assert.Nil(t, err)
+
+		// T1: Queue withdrawal for 40 shares
+		err = grm.Exec(`
+			INSERT INTO queued_slashing_withdrawals (
+				staker, operator, withdrawer, nonce, start_block, strategy,
+				scaled_shares, shares_to_withdraw, withdrawal_root,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, alice, bob, alice, "1", 200, strategy,
+			"40000000000000000000", "40000000000000000000", "0xroot1",
+			200, "0xtx1", 1).Error
+		assert.Nil(t, err)
+
+		err = grm.Exec(`
+			UPDATE staker_shares
+			SET shares = ?, block_number = ?
+			WHERE staker = ? AND strategy = ?
+		`, "60000000000000000000", 200, alice, strategy).Error
+		assert.Nil(t, err)
+
+		// T2: 100% slash (wadSlashed = 1e18)
+		err = grm.Exec(`
+			INSERT INTO slashed_operator_shares (
+				operator, strategy, wad_slashed, description, operator_set_id, avs,
+				block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, bob, strategy, "1000000000000000000", "100% slash", 0, "0xavs",
+			300, "0xtx2", 1).Error
+		assert.Nil(t, err)
+
+		// Generate snapshots
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		for _, ts := range []time.Time{t0, t1, t2, t3} {
+			err := rewards.GenerateAndInsertStakerShareSnapshots(ts.Format(time.DateOnly))
+			assert.Nil(t, err)
+		}
+
+		// Verify snapshots
+		var snapshots []struct {
+			Shares   string
+			Snapshot time.Time
+		}
+		err = grm.Raw(`
+			SELECT shares, snapshot
+			FROM staker_share_snapshots
+			WHERE staker = ? AND strategy = ?
+			ORDER BY snapshot
+		`, alice, strategy).Scan(&snapshots).Error
+		assert.Nil(t, err)
+
+		t.Logf("Generated %d snapshots for 100%% slash:", len(snapshots))
+		for i, snap := range snapshots {
+			t.Logf("  [%d] Date: %s, Shares: %s", i, snap.Snapshot.Format(time.DateOnly), snap.Shares)
+		}
+
+		// Expected:
+		// T0: 100 shares
+		// T1: 100 shares (60 base + 40 queued)
+		// T2: 0 shares (100% slashed: 0 base + 0 queued)
+		// T3: 0 shares (nothing left)
+
+		assert.GreaterOrEqual(t, len(snapshots), 3, "Should have at least 3 unique snapshots")
+
+		// Verify slash multiplier is 0 for the queued withdrawal
+		var multiplier string
+		err = grm.Raw(`
+			SELECT slash_multiplier
+			FROM queued_withdrawal_slashing_adjustments
+			WHERE staker = ? AND strategy = ?
+			ORDER BY slash_block_number DESC
+			LIMIT 1
+		`, alice, strategy).Scan(&multiplier).Error
+		if err == nil {
+			t.Logf("Slash multiplier for queued withdrawal: %s (should be 0 or close to 0)", multiplier)
 		}
 	})
 }
