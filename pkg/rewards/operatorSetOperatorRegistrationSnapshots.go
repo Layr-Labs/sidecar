@@ -20,7 +20,7 @@ import (
 // Entry        Exit
 // Since exits (deregistrations) are rounded down, we must only look at the day 2 snapshot on a pipeline run on day 3.
 const operatorSetOperatorRegistrationSnapshotsQuery = `
-insert into operator_set_operator_registration_snapshots (operator, avs, operator_set_id, snapshot)
+insert into operator_set_operator_registration_snapshots (operator, avs, operator_set_id, snapshot, slashable_until)
 WITH state_changes as (
 	select
 		osor.*,
@@ -75,6 +75,20 @@ marked_statuses AS (
 		-- Mark the next_block_time as the end_time for the range
 		-- Use coalesce because if the next_block_time for a registration is not closed, then we use cutoff_date
 		COALESCE(next_block_time, '{{.cutoffDate}}')::timestamp AS end_time,
+		-- Calculate slashable_until based on deregistration
+		-- Deregistrations: 14-day slashability queue for unique stake rewards
+		-- NULL = still active (no deregistration)
+		CASE
+			WHEN next_is_active = FALSE THEN
+				-- Deregistration with 14-day slashability period
+				DATE(COALESCE(next_block_time, '{{.cutoffDate}}')::timestamp) + INTERVAL '14 days'
+			WHEN next_is_active IS NULL THEN
+				-- Still active (no deregistration event): NULL
+				NULL
+			ELSE
+				-- Re-registered: use next event time
+				DATE(COALESCE(next_block_time, '{{.cutoffDate}}')::timestamp)
+		END AS slashable_until_date,
 		is_active
 	FROM removed_same_day_deregistrations
 	WHERE is_active = TRUE
@@ -87,7 +101,8 @@ registration_windows_extra as (
 		operator_set_id,
 		date_trunc('day', start_time) + interval '1' day as start_time,
 		-- End time is non-inclusive because the operator is not registered to the operator set at the end time OR it is current timestamp rounded down
-		date_trunc('day', end_time) as end_time
+		date_trunc('day', end_time) as end_time,
+		slashable_until_date
 	FROM registration_periods
 ),
 -- Ignore start_time and end_time that last less than a day
@@ -103,10 +118,12 @@ SELECT
 	operator,
 	avs,
 	operator_set_id,
-	d AS snapshot
+	d AS snapshot,
+	slashable_until_date AS slashable_until
 FROM cleaned_records
 CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
-on conflict on constraint uniq_operator_set_operator_registration_snapshots do nothing;
+on conflict on constraint uniq_operator_set_operator_registration_snapshots
+DO UPDATE SET slashable_until = EXCLUDED.slashable_until;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorSetOperatorRegistrationSnapshots(snapshotDate string) error {
