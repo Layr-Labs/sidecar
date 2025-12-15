@@ -28,8 +28,6 @@ github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13 h1:Blb4AE+jC/vddV71w4/MQA
 github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13/go.mod h1:PD/HoyzZjxDw1tAcZw3yD0yGddo+yhmwQAi+lk298r4=
 github.com/Layr-Labs/protobuf-libs v0.1.0 h1:hfawlutriLq1i7cI2kXH8o2N+mx02cJTVlKrwAMazBY=
 github.com/Layr-Labs/protobuf-libs v0.1.0/go.mod h1:Om3Qb39NrWwald+08yTIj/VexKmocIMsMXXIM/iRcW8=
-github.com/Layr-Labs/protocol-apis v1.19.1-0.20251021154510-2a3d1f14d7c0 h1:0oQA8sKNEXXYEi0KxbHSkok9P7oCqIh2JGWswOz9FMk=
-github.com/Layr-Labs/protocol-apis v1.19.1-0.20251021154510-2a3d1f14d7c0/go.mod h1:ZJTZitWS+MnfHND/RF5DMQoFDXnjtP/Xu2Yoxf+hS+Q=
 github.com/Layr-Labs/protocol-apis v1.19.1-0.20251103194738-844239e24bed h1:d7xKb4M+2yk7FvJ5MxCtuO3bCQPpVQFzDQFJ1TR5Ep8=
 github.com/Layr-Labs/protocol-apis v1.19.1-0.20251103194738-844239e24bed/go.mod h1:ZJTZitWS+MnfHND/RF5DMQoFDXnjtP/Xu2Yoxf+hS+Q=
 github.com/Microsoft/go-winio v0.5.0/go.mod h1:JPGBdM1cNvN/6ISo+n8V5iA4v8pBzdOpzfwIujj1a84=
@@ -85,8 +83,8 @@ github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWR
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
 github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
-github.com/cloudflare/circl v1.3.7 h1:qlCDlTPz2n9fu58M0Nh1J/JzcFpfgkFHHX3O35r5vcU=
-github.com/cloudflare/circl v1.3.7/go.mod h1:sRTcRWXGLrKw6yIGJ+l7amYJFfAXbZG0kBSc8r4zxgA=
+github.com/cloudflare/circl v1.6.1 h1:zqIqSPIndyBh1bjLVVDHMPpVKqp8Su/V+6MeDzzQBQ0=
+github.com/cloudflare/circl v1.6.1/go.mod h1:uddAzsPgqdMAYatqJ0lsjX1oECcQLIlRpzZh3pJrofs=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/cockroachdb/errors v1.11.3 h1:5bA+k2Y6r+oz/6Z/RFlNeVCesGARKuC6YymtcDrbC/I=
 github.com/cockroachdb/errors v1.11.3/go.mod h1:m4UIW4CDjx+R5cybPsNrRbreomiFqt8o1h1wUVazSd8=
