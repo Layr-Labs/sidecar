@@ -9,6 +9,7 @@ const _15_goldOperatorOperatorSetUniqueStakeRewardsQuery = `
 CREATE TABLE {{.destTableName}} AS
 
 -- Step 1: Get registered operators for the operator set
+-- Uses slashable_until to include 14-day deregistration queue for unique stake rewards
 WITH reward_snapshot_operators AS (
     SELECT
         ap.reward_hash,
@@ -20,13 +21,18 @@ WITH reward_snapshot_operators AS (
         ap.operator AS operator,
         ap.strategy,
         ap.multiplier,
-        ap.reward_submission_date
+        ap.reward_submission_date,
+        osor.snapshot as registration_snapshot,
+        osor.slashable_until
     FROM {{.activeODRewardsTable}} ap
     JOIN operator_set_operator_registration_snapshots osor
         ON ap.avs = osor.avs
        AND ap.operator_set_id = osor.operator_set_id
-       AND ap.snapshot = osor.snapshot
        AND ap.operator = osor.operator
+       -- Use slashable_until for unique stake rewards (includes 14-day queue)
+       -- NULL slashable_until means operator is still active
+       AND ap.snapshot >= osor.snapshot
+       AND (osor.slashable_until IS NULL OR ap.snapshot <= osor.slashable_until)
 ),
 
 operators_with_allocated_stake AS (
@@ -94,23 +100,77 @@ distinct_operators AS (
     WHERE rn = 1
 ),
 
--- Step 3: Calculate the tokens for each operator with dynamic split logic
+-- Step 3: Check if operators are in deregistration queue (between registration and slashable_until)
+operators_with_deregistration_status AS (
+    SELECT
+        dop.*,
+        CASE
+            WHEN dop.snapshot > dop.registration_snapshot
+             AND dop.snapshot <= dop.slashable_until
+            THEN TRUE
+            ELSE FALSE
+        END as in_deregistration_queue
+    FROM distinct_operators dop
+),
+
+-- Step 4: Calculate cumulative slash multiplier during deregistration queue
+-- Slashing only affects rewards during the 14-day deregistration period
+operators_with_slash_multiplier AS (
+    SELECT
+        owds.*,
+        COALESCE(
+            EXP(SUM(
+                LN(1 - COALESCE(so.wad_slashed, 0) / CAST(1e18 AS NUMERIC))
+            ) FILTER (
+                WHERE owds.in_deregistration_queue
+                  AND so.block_number > b_reg.number
+                  AND so.block_number <= b_snapshot.number
+            )),
+            1.0
+        ) as slash_multiplier
+    FROM operators_with_deregistration_status owds
+    LEFT JOIN slashed_operators so
+        ON owds.operator = so.operator
+       AND owds.avs = so.avs
+       AND owds.operator_set_id = so.operator_set_id
+       AND owds.strategy = so.strategy
+    LEFT JOIN blocks b_reg
+        ON DATE(b_reg.block_time) = owds.registration_snapshot
+    LEFT JOIN blocks b_snapshot
+        ON DATE(b_snapshot.block_time) = owds.snapshot
+    GROUP BY owds.*, owds.in_deregistration_queue
+),
+
+-- Step 5: Apply slash multiplier to tokens
+operators_with_adjusted_tokens AS (
+    SELECT
+        *,
+        CASE
+            WHEN in_deregistration_queue THEN
+                tokens_per_registered_snapshot_decimal * slash_multiplier
+            ELSE
+                tokens_per_registered_snapshot_decimal
+        END as adjusted_tokens_per_snapshot
+    FROM operators_with_slash_multiplier
+),
+
+-- Step 6: Calculate the tokens for each operator with dynamic split logic
 -- If no split is found, default to 1000 (10%)
 operator_splits AS (
-    SELECT 
-        dop.*,
+    SELECT
+        oat.*,
         COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS NUMERIC) AS split_pct,
-        FLOOR(dop.tokens_per_registered_snapshot_decimal * COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS NUMERIC)) AS operator_tokens
-    FROM distinct_operators dop
+        FLOOR(oat.adjusted_tokens_per_snapshot * COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS NUMERIC)) AS operator_tokens
+    FROM operators_with_adjusted_tokens oat
     LEFT JOIN operator_set_split_snapshots oss
-        ON dop.operator = oss.operator 
-       AND dop.avs = oss.avs
-       AND dop.operator_set_id = oss.operator_set_id 
-       AND dop.snapshot = oss.snapshot
-    LEFT JOIN default_operator_split_snapshots dos ON (dop.snapshot = dos.snapshot)
+        ON oat.operator = oss.operator
+       AND oat.avs = oss.avs
+       AND oat.operator_set_id = oss.operator_set_id
+       AND oat.snapshot = oss.snapshot
+    LEFT JOIN default_operator_split_snapshots dos ON (oat.snapshot = dos.snapshot)
 )
 
--- Step 4: Output the final table with operator splits
+-- Step 7: Output the final table with operator splits
 SELECT * FROM operator_splits
 `
 
