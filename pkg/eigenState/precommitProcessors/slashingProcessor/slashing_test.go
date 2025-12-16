@@ -42,7 +42,7 @@ func setup() (
 }
 
 func withSlashingProcessor(esm *stateManager.EigenStateManager, grm *gorm.DB, l *zap.Logger, cfg *config.Config) *SlashingProcessor {
-	return NewSlashingProcessor(esm, l, grm)
+	return NewSlashingProcessor(esm, l, grm, cfg)
 }
 
 func teardown(db *gorm.DB) {

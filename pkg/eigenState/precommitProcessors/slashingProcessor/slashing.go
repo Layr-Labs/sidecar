@@ -2,6 +2,7 @@ package slashingProcessor
 
 import (
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerDelegations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -11,14 +12,16 @@ import (
 )
 
 type SlashingProcessor struct {
-	logger *zap.Logger
-	grm    *gorm.DB
+	logger       *zap.Logger
+	grm          *gorm.DB
+	globalConfig *config.Config
 }
 
-func NewSlashingProcessor(sm *stateManager.EigenStateManager, logger *zap.Logger, grm *gorm.DB) *SlashingProcessor {
+func NewSlashingProcessor(sm *stateManager.EigenStateManager, logger *zap.Logger, grm *gorm.DB, cfg *config.Config) *SlashingProcessor {
 	processor := &SlashingProcessor{
-		logger: logger,
-		grm:    grm,
+		logger:       logger,
+		grm:          grm,
+		globalConfig: cfg,
 	}
 	sm.RegisterPrecommitProcessor(processor, 0)
 	return processor
@@ -176,8 +179,8 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 			qsw.block_number < @slashBlockNumber
 			OR (qsw.block_number = @slashBlockNumber AND qsw.log_index < @logIndex)
 		)
-		-- Still within 14-day window (not yet completable)
-		AND DATE(b_queued.block_time) + INTERVAL '14 days' > (
+		-- Still within withdrawal queue window (not yet completable)
+		AND DATE(b_queued.block_time) + (@withdrawalQueueWindow * INTERVAL '1 day') > (
 			SELECT block_time FROM blocks WHERE number = @blockNumber
 		)
 		-- Backwards compatibility: only process records with valid data
@@ -202,13 +205,14 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 
 	var adjustments []AdjustmentRecord
 	err := sp.grm.Raw(query, map[string]any{
-		"slashBlockNumber": blockNumber,
-		"wadSlashed":       slashEvent.WadSlashed,
-		"blockNumber":      blockNumber,
-		"transactionHash":  slashEvent.TransactionHash,
-		"logIndex":         slashEvent.LogIndex,
-		"operator":         slashEvent.Operator,
-		"strategy":         slashEvent.Strategy,
+		"slashBlockNumber":     blockNumber,
+		"wadSlashed":           slashEvent.WadSlashed,
+		"blockNumber":          blockNumber,
+		"transactionHash":      slashEvent.TransactionHash,
+		"logIndex":             slashEvent.LogIndex,
+		"operator":             slashEvent.Operator,
+		"strategy":             slashEvent.Strategy,
+		"withdrawalQueueWindow": sp.globalConfig.Rewards.WithdrawalQueueWindow,
 	}).Scan(&adjustments).Error
 
 	if err != nil {

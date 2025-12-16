@@ -1,6 +1,7 @@
 package rewards
 
 import (
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
@@ -27,48 +28,67 @@ const stakerShareSnapshotsQuery = `
 	 from ranked_staker_records
 	 where rn = 1
 	),
-	-- Join with withdrawal queue at bronze level before creating windows
-	-- This ensures withdrawal queue adjustments are integrated into the time-series logic
-	-- IMPORTANT: Accounts for slashing events via pre-computed adjustment table
+	{{ if .useSabineFork }}
+	-- Pre-aggregate withdrawal queue adjustments at bronze level (Post-Sabine fork only)
+	cutoff_block as (
+		SELECT number as cutoff_block_number
+		FROM blocks
+		WHERE block_time <= TIMESTAMP '{{.cutoffDate}}'
+		ORDER BY number DESC
+		LIMIT 1
+	),
+	queued_withdrawal_adjustments as (
+		SELECT
+			qsw.staker,
+			qsw.strategy,
+			qsw.block_number as withdrawal_block_number,
+			b_queued.block_time as queued_time,
+			-- Calculate effective shares after slashing: base shares * cumulative slash multiplier
+			COALESCE(qsw.shares_to_withdraw::numeric, 0) * COALESCE(
+				-- Get the latest (most recent) slash multiplier for this withdrawal
+				(SELECT adj.slash_multiplier::numeric
+				 FROM queued_withdrawal_slashing_adjustments adj
+				 WHERE adj.staker = qsw.staker
+				 AND adj.strategy = qsw.strategy
+				 AND adj.withdrawal_block_number = qsw.block_number
+				 AND adj.slash_block_number <= (SELECT cutoff_block_number FROM cutoff_block)
+				 ORDER BY adj.slash_block_number DESC
+				 LIMIT 1),
+				1  -- No slashing if no adjustment records found
+			) as effective_shares
+		FROM queued_slashing_withdrawals qsw
+		INNER JOIN blocks b_queued ON qsw.block_number = b_queued.number
+		WHERE
+			-- Still within withdrawal queue window (not yet completable)
+			DATE(b_queued.block_time) + INTERVAL '{{.withdrawalQueueWindow}} days' > DATE '{{.snapshotDate}}'
+			-- Backwards compatibility: only process records with valid data
+			AND qsw.staker IS NOT NULL
+			AND qsw.strategy IS NOT NULL
+			AND qsw.operator IS NOT NULL
+			AND qsw.shares_to_withdraw IS NOT NULL
+			AND b_queued.block_time IS NOT NULL
+	),
+	{{ end }}
+	-- Join bronze tables: base shares + pre-aggregated withdrawal adjustments
+	-- This follows the design principle: "join bronze → snapshot" not "snapshot → inject adjustments"
 	staker_shares_with_queue_bronze as (
 		SELECT
 			sr.staker,
 			sr.strategy,
-			-- Add back queued withdrawals that are active during this snapshot's window
-			-- ADJUSTED for any slashing that occurred while in queue (from adjustment table)
+			{{ if .useSabineFork }}
+			-- Post-Sabine fork: Add back queued withdrawals that are active during this snapshot's window
 			(sr.shares::numeric + COALESCE(
-				(SELECT SUM(
-					-- Effective withdrawal amount after applying all slashing
-					COALESCE(qsw.shares_to_withdraw::numeric, 0) * COALESCE(
-						-- Get the latest (most recent) slash multiplier for this withdrawal
-						(SELECT adj.slash_multiplier::numeric
-						 FROM queued_withdrawal_slashing_adjustments adj
-						 WHERE adj.staker = qsw.staker
-						 AND adj.strategy = qsw.strategy
-						 AND adj.withdrawal_block_number = qsw.block_number
-						 -- Only consider slashing that happened before the cutoff date
-						 AND adj.slash_block_number <= (
-							 SELECT number FROM blocks WHERE block_time <= TIMESTAMP '{{.cutoffDate}}' ORDER BY number DESC LIMIT 1
-						 )
-						 ORDER BY adj.slash_block_number DESC
-						 LIMIT 1),
-						1  -- No slashing if no adjustment records found
-					)
-				 )
-				 FROM queued_slashing_withdrawals qsw
-				 INNER JOIN blocks b_queued ON qsw.block_number = b_queued.number
-				 WHERE qsw.staker = sr.staker
-				 AND qsw.strategy = sr.strategy
-				 AND b_queued.block_time <= sr.block_time
-				 AND DATE(b_queued.block_time) + INTERVAL '14 days' > DATE '{{.snapshotDate}}'
-				 -- Backwards compatibility: only process records with valid data
-				 AND qsw.staker IS NOT NULL
-				 AND qsw.strategy IS NOT NULL
-				 AND qsw.operator IS NOT NULL
-				 AND qsw.shares_to_withdraw IS NOT NULL
-				 AND b_queued.block_time IS NOT NULL
+				(SELECT SUM(qwa.effective_shares)
+				 FROM queued_withdrawal_adjustments qwa
+				 WHERE qwa.staker = sr.staker
+				 AND qwa.strategy = sr.strategy
+				 AND qwa.queued_time <= sr.block_time
 				), 0
 			))::numeric as shares,
+			{{ else }}
+			-- Pre-Sabine fork: Use base shares only (old behavior)
+			sr.shares::numeric as shares,
+			{{ end }}
 			sr.snapshot_time
 		FROM snapshotted_records sr
 	),
@@ -99,9 +119,22 @@ const stakerShareSnapshotsQuery = `
 `
 
 func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(snapshotDate string) error {
+	forks, err := r.globalConfig.GetRewardsSqlForkDates()
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to get rewards fork dates", "error", err)
+		return err
+	}
+
+	useSabineFork := false
+	if sabineFork, exists := forks[config.RewardsFork_Sabine]; exists {
+		useSabineFork = snapshotDate >= sabineFork.Date
+	}
+
 	query, err := rewardsUtils.RenderQueryTemplate(stakerShareSnapshotsQuery, map[string]interface{}{
-		"cutoffDate":   snapshotDate,
-		"snapshotDate": snapshotDate,
+		"cutoffDate":            snapshotDate,
+		"snapshotDate":          snapshotDate,
+		"useSabineFork":         useSabineFork,
+		"withdrawalQueueWindow": r.globalConfig.Rewards.WithdrawalQueueWindow,
 	})
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to render query template", "error", err)
