@@ -119,7 +119,7 @@ var rpcCmd = &cobra.Command{
 			l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
 		}
 
-		precommitProcessors.LoadPrecommitProcessors(sm, grm, l)
+		precommitProcessors.LoadPrecommitProcessors(sm, grm, l, cfg)
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 
