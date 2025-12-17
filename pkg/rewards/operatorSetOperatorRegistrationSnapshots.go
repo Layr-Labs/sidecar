@@ -78,6 +78,13 @@ marked_statuses AS (
 		-- Calculate slashable_until based on deregistration
 		-- Deregistrations: 14-day slashability queue for unique stake rewards
 		-- NULL = still active (no deregistration)
+		--
+		-- NOTE: Design Decision - Time vs Blocks
+		-- - Sidecar uses TIME: adds 14 days as INTERVAL '14 days'
+		-- - Contracts use BLOCKS: adds ~100,800 blocks (14 days * 24 * 60 * 60 / 12 sec/block)
+		-- - This matches withdrawal queue behavior (stakerShareSnapshots.go:63)
+		-- - Time is continuous; blocks can be missed on-chain (acceptable edge case)
+		-- - Daily snapshot granularity makes minute-level precision differences insignificant
 		CASE
 			WHEN next_is_active = FALSE THEN
 				-- Deregistration with 14-day slashability period
@@ -85,9 +92,6 @@ marked_statuses AS (
 			WHEN next_is_active IS NULL THEN
 				-- Still active (no deregistration event): NULL
 				NULL
-			ELSE
-				-- Re-registered: use next event time
-				DATE(COALESCE(next_block_time, '{{.cutoffDate}}')::timestamp)
 		END AS slashable_until_date,
 		is_active
 	FROM removed_same_day_deregistrations
