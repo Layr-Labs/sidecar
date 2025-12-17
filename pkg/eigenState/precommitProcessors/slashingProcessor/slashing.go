@@ -180,7 +180,7 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 			OR (qsw.block_number = @slashBlockNumber AND qsw.log_index < @logIndex)
 		)
 		-- Still within withdrawal queue window (not yet completable)
-		AND DATE(b_queued.block_time) + (@withdrawalQueueWindow * INTERVAL '1 day') > (
+		AND b_queued.block_time + (@withdrawalQueueWindow * INTERVAL '1 day') > (
 			SELECT block_time FROM blocks WHERE number = @blockNumber
 		)
 		-- Backwards compatibility: only process records with valid data
@@ -205,13 +205,13 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 
 	var adjustments []AdjustmentRecord
 	err := sp.grm.Raw(query, map[string]any{
-		"slashBlockNumber":     blockNumber,
-		"wadSlashed":           slashEvent.WadSlashed,
-		"blockNumber":          blockNumber,
-		"transactionHash":      slashEvent.TransactionHash,
-		"logIndex":             slashEvent.LogIndex,
-		"operator":             slashEvent.Operator,
-		"strategy":             slashEvent.Strategy,
+		"slashBlockNumber":      blockNumber,
+		"wadSlashed":            slashEvent.WadSlashed,
+		"blockNumber":           blockNumber,
+		"transactionHash":       slashEvent.TransactionHash,
+		"logIndex":              slashEvent.LogIndex,
+		"operator":              slashEvent.Operator,
+		"strategy":              slashEvent.Strategy,
 		"withdrawalQueueWindow": sp.globalConfig.Rewards.WithdrawalQueueWindow,
 	}).Scan(&adjustments).Error
 

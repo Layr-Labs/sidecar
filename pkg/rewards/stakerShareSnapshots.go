@@ -60,7 +60,7 @@ const stakerShareSnapshotsQuery = `
 		INNER JOIN blocks b_queued ON qsw.block_number = b_queued.number
 		WHERE
 			-- Still within withdrawal queue window (not yet completable)
-			DATE(b_queued.block_time) + INTERVAL '{{.withdrawalQueueWindow}} days' > DATE '{{.snapshotDate}}'
+			b_queued.block_time + INTERVAL '{{.withdrawalQueueWindow}} days' > TIMESTAMP '{{.snapshotDate}}'
 			-- Backwards compatibility: only process records with valid data
 			AND qsw.staker IS NOT NULL
 			AND qsw.strategy IS NOT NULL
@@ -125,9 +125,24 @@ func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(snapshotDate s
 		return err
 	}
 
+	// Get the block number for the cutoff date to make block-based fork decision
+	var cutoffBlockNumber uint64
+	err = r.grm.Raw(`
+		SELECT number
+		FROM blocks
+		WHERE block_time <= ?
+		ORDER BY number DESC
+		LIMIT 1
+	`, snapshotDate).Scan(&cutoffBlockNumber).Error
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to get cutoff block number", "error", err, "snapshotDate", snapshotDate)
+		return err
+	}
+
+	// Use block-based fork check for backwards compatibility
 	useSabineFork := false
 	if sabineFork, exists := forks[config.RewardsFork_Sabine]; exists {
-		useSabineFork = snapshotDate >= sabineFork.Date
+		useSabineFork = cutoffBlockNumber >= sabineFork.BlockNumber
 	}
 
 	query, err := rewardsUtils.RenderQueryTemplate(stakerShareSnapshotsQuery, map[string]interface{}{
