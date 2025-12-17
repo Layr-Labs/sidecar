@@ -109,10 +109,24 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorAllocationSnapshots(snapsho
 		return err
 	}
 
+	// Get the block number for the cutoff date to make block-based fork decision
+	var cutoffBlockNumber uint64
+	err = r.grm.Raw(`
+		SELECT number
+		FROM blocks
+		WHERE block_time <= ?
+		ORDER BY number DESC
+		LIMIT 1
+	`, snapshotDate).Scan(&cutoffBlockNumber).Error
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to get cutoff block number", "error", err, "snapshotDate", snapshotDate)
+		return err
+	}
+
+	// Use block-based fork check for backwards compatibility
 	useSabineRounding := false
 	if sabineFork, exists := forks[config.RewardsFork_Sabine]; exists {
-		// Use new rounding logic if snapshot date is on or after Sabine fork
-		useSabineRounding = snapshotDate >= sabineFork.Date
+		useSabineRounding = cutoffBlockNumber >= sabineFork.BlockNumber
 	}
 
 	query, err := rewardsUtils.RenderQueryTemplate(operatorAllocationSnapshotsQuery, map[string]interface{}{

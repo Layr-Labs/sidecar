@@ -301,27 +301,24 @@ func Test_StakerShareSnapshots_WithdrawalAndSlashing(t *testing.T) {
 		assert.Nil(t, err)
 
 		// Verify we have unique entries for each time period
-		assert.GreaterOrEqual(t, len(snapshots), 3, "Should have at least 3 unique snapshot entries")
-
-		// TODO: Uncomment these assertions once the full pipeline is working
-		// These verify the exact share values at each timestamp in the T0-T3 scenario
-		//
 		// Expected calculations:
 		// T0: 200 shares (initial state)
 		// T1: 200 shares (withdrawal queued for 50, but still earning: 150 base + 50 queued = 200)
 		// T2: 150 shares (25% slash: 112.5 base + 37.5 queued = 150)
-		// T3: 137.5 shares (withdrawal completable: 112.5 base + 25 remaining queued = 137.5)
-		//     Note: The slashed portion of queued withdrawal (12.5) is subtracted at T3
-		//
-		// Note: The slashingProcessor must run and populate queued_withdrawal_slashing_adjustments
-		// for these values to be correct. Currently it may not run automatically during test.
-		//
-		// if len(snapshots) >= 4 {
-		// 	assert.Equal(t, "200000000000000000000", snapshots[0].Shares, "T0: Alice should have 200 shares")
-		// 	assert.Equal(t, "200000000000000000000", snapshots[1].Shares, "T1: Alice should still have 200 shares (withdrawal queued)")
-		// 	assert.Equal(t, "150000000000000000000", snapshots[2].Shares, "T2: Alice should have 150 shares (slashed 25%)")
-		// 	assert.Equal(t, "137500000000000000000", snapshots[3].Shares, "T3: Alice should have 137.5 shares (withdrawal completable)")
-		// }
+		// T3: 112.5 shares (withdrawal completable: 112.5 base, queued no longer counts)
+
+		assert.Equal(t, 4, len(snapshots), "Should have exactly 4 snapshots")
+		assert.Equal(t, "200000000000000000000", snapshots[0].Shares, "T0: Alice should have 200 shares")
+		assert.Equal(t, t0.Format(time.DateOnly), snapshots[0].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "200000000000000000000", snapshots[1].Shares, "T1: Alice should have 200 shares (150 base + 50 queued)")
+		assert.Equal(t, t1.Format(time.DateOnly), snapshots[1].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "150000000000000000000", snapshots[2].Shares, "T2: Alice should have 150 shares (112.5 base + 37.5 queued after 25% slash)")
+		assert.Equal(t, t2.Format(time.DateOnly), snapshots[2].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "112500000000000000000", snapshots[3].Shares, "T3: Alice should have 112.5 shares (withdrawal completable)")
+		assert.Equal(t, t3.Format(time.DateOnly), snapshots[3].Snapshot.Format(time.DateOnly))
 
 		t.Logf("Generated %d snapshots for Alice:", len(snapshots))
 		for i, snap := range snapshots {
@@ -470,7 +467,18 @@ func Test_StakerShareSnapshots_QueuedThenSlashed(t *testing.T) {
 		// T2: 50 shares (35 base + 15 queued after 50% slash)
 		// T3: 35 shares (queued withdrawal no longer counts)
 
-		assert.GreaterOrEqual(t, len(snapshots), 3, "Should have at least 3 unique snapshots")
+		assert.Equal(t, 4, len(snapshots), "Should have exactly 4 snapshots")
+		assert.Equal(t, "100000000000000000000", snapshots[0].Shares, "T0: Should have 100 shares")
+		assert.Equal(t, t0.Format(time.DateOnly), snapshots[0].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "100000000000000000000", snapshots[1].Shares, "T1: Should have 100 shares (70 base + 30 queued)")
+		assert.Equal(t, t1.Format(time.DateOnly), snapshots[1].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "50000000000000000000", snapshots[2].Shares, "T2: Should have 50 shares (35 base + 15 queued after 50% slash)")
+		assert.Equal(t, t2.Format(time.DateOnly), snapshots[2].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "35000000000000000000", snapshots[3].Shares, "T3: Should have 35 shares (queued withdrawal no longer counts)")
+		assert.Equal(t, t3.Format(time.DateOnly), snapshots[3].Snapshot.Format(time.DateOnly))
 	})
 }
 
@@ -607,7 +615,21 @@ func Test_StakerShareSnapshots_MultipleSlashingEvents(t *testing.T) {
 		// T3: 60 shares (36 base + 24 queued, cumulative: 0.8 * 0.75 = 0.6)
 		// T4: 36 shares (queued withdrawal no longer counts)
 
-		assert.GreaterOrEqual(t, len(snapshots), 4, "Should have at least 4 unique snapshots")
+		assert.Equal(t, 5, len(snapshots), "Should have exactly 5 snapshots")
+		assert.Equal(t, "100000000000000000000", snapshots[0].Shares, "T0: Should have 100 shares")
+		assert.Equal(t, t0.Format(time.DateOnly), snapshots[0].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "100000000000000000000", snapshots[1].Shares, "T1: Should have 100 shares (60 base + 40 queued)")
+		assert.Equal(t, t1.Format(time.DateOnly), snapshots[1].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "80000000000000000000", snapshots[2].Shares, "T2: Should have 80 shares (48 base + 32 queued after 20% slash)")
+		assert.Equal(t, t2.Format(time.DateOnly), snapshots[2].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "60000000000000000000", snapshots[3].Shares, "T3: Should have 60 shares (36 base + 24 queued, cumulative 0.8 * 0.75)")
+		assert.Equal(t, t3.Format(time.DateOnly), snapshots[3].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "36000000000000000000", snapshots[4].Shares, "T4: Should have 36 shares (queued withdrawal no longer counts)")
+		assert.Equal(t, t4.Format(time.DateOnly), snapshots[4].Snapshot.Format(time.DateOnly))
 	})
 }
 
@@ -730,6 +752,19 @@ func Test_StakerShareSnapshots_CompletedBeforeSlash(t *testing.T) {
 		// T1: 100 shares (75 base + 25 queued)
 		// T2: 75 shares (queued withdrawal completable, no longer counts)
 		// T3: 52.5 shares (75 * 0.7, slash doesn't affect completed withdrawal)
+
+		assert.Equal(t, 4, len(snapshots), "Should have exactly 4 snapshots")
+		assert.Equal(t, "100000000000000000000", snapshots[0].Shares, "T0: Should have 100 shares")
+		assert.Equal(t, t0.Format(time.DateOnly), snapshots[0].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "100000000000000000000", snapshots[1].Shares, "T1: Should have 100 shares (75 base + 25 queued)")
+		assert.Equal(t, t1.Format(time.DateOnly), snapshots[1].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "75000000000000000000", snapshots[2].Shares, "T2: Should have 75 shares (queued withdrawal completable)")
+		assert.Equal(t, t2.Format(time.DateOnly), snapshots[2].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "52500000000000000000", snapshots[3].Shares, "T3: Should have 52.5 shares (75 * 0.7 after 30% slash)")
+		assert.Equal(t, t3.Format(time.DateOnly), snapshots[3].Snapshot.Format(time.DateOnly))
 
 		// Verify no adjustment records were created for this withdrawal
 		var adjustmentCount int64
@@ -883,12 +918,29 @@ func Test_StakerShareSnapshots_MultipleQueuedWithdrawals(t *testing.T) {
 		// Expected:
 		// T0: 200 shares
 		// T1: 200 shares (150 base + 50 queued)
-		// T2: 160 shares (120 base + 40 queued, 50 * 0.8 = 40)
-		// T3: 150 shares (96 base + 32 queued first + 30 queued second, note: 120 * 0.8 = 96 base)
-		// T4: 126 shares (96 base + 30 queued second, first withdrawal completable)
+		// T2: 160 shares (120 base + 40 queued after 20% slash, 150 * 0.8 = 120, 50 * 0.8 = 40)
+		// T3: 166 shares (96 base + 40 first queued + 30 second queued, 120 * 0.8 = 96 base)
+		// T4: 126 shares (96 base + 30 second queued, first withdrawal completable)
 		// T5: 96 shares (only base shares remain)
 
-		assert.GreaterOrEqual(t, len(snapshots), 5, "Should have at least 5 unique snapshots")
+		assert.Equal(t, 6, len(snapshots), "Should have exactly 6 snapshots")
+		assert.Equal(t, "200000000000000000000", snapshots[0].Shares, "T0: Should have 200 shares")
+		assert.Equal(t, t0.Format(time.DateOnly), snapshots[0].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "200000000000000000000", snapshots[1].Shares, "T1: Should have 200 shares (150 base + 50 queued)")
+		assert.Equal(t, t1.Format(time.DateOnly), snapshots[1].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "160000000000000000000", snapshots[2].Shares, "T2: Should have 160 shares (120 base + 40 queued after 20% slash)")
+		assert.Equal(t, t2.Format(time.DateOnly), snapshots[2].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "166000000000000000000", snapshots[3].Shares, "T3: Should have 166 shares (96 base + 40 first queued + 30 second queued)")
+		assert.Equal(t, t3.Format(time.DateOnly), snapshots[3].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "126000000000000000000", snapshots[4].Shares, "T4: Should have 126 shares (96 base + 30 second queued)")
+		assert.Equal(t, t4.Format(time.DateOnly), snapshots[4].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "96000000000000000000", snapshots[5].Shares, "T5: Should have 96 shares (only base)")
+		assert.Equal(t, t5.Format(time.DateOnly), snapshots[5].Snapshot.Format(time.DateOnly))
 
 		// Verify adjustments were created for the first withdrawal only
 		var adjustmentCount int64
@@ -1139,7 +1191,18 @@ func Test_StakerShareSnapshots_FullSlash(t *testing.T) {
 		// T2: 0 shares (100% slashed: 0 base + 0 queued)
 		// T3: 0 shares (nothing left)
 
-		assert.GreaterOrEqual(t, len(snapshots), 3, "Should have at least 3 unique snapshots")
+		assert.Equal(t, 4, len(snapshots), "Should have exactly 4 snapshots")
+		assert.Equal(t, "100000000000000000000", snapshots[0].Shares, "T0: Should have 100 shares")
+		assert.Equal(t, t0.Format(time.DateOnly), snapshots[0].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "100000000000000000000", snapshots[1].Shares, "T1: Should have 100 shares (60 base + 40 queued)")
+		assert.Equal(t, t1.Format(time.DateOnly), snapshots[1].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "0", snapshots[2].Shares, "T2: Should have 0 shares (100% slashed)")
+		assert.Equal(t, t2.Format(time.DateOnly), snapshots[2].Snapshot.Format(time.DateOnly))
+
+		assert.Equal(t, "0", snapshots[3].Shares, "T3: Should have 0 shares (nothing left)")
+		assert.Equal(t, t3.Format(time.DateOnly), snapshots[3].Snapshot.Format(time.DateOnly))
 
 		// Verify slash multiplier is 0 for the queued withdrawal
 		var multiplier string

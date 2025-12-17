@@ -114,10 +114,10 @@ type RpcConfig struct {
 }
 
 type RewardsConfig struct {
-	ValidateRewardsRoot           bool
-	GenerateStakerOperatorsTable  bool
-	CalculateRewardsDaily         bool
-	WithdrawalQueueWindow         float64 // Duration in days for withdrawal queue period (14.0 for mainnet, 0.0069 for testnet/preprod ~10 min)
+	ValidateRewardsRoot          bool
+	GenerateStakerOperatorsTable bool
+	CalculateRewardsDaily        bool
+	WithdrawalQueueWindow        float64 // Duration in days for withdrawal queue period (14.0 for mainnet, 0.0069 for testnet/preprod ~10 min)
 }
 
 type StatsdConfig struct {
@@ -237,10 +237,10 @@ var (
 
 	SnapshotOutputMetadataFile = "generate-metadata-file"
 
-	RewardsValidateRewardsRoot           = "rewards.validate_rewards_root"
-	RewardsGenerateStakerOperatorsTable  = "rewards.generate_staker_operators_table"
-	RewardsCalculateRewardsDaily         = "rewards.calculate_rewards_daily"
-	RewardsWithdrawalQueueWindow         = "rewards.withdrawal_queue_window"
+	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
+	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
+	RewardsCalculateRewardsDaily        = "rewards.calculate_rewards_daily"
+	RewardsWithdrawalQueueWindow        = "rewards.withdrawal_queue_window"
 
 	EthereumRpcBaseUrl               = "ethereum.rpc_url"
 	EthereumRpcContractCallBatchSize = "ethereum.contract_call_batch_size"
@@ -325,10 +325,10 @@ func NewConfig() *Config {
 		},
 
 		Rewards: RewardsConfig{
-			ValidateRewardsRoot:         viper.GetBool(normalizeFlagName(RewardsValidateRewardsRoot)),
+			ValidateRewardsRoot:          viper.GetBool(normalizeFlagName(RewardsValidateRewardsRoot)),
 			GenerateStakerOperatorsTable: viper.GetBool(normalizeFlagName(RewardsGenerateStakerOperatorsTable)),
-			CalculateRewardsDaily:       viper.GetBool(normalizeFlagName(RewardsCalculateRewardsDaily)),
-			WithdrawalQueueWindow:       FloatWithDefault(viper.GetFloat64(normalizeFlagName(RewardsWithdrawalQueueWindow)), getDefaultWithdrawalQueueDuration(chain)),
+			CalculateRewardsDaily:        viper.GetBool(normalizeFlagName(RewardsCalculateRewardsDaily)),
+			WithdrawalQueueWindow:        FloatWithDefault(viper.GetFloat64(normalizeFlagName(RewardsWithdrawalQueueWindow)), getDefaultWithdrawalQueueDuration(chain)),
 		},
 
 		DataDogConfig: DataDogConfig{
