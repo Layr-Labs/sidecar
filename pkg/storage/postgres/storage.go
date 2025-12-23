@@ -104,6 +104,29 @@ func (s *PostgresBlockStore) InsertBlockTransaction(
 	return tx, nil
 }
 
+func sanitizeNullBytes(data interface{}) interface{} {
+	switch v := data.(type) {
+	case string:
+		// Remove null bytes from strings
+		return strings.ReplaceAll(v, "\x00", "")
+	case map[string]interface{}:
+		sanitized := make(map[string]interface{}, len(v))
+		for key, val := range v {
+			sanitized[key] = sanitizeNullBytes(val)
+		}
+		return sanitized
+	case []interface{}:
+		sanitized := make([]interface{}, len(v))
+		for i, val := range v {
+			sanitized[i] = sanitizeNullBytes(val)
+		}
+		return sanitized
+	default:
+		// Return other types as-is (numbers, bools, nil, etc.)
+		return v
+	}
+}
+
 func (s *PostgresBlockStore) InsertTransactionLog(
 	txHash string,
 	transactionIndex uint64,
@@ -117,7 +140,9 @@ func (s *PostgresBlockStore) InsertTransactionLog(
 		s.Logger.Sugar().Errorw("Failed to marshal arguments", zap.Error(err))
 	}
 
-	outputDataJson, err := json.Marshal(outputData)
+	sanitizedOutputData := sanitizeNullBytes(outputData)
+
+	outputDataJson, err := json.Marshal(sanitizedOutputData)
 	if err != nil {
 		s.Logger.Sugar().Errorw("Failed to marshal output data", zap.Error(err))
 	}
