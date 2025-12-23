@@ -256,3 +256,89 @@ func Test_PostgresqlBlockstore(t *testing.T) {
 		teardown(dbname, cfg, db, l)
 	})
 }
+
+func TestSanitizeNullBytes(t *testing.T) {
+	t.Run("should remove null bytes from strings", func(t *testing.T) {
+		input := "Catalysis slashing for committee: \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01"
+		expected := "Catalysis slashing for committee: \x01"
+		result := sanitizeNullBytes(input)
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("should handle strings without null bytes", func(t *testing.T) {
+		input := "normal string"
+		result := sanitizeNullBytes(input)
+		assert.Equal(t, input, result)
+	})
+
+	t.Run("should recursively sanitize maps", func(t *testing.T) {
+		input := map[string]interface{}{
+			"description": "test\x00value",
+			"operator":    "0x123",
+			"nested": map[string]interface{}{
+				"field": "nested\x00\x00data",
+			},
+		}
+		expected := map[string]interface{}{
+			"description": "testvalue",
+			"operator":    "0x123",
+			"nested": map[string]interface{}{
+				"field": "nesteddata",
+			},
+		}
+		result := sanitizeNullBytes(input)
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("should recursively sanitize slices", func(t *testing.T) {
+		input := []interface{}{
+			"string\x00with\x00nulls",
+			123,
+			[]interface{}{
+				"nested\x00array",
+			},
+		}
+		expected := []interface{}{
+			"stringwithnulls",
+			123,
+			[]interface{}{
+				"nestedarray",
+			},
+		}
+		result := sanitizeNullBytes(input)
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("should preserve non-string types", func(t *testing.T) {
+		input := map[string]interface{}{
+			"number":  123,
+			"boolean": true,
+			"null":    nil,
+			"float":   3.14,
+		}
+		result := sanitizeNullBytes(input)
+		assert.Equal(t, input, result)
+	})
+
+	t.Run("should handle complex nested structures", func(t *testing.T) {
+		input := map[string]interface{}{
+			"operator":    "0xce28d7e5a7928a56379490026c1ec595edbf12e4",
+			"description": "Catalysis slashing for committee: \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01",
+			"operatorSet": map[string]interface{}{
+				"avs": "0x14b1e4b038490f903b297edb668cb639b708555e",
+				"id":  1,
+			},
+			"strategies": []interface{}{"0xe0cac550f1915a28a098cc7d24035e85598c0db5"},
+			"wadSlashed": []interface{}{0},
+		}
+
+		result := sanitizeNullBytes(input).(map[string]interface{})
+
+		// Verify description is sanitized
+		assert.Equal(t, "Catalysis slashing for committee: \x01", result["description"])
+
+		// Verify other fields are unchanged
+		assert.Equal(t, "0xce28d7e5a7928a56379490026c1ec595edbf12e4", result["operator"])
+		assert.Equal(t, 1, result["operatorSet"].(map[string]interface{})["id"])
+	})
+}
