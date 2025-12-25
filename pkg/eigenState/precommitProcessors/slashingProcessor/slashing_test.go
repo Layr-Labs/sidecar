@@ -41,8 +41,8 @@ func setup() (
 	return dbname, grm, l, cfg, nil
 }
 
-func withSlashingProcessor(esm *stateManager.EigenStateManager, grm *gorm.DB, l *zap.Logger) *SlashingProcessor {
-	return NewSlashingProcessor(esm, l, grm)
+func withSlashingProcessor(esm *stateManager.EigenStateManager, grm *gorm.DB, l *zap.Logger, cfg *config.Config) *SlashingProcessor {
+	return NewSlashingProcessor(esm, l, grm, cfg)
 }
 
 func teardown(db *gorm.DB) {
@@ -67,7 +67,7 @@ func Test_SlashingPrecommitProcessor(t *testing.T) {
 
 	t.Run("Should capture delegate, deposit, slash in same block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
-		withSlashingProcessor(esm, grm, l)
+		withSlashingProcessor(esm, grm, l, cfg)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
@@ -140,7 +140,7 @@ func Test_SlashingPrecommitProcessor(t *testing.T) {
 
 	t.Run("Should capture many deposits and slash in same block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(nil, l, grm)
-		withSlashingProcessor(esm, grm, l)
+		withSlashingProcessor(esm, grm, l, cfg)
 
 		blockNumber := uint64(200)
 		err = createBlock(grm, blockNumber)
