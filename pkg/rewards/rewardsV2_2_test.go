@@ -327,10 +327,8 @@ func hydrateOperatorAllocations(grm *gorm.DB, l *zap.Logger) error {
 			"avs":              "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0",
 			"strategy":         "0x93c4b944d05dfe6df7645a86cd2206016c51564d",
 			"magnitude":        "1000000000000000000", // 1 ETH
-			"avs_directory":    "0x1234567890123456789012345678901234567890",
 			"operator_set_id":  0,
 			"effective_block":  100,
-			"block_time":       "2025-02-01 00:00:00",
 			"transaction_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
 			"log_index":        1,
 			"block_number":     100,
@@ -341,10 +339,8 @@ func hydrateOperatorAllocations(grm *gorm.DB, l *zap.Logger) error {
 			"avs":              "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0",
 			"strategy":         "0x93c4b944d05dfe6df7645a86cd2206016c51564d",
 			"magnitude":        "2000000000000000000", // 2 ETH
-			"avs_directory":    "0x1234567890123456789012345678901234567890",
 			"operator_set_id":  1,
 			"effective_block":  100,
-			"block_time":       "2025-02-01 00:00:00",
 			"transaction_hash": "0x2222222222222222222222222222222222222222222222222222222222222222",
 			"log_index":        2,
 			"block_number":     100,
@@ -354,17 +350,15 @@ func hydrateOperatorAllocations(grm *gorm.DB, l *zap.Logger) error {
 	for _, record := range records {
 		res := grm.Exec(`
 			INSERT INTO operator_allocations 
-			(operator, avs, strategy, magnitude, avs_directory, operator_set_id, effective_block, block_time, transaction_hash, log_index, block_number)
-			VALUES (@operator, @avs, @strategy, @magnitude, @avs_directory, @operator_set_id, @effective_block, @block_time, @transaction_hash, @log_index, @block_number)
+			(operator, avs, strategy, magnitude, operator_set_id, effective_block, transaction_hash, log_index, block_number)
+			VALUES (@operator, @avs, @strategy, @magnitude, @operator_set_id, @effective_block, @transaction_hash, @log_index, @block_number)
 		`,
 			sql.Named("operator", record["operator"]),
 			sql.Named("avs", record["avs"]),
 			sql.Named("strategy", record["strategy"]),
 			sql.Named("magnitude", record["magnitude"]),
-			sql.Named("avs_directory", record["avs_directory"]),
 			sql.Named("operator_set_id", record["operator_set_id"]),
 			sql.Named("effective_block", record["effective_block"]),
-			sql.Named("block_time", record["block_time"]),
 			sql.Named("transaction_hash", record["transaction_hash"]),
 			sql.Named("log_index", record["log_index"]),
 			sql.Named("block_number", record["block_number"]),

@@ -593,6 +593,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-05-14",
 				BlockNumber: 3840004,
 			},
+			RewardsFork_Sabine: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
 		}, nil
 	case Chain_Holesky:
 		return ForkMap{
@@ -630,6 +634,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 			RewardsFork_Pecos: Fork{
 				Date:        "2025-05-14",
 				BlockNumber: 3840004,
+			},
+			RewardsFork_Sabine: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
 			},
 		}, nil
 	case Chain_Sepolia:
@@ -724,8 +732,8 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 0,
 			},
 			RewardsFork_Sabine: Fork{
-				Date:        "2025-12-19",
-				BlockNumber: 1871733,
+				Date:        "1970-01-01",
+				BlockNumber: 0,
 			},
 		}, nil
 	case Chain_Mainnet:
