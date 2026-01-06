@@ -121,32 +121,32 @@ avs_od_operator_set_rewards AS (
 ),
 {{ end }}
 {{ if .enableRewardsV2_2 }}
-operator_od_operator_set_rewards_v2_2_unique_stake AS (
+operator_operator_set_unique_stake_rewards AS (
   SELECT DISTINCT
     operator as earner,
     snapshot,
     reward_hash,
     token,
     operator_tokens as amount
-  FROM {{.operatorODOperatorSetRewardAmountsTableV2_2}}
+  FROM {{.operatorOperatorSetUniqueStakeRewardsTable}}
 ),
-staker_od_operator_set_rewards_v2_2_unique_stake AS (
+staker_operator_set_unique_stake_rewards AS (
   SELECT DISTINCT
     staker as earner,
     snapshot,
     reward_hash,
     token,
     staker_tokens as amount
-  FROM {{.stakerODOperatorSetRewardAmountsTableV2_2}}
+  FROM {{.stakerOperatorSetUniqueStakeRewardsTable}}
 ),
-avs_od_operator_set_rewards_v2_2_unique_stake AS (
+avs_operator_set_unique_stake_rewards AS (
   SELECT DISTINCT
     avs as earner,
     snapshot,
     reward_hash,
     token,
     avs_tokens as amount
-  FROM {{.avsODOperatorSetRewardAmountsTableV2_2}}
+  FROM {{.avsOperatorSetUniqueStakeRewardsTable}}
 ),
 operator_operator_set_total_stake_rewards AS (
   SELECT DISTINCT
