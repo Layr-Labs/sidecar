@@ -832,7 +832,6 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 	t.Run("OAS-6: Allocation (future effect) and deallocation same day", func(t *testing.T) {
 		day4 := time.Date(2025, 3, 4, 17, 0, 0, 0, time.UTC)
 		day6_5pm := time.Date(2025, 3, 6, 17, 0, 0, 0, time.UTC)
-		day20 := time.Date(2025, 3, 20, 17, 0, 0, 0, time.UTC)
 
 		block4 := uint64(3100)
 		res := grm.Exec(`
@@ -841,18 +840,18 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		`, block4, fmt.Sprintf("hash_%d", block4), day4)
 		assert.Nil(t, res.Error)
 
-		effectiveBlock6 := uint64(3102)
+		effectiveBlock6_1 := uint64(3102)
 		res = grm.Exec(`
 			INSERT INTO blocks (number, hash, block_time)
 			VALUES (?, ?, ?)
-		`, effectiveBlock6, fmt.Sprintf("hash_%d", effectiveBlock6), day6_5pm)
+		`, effectiveBlock6_1, fmt.Sprintf("hash_%d", effectiveBlock6_1), day6_5pm)
 		assert.Nil(t, res.Error)
 
-		// Allocate on 3/4, effect on 3/6
+		// Allocate on 3/4, effective block on 3/6 @ 5pm
 		res = grm.Exec(`
 			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xoperatorOAS6", "0xavsOAS6", "0xstrategyOAS6", 1, "1000000000000000000000", effectiveBlock6, block4, "tx_3100", 1)
+		`, "0xoperatorOAS6", "0xavsOAS6", "0xstrategyOAS6", 1, "1000000000000000000000", effectiveBlock6_1, block4, "tx_3100", 1)
 		assert.Nil(t, res.Error)
 
 		block6 := uint64(3103)
@@ -862,18 +861,18 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		`, block6, fmt.Sprintf("hash_%d", block6), day6_5pm)
 		assert.Nil(t, res.Error)
 
-		effectiveBlock20 := uint64(3117)
+		effectiveBlock6_2 := uint64(3104)
 		res = grm.Exec(`
 			INSERT INTO blocks (number, hash, block_time)
 			VALUES (?, ?, ?)
-		`, effectiveBlock20, fmt.Sprintf("hash_%d", effectiveBlock20), day20)
+		`, effectiveBlock6_2, fmt.Sprintf("hash_%d", effectiveBlock6_2), day6_5pm)
 		assert.Nil(t, res.Error)
 
-		// Deallocate 50% on 3/6 @ 5pm, effect on 3/20
+		// Deallocate 50% on 3/6 @ 5pm, effective block also on 3/6 @ 5pm
 		res = grm.Exec(`
 			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xoperatorOAS6", "0xavsOAS6", "0xstrategyOAS6", 1, "500000000000000000000", effectiveBlock20, block6, "tx_3103", 1)
+		`, "0xoperatorOAS6", "0xavsOAS6", "0xstrategyOAS6", 1, "500000000000000000000", effectiveBlock6_2, block6, "tx_3103", 2)
 		assert.Nil(t, res.Error)
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
@@ -883,7 +882,7 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		err = calculator.GenerateAndInsertOperatorAllocationSnapshots("2025-03-25")
 		assert.Nil(t, err)
 
-		// Check for 50% allocation on 3/7 (allocation and deallocation on same day)
+		// Check for 50% allocation on 3/7 (both effective blocks on 3/6, uses latest value)
 		var snapshots []OperatorAllocationSnapshot
 		res = grm.Raw(`
 			SELECT * FROM operator_allocation_snapshots
@@ -891,7 +890,8 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 			AND snapshot = '2025-03-07'
 		`, "0xoperatorOAS6", "0xavsOAS6", "0xstrategyOAS6").Scan(&snapshots)
 		assert.Nil(t, res.Error)
-		assert.True(t, len(snapshots) > 0, "Should have allocation on 3/7")
+		assert.Equal(t, 1, len(snapshots), "Should have exactly one allocation on 3/7")
+		assert.Equal(t, "500000000000000000000", snapshots[0].Magnitude, "Should have 50% allocation on 3/7 (latest value on 3/6 used)")
 	})
 
 	// OAS-7: Same day full deallocation (testnet scenario)
@@ -913,18 +913,18 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		`, block2, fmt.Sprintf("hash_%d", block2), day4_530pm)
 		assert.Nil(t, res.Error)
 
-		// Full allocation on 4/4 @ 5pm
+		// Full allocation on 4/4 @ 5pm (effective block on 4/4 @ 5pm)
 		res = grm.Exec(`
 			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, "0xoperatorOAS7", "0xavsOAS7", "0xstrategyOAS7", 1, "1000000000000000000000", block1, block1, "tx_4100", 1)
 		assert.Nil(t, res.Error)
 
-		// Deallocate fully on 4/4 @ 5:30pm (same day effect - testnet)
+		// Deallocate fully on 4/4 @ 5:30pm (effective block on 4/4 @ 5:30pm - testnet only)
 		res = grm.Exec(`
 			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xoperatorOAS7", "0xavsOAS7", "0xstrategyOAS7", 1, "0", block2, block2, "tx_4101", 1)
+		`, "0xoperatorOAS7", "0xavsOAS7", "0xstrategyOAS7", 1, "0", block2, block2, "tx_4101", 2)
 		assert.Nil(t, res.Error)
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
@@ -934,15 +934,20 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		err = calculator.GenerateAndInsertOperatorAllocationSnapshots("2025-04-10")
 		assert.Nil(t, err)
 
-		// System generates snapshots for the range, but final magnitude should be 0
-		var count int64
+		// Snapshots exist with magnitude 0 - system tracks 0 allocations
+		var snapshots []OperatorAllocationSnapshot
 		res = grm.Raw(`
-			SELECT COUNT(*) FROM operator_allocation_snapshots
+			SELECT * FROM operator_allocation_snapshots
 			WHERE operator = ? AND avs = ? AND strategy = ?
-		`, "0xoperatorOAS7", "0xavsOAS7", "0xstrategyOAS7").Scan(&count)
+			ORDER BY snapshot
+		`, "0xoperatorOAS7", "0xavsOAS7", "0xstrategyOAS7").Scan(&snapshots)
 		assert.Nil(t, res.Error)
-		// System behavior: generates snapshots from 4/5 to snapshot date
-		assert.True(t, count >= 0, "Snapshots may exist even for same-day deallocation")
+		assert.True(t, len(snapshots) > 0, "Snapshots should exist even with magnitude 0 (system tracks 0 allocations)")
+
+		// All snapshots should have magnitude 0 (latest value on 4/4 used)
+		for _, snapshot := range snapshots {
+			assert.Equal(t, "0", snapshot.Magnitude, "All snapshots should have magnitude 0")
+		}
 	})
 
 	// OAS-8: Future allocation + same day deallocation (testnet)
@@ -982,7 +987,7 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		res = grm.Exec(`
 			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xoperatorOAS8", "0xavsOAS8", "0xstrategyOAS8", 1, "0", block6, block6, "tx_5103", 1)
+		`, "0xoperatorOAS8", "0xavsOAS8", "0xstrategyOAS8", 1, "0", block6, block6, "tx_5103", 2)
 		assert.Nil(t, res.Error)
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
@@ -993,14 +998,20 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		assert.Nil(t, err)
 
 		// System generates snapshots for the range, even with same-day effect deallocation
-		var count int64
+		var snapshots []OperatorAllocationSnapshot
 		res = grm.Raw(`
-			SELECT COUNT(*) FROM operator_allocation_snapshots
+			SELECT * FROM operator_allocation_snapshots
 			WHERE operator = ? AND avs = ? AND strategy = ?
-		`, "0xoperatorOAS8", "0xavsOAS8", "0xstrategyOAS8").Scan(&count)
+			ORDER BY snapshot
+		`, "0xoperatorOAS8", "0xavsOAS8", "0xstrategyOAS8").Scan(&snapshots)
 		assert.Nil(t, res.Error)
-		// System behavior: generates snapshots from 5/7 to snapshot date
-		assert.True(t, count >= 0, "Snapshots may exist even for same-day effect deallocation")
+		// System behavior: generates snapshots from 5/7 to snapshot date with magnitude 0
+		assert.True(t, len(snapshots) > 0, "Snapshots should exist even with magnitude 0 (system tracks 0 allocations)")
+
+		// All snapshots should have magnitude 0 (latest value on 5/6 used)
+		for _, snapshot := range snapshots {
+			assert.Equal(t, "0", snapshot.Magnitude, "All snapshots should have magnitude 0")
+		}
 	})
 
 	// OAS-9: Partial deallocation same day (testnet scenario)
@@ -1479,7 +1490,26 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		assert.Nil(t, res.Error)
 		assert.True(t, count > 0, "Should have 75% allocation from 1/8-1/19")
 
+		// 1/20: 62.5%
+		res = grm.Raw(`
+			SELECT COUNT(*) FROM operator_allocation_snapshots
+			WHERE operator = ? AND avs = ? AND strategy = ?
+			AND magnitude = '625000000000000000000'
+			AND snapshot >= '2026-01-20'
+		`, "0xoperatorOAS16", "0xavsOAS16", "0xstrategyOAS16").Scan(&count)
+		assert.Nil(t, res.Error)
+		assert.True(t, count > 0, "Should have 62.5% allocation from 1/20 onwards")
+
 		// Verify max_magnitude: 1/5-1/7: 1e18, 1/8+: 75e17
+		res = grm.Raw(`
+			SELECT COUNT(*) FROM operator_allocation_snapshots
+			WHERE operator = ? AND avs = ? AND strategy = ?
+			AND max_magnitude = '1000000000000000000'
+			AND snapshot >= '2026-01-05' AND snapshot <= '2026-01-07'
+		`, "0xoperatorOAS16", "0xavsOAS16", "0xstrategyOAS16").Scan(&count)
+		assert.Nil(t, res.Error)
+		assert.True(t, count > 0, "Max magnitude should be 1e18 from 1/5-1/7")
+
 		res = grm.Raw(`
 			SELECT COUNT(*) FROM operator_allocation_snapshots
 			WHERE operator = ? AND avs = ? AND strategy = ?
@@ -1573,6 +1603,91 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		`, "0xoperatorOAS17", "0xavsOAS17", "0xstrategyB").Scan(&countB)
 		assert.Nil(t, res.Error)
 		assert.True(t, countB > 0, "Strategy B should have 50% allocation after slash")
+	})
+
+	// OAS-18: Slash during deallocation queue
+	t.Run("OAS-18: Slash during deallocation queue", func(t *testing.T) {
+		day4 := time.Date(2026, 3, 4, 17, 0, 0, 0, time.UTC)
+		day6 := time.Date(2026, 3, 6, 17, 0, 0, 0, time.UTC)
+		day15 := time.Date(2026, 3, 15, 17, 0, 0, 0, time.UTC)
+		day20 := time.Date(2026, 3, 20, 17, 0, 0, 0, time.UTC)
+
+		block4 := uint64(18100)
+		res := grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time)
+			VALUES (?, ?, ?)
+		`, block4, fmt.Sprintf("hash_%d", block4), day4)
+		assert.Nil(t, res.Error)
+
+		block6 := uint64(18102)
+		res = grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time)
+			VALUES (?, ?, ?)
+		`, block6, fmt.Sprintf("hash_%d", block6), day6)
+		assert.Nil(t, res.Error)
+
+		block15 := uint64(18110)
+		res = grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time)
+			VALUES (?, ?, ?)
+		`, block15, fmt.Sprintf("hash_%d", block15), day15)
+		assert.Nil(t, res.Error)
+
+		effectiveBlock20 := uint64(18120)
+		res = grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time)
+			VALUES (?, ?, ?)
+		`, effectiveBlock20, fmt.Sprintf("hash_%d", effectiveBlock20), day20)
+		assert.Nil(t, res.Error)
+
+		// Allocate fully on 3/4 @ 5pm
+		res = grm.Exec(`
+			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, "0xoperatorOAS18", "0xavsOAS18", "0xstrategyOAS18", 1, "1000000000000000000000", block4, block4, "tx_18100", 1)
+		assert.Nil(t, res.Error)
+
+		// Deallocate to 50% on 3/6 @ 5pm, effective block on 3/20
+		res = grm.Exec(`
+			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, "0xoperatorOAS18", "0xavsOAS18", "0xstrategyOAS18", 1, "500000000000000000000", effectiveBlock20, block6, "tx_18102", 1)
+		assert.Nil(t, res.Error)
+
+		// Another deallocation to 25% on 3/15, same effective block (slash during queue)
+		res = grm.Exec(`
+			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, "0xoperatorOAS18", "0xavsOAS18", "0xstrategyOAS18", 1, "250000000000000000000", effectiveBlock20, block15, "tx_18110", 1)
+		assert.Nil(t, res.Error)
+
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		calculator, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		err = calculator.GenerateAndInsertOperatorAllocationSnapshots("2026-03-25")
+		assert.Nil(t, err)
+
+		// Verify 100% allocation before 3/20
+		var count int64
+		res = grm.Raw(`
+			SELECT COUNT(*) FROM operator_allocation_snapshots
+			WHERE operator = ? AND avs = ? AND strategy = ?
+			AND magnitude = '1000000000000000000000'
+			AND snapshot >= '2026-03-05' AND snapshot <= '2026-03-19'
+		`, "0xoperatorOAS18", "0xavsOAS18", "0xstrategyOAS18").Scan(&count)
+		assert.Nil(t, res.Error)
+		assert.True(t, count > 0, "Should have 100% allocation before effective date (3/20)")
+
+		// Verify 25% allocation from 3/21 onwards (slash during queue took effect)
+		res = grm.Raw(`
+			SELECT COUNT(*) FROM operator_allocation_snapshots
+			WHERE operator = ? AND avs = ? AND strategy = ?
+			AND magnitude = '250000000000000000000'
+			AND snapshot >= '2026-03-21'
+		`, "0xoperatorOAS18", "0xavsOAS18", "0xstrategyOAS18").Scan(&count)
+		assert.Nil(t, res.Error)
+		assert.True(t, count > 0, "Should have 25% allocation from 3/21 onwards (slash during deallocation queue)")
 	})
 
 	t.Cleanup(func() {
