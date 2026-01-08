@@ -1,13 +1,12 @@
 package rewards
 
 import (
-	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
 
 const operatorAllocationSnapshotsQuery = `
-	insert into operator_allocation_snapshots(operator, avs, strategy, operator_set_id, magnitude, snapshot)
+	insert into operator_allocation_snapshots(operator, avs, strategy, operator_set_id, magnitude, max_magnitude, snapshot)
 	WITH ranked_allocation_records as (
 		SELECT *,
 			   ROW_NUMBER() OVER (PARTITION BY operator, avs, strategy, operator_set_id, cast(block_time AS DATE) ORDER BY block_time DESC, log_index DESC) AS rn
@@ -30,7 +29,31 @@ const operatorAllocationSnapshotsQuery = `
 		FROM ranked_allocation_records
 		WHERE rn = 1
 	),
-	-- Compare each record with the previous record to determine if it's an increase or decrease
+	ranked_max_magnitude_records as (
+		SELECT
+			omm.operator,
+			omm.strategy,
+			omm.max_magnitude,
+			b.block_time,
+			omm.block_number,
+			omm.log_index,
+			ROW_NUMBER() OVER (PARTITION BY omm.operator, omm.strategy, cast(b.block_time AS DATE) ORDER BY b.block_time DESC, omm.log_index DESC) AS rn
+		FROM operator_max_magnitudes omm
+		INNER JOIN blocks b ON omm.block_number = b.number
+		WHERE b.block_time < TIMESTAMP '{{.cutoffDate}}'
+	),
+	-- Get the latest max_magnitude record for each day
+	daily_max_magnitude_records as (
+		SELECT
+			operator,
+			strategy,
+			max_magnitude,
+			block_time,
+			block_number,
+			log_index
+		FROM ranked_max_magnitude_records
+		WHERE rn = 1
+	),
 	records_with_comparison as (
 		SELECT
 			operator,
@@ -40,12 +63,8 @@ const operatorAllocationSnapshotsQuery = `
 			magnitude,
 			block_time,
 			LAG(magnitude) OVER (PARTITION BY operator, avs, strategy, operator_set_id ORDER BY block_time, block_number, log_index) as previous_magnitude,
-			-- Backward compatibility: Apply new rounding logic only after Sabine fork
-			-- Pre-Sabine: Always round down to current day (old behavior)
-			-- Post-Sabine: Allocation (increase) rounds UP, deallocation rounds DOWN
+			-- Allocation (increase) rounds UP, deallocation (decrease) rounds DOWN
 			CASE
-				{{ if .useSabineRounding }}
-				-- Post-Sabine fork rounding logic
 				WHEN LAG(magnitude) OVER (PARTITION BY operator, avs, strategy, operator_set_id ORDER BY block_time, block_number, log_index) IS NULL THEN
 					-- First allocation: round up to next day
 					date_trunc('day', block_time) + INTERVAL '1' day
@@ -55,19 +74,9 @@ const operatorAllocationSnapshotsQuery = `
 				ELSE
 					-- Decrease or no change: round down to current day
 					date_trunc('day', block_time)
-				{{ else }}
-				-- Pre-Sabine fork rounding logic (backward compatibility)
-				WHEN LAG(magnitude) OVER (PARTITION BY operator, avs, strategy, operator_set_id ORDER BY block_time, block_number, log_index) IS NULL THEN
-					-- First allocation: round down to current day (old behavior)
-					date_trunc('day', block_time)
-				ELSE
-					-- All other cases: round down to current day
-					date_trunc('day', block_time)
-				{{ end }}
 			END AS snapshot_time
 		FROM daily_records
 	),
-	-- Get the range for each operator, avs, strategy, operator_set_id combination
 	allocation_windows as (
 		SELECT
 			operator,
@@ -86,52 +95,65 @@ const operatorAllocationSnapshotsQuery = `
 	cleaned_records as (
 		SELECT * FROM allocation_windows
 		WHERE start_time < end_time
+	),
+	daily_allocation_snapshots as (
+		SELECT
+			operator,
+			avs,
+			strategy,
+			operator_set_id,
+			magnitude,
+			cast(day AS DATE) AS snapshot
+		FROM
+			cleaned_records
+		CROSS JOIN
+			generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+	),
+	max_magnitude_windows as (
+		SELECT
+			operator,
+			strategy,
+			max_magnitude,
+			block_time as start_time,
+			CASE
+				WHEN LEAD(block_time) OVER (PARTITION BY operator, strategy ORDER BY block_time) is null THEN TIMESTAMP '{{.cutoffDate}}'
+				ELSE LEAD(block_time) OVER (PARTITION BY operator, strategy ORDER BY block_time)
+			END AS end_time
+		FROM daily_max_magnitude_records
+	),
+	daily_max_magnitude_snapshots as (
+		SELECT
+			operator,
+			strategy,
+			max_magnitude,
+			cast(day AS DATE) AS snapshot
+		FROM
+			max_magnitude_windows
+		WHERE start_time < end_time
+		CROSS JOIN
+			generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 	)
 	SELECT
-		operator,
-		avs,
-		strategy,
-		operator_set_id,
-		magnitude,
-		cast(day AS DATE) AS snapshot
+		das.operator,
+		das.avs,
+		das.strategy,
+		das.operator_set_id,
+		das.magnitude,
+		-- Default to 1e18 (contract initialization value) when no MagnitudeUpdated event exists
+		COALESCE(dmms.max_magnitude, '1000000000000000000') as max_magnitude,
+		das.snapshot
 	FROM
-		cleaned_records
-	CROSS JOIN
-		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+		daily_allocation_snapshots das
+	LEFT JOIN daily_max_magnitude_snapshots dmms
+		ON das.operator = dmms.operator
+		AND das.strategy = dmms.strategy
+		AND das.snapshot = dmms.snapshot
 	on conflict do nothing;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorAllocationSnapshots(snapshotDate string) error {
-	// Determine if we should use Sabine fork rounding logic based on snapshot date
-	forks, err := r.globalConfig.GetRewardsSqlForkDates()
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to get rewards fork dates", "error", err)
-		return err
-	}
-
-	// Get the block number for the cutoff date to make block-based fork decision
-	var cutoffBlockNumber uint64
-	err = r.grm.Raw(`
-		SELECT number
-		FROM blocks
-		WHERE block_time <= ?
-		ORDER BY number DESC
-		LIMIT 1
-	`, snapshotDate).Scan(&cutoffBlockNumber).Error
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to get cutoff block number", "error", err, "snapshotDate", snapshotDate)
-		return err
-	}
-
-	// Use block-based fork check for backwards compatibility
-	useSabineRounding := false
-	if sabineFork, exists := forks[config.RewardsFork_Sabine]; exists {
-		useSabineRounding = cutoffBlockNumber >= sabineFork.BlockNumber
-	}
-
 	query, err := rewardsUtils.RenderQueryTemplate(operatorAllocationSnapshotsQuery, map[string]interface{}{
-		"cutoffDate":        snapshotDate,
-		"useSabineRounding": useSabineRounding,
+		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -140,7 +162,6 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorAllocationSnapshots(snapsho
 
 	r.logger.Sugar().Debugw("Generating operator allocation snapshots",
 		zap.String("snapshotDate", snapshotDate),
-		zap.Bool("useSabineRounding", useSabineRounding),
 	)
 
 	res := r.grm.Exec(query)

@@ -118,6 +118,7 @@ type RewardsConfig struct {
 	GenerateStakerOperatorsTable bool
 	CalculateRewardsDaily        bool
 	WithdrawalQueueWindow        float64 // Duration in days for withdrawal queue period (14.0 for mainnet, 0.0069 for testnet/preprod ~10 min)
+	RewardsV2_2Enabled           bool
 }
 
 type StatsdConfig struct {
@@ -241,6 +242,7 @@ var (
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
 	RewardsCalculateRewardsDaily        = "rewards.calculate_rewards_daily"
 	RewardsWithdrawalQueueWindow        = "rewards.withdrawal_queue_window"
+	RewardsV2_2Enabled                  = "rewards.v2_2_enabled"
 
 	EthereumRpcBaseUrl               = "ethereum.rpc_url"
 	EthereumRpcContractCallBatchSize = "ethereum.contract_call_batch_size"
@@ -329,6 +331,7 @@ func NewConfig() *Config {
 			GenerateStakerOperatorsTable: viper.GetBool(normalizeFlagName(RewardsGenerateStakerOperatorsTable)),
 			CalculateRewardsDaily:        viper.GetBool(normalizeFlagName(RewardsCalculateRewardsDaily)),
 			WithdrawalQueueWindow:        FloatWithDefault(viper.GetFloat64(normalizeFlagName(RewardsWithdrawalQueueWindow)), getDefaultWithdrawalQueueDuration(chain)),
+			RewardsV2_2Enabled:           viper.GetBool(normalizeFlagName(RewardsV2_2Enabled)),
 		},
 
 		DataDogConfig: DataDogConfig{
@@ -893,6 +896,23 @@ func (c *Config) IsRewardsV2_1EnabledForCutoffDate(cutoffDate string) (bool, err
 	}
 
 	return cutoffDateTime.Compare(mississippiForkDateTime) >= 0, nil
+}
+
+func (c *Config) IsRewardsV2_2EnabledForCutoffDate(cutoffDate string) (bool, error) {
+	forks, err := c.GetRewardsSqlForkDates()
+	if err != nil {
+		return false, err
+	}
+	cutoffDateTime, err := time.Parse(time.DateOnly, cutoffDate)
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("failed to parse cutoff date %s", cutoffDate), err)
+	}
+	sabineForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Sabine].Date)
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("failed to parse Sabine fork date %s", forks[RewardsFork_Sabine].Date), err)
+	}
+
+	return cutoffDateTime.Compare(sabineForkDateTime) >= 0, nil
 }
 
 // CanIgnoreIncorrectRewardsRoot returns true if the rewards root can be ignored for the given block number

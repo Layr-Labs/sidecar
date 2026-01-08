@@ -26,7 +26,7 @@ type GoldRow struct {
 	Amount     string
 }
 
-func (rc *RewardsCalculator) GenerateGold16FinalTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold22FinalTable(snapshotDate string) error {
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 
 	rc.logger.Sugar().Infow("Generating gold final table",
@@ -34,7 +34,7 @@ func (rc *RewardsCalculator) GenerateGold16FinalTable(snapshotDate string) error
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_16_goldFinalQuery, map[string]interface{}{
-		"goldStagingTable": allTableNames[rewardsUtils.Table_15_GoldStaging],
+		"goldStagingTable": allTableNames[rewardsUtils.Table_21_GoldStaging],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

@@ -449,6 +449,111 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		assert.True(t, count > 0, "Expected allocation to round up based on effective block (2025-02-05) to 2025-02-06, not emission block")
 	})
 
+	t.Run("Allocations change multiple times while max_magnitude stays constant", func(t *testing.T) {
+		// This test verifies that allocations can change independently of max_magnitude
+
+		// Day 1 (2025-03-01): Set max_magnitude = 800 for strategy
+		day1 := time.Date(2025, 3, 1, 10, 0, 0, 0, time.UTC)
+		block1Num := uint64(800)
+		res := grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time, block_date, state_root, created_at, updated_at)
+			VALUES (?, ?, ?, ?, '', NOW(), NOW())
+		`, block1Num, fmt.Sprintf("hash_%d", block1Num), day1, day1.Format("2006-01-02"))
+		assert.Nil(t, res.Error)
+
+		// Insert max_magnitude event on day 1
+		res = grm.Exec(`
+			INSERT INTO operator_max_magnitudes (operator, strategy, max_magnitude, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`, "0xoperator8", "0xstrategy8", "800", block1Num, "tx_800", 1)
+		assert.Nil(t, res.Error)
+
+		// Day 2 (2025-03-02): Allocate 100 (first allocation)
+		day2 := time.Date(2025, 3, 2, 14, 0, 0, 0, time.UTC)
+		block2Num := uint64(801)
+		res = grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time, block_date, state_root, created_at, updated_at)
+			VALUES (?, ?, ?, ?, '', NOW(), NOW())
+		`, block2Num, fmt.Sprintf("hash_%d", block2Num), day2, day2.Format("2006-01-02"))
+		assert.Nil(t, res.Error)
+
+		res = grm.Exec(`
+			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+		`, "0xoperator8", "0xavs8", "0xstrategy8", 8, "100", block2Num, block2Num, "tx_801", 1)
+		assert.Nil(t, res.Error)
+
+		// Day 4 (2025-03-04): Allocate 200 (allocation increases)
+		day4 := time.Date(2025, 3, 4, 14, 0, 0, 0, time.UTC)
+		block4Num := uint64(803)
+		res = grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time, block_date, state_root, created_at, updated_at)
+			VALUES (?, ?, ?, ?, '', NOW(), NOW())
+		`, block4Num, fmt.Sprintf("hash_%d", block4Num), day4, day4.Format("2006-01-02"))
+		assert.Nil(t, res.Error)
+
+		res = grm.Exec(`
+			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+		`, "0xoperator8", "0xavs8", "0xstrategy8", 8, "200", block4Num, block4Num, "tx_803", 1)
+		assert.Nil(t, res.Error)
+
+		// Day 6 (2025-03-06): Allocate 150 (allocation decreases)
+		day6 := time.Date(2025, 3, 6, 14, 0, 0, 0, time.UTC)
+		block6Num := uint64(805)
+		res = grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time, block_date, state_root, created_at, updated_at)
+			VALUES (?, ?, ?, ?, '', NOW(), NOW())
+		`, block6Num, fmt.Sprintf("hash_%d", block6Num), day6, day6.Format("2006-01-02"))
+		assert.Nil(t, res.Error)
+
+		res = grm.Exec(`
+			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+		`, "0xoperator8", "0xavs8", "0xstrategy8", 8, "150", block6Num, block6Num, "tx_805", 1)
+		assert.Nil(t, res.Error)
+
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		calculator, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		err = calculator.GenerateAndInsertOperatorAllocationSnapshots("2025-03-07")
+		assert.Nil(t, err)
+
+		// Query all snapshots for this operator
+		var snapshots []struct {
+			Snapshot     string
+			Magnitude    string
+			MaxMagnitude string
+		}
+		res = grm.Raw(`
+			SELECT snapshot, magnitude, max_magnitude
+			FROM operator_allocation_snapshots
+			WHERE operator = ? AND avs = ? AND strategy = ? AND operator_set_id = ?
+			ORDER BY snapshot ASC
+		`, "0xoperator8", "0xavs8", "0xstrategy8", 8).Scan(&snapshots)
+		assert.Nil(t, res.Error)
+
+		// Verify exactly 3 snapshots
+		assert.Equal(t, 3, len(snapshots), "Expected 3 snapshots")
+
+		// Verify each snapshot has correct magnitude and max_magnitude=800
+		// Day 3: allocation 100, max_magnitude 800
+		assert.Equal(t, "2025-03-03", snapshots[0].Snapshot, "First snapshot should be 2025-03-03 (day 2 allocation rounded up)")
+		assert.Equal(t, "100", snapshots[0].Magnitude, "First snapshot should have magnitude 100")
+		assert.Equal(t, "800", snapshots[0].MaxMagnitude, "First snapshot should have max_magnitude 800")
+
+		// Day 5: allocation 200, max_magnitude 800
+		assert.Equal(t, "2025-03-05", snapshots[1].Snapshot, "Second snapshot should be 2025-03-05 (day 4 allocation rounded up)")
+		assert.Equal(t, "200", snapshots[1].Magnitude, "Second snapshot should have magnitude 200")
+		assert.Equal(t, "800", snapshots[1].MaxMagnitude, "Second snapshot should have max_magnitude 800")
+
+		// Day 6: allocation 150, max_magnitude 800 (decrease rounds down)
+		assert.Equal(t, "2025-03-06", snapshots[2].Snapshot, "Third snapshot should be 2025-03-06 (day 6 allocation rounded down)")
+		assert.Equal(t, "150", snapshots[2].Magnitude, "Third snapshot should have magnitude 150")
+		assert.Equal(t, "800", snapshots[2].MaxMagnitude, "Third snapshot should have max_magnitude 800")
+	})
+
 	t.Cleanup(func() {
 		teardownOperatorAllocationSnapshot(dbFileName, cfg, grm, l)
 	})
