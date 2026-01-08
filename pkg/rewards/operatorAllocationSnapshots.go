@@ -104,10 +104,8 @@ const operatorAllocationSnapshotsQuery = `
 			operator_set_id,
 			magnitude,
 			cast(day AS DATE) AS snapshot
-		FROM
-			cleaned_records
-		CROSS JOIN
-			generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+		FROM cleaned_records
+		CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 	),
 	max_magnitude_windows as (
 		SELECT
@@ -127,11 +125,9 @@ const operatorAllocationSnapshotsQuery = `
 			strategy,
 			max_magnitude,
 			cast(day AS DATE) AS snapshot
-		FROM
-			max_magnitude_windows
+		FROM max_magnitude_windows
+		CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 		WHERE start_time < end_time
-		CROSS JOIN
-			generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 	)
 	SELECT
 		das.operator,
