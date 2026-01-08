@@ -76,19 +76,19 @@ marked_statuses AS (
 		-- Use coalesce because if the next_block_time for a registration is not closed, then we use cutoff_date
 		COALESCE(next_block_time, '{{.cutoffDate}}')::timestamp AS end_time,
 		-- Calculate slashable_until based on deregistration
-		-- Deregistrations: 14-day slashability queue for unique stake rewards
+		-- Deregistrations: slashability queue for unique stake rewards
 		-- NULL = still active (no deregistration)
 		--
 		-- NOTE: Design Decision - Time vs Blocks
-		-- - Sidecar uses TIME: adds 14 days as INTERVAL '14 days'
+		-- - Sidecar uses TIME: adds configurable days (14 days on mainnet, ~10 minutes on testnets)
 		-- - Contracts use BLOCKS: adds ~100,800 blocks (14 days * 24 * 60 * 60 / 12 sec/block)
 		-- - This matches withdrawal queue behavior (stakerShareSnapshots.go:63)
 		-- - Time is continuous; blocks can be missed on-chain (acceptable edge case)
 		-- - Daily snapshot granularity makes minute-level precision differences insignificant
 		CASE
 			WHEN next_is_active = FALSE THEN
-				-- Deregistration with 14-day slashability period
-				DATE(COALESCE(next_block_time, '{{.cutoffDate}}')::timestamp) + INTERVAL '14 days'
+				-- Deregistration with slashability period (environment-specific)
+				DATE(COALESCE(next_block_time, '{{.cutoffDate}}')::timestamp) + ({{.withdrawalQueueWindow}} * INTERVAL '1 day')
 			WHEN next_is_active IS NULL THEN
 				-- Still active (no deregistration event): NULL
 				NULL
@@ -132,7 +132,8 @@ DO UPDATE SET slashable_until = EXCLUDED.slashable_until;
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorSetOperatorRegistrationSnapshots(snapshotDate string) error {
 	query, err := rewardsUtils.RenderQueryTemplate(operatorSetOperatorRegistrationSnapshotsQuery, map[string]interface{}{
-		"cutoffDate": snapshotDate,
+		"cutoffDate":            snapshotDate,
+		"withdrawalQueueWindow": r.globalConfig.Rewards.WithdrawalQueueWindow,
 	})
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to render operator set operator registration snapshots query", "error", err)
