@@ -101,7 +101,7 @@ func (sp *SlashingProcessor) Process(blockNumber uint64, models map[string]types
 type SlashingEvent struct {
 	Operator        string
 	Strategy        string
-	WadSlashed      string
+	WadSlashed      string `gorm:"column:total_slashed_shares"`
 	TransactionHash string
 	LogIndex        uint64
 }
