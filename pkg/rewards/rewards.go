@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 
 	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
@@ -642,6 +643,8 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated staker shares")
+
+	// Withdrawal queue adjustments queried directly in staker_share_snapshots generation
 
 	if err = rc.GenerateAndInsertOperatorShares(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator shares", "error", err)

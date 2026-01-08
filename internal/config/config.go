@@ -54,6 +54,18 @@ func normalizeFlagName(name string) string {
 	return strings.ReplaceAll(name, "-", "_")
 }
 
+// getDefaultWithdrawalQueueDuration returns the default withdrawal queue duration in days based on chain
+func getDefaultWithdrawalQueueDuration(chain Chain) float64 {
+	switch chain {
+	case Chain_Mainnet:
+		return 14.0 // Mainnet uses 14-day withdrawal queue
+	case Chain_Preprod, Chain_Holesky, Chain_Sepolia, Chain_Hoodi, Chain_PreprodHoodi:
+		return 10.0 / (24.0 * 60.0) // Testnet/preprod uses 10 minutes = ~0.0069 days
+	default:
+		return 14.0 // Default to mainnet behavior
+	}
+}
+
 type EthereumRpcConfig struct {
 	BaseUrl               string
 	ContractCallBatchSize int  // Number of contract calls to make in parallel
@@ -105,6 +117,7 @@ type RewardsConfig struct {
 	ValidateRewardsRoot          bool
 	GenerateStakerOperatorsTable bool
 	CalculateRewardsDaily        bool
+	WithdrawalQueueWindow        float64 // Duration in days for withdrawal queue period (14.0 for mainnet, 0.0069 for testnet/preprod ~10 min)
 }
 
 type StatsdConfig struct {
@@ -185,6 +198,20 @@ func StringWithDefaults(values ...string) string {
 	return ""
 }
 
+func IntWithDefault(value, defaultValue int) int {
+	if value == 0 {
+		return defaultValue
+	}
+	return value
+}
+
+func FloatWithDefault(value, defaultValue float64) float64 {
+	if value == 0.0 {
+		return defaultValue
+	}
+	return value
+}
+
 var (
 	Debug               = "debug"
 	DatabaseHost        = "database.host"
@@ -213,6 +240,7 @@ var (
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
 	RewardsCalculateRewardsDaily        = "rewards.calculate_rewards_daily"
+	RewardsWithdrawalQueueWindow        = "rewards.withdrawal_queue_window"
 
 	EthereumRpcBaseUrl               = "ethereum.rpc_url"
 	EthereumRpcContractCallBatchSize = "ethereum.contract_call_batch_size"
@@ -248,9 +276,11 @@ var (
 )
 
 func NewConfig() *Config {
+	chain := Chain(StringWithDefault(viper.GetString(normalizeFlagName("chain")), "holesky"))
+
 	return &Config{
 		Debug: viper.GetBool(normalizeFlagName("debug")),
-		Chain: Chain(StringWithDefault(viper.GetString(normalizeFlagName("chain")), "holesky")),
+		Chain: chain,
 
 		EthereumRpcConfig: EthereumRpcConfig{
 			BaseUrl:               viper.GetString(normalizeFlagName(EthereumRpcBaseUrl)),
@@ -298,6 +328,7 @@ func NewConfig() *Config {
 			ValidateRewardsRoot:          viper.GetBool(normalizeFlagName(RewardsValidateRewardsRoot)),
 			GenerateStakerOperatorsTable: viper.GetBool(normalizeFlagName(RewardsGenerateStakerOperatorsTable)),
 			CalculateRewardsDaily:        viper.GetBool(normalizeFlagName(RewardsCalculateRewardsDaily)),
+			WithdrawalQueueWindow:        FloatWithDefault(viper.GetFloat64(normalizeFlagName(RewardsWithdrawalQueueWindow)), getDefaultWithdrawalQueueDuration(chain)),
 		},
 
 		DataDogConfig: DataDogConfig{

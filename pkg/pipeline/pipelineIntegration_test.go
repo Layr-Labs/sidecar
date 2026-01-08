@@ -113,7 +113,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 		l.Sugar().Fatalw("Failed to load meta state models", zap.Error(err))
 	}
 
-	precommitProcessors.LoadPrecommitProcessors(sm, grm, l)
+	precommitProcessors.LoadPrecommitProcessors(sm, grm, l, cfg)
 
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 	rc, _ := rewards.NewRewardsCalculator(cfg, grm, mds, sog, sdc, l)
