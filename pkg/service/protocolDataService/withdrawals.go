@@ -48,7 +48,7 @@ func (pds *ProtocolDataService) ListQueuedWithdrawals(
 		{{ if .filterStrategies }}
 		 	and qsw.strategy in @strategies
 		{{ end }}
-		order by qsw.block_number desc
+		order by qsw.block_number desc, qsw.log_index desc, qsw.transaction_hash desc, qsw.staker desc, qsw.strategy desc
 	`
 
 	templateArgs := map[string]interface{}{
