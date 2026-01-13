@@ -2,6 +2,9 @@ package slashingProcessor
 
 import (
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/logger"
@@ -10,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"testing"
-	"time"
 )
 
 // Test_CreateSlashingAdjustments tests the createSlashingAdjustments function

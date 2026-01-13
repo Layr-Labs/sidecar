@@ -1106,3 +1106,114 @@ func validateRewardProgression(t *testing.T, rewards map[string]map[string]strin
 		}
 	}
 }
+
+// cleanupIntegrationTestData removes all test data from the database
+func cleanupIntegrationTestData(t *testing.T, grm *gorm.DB) {
+	t.Helper()
+	t.Log("Cleaning up test data...")
+
+	tables := []string{
+		"gold_table",
+		"generated_rewards_snapshots",
+		"staker_share_snapshots",
+		"operator_share_snapshots",
+		"withdrawal_queue_share_snapshots",
+		"operator_allocation_snapshots",
+		"staker_delegation_snapshots",
+		"operator_avs_registration_snapshots",
+		"operator_avs_strategy_snapshots",
+		"operator_set_operator_registration_snapshots",
+		"operator_set_strategy_registration_snapshots",
+		"operator_avs_split_snapshots",
+		"operator_pi_split_snapshots",
+		"operator_set_split_snapshots",
+		"default_operator_split_snapshots",
+		"queued_slashing_withdrawals",
+		"completed_slashing_withdrawals",
+		"staker_share_deltas",
+		"staker_shares",
+		"operator_share_deltas",
+		"staker_delegations",
+		"staker_delegation_changes",
+		"operator_avs_state_changes",
+		"operator_avs_restaked_strategies",
+		"operator_set_operator_registrations",
+		"operator_set_strategy_registrations",
+		"operator_avs_splits",
+		"operator_pi_splits",
+		"operator_set_splits",
+		"reward_submissions",
+		"operator_directed_reward_submissions",
+		"operator_directed_operator_set_reward_submissions",
+		"operator_allocations",
+		"blocks",
+	}
+
+	// Delete data from tables in reverse dependency order
+	for _, table := range tables {
+		// Check if table exists
+		var exists bool
+		err := grm.Raw("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = ?)", table).Scan(&exists).Error
+		if err != nil || !exists {
+			continue
+		}
+
+		result := grm.Exec(fmt.Sprintf("DELETE FROM %s", table))
+		if result.Error != nil {
+			t.Logf("Warning: Failed to clean table %s: %v", table, result.Error)
+		}
+	}
+
+	t.Log("✓ Test data cleanup complete")
+}
+
+// logIntegrationRewardsData logs detailed reward data for debugging
+func logIntegrationRewardsData(t *testing.T, grm *gorm.DB, snapshotDates []string) {
+	t.Helper()
+
+	for _, snapshotDate := range snapshotDates {
+		t.Logf("\n========== Snapshot: %s ==========", snapshotDate)
+
+		// Log staker shares
+		var stakerShares []struct {
+			Staker   string
+			Strategy string
+			Shares   string
+		}
+		grm.Raw(`
+			SELECT staker, strategy, shares::text
+			FROM staker_share_snapshots
+			WHERE snapshot = ?
+			ORDER BY staker, strategy
+		`, snapshotDate).Scan(&stakerShares)
+
+		if len(stakerShares) > 0 {
+			t.Logf("Staker Shares (%d rows):", len(stakerShares))
+			for _, s := range stakerShares {
+				t.Logf("  %s | %s | %s", s.Staker, s.Strategy, s.Shares)
+			}
+		}
+
+		// Log rewards
+		var rewards []struct {
+			Earner string
+			Token  string
+			Amount string
+		}
+		grm.Raw(`
+			SELECT earner, token, amount::text
+			FROM gold_table
+			WHERE snapshot = ?
+			ORDER BY earner, token
+		`, snapshotDate).Scan(&rewards)
+
+		if len(rewards) > 0 {
+			t.Logf("Rewards (%d rows):", len(rewards))
+			for _, r := range rewards {
+				t.Logf("  %s | %s | %s", r.Earner, r.Token, r.Amount)
+			}
+		}
+
+		t.Log("=====================================\n")
+	}
+}
