@@ -60,6 +60,9 @@ const stakerShareSnapshotsQuery = `
 		INNER JOIN blocks b_queued ON qsw.block_number = b_queued.number
 		WHERE
 			-- Still within withdrawal queue window (not yet completable)
+			-- withdrawalQueueWindow is sourced from the chain configuration (internal/config/config.go),
+			-- specifically from cfg.Rewards.WithdrawalQueueWindow. For mainnet, this is 14 days
+			-- (the withdrawal delay period). This is NOT sourced from event emission.
 			b_queued.block_time + INTERVAL '{{.withdrawalQueueWindow}} days' > TIMESTAMP '{{.snapshotDate}}'
 			-- Backwards compatibility: only process records with valid data
 			AND qsw.staker IS NOT NULL

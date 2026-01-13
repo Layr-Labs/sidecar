@@ -177,6 +177,9 @@ func Test_StakerShareSnapshots_V22Scenarios(t *testing.T) {
 
 	// SSS-1: Staker deposits on 1/4 @ 5pm, queues full withdrawal on 1/4 @ 6pm
 	// Expected: Staker should have shares until 1/19 (14-day withdrawal delay)
+	// Note: In the actual system with Sabine fork enabled, queued withdrawals are added back
+	// to snapshots during the queue window. For unit tests, we simulate the final staker_shares
+	// values directly.
 	t.Run("SSS-1: Deposit and queue full withdrawal same day", func(t *testing.T) {
 		day4 := time.Date(2025, 1, 4, 0, 0, 0, 0, time.UTC)
 		depositTime := day4.Add(17 * time.Hour)               // 5pm
@@ -304,10 +307,15 @@ func Test_StakerShareSnapshots_V22Scenarios(t *testing.T) {
 	})
 
 	// SSS-3: Staker deposits on 1/4 @ 5pm, queues partial withdrawal on 1/5 @ 6pm
-	// Expected: Staker should have full shares on 1/5. Starting on 1/20 staker has partial shares
+	// Expected: Staker should have full shares on 1/5 through 1/19. Starting on 1/20 staker has partial shares
+	// Flow:
+	// 1. Deposit: staker_shares = 1000
+	// 2. Queue partial withdrawal (500) on 1/5: staker_shares reduced to 500, queued_slashing_withdrawals created
+	// 3. During queue (14 days from 1/5), snapshots add back the queued 500 shares
+	// 4. After 14 days (1/20+), withdrawal completes, shares = 500
 	t.Run("SSS-3: Deposit and queue partial withdrawal", func(t *testing.T) {
 		day4 := time.Date(2025, 1, 4, 17, 0, 0, 0, time.UTC)
-		day19 := time.Date(2025, 1, 19, 0, 0, 0, 0, time.UTC) // Insert on 1/19 to affect 1/20 snapshot
+		day5 := time.Date(2025, 1, 5, 18, 0, 0, 0, time.UTC) // Queue withdrawal on 1/5
 
 		block1 := uint64(2020)
 		res := grm.Exec(`
@@ -316,25 +324,39 @@ func Test_StakerShareSnapshots_V22Scenarios(t *testing.T) {
 		`, block1, fmt.Sprintf("hash_%d", block1), day4)
 		assert.Nil(t, res.Error)
 
-		block19 := uint64(2021)
+		block5 := uint64(2021)
 		res = grm.Exec(`
 			INSERT INTO blocks (number, hash, block_time)
 			VALUES (?, ?, ?)
-		`, block19, fmt.Sprintf("hash_%d", block19), day19)
+		`, block5, fmt.Sprintf("hash_%d", block5), day5)
 		assert.Nil(t, res.Error)
 
-		// Deposit 1000 shares
+		// Deposit 1000 shares on 1/4
 		res = grm.Exec(`
 			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, "0xstaker03", "0xstrat03", "1000000000000000000", 0, block1, day4, day4.Format("2006-01-02"), "tx_2020", 1)
 		assert.Nil(t, res.Error)
 
-		// Partial withdrawal completes: insert 500 on 1/19 to show 500 starting 1/20
+		// Queue partial withdrawal (500) on 1/5: staker_shares reduced to 500 immediately
 		res = grm.Exec(`
 			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xstaker03", "0xstrat03", "500000000000000000", 0, block19, day19, day19.Format("2006-01-02"), "tx_2021", 1)
+		`, "0xstaker03", "0xstrat03", "500000000000000000", 0, block5, day5, day5.Format("2006-01-02"), "tx_2021_queue", 1)
+		assert.Nil(t, res.Error)
+
+		// Insert queued withdrawal record for partial withdrawal (500)
+		res = grm.Exec(`
+			INSERT INTO queued_slashing_withdrawals (staker, operator, withdrawer, nonce, start_block, strategy, scaled_shares, shares_to_withdraw, withdrawal_root, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, "0xstaker03", "0xoperator03", "0xstaker03", "1", block5, "0xstrat03", "500000000000000000", "500000000000000000", "root_0xstaker03_1", block5, "tx_2021_queue", 0)
+		assert.Nil(t, res.Error)
+
+		// Insert initial slashing adjustment (multiplier = 1.0, no slashing yet)
+		res = grm.Exec(`
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, "0xstaker03", "0xstrat03", "0xoperator03", block5, block5, 1.0, block5, "tx_2021_queue", 0)
 		assert.Nil(t, res.Error)
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
@@ -344,14 +366,14 @@ func Test_StakerShareSnapshots_V22Scenarios(t *testing.T) {
 		err = calculator.GenerateAndInsertStakerShareSnapshots("2025-01-25")
 		assert.Nil(t, err)
 
-		// Staker should have full shares on 1/5 through 1/19
+		// Staker should have full shares on 1/5 through 1/19 (queued withdrawal adds back shares)
 		var shares string
 		res = grm.Raw(`
 			SELECT shares FROM staker_share_snapshots
 			WHERE staker = ? AND strategy = ? AND snapshot = ?
 		`, "0xstaker03", "0xstrat03", "2025-01-05").Scan(&shares)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, "1000000000000000000", shares, "Expected full shares on 1/5")
+		assert.Equal(t, "1000000000000000000", shares, "Expected full shares on 1/5 (queued withdrawal adds back 500)")
 
 		// Verify full shares through 1/19
 		var count int64
@@ -374,11 +396,12 @@ func Test_StakerShareSnapshots_V22Scenarios(t *testing.T) {
 	})
 
 	// SSS-4: Partial withdrawal with full completion (no slashing)
-	// Deposit 1/4 @ 5pm, queue partial withdrawal 1/5 @ 6pm, completes 1/21
-	// Expected: Full shares till 1/20. Starting 1/21 staker has partial shares
+	// Deposit 1/4 @ 5pm, queue partial withdrawal (250) 1/5 @ 6pm, completes 1/20 (14 days from 1/5)
+	// Expected: Full shares till 1/19. Starting 1/20 staker has partial shares (750)
+	// Note: For unit tests, we simulate the final staker_shares values directly.
 	t.Run("SSS-4: Partial withdrawal with full completion", func(t *testing.T) {
 		day4 := time.Date(2025, 1, 4, 17, 0, 0, 0, time.UTC)
-		day20 := time.Date(2025, 1, 20, 17, 0, 0, 0, time.UTC) // Insert on 1/20 to affect 1/21 snapshot
+		day19 := time.Date(2025, 1, 19, 0, 0, 0, 0, time.UTC) // Insert on 1/19 to affect 1/20 snapshot
 
 		block1 := uint64(3000)
 		res := grm.Exec(`
@@ -387,26 +410,25 @@ func Test_StakerShareSnapshots_V22Scenarios(t *testing.T) {
 		`, block1, fmt.Sprintf("hash_%d", block1), day4)
 		assert.Nil(t, res.Error)
 
-		block20 := uint64(3015)
+		block19 := uint64(3001)
 		res = grm.Exec(`
 			INSERT INTO blocks (number, hash, block_time)
 			VALUES (?, ?, ?)
-		`, block20, fmt.Sprintf("hash_%d", block20), day20)
+		`, block19, fmt.Sprintf("hash_%d", block19), day19)
 		assert.Nil(t, res.Error)
 
-		// Deposit 1000 shares on 1/4 @ 5pm
+		// Deposit 1000 shares on 1/4 @ 5pm - these remain until withdrawal completes
 		res = grm.Exec(`
 			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, "0xstaker04", "0xstrat04", "1000000000000000000000", 0, block1, day4, day4.Format("2006-01-02"), "tx_3000", 1)
 		assert.Nil(t, res.Error)
 
-		// Queue partial withdrawal 1/5 @ 6pm (250 shares), completes 1/21
-		// Insert 750 on 1/20 to show 750 starting 1/21
+		// Withdrawal completes on 1/19: insert 750 on 1/19 to show 750 starting 1/20
 		res = grm.Exec(`
 			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xstaker04", "0xstrat04", "750000000000000000000", 0, block20, day20, day20.Format("2006-01-02"), "tx_3001", 1)
+		`, "0xstaker04", "0xstrat04", "750000000000000000000", 0, block19, day19, day19.Format("2006-01-02"), "tx_3001", 1)
 		assert.Nil(t, res.Error)
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
@@ -416,7 +438,7 @@ func Test_StakerShareSnapshots_V22Scenarios(t *testing.T) {
 		err = calculator.GenerateAndInsertStakerShareSnapshots("2025-01-25")
 		assert.Nil(t, err)
 
-		// Verify: Full shares (1000) till 1/20
+		// Verify: Full shares (1000) till 1/19
 		var shares string
 		res = grm.Raw(`
 			SELECT shares FROM staker_share_snapshots
@@ -425,20 +447,21 @@ func Test_StakerShareSnapshots_V22Scenarios(t *testing.T) {
 		assert.Nil(t, res.Error)
 		assert.Equal(t, "1000000000000000000000", shares, "Expected 1000 shares on 1/5")
 
+		// Check 1/19 - last day with full shares
+		res = grm.Raw(`
+			SELECT shares FROM staker_share_snapshots
+			WHERE staker = ? AND strategy = ? AND snapshot = ?
+		`, "0xstaker04", "0xstrat04", "2025-01-19").Scan(&shares)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, "1000000000000000000000", shares, "Expected 1000 shares on 1/19")
+
+		// 750 shares starting 1/20
 		res = grm.Raw(`
 			SELECT shares FROM staker_share_snapshots
 			WHERE staker = ? AND strategy = ? AND snapshot = ?
 		`, "0xstaker04", "0xstrat04", "2025-01-20").Scan(&shares)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, "1000000000000000000000", shares, "Expected 1000 shares till 1/20")
-
-		// 750 shares starting 1/21 (after withdrawal completes)
-		res = grm.Raw(`
-			SELECT shares FROM staker_share_snapshots
-			WHERE staker = ? AND strategy = ? AND snapshot = ?
-		`, "0xstaker04", "0xstrat04", "2025-01-21").Scan(&shares)
-		assert.Nil(t, res.Error)
-		assert.Equal(t, "750000000000000000000", shares, "Expected 750 shares starting 1/21 (250 withdrawn)")
+		assert.Equal(t, "750000000000000000000", shares, "Expected 750 shares starting 1/20")
 	})
 
 	// SSS-5: Simple deposit and slash
@@ -510,177 +533,149 @@ func Test_StakerShareSnapshots_V22Scenarios(t *testing.T) {
 		assert.Equal(t, "500000000000000000000", shares, "Expected 500 shares (half) starting 2/7")
 	})
 
-	// SSS-6: Partial withdrawal then deposit
-	// 1000 shares, queue 250 on day 2, deposit 500 on day 10
-	// Expected: Full shares till day 2. 750 shares on day 3-day 10. 1250 shares on day 11 till day 16. 750 shares on day 17
-	t.Run("SSS-6: Partial withdrawal then deposit", func(t *testing.T) {
-		day1 := time.Date(2025, 3, 1, 17, 0, 0, 0, time.UTC)
-		day2 := time.Date(2025, 3, 2, 17, 0, 0, 0, time.UTC)   // Insert on day 2 to affect day 3 snapshot
-		day10 := time.Date(2025, 3, 10, 17, 0, 0, 0, time.UTC) // Insert on day 10 to affect day 11 snapshot
-		day16 := time.Date(2025, 3, 16, 17, 0, 0, 0, time.UTC) // Insert on day 16 to affect day 17 snapshot
+	// SSS-6: Deposit, queue withdrawal, then slash 50%
+	// PDF spec:
+	// - Staker delegates to operator. Operator registers to set and allocates.
+	// - Staker deposits on 3/4 @ 5pm
+	// - Staker queues a withdrawal on 3/5 @ 6pm
+	// - Staker is slashed 50% on 3/6 @ 6pm
+	// Expected: Full shares till 3/6. Starting on 3/7 staker has half shares
+	// Note: For unit tests, we simulate the final staker_shares values directly.
+	t.Run("SSS-6: Queue withdrawal then single slash", func(t *testing.T) {
+		day4 := time.Date(2025, 3, 4, 17, 0, 0, 0, time.UTC)
+		day6 := time.Date(2025, 3, 6, 18, 0, 0, 0, time.UTC) // Slash takes effect next day
 
-		block1 := uint64(5000)
+		block4 := uint64(5000)
 		res := grm.Exec(`
 			INSERT INTO blocks (number, hash, block_time)
 			VALUES (?, ?, ?)
-		`, block1, fmt.Sprintf("hash_%d", block1), day1)
+		`, block4, fmt.Sprintf("hash_%d", block4), day4)
 		assert.Nil(t, res.Error)
 
-		block2 := uint64(5001)
+		block6 := uint64(5002)
 		res = grm.Exec(`
 			INSERT INTO blocks (number, hash, block_time)
 			VALUES (?, ?, ?)
-		`, block2, fmt.Sprintf("hash_%d", block2), day2)
+		`, block6, fmt.Sprintf("hash_%d", block6), day6)
 		assert.Nil(t, res.Error)
 
-		block10 := uint64(5009)
-		res = grm.Exec(`
-			INSERT INTO blocks (number, hash, block_time)
-			VALUES (?, ?, ?)
-		`, block10, fmt.Sprintf("hash_%d", block10), day10)
-		assert.Nil(t, res.Error)
-
-		block16 := uint64(5015)
-		res = grm.Exec(`
-			INSERT INTO blocks (number, hash, block_time)
-			VALUES (?, ?, ?)
-		`, block16, fmt.Sprintf("hash_%d", block16), day16)
-		assert.Nil(t, res.Error)
-
-		// Initial 1000 shares on day 1 (shows on day 2: 1000)
+		// Deposit 1000 shares on 3/4 @ 5pm
 		res = grm.Exec(`
 			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xstaker06", "0xstrat06", "1000000000000000000000", 0, block1, day1, day1.Format("2006-01-02"), "tx_5000", 1)
+		`, "0xstaker06", "0xstrat06", "1000000000000000000000", 0, block4, day4, day4.Format("2006-01-02"), "tx_5000", 1)
 		assert.Nil(t, res.Error)
 
-		// Queue 250 on day 2: insert 750 on day 2 to show 750 starting day 3
+		// Slash 50% on 3/6: insert 500 shares to show 500 starting 3/7
 		res = grm.Exec(`
 			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xstaker06", "0xstrat06", "750000000000000000000", 0, block2, day2, day2.Format("2006-01-02"), "tx_5001", 1)
-		assert.Nil(t, res.Error)
-
-		// Deposit 500 on day 10: insert 1250 on day 10 to show 1250 starting day 11
-		res = grm.Exec(`
-			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xstaker06", "0xstrat06", "1250000000000000000000", 0, block10, day10, day10.Format("2006-01-02"), "tx_5009", 1)
-		assert.Nil(t, res.Error)
-
-		// Withdrawal completes day 16 (queued day 2, 14 days later): insert 750 on day 16 to show 750 starting day 17
-		res = grm.Exec(`
-			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xstaker06", "0xstrat06", "750000000000000000000", 0, block16, day16, day16.Format("2006-01-02"), "tx_5015", 1)
+		`, "0xstaker06", "0xstrat06", "500000000000000000000", 0, block6, day6, day6.Format("2006-01-02"), "tx_5002", 1)
 		assert.Nil(t, res.Error)
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 		calculator, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
 		assert.Nil(t, err)
 
-		err = calculator.GenerateAndInsertStakerShareSnapshots("2025-03-25")
+		err = calculator.GenerateAndInsertStakerShareSnapshots("2025-03-15")
 		assert.Nil(t, err)
 
-		// Verify: Full shares (1000) till day 2
+		// Verify: Full shares (1000) till 3/6
 		var shares string
 		res = grm.Raw(`
 			SELECT shares FROM staker_share_snapshots
 			WHERE staker = ? AND strategy = ? AND snapshot = ?
-		`, "0xstaker06", "0xstrat06", "2025-03-02").Scan(&shares)
+		`, "0xstaker06", "0xstrat06", "2025-03-05").Scan(&shares)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, "1000000000000000000000", shares, "Expected 1000 shares till day 2")
+		assert.Equal(t, "1000000000000000000000", shares, "Expected 1000 shares on 3/5")
 
-		// 750 shares on day 3-day 10
 		res = grm.Raw(`
 			SELECT shares FROM staker_share_snapshots
 			WHERE staker = ? AND strategy = ? AND snapshot = ?
-		`, "0xstaker06", "0xstrat06", "2025-03-03").Scan(&shares)
+		`, "0xstaker06", "0xstrat06", "2025-03-06").Scan(&shares)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, "750000000000000000000", shares, "Expected 750 shares on day 3-10")
+		assert.Equal(t, "1000000000000000000000", shares, "Expected 1000 shares till 3/6")
 
-		// 1250 shares on day 11 till day 16
+		// Half shares (500) starting 3/7
 		res = grm.Raw(`
 			SELECT shares FROM staker_share_snapshots
 			WHERE staker = ? AND strategy = ? AND snapshot = ?
-		`, "0xstaker06", "0xstrat06", "2025-03-11").Scan(&shares)
+		`, "0xstaker06", "0xstrat06", "2025-03-07").Scan(&shares)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, "1250000000000000000000", shares, "Expected 1250 shares on day 11-16")
-
-		// 750 shares on day 17
-		res = grm.Raw(`
-			SELECT shares FROM staker_share_snapshots
-			WHERE staker = ? AND strategy = ? AND snapshot = ?
-		`, "0xstaker06", "0xstrat06", "2025-03-17").Scan(&shares)
-		assert.Nil(t, res.Error)
-		assert.Equal(t, "750000000000000000000", shares, "Expected 750 shares on day 17")
+		assert.Equal(t, "500000000000000000000", shares, "Expected 500 shares starting 3/7")
 	})
 
-	// SSS-7: Partial withdrawal crossing snapshot
-	// PDF: 1000 shares, partial queue 250 on day 5
-	// Expected: Staker has full shares till day 5. 750 shares starting day 6
-	t.Run("SSS-7: Partial withdrawal crossing snapshot", func(t *testing.T) {
-		day1 := time.Date(2025, 4, 1, 17, 0, 0, 0, time.UTC)
-		day5 := time.Date(2025, 4, 5, 17, 0, 0, 0, time.UTC) // Insert on day 5 to affect day 6 snapshot
+	// SSS-7: Queue withdrawal then double slash (50% + 50% = 75% total)
+	// PDF spec:
+	// - Staker delegates to operator. Operator registers to set and allocates.
+	// - Staker deposits on 4/4 @ 5pm
+	// - Staker queues a withdrawal on 4/5 @ 6pm
+	// - Staker is slashed 50% on 4/6 @ 6pm
+	// - Staker is slashed another 50% on 4/6 @ 6pm
+	// Expected: Full shares till 4/6. Starting on 4/7 staker has 1/4 shares (250)
+	// Note: For unit tests, we simulate the final staker_shares values directly.
+	t.Run("SSS-7: Queue withdrawal then double slash", func(t *testing.T) {
+		day4 := time.Date(2025, 4, 4, 17, 0, 0, 0, time.UTC)
+		day6 := time.Date(2025, 4, 6, 18, 0, 0, 0, time.UTC) // Double slash takes effect next day
 
-		block1 := uint64(6000)
+		block4 := uint64(6000)
 		res := grm.Exec(`
 			INSERT INTO blocks (number, hash, block_time)
 			VALUES (?, ?, ?)
-		`, block1, fmt.Sprintf("hash_%d", block1), day1)
+		`, block4, fmt.Sprintf("hash_%d", block4), day4)
 		assert.Nil(t, res.Error)
 
-		block5 := uint64(6004)
+		block6 := uint64(6002)
 		res = grm.Exec(`
 			INSERT INTO blocks (number, hash, block_time)
 			VALUES (?, ?, ?)
-		`, block5, fmt.Sprintf("hash_%d", block5), day5)
+		`, block6, fmt.Sprintf("hash_%d", block6), day6)
 		assert.Nil(t, res.Error)
 
-		// Initial 1000 shares on day 1
+		// Deposit 1000 shares on 4/4 @ 5pm
 		res = grm.Exec(`
 			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xstaker07", "0xstrat07", "1000000000000000000000", 0, block1, day1, day1.Format("2006-01-02"), "tx_6000", 1)
+		`, "0xstaker07", "0xstrat07", "1000000000000000000000", 0, block4, day4, day4.Format("2006-01-02"), "tx_6000", 1)
 		assert.Nil(t, res.Error)
 
-		// Queue 250 on day 5: insert 750 on day 5 to show 750 starting day 6
+		// Double slash 50% + 50% = 25% remaining: insert 250 shares to show 250 starting 4/7
 		res = grm.Exec(`
 			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xstaker07", "0xstrat07", "750000000000000000000", 0, block5, day5, day5.Format("2006-01-02"), "tx_6004", 1)
+		`, "0xstaker07", "0xstrat07", "250000000000000000000", 0, block6, day6, day6.Format("2006-01-02"), "tx_6002", 1)
 		assert.Nil(t, res.Error)
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 		calculator, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
 		assert.Nil(t, err)
 
-		err = calculator.GenerateAndInsertStakerShareSnapshots("2025-04-25")
+		err = calculator.GenerateAndInsertStakerShareSnapshots("2025-04-15")
 		assert.Nil(t, err)
 
-		// Verify: Full shares (1000) till day 5
+		// Verify: Full shares (1000) till 4/6
 		var shares string
-		res = grm.Raw(`
-			SELECT shares FROM staker_share_snapshots
-			WHERE staker = ? AND strategy = ? AND snapshot = ?
-		`, "0xstaker07", "0xstrat07", "2025-04-02").Scan(&shares)
-		assert.Nil(t, res.Error)
-		assert.Equal(t, "1000000000000000000000", shares, "Expected 1000 shares on day 2")
-
 		res = grm.Raw(`
 			SELECT shares FROM staker_share_snapshots
 			WHERE staker = ? AND strategy = ? AND snapshot = ?
 		`, "0xstaker07", "0xstrat07", "2025-04-05").Scan(&shares)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, "1000000000000000000000", shares, "Expected 1000 shares till day 5")
+		assert.Equal(t, "1000000000000000000000", shares, "Expected 1000 shares on 4/5")
 
-		// 750 shares starting day 6
 		res = grm.Raw(`
 			SELECT shares FROM staker_share_snapshots
 			WHERE staker = ? AND strategy = ? AND snapshot = ?
 		`, "0xstaker07", "0xstrat07", "2025-04-06").Scan(&shares)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, "750000000000000000000", shares, "Expected 750 shares starting day 6")
+		assert.Equal(t, "1000000000000000000000", shares, "Expected 1000 shares till 4/6")
+
+		// 1/4 shares (250) starting 4/7
+		res = grm.Raw(`
+			SELECT shares FROM staker_share_snapshots
+			WHERE staker = ? AND strategy = ? AND snapshot = ?
+		`, "0xstaker07", "0xstrat07", "2025-04-07").Scan(&shares)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, "250000000000000000000", shares, "Expected 250 shares starting 4/7")
 	})
 
 	// SSS-10: Slash during withdrawal queue (precise timing)
@@ -1965,21 +1960,24 @@ func Test_StakerShareSnapshots_V22Slashing(t *testing.T) {
 	}
 	defer teardownStakerShareSnapshot(dbFileName, cfg, grm, l)
 
-	// SSS-8: Multiple consecutive slashes
-	// 200 shares, queue 50 on 1/5 @ 6pm, slash 50% on 1/6, slash 50% on 1/7
+	// SSS-8: Multiple consecutive slashes with FULL withdrawal queued
+	// PDF spec:
+	// - Staker deposits 200 shares on 1/4 @ 5pm
+	// - Staker queues a FULL withdrawal (200 shares) on 1/5 @ 6pm
+	// - Slash 50% on 1/6
+	// - Slash 50% on 1/7
 	// Expected: Full shares till 1/6. Starting on 1/7 staker has half shares. Starting on 1/8 staker has fourth shares
-	t.Run("SSS-8: Multiple consecutive slashes", func(t *testing.T) {
+	// Note: For unit tests, we simulate the final staker_shares values directly.
+	t.Run("SSS-8: Multiple consecutive slashes with full withdrawal", func(t *testing.T) {
 		day4 := time.Date(2025, 1, 4, 17, 0, 0, 0, time.UTC)
-		day5 := time.Date(2025, 1, 5, 18, 0, 0, 0, time.UTC) // Insert on 1/5 to affect 1/6 snapshot
-		day6 := time.Date(2025, 1, 6, 18, 0, 0, 0, time.UTC) // Insert on 1/6 to affect 1/7 snapshot
-		day7 := time.Date(2025, 1, 7, 18, 0, 0, 0, time.UTC) // Insert on 1/7 to affect 1/8 snapshot
+		day6 := time.Date(2025, 1, 6, 18, 0, 0, 0, time.UTC) // First slash
+		day7 := time.Date(2025, 1, 7, 18, 0, 0, 0, time.UTC) // Second slash
 
 		blocks := []struct {
 			number uint64
 			time   time.Time
 		}{
 			{3000, day4},
-			{3001, day5},
 			{3002, day6},
 			{3003, day7},
 		}
@@ -1999,15 +1997,14 @@ func Test_StakerShareSnapshots_V22Slashing(t *testing.T) {
 		`, "0xstaker08", "0xstrat08", "200000000000000000000", 0, 3000, day4, day4.Format("2006-01-02"), "tx_3000", 1)
 		assert.Nil(t, res.Error)
 
-		// Note: Queue 50 on 1/5 (with 14-day delay, doesn't affect rewards immediately)
-		// Slash 50% on 1/6: insert 100 on day 6 to show 100 (half of 200) starting day 7
+		// Slash 50% on 1/6: 200 * 0.5 = 100 shares starting 1/7
 		res = grm.Exec(`
 			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, "0xstaker08", "0xstrat08", "100000000000000000000", 0, 3002, day6, day6.Format("2006-01-02"), "tx_3002", 1)
 		assert.Nil(t, res.Error)
 
-		// Slash another 50% on 1/7: insert 50 on day 7 to show 50 (fourth of 200) starting day 8
+		// Slash another 50% on 1/7: 100 * 0.5 = 50 shares starting 1/8
 		res = grm.Exec(`
 			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -2043,7 +2040,7 @@ func Test_StakerShareSnapshots_V22Slashing(t *testing.T) {
 			WHERE staker = ? AND strategy = ? AND snapshot = ?
 		`, "0xstaker08", "0xstrat08", "2025-01-07").Scan(&shares)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, "100000000000000000000", shares, "Expected 100 shares (half) starting 1/7")
+		assert.Equal(t, "100000000000000000000", shares, "Expected 100 shares starting 1/7")
 
 		// Fourth shares (50) starting 1/8
 		res = grm.Raw(`
@@ -2051,16 +2048,17 @@ func Test_StakerShareSnapshots_V22Slashing(t *testing.T) {
 			WHERE staker = ? AND strategy = ? AND snapshot = ?
 		`, "0xstaker08", "0xstrat08", "2025-01-08").Scan(&shares)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, "50000000000000000000", shares, "Expected 50 shares (fourth) starting 1/8")
+		assert.Equal(t, "50000000000000000000", shares, "Expected 50 shares starting 1/8")
 	})
 
-	// SSS-9: Partial withdrawal with slashing (delegated)
-	// Same as SSS-8 but with explicit delegation/registration setup
-	// Expected: Staker has full shares till 1/6. Starting on 1/7 staker has half shares. Starting on 1/8 staker has fourth shares
+	// SSS-9: PARTIAL withdrawal with slashing and explicit delegation/registration setup
+	// PDF spec: Uses partial withdrawal (50 shares out of 200), needs delegation setup
+	// Expected: 200 till 2/6, 100 on 2/7, 50 on 2/8
+	// Note: For unit tests, we simulate the final staker_shares values directly.
 	t.Run("SSS-9: Partial withdrawal with slashing (delegated)", func(t *testing.T) {
 		day4 := time.Date(2025, 2, 4, 17, 0, 0, 0, time.UTC)
-		day6 := time.Date(2025, 2, 6, 18, 0, 0, 0, time.UTC)
-		day7 := time.Date(2025, 2, 7, 18, 0, 0, 0, time.UTC)
+		day6 := time.Date(2025, 2, 6, 18, 0, 0, 0, time.UTC) // First slash
+		day7 := time.Date(2025, 2, 7, 18, 0, 0, 0, time.UTC) // Second slash
 
 		blocks := []struct {
 			number uint64
@@ -2079,22 +2077,21 @@ func Test_StakerShareSnapshots_V22Slashing(t *testing.T) {
 			assert.Nil(t, res.Error)
 		}
 
-		// Deposit 200 shares on 1/4 (delegated to operator)
+		// Deposit 200 shares on 2/4
 		res := grm.Exec(`
 			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, "0xstaker09", "0xstrat09", "200000000000000000000", 0, 4000, day4, day4.Format("2006-01-02"), "tx_4000", 1)
 		assert.Nil(t, res.Error)
 
-		// Queue partial withdrawal on 1/5 (with 14-day delay, doesn't affect rewards immediately)
-		// Slash 50% on 1/6: insert 100 on day 6 to show 100 starting day 7
+		// Slash 50% on 2/6: 200 * 0.5 = 100 shares starting 2/7
 		res = grm.Exec(`
 			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, "0xstaker09", "0xstrat09", "100000000000000000000", 0, 4002, day6, day6.Format("2006-01-02"), "tx_4002", 1)
 		assert.Nil(t, res.Error)
 
-		// Slash another 50% on 1/7: insert 50 on day 7 to show 50 starting day 8
+		// Slash another 50% on 2/7: 100 * 0.5 = 50 shares starting 2/8
 		res = grm.Exec(`
 			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -2124,21 +2121,21 @@ func Test_StakerShareSnapshots_V22Slashing(t *testing.T) {
 		assert.Nil(t, res.Error)
 		assert.Equal(t, "200000000000000000000", shares, "Expected 200 shares till 2/6")
 
-		// Half shares (100) starting 2/7
+		// 100 shares on 2/7
 		res = grm.Raw(`
 			SELECT shares FROM staker_share_snapshots
 			WHERE staker = ? AND strategy = ? AND snapshot = ?
 		`, "0xstaker09", "0xstrat09", "2025-02-07").Scan(&shares)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, "100000000000000000000", shares, "Expected 100 shares (half) starting 2/7")
+		assert.Equal(t, "100000000000000000000", shares, "Expected 100 shares on 2/7")
 
-		// Fourth shares (50) starting 2/8
+		// 50 shares on 2/8
 		res = grm.Raw(`
 			SELECT shares FROM staker_share_snapshots
 			WHERE staker = ? AND strategy = ? AND snapshot = ?
 		`, "0xstaker09", "0xstrat09", "2025-02-08").Scan(&shares)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, "50000000000000000000", shares, "Expected 50 shares (fourth) starting 2/8")
+		assert.Equal(t, "50000000000000000000", shares, "Expected 50 shares on 2/8")
 	})
 
 	// SSS-12: Dual slashing - operator set and beacon chain
@@ -2471,83 +2468,5 @@ func Test_StakerShareSnapshots_V22Slashing(t *testing.T) {
 		assert.Equal(t, "140000000000000000000", shares, "Expected 140 shares starting 1/20")
 	})
 
-	// SSS-16: Multiple deposits then withdrawal (with delegation)
-	// Staker delegates to operator. Operator registers to set and allocates.
-	// 100 shares on 1/4 @ 5pm, deposit 50 more on 1/5 @ 5pm, queue 10 shares on 1/5 @ 5pm
-	// Expected: Same as SSS-15 - 100 shares on 1/5. 150 shares starting 1/6. 140 shares starting 1/20
-	t.Run("SSS-16: Multiple deposits then withdrawal (with delegation)", func(t *testing.T) {
-		day4 := time.Date(2025, 1, 4, 17, 0, 0, 0, time.UTC)
-		day5 := time.Date(2025, 1, 5, 17, 0, 0, 0, time.UTC)
-		day19 := time.Date(2025, 1, 19, 17, 0, 0, 0, time.UTC)
-
-		blocks := []struct {
-			number uint64
-			time   time.Time
-		}{
-			{3320, day4},
-			{3321, day5},
-			{3335, day19},
-		}
-
-		for _, b := range blocks {
-			res := grm.Exec(`
-				INSERT INTO blocks (number, hash, block_time)
-				VALUES (?, ?, ?)
-			`, b.number, fmt.Sprintf("hash_%d", b.number), b.time)
-			assert.Nil(t, res.Error)
-		}
-
-		// Deposit 100 shares on 1/4 @ 5pm (delegated to operator)
-		res := grm.Exec(`
-			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xstaker16", "0xstrat16", "100000000000000000000", 0, 3320, day4, day4.Format("2006-01-02"), "tx_3320", 1)
-		assert.Nil(t, res.Error)
-
-		// Deposit 50 more shares on 1/5 @ 5pm (total 150), queue 10 shares on 1/5
-		res = grm.Exec(`
-			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xstaker16", "0xstrat16", "150000000000000000000", 0, 3321, day5, day5.Format("2006-01-02"), "tx_3321", 1)
-		assert.Nil(t, res.Error)
-
-		// Queue 10 shares on 1/5, withdrawal completes 1/20: insert 140 on day 19 to show 140 starting day 20
-		res = grm.Exec(`
-			INSERT INTO staker_shares (staker, strategy, shares, strategy_index, block_number, block_time, block_date, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xstaker16", "0xstrat16", "140000000000000000000", 0, 3335, day19, day19.Format("2006-01-02"), "tx_3335", 1)
-		assert.Nil(t, res.Error)
-
-		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
-		calculator, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
-		assert.Nil(t, err)
-
-		err = calculator.GenerateAndInsertStakerShareSnapshots("2025-01-25")
-		assert.Nil(t, err)
-
-		// 100 shares on 1/5
-		var shares string
-		res = grm.Raw(`
-			SELECT shares FROM staker_share_snapshots
-			WHERE staker = ? AND strategy = ? AND snapshot = ?
-		`, "0xstaker16", "0xstrat16", "2025-01-05").Scan(&shares)
-		assert.Nil(t, res.Error)
-		assert.Equal(t, "100000000000000000000", shares, "Expected 100 shares on 1/5")
-
-		// 150 shares starting 1/6
-		res = grm.Raw(`
-			SELECT shares FROM staker_share_snapshots
-			WHERE staker = ? AND strategy = ? AND snapshot = ?
-		`, "0xstaker16", "0xstrat16", "2025-01-06").Scan(&shares)
-		assert.Nil(t, res.Error)
-		assert.Equal(t, "150000000000000000000", shares, "Expected 150 shares starting 1/6")
-
-		// 140 shares starting 1/20
-		res = grm.Raw(`
-			SELECT shares FROM staker_share_snapshots
-			WHERE staker = ? AND strategy = ? AND snapshot = ?
-		`, "0xstaker16", "0xstrat16", "2025-01-20").Scan(&shares)
-		assert.Nil(t, res.Error)
-		assert.Equal(t, "140000000000000000000", shares, "Expected 140 shares starting 1/20")
-	})
+	// NOTE: SSS-16 was removed as it was a duplicate of SSS-15
 }

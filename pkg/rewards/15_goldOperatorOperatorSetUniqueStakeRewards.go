@@ -117,12 +117,17 @@ operators_with_deregistration_status AS (
 
 -- Step 4: Calculate cumulative slash multiplier during deregistration queue
 -- Slashing only affects rewards during the 14-day deregistration period
+-- GUARD: If wad_slashed >= 1e18 (100% slash), use a very large negative value for LN
+-- instead of LN(0) which would cause a math error. This effectively makes the multiplier ~0.
 operators_with_slash_multiplier AS (
     SELECT
         owds.*,
         COALESCE(
             EXP(SUM(
-                LN(1 - COALESCE(so.wad_slashed, 0) / CAST(1e18 AS NUMERIC))
+                CASE
+                    WHEN COALESCE(so.wad_slashed, 0) >= CAST(1e18 AS NUMERIC) THEN -100  -- Effectively 0 multiplier (e^-100 ≈ 0)
+                    ELSE LN(1 - COALESCE(so.wad_slashed, 0) / CAST(1e18 AS NUMERIC))
+                END
             ) FILTER (
                 WHERE owds.in_deregistration_queue
                   AND so.block_number > b_reg.number

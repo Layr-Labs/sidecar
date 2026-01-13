@@ -828,10 +828,14 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		assert.True(t, count > 0, "Should have 50% allocation on 2/18")
 	})
 
-	// OAS-6: Same day allocation and deallocation with future blocks
-	t.Run("OAS-6: Allocation (future effect) and deallocation same day", func(t *testing.T) {
+	// OAS-6: Allocation with future effect block, deallocation with mainnet 14-day delay
+	// PDF: Allocate on 1/4. Effect block not indexed yet. Hits on 1/6.
+	//      Deallocate 50% on 1/6 @ 5pm. Effect block is on 1/20.
+	// Expected: Allocation should be 50% on 1/7 (allocation on 1/6, deallocation effective 1/20)
+	t.Run("OAS-6: Allocation (future effect) and deallocation with mainnet delay", func(t *testing.T) {
 		day4 := time.Date(2025, 3, 4, 17, 0, 0, 0, time.UTC)
 		day6_5pm := time.Date(2025, 3, 6, 17, 0, 0, 0, time.UTC)
+		day20_5pm := time.Date(2025, 3, 20, 17, 0, 0, 0, time.UTC) // 14 days after 3/6
 
 		block4 := uint64(3100)
 		res := grm.Exec(`
@@ -861,18 +865,19 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		`, block6, fmt.Sprintf("hash_%d", block6), day6_5pm)
 		assert.Nil(t, res.Error)
 
-		effectiveBlock6_2 := uint64(3104)
+		// Effective block for deallocation is on 3/20 (14 days after 3/6 - mainnet delay)
+		effectiveBlock20 := uint64(3200)
 		res = grm.Exec(`
 			INSERT INTO blocks (number, hash, block_time)
 			VALUES (?, ?, ?)
-		`, effectiveBlock6_2, fmt.Sprintf("hash_%d", effectiveBlock6_2), day6_5pm)
+		`, effectiveBlock20, fmt.Sprintf("hash_%d", effectiveBlock20), day20_5pm)
 		assert.Nil(t, res.Error)
 
-		// Deallocate 50% on 3/6 @ 5pm, effective block also on 3/6 @ 5pm
+		// Deallocate 50% on 3/6 @ 5pm, effective block on 3/20 @ 5pm (mainnet 14-day delay)
 		res = grm.Exec(`
 			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, "0xoperatorOAS6", "0xavsOAS6", "0xstrategyOAS6", 1, "500000000000000000000", effectiveBlock6_2, block6, "tx_3103", 2)
+		`, "0xoperatorOAS6", "0xavsOAS6", "0xstrategyOAS6", 1, "500000000000000000000", effectiveBlock20, block6, "tx_3103", 2)
 		assert.Nil(t, res.Error)
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
@@ -882,7 +887,7 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		err = calculator.GenerateAndInsertOperatorAllocationSnapshots("2025-03-25")
 		assert.Nil(t, err)
 
-		// Check for 50% allocation on 3/7 (both effective blocks on 3/6, uses latest value)
+		// Check for 100% allocation on 3/7 through 3/20 (deallocation not yet effective)
 		var snapshots []OperatorAllocationSnapshot
 		res = grm.Raw(`
 			SELECT * FROM operator_allocation_snapshots
@@ -891,7 +896,17 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		`, "0xoperatorOAS6", "0xavsOAS6", "0xstrategyOAS6").Scan(&snapshots)
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, len(snapshots), "Should have exactly one allocation on 3/7")
-		assert.Equal(t, "500000000000000000000", snapshots[0].Magnitude, "Should have 50% allocation on 3/7 (latest value on 3/6 used)")
+		assert.Equal(t, "1000000000000000000000", snapshots[0].Magnitude, "Should have 100% allocation on 3/7 (deallocation not effective until 3/20)")
+
+		// Check for 50% allocation on 3/21 (after deallocation becomes effective)
+		res = grm.Raw(`
+			SELECT * FROM operator_allocation_snapshots
+			WHERE operator = ? AND avs = ? AND strategy = ?
+			AND snapshot = '2025-03-21'
+		`, "0xoperatorOAS6", "0xavsOAS6", "0xstrategyOAS6").Scan(&snapshots)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, 1, len(snapshots), "Should have exactly one allocation on 3/21")
+		assert.Equal(t, "500000000000000000000", snapshots[0].Magnitude, "Should have 50% allocation on 3/21 (deallocation now effective)")
 	})
 
 	// OAS-7: Same day full deallocation (testnet scenario)
@@ -1141,6 +1156,51 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		`, "0xoperatorOAS10", "0xavsOAS10", "0xstrategyB").Scan(&countB)
 		assert.Nil(t, res.Error)
 		assert.True(t, countB > 0, "Strategy B should have snapshots")
+
+		// Verify magnitudes: Full mag until 7/18, lesser mag from 7/19 onwards (effective block is on 7/19)
+		// Strategy A: Full (100%) until 7/18, then 50% from 7/19
+		var magA string
+		res = grm.Raw(`
+			SELECT magnitude FROM operator_allocation_snapshots
+			WHERE operator = ? AND avs = ? AND strategy = ?
+			AND snapshot = '2025-07-15'
+		`, "0xoperatorOAS10", "0xavsOAS10", "0xstrategyA").Scan(&magA)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, "1000000000000000000000", magA, "Strategy A should have 100% magnitude on 7/15 (before effective date)")
+
+		res = grm.Raw(`
+			SELECT magnitude FROM operator_allocation_snapshots
+			WHERE operator = ? AND avs = ? AND strategy = ?
+			AND snapshot = '2025-07-18'
+		`, "0xoperatorOAS10", "0xavsOAS10", "0xstrategyA").Scan(&magA)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, "1000000000000000000000", magA, "Strategy A should have 100% magnitude on 7/18 (last day before effective block)")
+
+		res = grm.Raw(`
+			SELECT magnitude FROM operator_allocation_snapshots
+			WHERE operator = ? AND avs = ? AND strategy = ?
+			AND snapshot = '2025-07-19'
+		`, "0xoperatorOAS10", "0xavsOAS10", "0xstrategyA").Scan(&magA)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, "500000000000000000000", magA, "Strategy A should have 50% magnitude from 7/19 (effective block date)")
+
+		// Strategy B: Full (100%) until 7/18, then 25% from 7/19
+		var magB string
+		res = grm.Raw(`
+			SELECT magnitude FROM operator_allocation_snapshots
+			WHERE operator = ? AND avs = ? AND strategy = ?
+			AND snapshot = '2025-07-18'
+		`, "0xoperatorOAS10", "0xavsOAS10", "0xstrategyB").Scan(&magB)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, "1000000000000000000000", magB, "Strategy B should have 100% magnitude on 7/18")
+
+		res = grm.Raw(`
+			SELECT magnitude FROM operator_allocation_snapshots
+			WHERE operator = ? AND avs = ? AND strategy = ?
+			AND snapshot = '2025-07-19'
+		`, "0xoperatorOAS10", "0xavsOAS10", "0xstrategyB").Scan(&magB)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, "250000000000000000000", magB, "Strategy B should have 25% magnitude from 7/19 (effective block date)")
 	})
 
 	// OAS-11: Max magnitude validation without maxMagnitude event
@@ -1668,16 +1728,16 @@ func Test_OperatorAllocationSnapshots(t *testing.T) {
 		err = calculator.GenerateAndInsertOperatorAllocationSnapshots("2026-03-25")
 		assert.Nil(t, err)
 
-		// Verify 100% allocation before 3/20
+		// Verify 100% allocation from 3/5 through 3/20 (before deallocation takes effect on 3/21)
 		var count int64
 		res = grm.Raw(`
 			SELECT COUNT(*) FROM operator_allocation_snapshots
 			WHERE operator = ? AND avs = ? AND strategy = ?
 			AND magnitude = '1000000000000000000000'
-			AND snapshot >= '2026-03-05' AND snapshot <= '2026-03-19'
+			AND snapshot >= '2026-03-05' AND snapshot <= '2026-03-20'
 		`, "0xoperatorOAS18", "0xavsOAS18", "0xstrategyOAS18").Scan(&count)
 		assert.Nil(t, res.Error)
-		assert.True(t, count > 0, "Should have 100% allocation before effective date (3/20)")
+		assert.True(t, count > 0, "Should have 100% allocation from 3/5 through 3/20")
 
 		// Verify 25% allocation from 3/21 onwards (slash during queue took effect)
 		res = grm.Raw(`
