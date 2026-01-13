@@ -119,6 +119,7 @@ type RewardsConfig struct {
 	CalculateRewardsDaily        bool
 	WithdrawalQueueWindow        float64 // Duration in days for withdrawal queue period (14.0 for mainnet, 0.0069 for testnet/preprod ~10 min)
 	RewardsV2_2Enabled           bool
+	ForkOverrides                map[ForkName]Fork // Test-only: override fork dates/blocks
 }
 
 type StatsdConfig struct {
@@ -555,6 +556,22 @@ type Fork struct {
 type ForkMap map[ForkName]Fork
 
 func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
+	forkMap, err := c.getBaseForkMap()
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply fork overrides (for testing)
+	if c.Rewards.ForkOverrides != nil {
+		for forkName, override := range c.Rewards.ForkOverrides {
+			forkMap[forkName] = override
+		}
+	}
+
+	return forkMap, nil
+}
+
+func (c *Config) getBaseForkMap() (ForkMap, error) {
 	switch c.Chain {
 	case Chain_Preprod:
 		return ForkMap{
@@ -784,6 +801,18 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 		}, nil
 	}
 	return nil, errors.New("unsupported chain")
+}
+
+// SetForkOverride sets a fork override for testing purposes.
+// This allows tests to override fork block numbers to enable/disable fork-specific logic.
+func (c *Config) SetForkOverride(forkName ForkName, blockNumber uint64, date string) {
+	if c.Rewards.ForkOverrides == nil {
+		c.Rewards.ForkOverrides = make(map[ForkName]Fork)
+	}
+	c.Rewards.ForkOverrides[forkName] = Fork{
+		Date:        date,
+		BlockNumber: blockNumber,
+	}
 }
 
 type ModelForkMap map[ForkName]uint64

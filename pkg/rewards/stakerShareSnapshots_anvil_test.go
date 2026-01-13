@@ -464,6 +464,8 @@ func setupSSS_SidecarForAnvil(t *testing.T, anvilURL string) (string, *config.Co
 	cfg.DatabaseConfig.User = os.Getenv("POSTGRES_USER")
 	cfg.DatabaseConfig.Password = os.Getenv("POSTGRES_PASSWORD")
 	cfg.Rewards.WithdrawalQueueWindow = 14 // 14 days
+	// Enable Sabine fork at block 0 so withdrawal queue add-back logic is always active
+	cfg.SetForkOverride(config.RewardsFork_Sabine, 0, "1970-01-01")
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 

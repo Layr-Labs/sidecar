@@ -85,6 +85,8 @@ func setupE2ETestContext(t *testing.T) *E2ETestContext {
 	cfg.Rewards.RewardsV2_2Enabled = true
 	cfg.Rewards.WithdrawalQueueWindow = 14.0 // 14 days for mainnet
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+	// Enable Sabine fork at block 0 so withdrawal queue add-back logic is always active
+	cfg.SetForkOverride(config.RewardsFork_Sabine, 0, "1970-01-01")
 
 	sink, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, nil)
 	require.NoError(t, err, "Failed to create metrics sink")
