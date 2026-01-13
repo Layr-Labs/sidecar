@@ -183,18 +183,6 @@ func insertMockQueuedWithdrawal(grm *gorm.DB, staker, operator, strategy, shares
 	return result.Error
 }
 
-// insertMockStakerDelegation inserts a mock staker delegation
-func insertMockStakerDelegation(grm *gorm.DB, staker, operator string, blockNum uint64, blockTime time.Time) error {
-	txHash := fmt.Sprintf("0x%064x", blockNum)
-	result := grm.Exec(`
-		INSERT INTO staker_delegation_changes (
-			staker, operator, delegated, transaction_hash, log_index, block_number
-		) VALUES (?, ?, true, ?, 0, ?)
-		ON CONFLICT DO NOTHING
-	`, staker, operator, txHash, blockNum)
-	return result.Error
-}
-
 // getEnvOrDefault returns environment variable value or default
 func getEnvOrDefault(key, defaultValue string) string {
 	value := os.Getenv(key)
@@ -394,28 +382,6 @@ func (ctx *E2ETestContext) processWithdrawalQueuedEvent(log *ethereum.EthereumEv
 	)
 
 	// TODO: Decode withdrawal details and insert into queued_slashing_withdrawals
-	return nil
-}
-
-// generateSnapshotsForDate generates all snapshots for a given date
-func (ctx *E2ETestContext) generateSnapshotsForDate(snapshotDate string) error {
-	ctx.l.Sugar().Infow("Generating snapshots", "date", snapshotDate)
-
-	// Generate staker shares first (needed for staker share snapshots)
-	if err := ctx.calculator.GenerateAndInsertStakerShares(snapshotDate); err != nil {
-		return fmt.Errorf("failed to generate staker shares: %w", err)
-	}
-
-	// Generate staker share snapshots
-	if err := ctx.calculator.GenerateAndInsertStakerShareSnapshots(snapshotDate); err != nil {
-		return fmt.Errorf("failed to generate staker share snapshots: %w", err)
-	}
-
-	// Generate operator allocation snapshots (V2.2)
-	if err := ctx.calculator.GenerateAndInsertOperatorAllocationSnapshots(snapshotDate); err != nil {
-		return fmt.Errorf("failed to generate operator allocation snapshots: %w", err)
-	}
-
 	return nil
 }
 
@@ -639,7 +605,7 @@ func Test_E2E_Anvil_SSS_3(t *testing.T) {
 	`, testStaker, testStrategy).Scan(&shares)
 
 	t.Logf("Staker shares after partial withdrawal: %s", shares)
-	
+
 	// The staker_shares table should have the cumulative shares
 	if shares == "" {
 		shares = "0"

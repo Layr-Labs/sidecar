@@ -158,22 +158,6 @@ func (ctx *V22TestContext) insertStakerShareDelta(staker, strategy, shares strin
 	return result.Error
 }
 
-// insertQueuedWithdrawal inserts a mock queued withdrawal
-func (ctx *V22TestContext) insertQueuedWithdrawal(staker, operator, strategy, shares string, blockNum uint64, blockTime time.Time) error {
-	withdrawalRoot := fmt.Sprintf("0x%064x", blockNum)
-	nonce := fmt.Sprintf("%d", blockNum)
-	result := ctx.grm.Exec(`
-		INSERT INTO queued_slashing_withdrawals (
-			staker, operator, withdrawer, nonce, start_block, strategy,
-			scaled_shares, shares_to_withdraw, withdrawal_root,
-			block_number, transaction_hash, log_index
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT DO NOTHING
-	`, staker, operator, staker, nonce, blockNum, strategy,
-		shares, shares, withdrawalRoot, blockNum, fmt.Sprintf("0x%064x", blockNum), 0)
-	return result.Error
-}
-
 // insertOperatorAllocation inserts a mock operator allocation
 func (ctx *V22TestContext) insertOperatorAllocation(operator, avs, strategy string, magnitude string, blockNum uint64, blockTime time.Time) error {
 	return ctx.insertOperatorAllocationWithLogIndex(operator, avs, strategy, magnitude, blockNum, blockTime, 0)
@@ -213,22 +197,6 @@ func (ctx *V22TestContext) generateSnapshots(snapshotDate string) error {
 		return fmt.Errorf("failed to generate staker shares: %w", err)
 	}
 	return nil
-}
-
-// getStakerShares retrieves the latest staker shares from staker_shares table
-func (ctx *V22TestContext) getStakerShares(staker, strategy, snapshotDate string) string {
-	var shares string
-	ctx.grm.Raw(`
-		SELECT COALESCE(shares::text, '0') 
-		FROM staker_shares 
-		WHERE staker = ? AND strategy = ? AND block_date < ?
-		ORDER BY block_number DESC, log_index DESC
-		LIMIT 1
-	`, staker, strategy, snapshotDate).Scan(&shares)
-	if shares == "" {
-		shares = "0"
-	}
-	return shares
 }
 
 // getLatestStakerShares retrieves the latest staker shares regardless of date
