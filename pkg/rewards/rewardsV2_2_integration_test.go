@@ -469,16 +469,20 @@ func Test_RewardsV2_2_WithWithdrawalQueue_Integration(t *testing.T) {
 		// - Day 34+: Reduced shares, no active rewards
 
 		hydrateBaseTablesForV2_2(t, grm, l)
-		err := hydrateOperatorAllocations(grm, l)
-		require.NoError(t, err)
+
+		// Use unique identifiers for Scenario 8 to avoid conflicts
+		operator8 := "0xoperator_s8"
+		avs8 := "0xavs_s8"
+		strategy8 := "0xstrategy_s8"
+		staker8 := "alice_s8"
 
 		// Insert operator set operator registration
 		res := grm.Exec(`
 			INSERT INTO operator_set_operator_registrations
 			(operator, avs, operator_set_id, is_active, block_number, transaction_hash, log_index)
 			VALUES
-			('0xoperator1', '0xavs1', 0, true, 100, '0xtx_opreg8', 0)
-		`)
+			(?, ?, 0, true, 100, '0xtx_opreg8', 0)
+		`, operator8, avs8)
 		require.NoError(t, res.Error, "Failed to insert operator registration")
 
 		// Insert operator set strategy registration
@@ -486,8 +490,8 @@ func Test_RewardsV2_2_WithWithdrawalQueue_Integration(t *testing.T) {
 			INSERT INTO operator_set_strategy_registrations
 			(strategy, avs, operator_set_id, is_active, block_number, transaction_hash, log_index)
 			VALUES
-			('0xstrategy1', '0xavs1', 0, true, 100, '0xtx_stratreg8', 0)
-		`)
+			(?, ?, 0, true, 100, '0xtx_stratreg8', 0)
+		`, strategy8, avs8)
 		require.NoError(t, res.Error, "Failed to insert strategy registration")
 
 		// Insert operator allocation
@@ -495,8 +499,8 @@ func Test_RewardsV2_2_WithWithdrawalQueue_Integration(t *testing.T) {
 			INSERT INTO operator_allocations
 			(operator, avs, strategy, magnitude, operator_set_id, effective_block, transaction_hash, log_index, block_number)
 			VALUES
-			('0xoperator1', '0xavs1', '0xstrategy1', '1000000000000000000', 0, 100, '0xtx_alloc8', 0, 100)
-		`)
+			(?, ?, ?, '1000000000000000000', 0, 100, '0xtx_alloc8', 0, 100)
+		`, operator8, avs8, strategy8)
 		require.NoError(t, res.Error, "Failed to insert operator allocation")
 
 		// Insert staker delegation to operator
@@ -504,8 +508,8 @@ func Test_RewardsV2_2_WithWithdrawalQueue_Integration(t *testing.T) {
 			INSERT INTO staker_delegation_changes
 			(staker, operator, block_number, delegated, log_index, transaction_hash)
 			VALUES
-			('alice', '0xoperator1', 100, true, 0, '0xtx_del8')
-		`)
+			(?, ?, 100, true, 0, '0xtx_del8')
+		`, staker8, operator8)
 		require.NoError(t, res.Error, "Failed to insert staker delegation")
 
 		// Initial shares
@@ -513,8 +517,8 @@ func Test_RewardsV2_2_WithWithdrawalQueue_Integration(t *testing.T) {
 			INSERT INTO staker_share_deltas
 			(staker, strategy, shares, strategy_index, block_number, block_date, transaction_hash, log_index, block_time)
 			VALUES
-			('alice', '0xstrategy1', '1000000000000000000000'::numeric, 0, 100, '2025-01-01', '0xtx1', 1, '2025-01-01 00:00:00')
-		`)
+			(?, ?, '1000000000000000000000'::numeric, 0, 100, '2025-01-01', '0xtx1_s8', 1, '2025-01-01 00:00:00')
+		`, staker8, strategy8)
 		require.NoError(t, res.Error)
 
 		// Create 30-day reward
@@ -522,11 +526,11 @@ func Test_RewardsV2_2_WithWithdrawalQueue_Integration(t *testing.T) {
 			INSERT INTO operator_directed_operator_set_reward_submissions
 			(avs, operator_set_id, operator, operator_index, strategy_index, token, amount, strategy, multiplier, start_timestamp, end_timestamp, duration, description, block_number, transaction_hash, log_index, reward_hash)
 			VALUES
-			('0xavs1', 0, '0xoperator1', 0, 0, '0xtoken1', '1000000000000000000000000', '0xstrategy1', '1000000000000000000',
+			(?, 0, ?, 0, 0, '0xtoken1', '1000000000000000000000000', ?, '1000000000000000000',
 			 '2025-01-01 00:00:00'::timestamp,
 			 '2025-01-31 00:00:00'::timestamp,
-			 2592000, '', 100, '0xtx2', 2, '0xrewardhash1')
-		`)
+			 2592000, '', 100, '0xtx2_s8', 2, '0xrewardhash_s8')
+		`, avs8, operator8, strategy8)
 		require.NoError(t, res.Error)
 
 		// Day 20: Queue withdrawal
@@ -535,8 +539,8 @@ func Test_RewardsV2_2_WithWithdrawalQueue_Integration(t *testing.T) {
 			INSERT INTO staker_share_deltas
 			(staker, strategy, shares, strategy_index, block_number, block_date, transaction_hash, log_index, block_time)
 			VALUES
-			('alice', '0xstrategy1', '-500000000000000000000'::numeric, 0, 120, '2025-01-20', '0xtx3', 3, '2025-01-20 00:00:00')
-		`)
+			(?, ?, '-500000000000000000000'::numeric, 0, 120, '2025-01-20', '0xtx3_s8', 3, '2025-01-20 00:00:00')
+		`, staker8, strategy8)
 		require.NoError(t, res.Error)
 
 		res = grm.Exec(`
@@ -544,9 +548,9 @@ func Test_RewardsV2_2_WithWithdrawalQueue_Integration(t *testing.T) {
 			(staker, operator, withdrawer, nonce, start_block, strategy, scaled_shares, shares_to_withdraw,
 			 withdrawal_root, block_number, transaction_hash, log_index)
 			VALUES
-			('alice', '0xoperator1', 'alice', '1', 120, '0xstrategy1', '500000000000000000000',
-			 '500000000000000000000', '0xroot1', 120, '0xtx3', 3)
-		`)
+			(?, ?, ?, '1', 120, ?, '500000000000000000000',
+			 '500000000000000000000', '0xroot_s8', 120, '0xtx3_s8', 3)
+		`, staker8, operator8, staker8, strategy8)
 		require.NoError(t, res.Error)
 
 		snapshotDates := []string{
@@ -1111,6 +1115,19 @@ func validateRewardProgression(t *testing.T, rewards map[string]map[string]strin
 func cleanupIntegrationTestData(t *testing.T, grm *gorm.DB) {
 	t.Helper()
 	t.Log("Cleaning up test data...")
+
+	// Drop date-specific gold tables that may have been created (e.g., gold_1_active_rewards_2025_01_31)
+	// Only drop tables with date suffix pattern, NOT the permanent gold_table
+	var goldTables []string
+	grm.Raw(`
+		SELECT table_name FROM information_schema.tables 
+		WHERE table_schema = 'public' 
+		AND table_name LIKE 'gold_%'
+		AND table_name ~ '_[0-9]{4}_[0-9]{2}_[0-9]{2}$'
+	`).Scan(&goldTables)
+	for _, table := range goldTables {
+		grm.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", table))
+	}
 
 	tables := []string{
 		"gold_table",
