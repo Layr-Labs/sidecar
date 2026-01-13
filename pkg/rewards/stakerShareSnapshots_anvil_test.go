@@ -517,4 +517,3 @@ func assertSnapshot(t *testing.T, snapshots []StakerShareSnapshot, snapshotDate,
 	}
 	require.True(t, found, fmt.Sprintf("Snapshot %s not found", snapshotDate))
 }
-

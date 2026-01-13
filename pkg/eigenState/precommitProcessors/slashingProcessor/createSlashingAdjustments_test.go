@@ -247,7 +247,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			LogIndex:        1,
 		}
 		err := sp.createSlashingAdjustments(slashEvent1, 1005)
-		// Due to PK constraint (block_number, log_index, transaction_hash), 
+		// Due to PK constraint (block_number, log_index, transaction_hash),
 		// only the first staker gets an adjustment record. This is a known limitation.
 		// The function will return an error when trying to insert the second staker's record.
 		// This is expected behavior given the current schema.
@@ -278,7 +278,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		`, "0xoperator5", "0xstrategy5").Scan(&adjustment)
 		require.NoError(t, res.Error)
 		assert.Contains(t, adjustment.SlashMultiplier, "0.7", "Expected multiplier 0.7 (1 - 0.3)")
-		
+
 		// Note: This test reveals a schema design issue where the PK doesn't allow
 		// multiple stakers to be affected by the same slash event. The unique constraint
 		// (staker, strategy, operator, withdrawal_block_number, slash_block_number)
@@ -493,4 +493,3 @@ func insertSlashingEvent(t *testing.T, grm *gorm.DB, operator, strategy, wadSlas
 	`, operator, strategy, wadSlashed, blockNumber, txHash, logIndex)
 	require.NoError(t, res.Error, "Failed to insert slashing event")
 }
-

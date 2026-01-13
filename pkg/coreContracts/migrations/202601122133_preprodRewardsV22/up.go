@@ -31,7 +31,7 @@ func (m *ContractMigration) Up(db *gorm.DB, cs contractStore.ContractStore, l *z
 		CoreContracts: []*helpers.ContractImport{},
 		ImplementationContracts: []*helpers.ImplementationContractImport{
 			{
-				ProxyContractAddress: contractsMap.AllocationManager,
+				ProxyContractAddress: contractsMap.RewardsCoordinator,
 				ImplementationContracts: []*helpers.ImplementationContract{
 					{
 						Contract: helpers.ContractImport{
