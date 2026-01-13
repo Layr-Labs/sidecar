@@ -1,0 +1,12 @@
+# Foundry artifacts
+out/
+cache/
+broadcast/
+
+# Dependencies
+lib/
+
+# Environment
+.env
+.env.local
+
