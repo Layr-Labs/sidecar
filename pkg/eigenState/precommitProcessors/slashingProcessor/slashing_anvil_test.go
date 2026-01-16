@@ -52,70 +52,7 @@ import (
 //
 // ============================================================================
 
-// Mock event emitter contract bytecode and ABI
-// This contract emits OperatorSlashed and BeaconChainSlashingFactorDecreased events
-const mockEventEmitterBytecode = "608060405234801561001057600080fd5b506104f8806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c80634e487b711461003b578063b9a4e6e714610057575b600080fd5b610055600480360381019061005091906102f8565b610073565b005b610071600480360381019061006c91906103a4565b6100d5565b005b80600001516001600160a01b03167f80969ad29428d6797ee7aad084f9e4a42a82fc506dcd2ca3b6fb431f85ccebe582602001518360400151846060015160405161006c939291906103e4565b817f5cd7de5a97b7e80c8f2a6c6b09d1cf3e80c5a2c4b6f50c9eba63c65d6f49f1ca828460405161010a929190610464565b60405180910390a25050565b634e487b7160e01b600052604160045260246000fd5b604051606081016001600160401b038111828210171561014f5761014f610116565b60405290565b604051601f8201601f191681016001600160401b038111828210171561017d5761017d610116565b604052919050565b60006001600160401b0382111561019e5761019e610116565b5060051b60200190565b600082601f8301126101b957600080fd5b813560206101ce6101c983610185565b610155565b82815260059290921b840181019181810190868411156101ed57600080fd5b8286015b8481101561021157803561020481610488565b83529183019183016101f1565b509695505050505050565b600082601f83011261022d57600080fd5b8135602061023d6101c983610185565b82815260059290921b8401810191818101908684111561025c57600080fd5b8286015b84811015610211578035835291830191830161026f565b80356001600160a01b038116811461028e57600080fd5b919050565b600082601f8301126102a457600080fd5b81356001600160401b038111156102bd576102bd610116565b6102d0601f8201601f1916602001610155565b8181528460208386010111156102e557600080fd5b816020850160208301376000918101602001919091529392505050565b6000602080838503121561031557600080fd5b82356001600160401b038082111561032c57600080fd5b908401906060828703121561034057600080fd5b61034861012c565b61035183610277565b8152838301358281111561036457600080fd5b610370888287016101a8565b85830152506040830135828111156103875761038057600080fd5b6103938882870161021c565b604084015250979650505050505050565b600080604083850312156103b757600080fd5b6103c083610277565b9150602083013567ffffffffffffffff8111156103dc57600080fd5b8401606081870312156103ee57600080fd5b80925050509250929050565b6060808252845182820181905260009190608084019086830183821015610421576000805493845260208401600193841c8416915b8085101561043a5783548252600194850194860160010161040f565b509396505050505050505050565b634e487b7160e01b600052601160045260246000fd5b9182526001600160401b0316602082015260400190565b6001600160a01b038116811461048a57600080fd5b5056fea2646970667358221220"
-
-const mockEventEmitterABI = `[
-	{
-		"inputs": [
-			{
-				"components": [
-					{"internalType": "address", "name": "operator", "type": "address"},
-					{"internalType": "address[]", "name": "strategies", "type": "address[]"},
-					{"internalType": "uint256[]", "name": "wadSlashed", "type": "uint256[]"}
-				],
-				"internalType": "struct MockEventEmitter.SlashParams",
-				"name": "params",
-				"type": "tuple"
-			}
-		],
-		"name": "emitOperatorSlashed",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{"internalType": "address", "name": "staker", "type": "address"},
-			{
-				"components": [
-					{"internalType": "uint64", "name": "prevFactor", "type": "uint64"},
-					{"internalType": "uint64", "name": "newFactor", "type": "uint64"}
-				],
-				"internalType": "struct MockEventEmitter.BeaconSlashParams",
-				"name": "params",
-				"type": "tuple"
-			}
-		],
-		"name": "emitBeaconChainSlashingFactorDecreased",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{"indexed": false, "internalType": "address", "name": "operator", "type": "address"},
-			{"indexed": false, "internalType": "address[]", "name": "strategies", "type": "address[]"},
-			{"indexed": false, "internalType": "uint256[]", "name": "wadSlashed", "type": "uint256[]"}
-		],
-		"name": "OperatorSlashed",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{"indexed": true, "internalType": "address", "name": "staker", "type": "address"},
-			{"indexed": false, "internalType": "uint64", "name": "prevBeaconChainSlashingFactor", "type": "uint64"},
-			{"indexed": false, "internalType": "uint64", "name": "newBeaconChainSlashingFactor", "type": "uint64"}
-		],
-		"name": "BeaconChainSlashingFactorDecreased",
-		"type": "event"
-	}
-]`
-
-// Test_Slashing_Anvil_E2E runs the anvil-based E2E tests
+// Test_Slashing_Anvil_Test runs the anvil-based E2E tests
 func Test_Slashing_Anvil_Test(t *testing.T) {
 	if os.Getenv("TEST_ANVIL") != "true" {
 		t.Skip("Skipping Anvil E2E tests. Set TEST_ANVIL=true to run")
