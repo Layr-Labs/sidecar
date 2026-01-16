@@ -98,9 +98,10 @@ func (sp *SlashingProcessor) Process(blockNumber uint64, models map[string]types
 	return nil
 }
 
-// SlashingEvent represents a slashing event from the database
+// SlashingEvent represents a slashing event from the SlashingAccumulator
 type SlashingEvent struct {
-	Operator        string
+	SlashedEntity   string
+	BeaconChain     bool
 	Strategy        string
 	WadSlashed      string
 	TransactionHash string
@@ -109,36 +110,40 @@ type SlashingEvent struct {
 
 // processQueuedWithdrawalSlashing creates adjustment records for queued withdrawals
 // when an operator is slashed, so that the effective withdrawal amount is reduced.
+// It uses the SlashingAccumulator from stakerSharesModel which contains real-time
+// slash events (both operator and beacon chain) with WadSlashed as a percentage.
 func (sp *SlashingProcessor) processQueuedWithdrawalSlashing(blockNumber uint64, models map[string]types.IEigenStateModel) error {
-	// Query slashed_operator_shares table directly for this block's slashing events
-	var slashingEvents []SlashingEvent
-	err := sp.grm.Table("slashed_operator_shares").
-		Where("block_number = ?", blockNumber).
-		Find(&slashingEvents).Error
-
-	if err != nil {
-		sp.logger.Sugar().Errorw("Failed to query slashing events",
-			zap.Error(err),
-			zap.Uint64("blockNumber", blockNumber),
-		)
-		return err
+	stakerSharesModel, ok := models[stakerShares.StakerSharesModelName].(*stakerShares.StakerSharesModel)
+	if !ok || stakerSharesModel == nil {
+		sp.logger.Sugar().Error("Staker shares model not found in models map")
+		return fmt.Errorf("staker shares model not found in models map")
 	}
 
-	if len(slashingEvents) == 0 {
+	// Get slashing events from the accumulator (includes both operator and beacon chain slashes)
+	slashingDeltas, ok := stakerSharesModel.SlashingAccumulator[blockNumber]
+	if !ok || len(slashingDeltas) == 0 {
 		sp.logger.Sugar().Debug("No slashing events found for block number", zap.Uint64("blockNumber", blockNumber))
 		return nil
 	}
 
 	// For each slashing event, find active queued withdrawals and create adjustment records
-	for i := range slashingEvents {
-		slashEvent := &slashingEvents[i]
+	for _, slashDiff := range slashingDeltas {
+		slashEvent := &SlashingEvent{
+			SlashedEntity:   slashDiff.SlashedEntity,
+			BeaconChain:     slashDiff.BeaconChain,
+			Strategy:        slashDiff.Strategy,
+			WadSlashed:      slashDiff.WadSlashed.String(),
+			TransactionHash: slashDiff.TransactionHash,
+			LogIndex:        slashDiff.LogIndex,
+		}
 		err := sp.createSlashingAdjustments(slashEvent, blockNumber)
 		if err != nil {
 			sp.logger.Sugar().Errorw("Failed to create slashing adjustments",
 				zap.Error(err),
 				zap.Uint64("blockNumber", blockNumber),
-				zap.String("operator", slashEvent.Operator),
+				zap.String("slashedEntity", slashEvent.SlashedEntity),
 				zap.String("strategy", slashEvent.Strategy),
+				zap.Bool("beaconChain", slashEvent.BeaconChain),
 			)
 			return err
 		}
@@ -148,8 +153,13 @@ func (sp *SlashingProcessor) processQueuedWithdrawalSlashing(blockNumber uint64,
 }
 
 func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent, blockNumber uint64) error {
-	// Find all active queued withdrawals for this operator/strategy
-	query := `
+	// Build query based on slash type:
+	// - Operator slash: affects all stakers delegated to the operator for the given strategy
+	// - Beacon chain slash: affects only the specific staker (pod owner) for native ETH strategy
+	var query string
+	var params map[string]any
+
+	baseSelect := `
 		SELECT
 			qsw.staker,
 			qsw.strategy,
@@ -173,8 +183,9 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 			@logIndex as log_index
 		FROM queued_slashing_withdrawals qsw
 		INNER JOIN blocks b_queued ON qsw.block_number = b_queued.number
-		WHERE qsw.operator = @operator
-		AND qsw.strategy = @strategy
+	`
+
+	baseWhere := `
 		-- Withdrawal was queued before this slash (check block number AND log index for same-block events)
 		AND (
 			qsw.block_number < @slashBlockNumber
@@ -192,6 +203,42 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 		AND b_queued.block_time IS NOT NULL
 	`
 
+	if slashEvent.BeaconChain {
+		// Beacon chain slash: affects only the specific staker (pod owner)
+		query = baseSelect + `
+		WHERE qsw.staker = @staker
+		AND qsw.strategy = @strategy
+		` + baseWhere
+
+		params = map[string]any{
+			"slashBlockNumber":      blockNumber,
+			"wadSlashed":            slashEvent.WadSlashed,
+			"blockNumber":           blockNumber,
+			"transactionHash":       slashEvent.TransactionHash,
+			"logIndex":              slashEvent.LogIndex,
+			"staker":                slashEvent.SlashedEntity, // For beacon chain, SlashedEntity is the staker
+			"strategy":              slashEvent.Strategy,
+			"withdrawalQueueWindow": sp.globalConfig.Rewards.WithdrawalQueueWindow,
+		}
+	} else {
+		// Operator slash: affects all stakers delegated to the operator
+		query = baseSelect + `
+		WHERE qsw.operator = @operator
+		AND qsw.strategy = @strategy
+		` + baseWhere
+
+		params = map[string]any{
+			"slashBlockNumber":      blockNumber,
+			"wadSlashed":            slashEvent.WadSlashed,
+			"blockNumber":           blockNumber,
+			"transactionHash":       slashEvent.TransactionHash,
+			"logIndex":              slashEvent.LogIndex,
+			"operator":              slashEvent.SlashedEntity, // For operator slash, SlashedEntity is the operator
+			"strategy":              slashEvent.Strategy,
+			"withdrawalQueueWindow": sp.globalConfig.Rewards.WithdrawalQueueWindow,
+		}
+	}
+
 	type AdjustmentRecord struct {
 		Staker                string
 		Strategy              string
@@ -205,16 +252,7 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 	}
 
 	var adjustments []AdjustmentRecord
-	err := sp.grm.Raw(query, map[string]any{
-		"slashBlockNumber":      blockNumber,
-		"wadSlashed":            slashEvent.WadSlashed,
-		"blockNumber":           blockNumber,
-		"transactionHash":       slashEvent.TransactionHash,
-		"logIndex":              slashEvent.LogIndex,
-		"operator":              slashEvent.Operator,
-		"strategy":              slashEvent.Strategy,
-		"withdrawalQueueWindow": sp.globalConfig.Rewards.WithdrawalQueueWindow,
-	}).Scan(&adjustments).Error
+	err := sp.grm.Raw(query, params).Scan(&adjustments).Error
 
 	if err != nil {
 		return fmt.Errorf("failed to find active withdrawals for slashing: %w", err)
@@ -222,8 +260,9 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 
 	if len(adjustments) == 0 {
 		sp.logger.Sugar().Debugw("No active queued withdrawals found for slashing event",
-			zap.String("operator", slashEvent.Operator),
+			zap.String("slashedEntity", slashEvent.SlashedEntity),
 			zap.String("strategy", slashEvent.Strategy),
+			zap.Bool("beaconChain", slashEvent.BeaconChain),
 			zap.Uint64("blockNumber", blockNumber),
 		)
 		return nil
@@ -249,6 +288,7 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 			zap.Uint64("withdrawalBlock", adj.WithdrawalBlockNumber),
 			zap.Uint64("slashBlock", adj.SlashBlockNumber),
 			zap.String("multiplier", adj.SlashMultiplier),
+			zap.Bool("beaconChain", slashEvent.BeaconChain),
 		)
 	}
 
