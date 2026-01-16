@@ -18,9 +18,9 @@ WITH operator_rewards AS (
         avs,
         operator_set_id,
         strategy,
-        tokens_per_registered_snapshot_decimal,
-        -- Calculate staker split (total rewards minus operator split)
-        tokens_per_registered_snapshot_decimal - operator_tokens as staker_split_total
+        multiplier,
+        adjusted_tokens_per_snapshot,
+        adjusted_tokens_per_snapshot - operator_tokens as staker_split_total
     FROM {{.operatorRewardsTable}}
 ),
 
