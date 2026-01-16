@@ -31,7 +31,7 @@ type (
 		StateRoot        EthereumHexString      `json:"stateRoot"`
 		ReceiptsRoot     EthereumHexString      `json:"receiptsRoot"`
 		Miner            EthereumHexString      `json:"miner"`
-		Difficulty       EthereumQuantity       `json:"difficulty"`
+		Difficulty       EthereumHexString      `json:"difficulty"` // Post-merge: prevRandao (256-bit hash)
 		TotalDifficulty  EthereumBigQuantity    `json:"totalDifficulty"`
 		ExtraData        EthereumHexString      `json:"extraData"`
 		Size             EthereumQuantity       `json:"size"`

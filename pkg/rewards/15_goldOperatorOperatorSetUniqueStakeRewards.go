@@ -74,6 +74,8 @@ operators_with_unique_stake AS (
         strategy,
         multiplier,
         reward_submission_date,
+        registration_snapshot,
+        slashable_until,
         -- Sum the weighted allocated stake across strategies
         SUM(allocated_stake * multiplier) OVER (
             PARTITION BY reward_hash, snapshot, operator
@@ -115,12 +117,17 @@ operators_with_deregistration_status AS (
 
 -- Step 4: Calculate cumulative slash multiplier during deregistration queue
 -- Slashing only affects rewards during the 14-day deregistration period
+-- GUARD: If wad_slashed >= 1e18 (100% slash), use a very large negative value for LN
+-- instead of LN(0) which would cause a math error. This effectively makes the multiplier ~0.
 operators_with_slash_multiplier AS (
     SELECT
         owds.*,
         COALESCE(
             EXP(SUM(
-                LN(1 - COALESCE(so.wad_slashed, 0) / CAST(1e18 AS NUMERIC))
+                CASE
+                    WHEN COALESCE(so.wad_slashed, 0) >= CAST(1e18 AS NUMERIC) THEN -100  -- Effectively 0 multiplier (e^-100 ≈ 0)
+                    ELSE LN(1 - COALESCE(so.wad_slashed, 0) / CAST(1e18 AS NUMERIC))
+                END
             ) FILTER (
                 WHERE owds.in_deregistration_queue
                   AND so.block_number > b_reg.number
@@ -138,7 +145,10 @@ operators_with_slash_multiplier AS (
         ON DATE(b_reg.block_time) = owds.registration_snapshot
     LEFT JOIN blocks b_snapshot
         ON DATE(b_snapshot.block_time) = owds.snapshot
-    GROUP BY owds.*, owds.in_deregistration_queue
+    GROUP BY owds.reward_hash, owds.snapshot, owds.token, owds.tokens_per_registered_snapshot_decimal,
+             owds.avs, owds.operator_set_id, owds.operator, owds.strategy, owds.multiplier,
+             owds.reward_submission_date, owds.registration_snapshot, owds.slashable_until,
+             owds.operator_allocated_weight, owds.rn, owds.in_deregistration_queue
 ),
 
 -- Step 5: Apply slash multiplier to tokens
@@ -196,7 +206,7 @@ func (rc *RewardsCalculator) GenerateGold15OperatorOperatorSetUniqueStakeRewards
 	query, err := rewardsUtils.RenderQueryTemplate(_15_goldOperatorOperatorSetUniqueStakeRewardsQuery, map[string]interface{}{
 		"destTableName":                    destTableName,
 		"activeODRewardsTable":             allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
-		"operatorAllocationSnapshotsTable": allTableNames[rewardsUtils.Table_OperatorAllocationSnapshots],
+		"operatorAllocationSnapshotsTable": "operator_allocation_snapshots",
 		"operatorShareSnapshotsTable":      "operator_share_snapshots",
 	})
 	if err != nil {

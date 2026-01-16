@@ -18,29 +18,28 @@ WITH operator_rewards AS (
         avs,
         operator_set_id,
         strategy,
-        tokens_per_registered_snapshot_decimal,
-        -- Calculate staker split (total rewards minus operator split)
-        tokens_per_registered_snapshot_decimal - operator_tokens as staker_split_total
+        multiplier,
+        adjusted_tokens_per_snapshot,
+        adjusted_tokens_per_snapshot - operator_tokens as staker_split_total
     FROM {{.operatorRewardsTable}}
 ),
 
 -- Step 2: Get stakers delegated to each operator
 staker_delegations AS (
     SELECT
-        or.*,
+        op_rew.*,
         sds.staker
-    FROM operator_rewards or
+    FROM operator_rewards op_rew
     JOIN staker_delegation_snapshots sds
-        ON or.operator = sds.operator
-        AND or.snapshot = sds.snapshot
+        ON op_rew.operator = sds.operator
+        AND op_rew.snapshot = sds.snapshot
 ),
 
 -- Step 3: Get each staker's shares for the strategy
 staker_strategy_shares AS (
     SELECT
         sd.*,
-        sss.shares,
-        sd.multiplier
+        sss.shares
     FROM staker_delegations sd
     JOIN staker_share_snapshots sss
         ON sd.staker = sss.staker
