@@ -205,23 +205,23 @@ func Test_OperatorShareSnapshots_BasicShares(t *testing.T) {
 
 		// T0: Operator has 1000 shares
 		err = grm.Exec(`
-			INSERT INTO operator_shares (operator, strategy, shares, block_number)
-			VALUES (?, ?, ?, ?)
-		`, operator, strategy, "1000000000000000000000", 100).Error
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "1000000000000000000000", "0xtx100", 0, t0, t0.Format(time.DateOnly), 100).Error
 		assert.Nil(t, err)
 
 		// T1: Shares increase to 1500
 		err = grm.Exec(`
-			INSERT INTO operator_shares (operator, strategy, shares, block_number)
-			VALUES (?, ?, ?, ?)
-		`, operator, strategy, "1500000000000000000000", 200).Error
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "1500000000000000000000", "0xtx200", 0, t1, t1.Format(time.DateOnly), 200).Error
 		assert.Nil(t, err)
 
 		// T2: Shares decrease to 800
 		err = grm.Exec(`
-			INSERT INTO operator_shares (operator, strategy, shares, block_number)
-			VALUES (?, ?, ?, ?)
-		`, operator, strategy, "800000000000000000000", 300).Error
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "800000000000000000000", "0xtx300", 0, t2, t2.Format(time.DateOnly), 300).Error
 		assert.Nil(t, err)
 
 		// Generate snapshots
@@ -308,15 +308,15 @@ func Test_OperatorShareSnapshots_WithAllocations(t *testing.T) {
 
 		// T0: Operator has 1000 shares from base operator_shares table
 		err = grm.Exec(`
-			INSERT INTO operator_shares (operator, strategy, shares, block_number)
-			VALUES (?, ?, ?, ?)
-		`, operator, strategy, "1000000000000000000000", 100).Error
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "1000000000000000000000", "0xtx100", 0, t0, t0.Format(time.DateOnly), 100).Error
 		assert.Nil(t, err)
 
 		// T1: Operator has allocation of 2000 (should override base shares)
 		err = grm.Exec(`
-			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, operator, avs, strategy, 1, "2000000000000000000000", 200, 200, "0xtx1", 1).Error
 		assert.Nil(t, err)
 
@@ -372,6 +372,8 @@ func Test_OperatorShareSnapshots_MultipleStrategies(t *testing.T) {
 	strategy2 := "0xstrategy_b"
 
 	t0 := time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC)
+	// Use a cutoff date after t0 since snapshots round up to the next day
+	cutoffDate := t0.AddDate(0, 0, 2)
 
 	t.Run("Operator has shares in multiple strategies", func(t *testing.T) {
 		// Insert block
@@ -384,27 +386,27 @@ func Test_OperatorShareSnapshots_MultipleStrategies(t *testing.T) {
 
 		// Operator has shares in strategy1
 		err = grm.Exec(`
-			INSERT INTO operator_shares (operator, strategy, shares, block_number)
-			VALUES (?, ?, ?, ?)
-		`, operator, strategy1, "500000000000000000000", 100).Error
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy1, "500000000000000000000", "0xtx100a", 0, t0, t0.Format(time.DateOnly), 100).Error
 		assert.Nil(t, err)
 
 		// Operator has shares in strategy2
 		err = grm.Exec(`
-			INSERT INTO operator_shares (operator, strategy, shares, block_number)
-			VALUES (?, ?, ?, ?)
-		`, operator, strategy2, "700000000000000000000", 100).Error
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy2, "700000000000000000000", "0xtx100b", 1, t0, t0.Format(time.DateOnly), 100).Error
 		assert.Nil(t, err)
 
-		// Generate snapshots
+		// Generate snapshots with cutoff date after data insertion
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
 		assert.Nil(t, err)
 
-		err = rewards.GenerateAndInsertOperatorAllocationSnapshots(t0.Format(time.DateOnly))
+		err = rewards.GenerateAndInsertOperatorAllocationSnapshots(cutoffDate.Format(time.DateOnly))
 		assert.Nil(t, err)
 
-		err = rewards.GenerateAndInsertOperatorShareSnapshots(t0.Format(time.DateOnly))
+		err = rewards.GenerateAndInsertOperatorShareSnapshots(cutoffDate.Format(time.DateOnly))
 		assert.Nil(t, err)
 
 		// Verify snapshots for both strategies
@@ -461,16 +463,16 @@ func Test_OperatorShareSnapshots_ZeroShares(t *testing.T) {
 
 		// T0: Operator has 300 shares
 		err = grm.Exec(`
-			INSERT INTO operator_shares (operator, strategy, shares, block_number)
-			VALUES (?, ?, ?, ?)
-		`, operator, strategy, "300000000000000000000", 100).Error
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "300000000000000000000", "0xtx100", 0, t0, t0.Format(time.DateOnly), 100).Error
 		assert.Nil(t, err)
 
 		// T1: Operator shares go to 0
 		err = grm.Exec(`
-			INSERT INTO operator_shares (operator, strategy, shares, block_number)
-			VALUES (?, ?, ?, ?)
-		`, operator, strategy, "0", 200).Error
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "0", "0xtx200", 0, t1, t1.Format(time.DateOnly), 200).Error
 		assert.Nil(t, err)
 
 		// Generate snapshots
@@ -524,6 +526,8 @@ func Test_OperatorShareSnapshots_MultipleOperators(t *testing.T) {
 	strategy := "0xstrategy_shared"
 
 	t0 := time.Date(2024, 5, 1, 0, 0, 0, 0, time.UTC)
+	// Use a cutoff date after t0 since snapshots round up to the next day
+	cutoffDate := t0.AddDate(0, 0, 2)
 
 	t.Run("Multiple operators same strategy", func(t *testing.T) {
 		// Insert block
@@ -536,27 +540,27 @@ func Test_OperatorShareSnapshots_MultipleOperators(t *testing.T) {
 
 		// Operator 1 has 600 shares
 		err = grm.Exec(`
-			INSERT INTO operator_shares (operator, strategy, shares, block_number)
-			VALUES (?, ?, ?, ?)
-		`, operator1, strategy, "600000000000000000000", 100).Error
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator1, strategy, "600000000000000000000", "0xtx100a", 0, t0, t0.Format(time.DateOnly), 100).Error
 		assert.Nil(t, err)
 
 		// Operator 2 has 900 shares
 		err = grm.Exec(`
-			INSERT INTO operator_shares (operator, strategy, shares, block_number)
-			VALUES (?, ?, ?, ?)
-		`, operator2, strategy, "900000000000000000000", 100).Error
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator2, strategy, "900000000000000000000", "0xtx100b", 1, t0, t0.Format(time.DateOnly), 100).Error
 		assert.Nil(t, err)
 
-		// Generate snapshots
+		// Generate snapshots with cutoff date after data insertion
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
 		assert.Nil(t, err)
 
-		err = rewards.GenerateAndInsertOperatorAllocationSnapshots(t0.Format(time.DateOnly))
+		err = rewards.GenerateAndInsertOperatorAllocationSnapshots(cutoffDate.Format(time.DateOnly))
 		assert.Nil(t, err)
 
-		err = rewards.GenerateAndInsertOperatorShareSnapshots(t0.Format(time.DateOnly))
+		err = rewards.GenerateAndInsertOperatorShareSnapshots(cutoffDate.Format(time.DateOnly))
 		assert.Nil(t, err)
 
 		// Verify both operators have snapshots
@@ -603,7 +607,7 @@ func Test_OperatorShareSnapshots_SameDayMultipleChanges(t *testing.T) {
 			{102, 18, "150000000000000000000"}, // 18:00 - latest
 		}
 
-		for _, s := range shares {
+		for i, s := range shares {
 			blockTime := baseDate.Add(time.Duration(s.hour) * time.Hour)
 			err := grm.Exec(`
 				INSERT INTO blocks (number, hash, block_time, created_at)
@@ -613,9 +617,9 @@ func Test_OperatorShareSnapshots_SameDayMultipleChanges(t *testing.T) {
 			assert.Nil(t, err)
 
 			err = grm.Exec(`
-				INSERT INTO operator_shares (operator, strategy, shares, block_number)
-				VALUES (?, ?, ?, ?)
-			`, operator, strategy, s.amount, s.number).Error
+				INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`, operator, strategy, s.amount, fmt.Sprintf("0xtx%d", s.number), i, blockTime, blockTime.Format(time.DateOnly), s.number).Error
 			assert.Nil(t, err)
 		}
 
@@ -678,9 +682,9 @@ func Test_OperatorShareSnapshots_LargeNumbers(t *testing.T) {
 		// Very large share amount (1 billion tokens with 18 decimals)
 		largeAmount := "1000000000000000000000000000"
 		err = grm.Exec(`
-			INSERT INTO operator_shares (operator, strategy, shares, block_number)
-			VALUES (?, ?, ?, ?)
-		`, operator, strategy, largeAmount, 100).Error
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, largeAmount, "0xtx100", 0, t0, t0.Format(time.DateOnly), 100).Error
 		assert.Nil(t, err)
 
 		// Generate snapshots

@@ -30,8 +30,8 @@ operator_share_windows as (
 	SELECT
 		operator, strategy, shares, snapshot_time as start_time,
 		CASE
-			-- If the range does not have the end, use the current timestamp truncated to 0 UTC
-			WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}')
+			-- If the range does not have the end, use cutoff + 1 day to include cutoff date snapshot
+			WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}') + INTERVAL '1' day
 			ELSE LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time)
 		END AS end_time
 	FROM snapshotted_records
@@ -51,7 +51,7 @@ base_snapshots as (
 	CROSS JOIN
 		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 ),
--- Add operator allocations (deallocation delay handled via effective_block)
+-- Add operator allocations for all days in the generated window
 allocation_adjustments as (
 	SELECT
 		oas.operator,
@@ -59,7 +59,7 @@ allocation_adjustments as (
 		SUM(oas.magnitude) as total_magnitude,
 		oas.snapshot
 	FROM operator_allocation_snapshots oas
-	WHERE oas.snapshot = DATE '{{.snapshotDate}}'
+	WHERE oas.snapshot <= DATE '{{.snapshotDate}}'
 	GROUP BY oas.operator, oas.strategy, oas.snapshot
 ),
 combined_snapshots as (
