@@ -25,17 +25,20 @@ WITH total_available_tokens AS (
     GROUP BY reward_hash, snapshot, token, avs, operator_set_id, operator
 ),
 
--- Step 2: Calculate total tokens actually distributed from the operator rewards table
+-- Step 2: Calculate total tokens actually distributed per operator from the operator rewards table
 total_distributed_tokens AS (
     SELECT
         reward_hash,
         snapshot,
+        avs,
+        operator_set_id,
+        operator,
         COALESCE(SUM(operator_tokens), 0) as distributed_tokens
     FROM {{.operatorRewardsTable}}
-    GROUP BY reward_hash, snapshot
+    GROUP BY reward_hash, snapshot, avs, operator_set_id, operator
 ),
 
--- Step 3: Identify snapshots where distributed tokens = 0, refund all available tokens to AVS
+-- Step 3: Identify operator-sets where distributed tokens = 0, refund those tokens to AVS
 snapshots_requiring_refund AS (
     SELECT
         tat.reward_hash,
@@ -49,6 +52,9 @@ snapshots_requiring_refund AS (
     LEFT JOIN total_distributed_tokens tdt
         ON tat.reward_hash = tdt.reward_hash
         AND tat.snapshot = tdt.snapshot
+        AND tat.avs = tdt.avs
+        AND tat.operator_set_id = tdt.operator_set_id
+        AND tat.operator = tdt.operator
     WHERE COALESCE(tdt.distributed_tokens, 0) = 0
 )
 
