@@ -2,6 +2,7 @@ package slashingProcessor
 
 import (
 	"fmt"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerDelegations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerShares"
@@ -101,7 +102,7 @@ func (sp *SlashingProcessor) Process(blockNumber uint64, models map[string]types
 type SlashingEvent struct {
 	Operator        string
 	Strategy        string
-	WadSlashed      string `gorm:"column:total_slashed_shares"`
+	WadSlashed      string
 	TransactionHash string
 	LogIndex        uint64
 }
