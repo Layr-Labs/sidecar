@@ -685,7 +685,7 @@ func (c *Config) getBaseForkMap() (ForkMap, error) {
 				BlockNumber: 8327038,
 			},
 			RewardsFork_Sabine: Fork{
-				Date:        "2026-01-19",
+				Date:        "2026-01-28",
 				BlockNumber: 9916073,
 			},
 		}, nil
@@ -717,7 +717,7 @@ func (c *Config) getBaseForkMap() (ForkMap, error) {
 				BlockNumber: 0,
 			},
 			RewardsFork_Sabine: Fork{
-				Date:        "2026-01-19",
+				Date:        "2026-01-28",
 				BlockNumber: 1850631,
 			},
 		}, nil
@@ -795,7 +795,7 @@ func (c *Config) getBaseForkMap() (ForkMap, error) {
 				BlockNumber: 22483225,
 			},
 			RewardsFork_Sabine: Fork{
-				Date:        "2026-01-19",
+				Date:        "2026-02-16",
 				BlockNumber: 24274311,
 			},
 		}, nil
