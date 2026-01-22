@@ -102,12 +102,13 @@ distinct_operators AS (
     WHERE rn = 1
 ),
 
--- Step 3: Check if operators are in deregistration queue (between registration and slashable_until)
+-- Step 3: Check if operators are in deregistration queue (14-day window after deregistration)
 operators_with_deregistration_status AS (
     SELECT
         dop.*,
         CASE
-            WHEN dop.snapshot > dop.registration_snapshot
+            WHEN dop.slashable_until IS NOT NULL
+             AND dop.snapshot > (dop.slashable_until - INTERVAL '14 days')
              AND dop.snapshot <= dop.slashable_until
             THEN TRUE
             ELSE FALSE

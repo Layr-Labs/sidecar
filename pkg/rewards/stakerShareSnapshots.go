@@ -33,8 +33,8 @@ const stakerShareSnapshotsQuery = `
 	 SELECT
 		 staker, strategy, shares::numeric as shares, snapshot_time as start_time,
 		 CASE
-			 -- If the range does not have the end, use the current timestamp truncated to 0 UTC
-			 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}')
+			 -- If the range does not have the end, use cutoff + 1 day to include cutoff date snapshot
+			 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}') + INTERVAL '1' day
 			 ELSE LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time)
 			 END AS end_time
 	 FROM snapshotted_records

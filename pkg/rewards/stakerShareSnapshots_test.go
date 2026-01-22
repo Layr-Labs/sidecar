@@ -1499,7 +1499,7 @@ func Test_StakerShareSnapshots_V22(t *testing.T) {
 		// (withdrawal at log 2 < slash at log 3, so withdrawal IS affected)
 		res = grm.Exec(`
 			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
+			VALUES (?, ?, ?, ?, 2, ?, ?, ?, ?, ?)
 		`, "0xstaker13", "0xstrat13", "0xoperator13", block2, block2, 0.5, block2, "tx_1001_slash", 3)
 		assert.Nil(t, res.Error)
 
