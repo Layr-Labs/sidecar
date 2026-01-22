@@ -151,7 +151,7 @@ func setupRewardsV2() (
 	cfg := tests.GetConfig()
 	cfg.Rewards.GenerateStakerOperatorsTable = true
 	cfg.Rewards.ValidateRewardsRoot = true
-	cfg.Chain = config.Chain_Preprod
+	cfg.Chain = config.Chain_PreprodHoodi
 
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 

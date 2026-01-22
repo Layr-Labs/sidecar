@@ -273,6 +273,17 @@ func LargeTestsEnabled() bool {
 	return os.Getenv("TEST_REWARDS") == "true" || os.Getenv("TEST_LARGE") == "true"
 }
 
+// GetConfigWithSabineForkEnabled returns a config with Sabine fork enabled at block 0.
+// This is useful for testing withdrawal queue add-back logic.
+func GetConfigWithSabineForkEnabled(chain config.Chain) *config.Config {
+	cfg := GetConfig()
+	cfg.Chain = chain
+	cfg.Rewards.WithdrawalQueueWindow = 14.0 // 14 days for mainnet
+	// Enable Sabine fork at block 0 so it's always active
+	cfg.SetForkOverride(config.RewardsFork_Sabine, 0, "1970-01-01")
+	return cfg
+}
+
 // ----------------------------------------------------------------------------
 // Rewards V2
 // ----------------------------------------------------------------------------

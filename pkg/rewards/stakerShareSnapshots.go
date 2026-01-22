@@ -28,92 +28,66 @@ const stakerShareSnapshotsQuery = `
 	 from ranked_staker_records
 	 where rn = 1
 	),
-	{{ if .useSabineFork }}
-	-- Pre-aggregate withdrawal queue adjustments at bronze level (Post-Sabine fork only)
-	cutoff_block as (
-		SELECT number as cutoff_block_number
-		FROM blocks
-		WHERE block_time <= TIMESTAMP '{{.cutoffDate}}'
-		ORDER BY number DESC
-		LIMIT 1
-	),
-	queued_withdrawal_adjustments as (
-		SELECT
-			qsw.staker,
-			qsw.strategy,
-			qsw.block_number as withdrawal_block_number,
-			b_queued.block_time as queued_time,
-			-- Calculate effective shares after slashing: base shares * cumulative slash multiplier
-			COALESCE(qsw.shares_to_withdraw::numeric, 0) * COALESCE(
-				-- Get the latest (most recent) slash multiplier for this withdrawal
-				(SELECT adj.slash_multiplier::numeric
-				 FROM queued_withdrawal_slashing_adjustments adj
-				 WHERE adj.staker = qsw.staker
-				 AND adj.strategy = qsw.strategy
-				 AND adj.withdrawal_block_number = qsw.block_number
-				 AND adj.slash_block_number <= (SELECT cutoff_block_number FROM cutoff_block)
-				 ORDER BY adj.slash_block_number DESC
-				 LIMIT 1),
-				1  -- No slashing if no adjustment records found
-			) as effective_shares
-		FROM queued_slashing_withdrawals qsw
-		INNER JOIN blocks b_queued ON qsw.block_number = b_queued.number
-		WHERE
-			-- Still within withdrawal queue window (not yet completable)
-			b_queued.block_time + INTERVAL '{{.withdrawalQueueWindow}} days' > TIMESTAMP '{{.snapshotDate}}'
-			-- Backwards compatibility: only process records with valid data
-			AND qsw.staker IS NOT NULL
-			AND qsw.strategy IS NOT NULL
-			AND qsw.operator IS NOT NULL
-			AND qsw.shares_to_withdraw IS NOT NULL
-			AND b_queued.block_time IS NOT NULL
-	),
-	{{ end }}
-	-- Join bronze tables: base shares + pre-aggregated withdrawal adjustments
-	-- This follows the design principle: "join bronze → snapshot" not "snapshot → inject adjustments"
-	staker_shares_with_queue_bronze as (
-		SELECT
-			sr.staker,
-			sr.strategy,
-			{{ if .useSabineFork }}
-			-- Post-Sabine fork: Add back queued withdrawals that are active during this snapshot's window
-			(sr.shares::numeric + COALESCE(
-				(SELECT SUM(qwa.effective_shares)
-				 FROM queued_withdrawal_adjustments qwa
-				 WHERE qwa.staker = sr.staker
-				 AND qwa.strategy = sr.strategy
-				 AND qwa.queued_time <= sr.block_time
-				), 0
-			))::numeric as shares,
-			{{ else }}
-			-- Pre-Sabine fork: Use base shares only (old behavior)
-			sr.shares::numeric as shares,
-			{{ end }}
-			sr.snapshot_time
-		FROM snapshotted_records sr
-	),
-	-- Get the range for each staker, strategy pairing
+	-- Get the range for each staker, strategy pairing (base shares only)
 	staker_share_windows as (
 	 SELECT
-		 staker, strategy, shares, snapshot_time as start_time,
+		 staker, strategy, shares::numeric as shares, snapshot_time as start_time,
 		 CASE
 			 -- If the range does not have the end, use the current timestamp truncated to 0 UTC
 			 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}')
 			 ELSE LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time)
 			 END AS end_time
-	 FROM staker_shares_with_queue_bronze
+	 FROM snapshotted_records
 	),
 	cleaned_records as (
 	  SELECT * FROM staker_share_windows
 	  WHERE start_time < end_time
 	)
-	-- Expand windows to daily snapshots
+	-- Expand windows to daily snapshots with day-specific add-back calculation
 	SELECT
-		staker,
-		strategy,
-		shares,
+		cr.staker,
+		cr.strategy,
+		{{ if .useSabineFork }}
+		-- Post-Sabine fork: Calculate add-back per snapshot day using that day's visible slashes
+		-- Key: slash_block_time < snapshot_day determines which slashes are visible for that day
+		(cr.shares + COALESCE(
+			(SELECT SUM(
+				qsw.shares_to_withdraw::numeric * COALESCE(
+					-- Get the latest slash multiplier visible BEFORE this snapshot day
+					(SELECT adj.slash_multiplier::numeric
+					 FROM queued_withdrawal_slashing_adjustments adj
+					 INNER JOIN blocks b_slash ON adj.slash_block_number = b_slash.number
+					 WHERE adj.staker = qsw.staker
+					 AND adj.strategy = qsw.strategy
+					 AND adj.withdrawal_block_number = qsw.block_number
+					 AND DATE(b_slash.block_time) < day::date
+					 ORDER BY adj.slash_block_number DESC
+					 LIMIT 1),
+					1  -- No slashing if no adjustment records visible yet
+				)
+			)
+			 FROM queued_slashing_withdrawals qsw
+			 INNER JOIN blocks b_queued ON qsw.block_number = b_queued.number
+			 WHERE qsw.staker = cr.staker
+			 AND qsw.strategy = cr.strategy
+			 -- Withdrawal must be queued before the snapshot day
+			 AND DATE(b_queued.block_time) < day::date
+			 -- Withdrawal must still be in queue (not yet completable) on this snapshot day
+			 AND b_queued.block_time + INTERVAL '{{.withdrawalQueueWindow}} days' > day::timestamp
+			 -- Backwards compatibility: only process records with valid data
+			 AND qsw.staker IS NOT NULL
+			 AND qsw.strategy IS NOT NULL
+			 AND qsw.operator IS NOT NULL
+			 AND qsw.shares_to_withdraw IS NOT NULL
+			 AND b_queued.block_time IS NOT NULL
+			), 0
+		))::numeric as shares,
+		{{ else }}
+		-- Pre-Sabine fork: Use base shares only (old behavior)
+		cr.shares as shares,
+		{{ end }}
 		cast(day AS DATE) AS snapshot
-	FROM cleaned_records
+	FROM cleaned_records cr
 	CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 	on conflict on constraint uniq_staker_share_snapshots do nothing;
 `

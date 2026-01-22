@@ -2,6 +2,7 @@ package slashingProcessor
 
 import (
 	"fmt"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerDelegations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerShares"
