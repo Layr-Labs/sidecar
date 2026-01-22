@@ -207,16 +207,16 @@ func testSSS8_MultipleConsecutiveSlashes(t *testing.T, ctx context.Context,
 
 	// First slash 50% on 1/6: multiplier = 0.5
 	res = grm.Exec(`
-		INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "0xstaker_sss8", "0xstrat_sss8", "0xoperator_sss8", 88001, 88002, 0.5, 88002, "tx_88002_slash1", 0)
+		INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "0xstaker_sss8", "0xstrat_sss8", "0xoperator_sss8", 88001, 0, 88002, 0.5, 88002, "tx_88002_slash1", 0)
 	require.Nil(t, res.Error, "Failed to insert first slash adjustment")
 
 	// Second slash 50% on 1/7: cumulative multiplier = 0.25
 	res = grm.Exec(`
-		INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "0xstaker_sss8", "0xstrat_sss8", "0xoperator_sss8", 88001, 88003, 0.25, 88003, "tx_88003_slash2", 0)
+		INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "0xstaker_sss8", "0xstrat_sss8", "0xoperator_sss8", 88001, 0, 88003, 0.25, 88003, "tx_88003_slash2", 0)
 	require.Nil(t, res.Error, "Failed to insert second slash adjustment")
 
 	t.Log("SSS-8: Generating snapshots...")
@@ -319,9 +319,9 @@ func testSSS9_PartialWithdrawalWithSlashing(t *testing.T, ctx context.Context,
 	require.Nil(t, res.Error, "Failed to insert first slash base shares")
 
 	res = grm.Exec(`
-		INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "0xstaker_sss9", "0xstrat_sss9", "0xoperator_sss9", 99001, 99002, 0.5, 99002, "tx_99002_slash1", 0)
+		INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "0xstaker_sss9", "0xstrat_sss9", "0xoperator_sss9", 99001, 0, 99002, 0.5, 99002, "tx_99002_slash1", 0)
 	require.Nil(t, res.Error, "Failed to insert first slash adjustment")
 
 	// Second slash 50% on 2/7: base goes to 37.5, cumulative multiplier = 0.25
@@ -332,9 +332,9 @@ func testSSS9_PartialWithdrawalWithSlashing(t *testing.T, ctx context.Context,
 	require.Nil(t, res.Error, "Failed to insert second slash base shares")
 
 	res = grm.Exec(`
-		INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "0xstaker_sss9", "0xstrat_sss9", "0xoperator_sss9", 99001, 99003, 0.25, 99003, "tx_99003_slash2", 0)
+		INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "0xstaker_sss9", "0xstrat_sss9", "0xoperator_sss9", 99001, 0, 99003, 0.25, 99003, "tx_99003_slash2", 0)
 	require.Nil(t, res.Error, "Failed to insert second slash adjustment")
 
 	t.Log("SSS-9: Generating snapshots...")
@@ -619,9 +619,9 @@ func testSSS13_SameBlockWithdrawalBeforeSlash(t *testing.T, ctx context.Context,
 
 	// Slash 50% in same block with higher log_index
 	res = grm.Exec(`
-		INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "0xstaker_sss13", "0xstrat_sss13", "0xoperator_sss13", 140001, 140001, 0.5, 140001, "tx_140001_slash", 3)
+		INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "0xstaker_sss13", "0xstrat_sss13", "0xoperator_sss13", 140001, 0, 140001, 0.5, 140001, "tx_140001_slash", 3)
 	require.Nil(t, res.Error)
 
 	t.Log("SSS-13: Generating snapshots...")

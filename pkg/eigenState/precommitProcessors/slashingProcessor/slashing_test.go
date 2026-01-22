@@ -325,8 +325,12 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		setupBlocksForCSA(t, grm, []uint64{1000, 1005})
 		insertQueuedWithdrawal(t, grm, "0xstaker1", "0xoperator1", "0xstrategy1", 1000, "1000000000000000000000")
 
-		// Insert slashing event at block 1005 (25% slash)
-		insertSlashingEvent(t, grm, "0xoperator1", "0xstrategy1", "250000000000000000", 1005, "tx_1005", 1)
+		// Set up staker shares model to process slashing event
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		sharesModel, err := stakerShares.NewStakerSharesModel(esm, grm, l, cfg)
+		require.NoError(t, err)
+		err = sharesModel.SetupStateForBlock(1005)
+		require.NoError(t, err)
 
 		// Create processor and call createSlashingAdjustments
 		sp := &SlashingProcessor{
@@ -335,16 +339,24 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			globalConfig: cfg,
 		}
 
+		// Process slashing through the staker shares model to get proper SlashDiff
+		change, err := processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, 1005, 1, "0xoperator1", []string{"0xstrategy1"}, []*big.Int{big.NewInt(25e16)})
+		require.NoError(t, err)
+
+		diffs := change.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs.SlashDiffs), "Should have one slash diff")
+
+		slashDiff := diffs.SlashDiffs[0]
 		slashEvent := &SlashingEvent{
-			SlashedEntity:   "0xoperator1",
-			BeaconChain:     false,
-			Strategy:        "0xstrategy1",
-			WadSlashed:      "250000000000000000",
-			TransactionHash: "tx_1005",
-			LogIndex:        1,
+			SlashedEntity:   slashDiff.SlashedEntity,
+			BeaconChain:     slashDiff.BeaconChain,
+			Strategy:        slashDiff.Strategy,
+			WadSlashed:      slashDiff.WadSlashed.String(),
+			TransactionHash: slashDiff.TransactionHash,
+			LogIndex:        slashDiff.LogIndex,
 		}
 
-		err := sp.createSlashingAdjustments(slashEvent, 1005)
+		err = sp.createSlashingAdjustments(slashEvent, 1005)
 		require.NoError(t, err)
 
 		// Verify adjustment record created with multiplier 0.75
@@ -380,6 +392,11 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		setupBlocksForCSA(t, grm, []uint64{1000, 1005, 1010})
 		insertQueuedWithdrawal(t, grm, "0xstaker2", "0xoperator2", "0xstrategy2", 1000, "1000000000000000000000")
 
+		// Set up staker shares model to process slashing events
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		sharesModel, err := stakerShares.NewStakerSharesModel(esm, grm, l, cfg)
+		require.NoError(t, err)
+
 		sp := &SlashingProcessor{
 			logger:       l,
 			grm:          grm,
@@ -387,16 +404,22 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		}
 
 		// First slash: 25% at block 1005
-		insertSlashingEvent(t, grm, "0xoperator2", "0xstrategy2", "250000000000000000", 1005, "tx_1005", 1)
+		err = sharesModel.SetupStateForBlock(1005)
+		require.NoError(t, err)
+		change1, err := processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, 1005, 1, "0xoperator2", []string{"0xstrategy2"}, []*big.Int{big.NewInt(25e16)})
+		require.NoError(t, err)
+		diffs1 := change1.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs1.SlashDiffs))
+		slashDiff1 := diffs1.SlashDiffs[0]
 		slashEvent1 := &SlashingEvent{
-			SlashedEntity:   "0xoperator2",
-			BeaconChain:     false,
-			Strategy:        "0xstrategy2",
-			WadSlashed:      "250000000000000000",
-			TransactionHash: "tx_1005",
-			LogIndex:        1,
+			SlashedEntity:   slashDiff1.SlashedEntity,
+			BeaconChain:     slashDiff1.BeaconChain,
+			Strategy:        slashDiff1.Strategy,
+			WadSlashed:      slashDiff1.WadSlashed.String(),
+			TransactionHash: slashDiff1.TransactionHash,
+			LogIndex:        slashDiff1.LogIndex,
 		}
-		err := sp.createSlashingAdjustments(slashEvent1, 1005)
+		err = sp.createSlashingAdjustments(slashEvent1, 1005)
 		require.NoError(t, err)
 
 		// Verify first adjustment: 0.75
@@ -409,14 +432,20 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		assert.Contains(t, multiplier, "0.75")
 
 		// Second slash: 50% at block 1010
-		insertSlashingEvent(t, grm, "0xoperator2", "0xstrategy2", "500000000000000000", 1010, "tx_1010", 1)
+		err = sharesModel.SetupStateForBlock(1010)
+		require.NoError(t, err)
+		change2, err := processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, 1010, 1, "0xoperator2", []string{"0xstrategy2"}, []*big.Int{big.NewInt(5e17)})
+		require.NoError(t, err)
+		diffs2 := change2.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs2.SlashDiffs))
+		slashDiff2 := diffs2.SlashDiffs[0]
 		slashEvent2 := &SlashingEvent{
-			SlashedEntity:   "0xoperator2",
-			BeaconChain:     false,
-			Strategy:        "0xstrategy2",
-			WadSlashed:      "500000000000000000",
-			TransactionHash: "tx_1010",
-			LogIndex:        1,
+			SlashedEntity:   slashDiff2.SlashedEntity,
+			BeaconChain:     slashDiff2.BeaconChain,
+			Strategy:        slashDiff2.Strategy,
+			WadSlashed:      slashDiff2.WadSlashed.String(),
+			TransactionHash: slashDiff2.TransactionHash,
+			LogIndex:        slashDiff2.LogIndex,
 		}
 		err = sp.createSlashingAdjustments(slashEvent2, 1010)
 		require.NoError(t, err)
@@ -439,8 +468,12 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		setupBlocksForCSA(t, grm, []uint64{1000})
 		insertQueuedWithdrawalWithLogIndex(t, grm, "0xstaker3", "0xoperator3", "0xstrategy3", 1000, 2, "1000000000000000000000")
 
-		// Slash happens at log_index 1 (before withdrawal)
-		insertSlashingEvent(t, grm, "0xoperator3", "0xstrategy3", "250000000000000000", 1000, "tx_1000", 1)
+		// Set up staker shares model to process slashing event
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		sharesModel, err := stakerShares.NewStakerSharesModel(esm, grm, l, cfg)
+		require.NoError(t, err)
+		err = sharesModel.SetupStateForBlock(1000)
+		require.NoError(t, err)
 
 		sp := &SlashingProcessor{
 			logger:       l,
@@ -448,16 +481,22 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			globalConfig: cfg,
 		}
 
+		// Process slashing at log_index 1 (before withdrawal at log_index 2)
+		change, err := processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, 1000, 1, "0xoperator3", []string{"0xstrategy3"}, []*big.Int{big.NewInt(25e16)})
+		require.NoError(t, err)
+		diffs := change.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs.SlashDiffs))
+		slashDiff := diffs.SlashDiffs[0]
 		slashEvent := &SlashingEvent{
-			SlashedEntity:   "0xoperator3",
-			BeaconChain:     false,
-			Strategy:        "0xstrategy3",
-			WadSlashed:      "250000000000000000",
-			TransactionHash: "tx_1000",
-			LogIndex:        1,
+			SlashedEntity:   slashDiff.SlashedEntity,
+			BeaconChain:     slashDiff.BeaconChain,
+			Strategy:        slashDiff.Strategy,
+			WadSlashed:      slashDiff.WadSlashed.String(),
+			TransactionHash: slashDiff.TransactionHash,
+			LogIndex:        slashDiff.LogIndex,
 		}
 
-		err := sp.createSlashingAdjustments(slashEvent, 1000)
+		err = sp.createSlashingAdjustments(slashEvent, 1000)
 		require.NoError(t, err)
 
 		// Verify NO adjustment created (slash before withdrawal in execution order)
@@ -489,8 +528,12 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 
 		insertQueuedWithdrawal(t, grm, "0xstaker4", "0xoperator4", "0xstrategy4", 1000, "1000000000000000000000")
 
-		// Slash after queue expires
-		insertSlashingEvent(t, grm, "0xoperator4", "0xstrategy4", "250000000000000000", 1200, "tx_1200", 1)
+		// Set up staker shares model to process slashing event
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		sharesModel, err := stakerShares.NewStakerSharesModel(esm, grm, l, cfg)
+		require.NoError(t, err)
+		err = sharesModel.SetupStateForBlock(1200)
+		require.NoError(t, err)
 
 		sp := &SlashingProcessor{
 			logger:       l,
@@ -498,16 +541,22 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			globalConfig: cfg,
 		}
 
+		// Process slashing after queue expires
+		change, err := processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, 1200, 1, "0xoperator4", []string{"0xstrategy4"}, []*big.Int{big.NewInt(25e16)})
+		require.NoError(t, err)
+		diffs := change.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs.SlashDiffs))
+		slashDiff := diffs.SlashDiffs[0]
 		slashEvent := &SlashingEvent{
-			SlashedEntity:   "0xoperator4",
-			BeaconChain:     false,
-			Strategy:        "0xstrategy4",
-			WadSlashed:      "250000000000000000",
-			TransactionHash: "tx_1200",
-			LogIndex:        1,
+			SlashedEntity:   slashDiff.SlashedEntity,
+			BeaconChain:     slashDiff.BeaconChain,
+			Strategy:        slashDiff.Strategy,
+			WadSlashed:      slashDiff.WadSlashed.String(),
+			TransactionHash: slashDiff.TransactionHash,
+			LogIndex:        slashDiff.LogIndex,
 		}
 
-		err := sp.createSlashingAdjustments(slashEvent, 1200)
+		err = sp.createSlashingAdjustments(slashEvent, 1200)
 		require.NoError(t, err)
 
 		// Verify NO adjustment created (withdrawal already completable)
@@ -529,59 +578,63 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		insertQueuedWithdrawal(t, grm, "0xstaker5a", "0xoperator5", "0xstrategy5", 1000, "1000000000000000000000")
 		insertQueuedWithdrawal(t, grm, "0xstaker5b", "0xoperator5", "0xstrategy5", 1001, "2000000000000000000000")
 
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		sharesModel, err := stakerShares.NewStakerSharesModel(esm, grm, l, cfg)
+		require.NoError(t, err)
+		err = sharesModel.SetupStateForBlock(1005)
+		require.NoError(t, err)
+
 		sp := &SlashingProcessor{
 			logger:       l,
 			grm:          grm,
 			globalConfig: cfg,
 		}
 
-		// Operator slashed 30% - first slash event at block 1005
-		insertSlashingEvent(t, grm, "0xoperator5", "0xstrategy5", "300000000000000000", 1005, "tx_1005", 1)
-		slashEvent1 := &SlashingEvent{
-			SlashedEntity:   "0xoperator5",
-			BeaconChain:     false,
-			Strategy:        "0xstrategy5",
-			WadSlashed:      "300000000000000000",
-			TransactionHash: "tx_1005",
-			LogIndex:        1,
-		}
-		err := sp.createSlashingAdjustments(slashEvent1, 1005)
-		// Due to PK constraint (block_number, log_index, transaction_hash),
-		// only the first staker gets an adjustment record. This is a known limitation.
-		// The function will return an error when trying to insert the second staker's record.
-		// This is expected behavior given the current schema.
-		if err != nil {
-			// Verify it's the expected PK constraint error
-			assert.Contains(t, err.Error(), "duplicate key value violates unique constraint",
-				"Expected PK constraint error for multiple stakers")
+		// Process slashing through the staker shares model to get proper SlashDiff
+		change, err := processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, 1005, 1, "0xoperator5", []string{"0xstrategy5"}, []*big.Int{big.NewInt(3e17)})
+		require.NoError(t, err)
+
+		diffs := change.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs.SlashDiffs), "Should have one slash diff")
+
+		slashDiff := diffs.SlashDiffs[0]
+		slashEvent := &SlashingEvent{
+			SlashedEntity:   slashDiff.SlashedEntity,
+			BeaconChain:     slashDiff.BeaconChain,
+			Strategy:        slashDiff.Strategy,
+			WadSlashed:      slashDiff.WadSlashed.String(),
+			TransactionHash: slashDiff.TransactionHash,
+			LogIndex:        slashDiff.LogIndex,
 		}
 
-		// Verify at least one staker got an adjustment record
+		err = sp.createSlashingAdjustments(slashEvent, 1005)
+		require.NoError(t, err, "Both stakers should get adjustment records")
+
+		// Verify both stakers got adjustment records
 		var count int64
 		res := grm.Raw(`
 			SELECT COUNT(*) FROM queued_withdrawal_slashing_adjustments
 			WHERE operator = ? AND strategy = ?
 		`, "0xoperator5", "0xstrategy5").Scan(&count)
 		require.NoError(t, res.Error)
-		assert.Greater(t, count, int64(0), "At least one staker should have an adjustment record")
+		assert.Equal(t, int64(2), count, "Both stakers should have adjustment records")
 
-		// Verify the multiplier is correct for the staker that got the record
-		var adjustment struct {
+		// Verify the multiplier is correct for both stakers
+		var adjustments []struct {
 			Staker          string
 			SlashMultiplier string
 		}
 		res = grm.Raw(`
 			SELECT staker, slash_multiplier FROM queued_withdrawal_slashing_adjustments
 			WHERE operator = ? AND strategy = ?
-			LIMIT 1
-		`, "0xoperator5", "0xstrategy5").Scan(&adjustment)
+			ORDER BY staker
+		`, "0xoperator5", "0xstrategy5").Scan(&adjustments)
 		require.NoError(t, res.Error)
-		assert.Contains(t, adjustment.SlashMultiplier, "0.7", "Expected multiplier 0.7 (1 - 0.3)")
-
-		// Note: This test reveals a schema design issue where the PK doesn't allow
-		// multiple stakers to be affected by the same slash event. The unique constraint
-		// (staker, strategy, operator, withdrawal_block_number, slash_block_number)
-		// should be the PK instead.
+		require.Equal(t, 2, len(adjustments), "Should have 2 adjustment records")
+		assert.Equal(t, "0xstaker5a", adjustments[0].Staker)
+		assert.Contains(t, adjustments[0].SlashMultiplier, "0.7", "Expected multiplier 0.7 (1 - 0.3)")
+		assert.Equal(t, "0xstaker5b", adjustments[1].Staker)
+		assert.Contains(t, adjustments[1].SlashMultiplier, "0.7", "Expected multiplier 0.7 (1 - 0.3)")
 	})
 
 	// CSA-6: Multiple withdrawals, partial overlap
@@ -594,8 +647,12 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		insertQueuedWithdrawalWithLogIndex(t, grm, "0xstaker6", "0xoperator6", "0xstrategy6", 1000, 1, "1000000000000000000000")
 		insertQueuedWithdrawalWithLogIndex(t, grm, "0xstaker6", "0xoperator6", "0xstrategy6", 1010, 1, "500000000000000000000")
 
-		// Slash at block 1005
-		insertSlashingEvent(t, grm, "0xoperator6", "0xstrategy6", "250000000000000000", 1005, "tx_1005", 1)
+		// Set up staker shares model to process slashing event
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		sharesModel, err := stakerShares.NewStakerSharesModel(esm, grm, l, cfg)
+		require.NoError(t, err)
+		err = sharesModel.SetupStateForBlock(1005)
+		require.NoError(t, err)
 
 		sp := &SlashingProcessor{
 			logger:       l,
@@ -603,16 +660,22 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			globalConfig: cfg,
 		}
 
+		// Process slashing at block 1005
+		change, err := processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, 1005, 1, "0xoperator6", []string{"0xstrategy6"}, []*big.Int{big.NewInt(25e16)})
+		require.NoError(t, err)
+		diffs := change.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs.SlashDiffs))
+		slashDiff := diffs.SlashDiffs[0]
 		slashEvent := &SlashingEvent{
-			SlashedEntity:   "0xoperator6",
-			BeaconChain:     false,
-			Strategy:        "0xstrategy6",
-			WadSlashed:      "250000000000000000",
-			TransactionHash: "tx_1005",
-			LogIndex:        1,
+			SlashedEntity:   slashDiff.SlashedEntity,
+			BeaconChain:     slashDiff.BeaconChain,
+			Strategy:        slashDiff.Strategy,
+			WadSlashed:      slashDiff.WadSlashed.String(),
+			TransactionHash: slashDiff.TransactionHash,
+			LogIndex:        slashDiff.LogIndex,
 		}
 
-		err := sp.createSlashingAdjustments(slashEvent, 1005)
+		err = sp.createSlashingAdjustments(slashEvent, 1005)
 		require.NoError(t, err)
 
 		// Verify only first withdrawal gets adjustment (second queued after slash)
@@ -640,8 +703,12 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		setupBlocksForCSA(t, grm, []uint64{1000, 1005})
 		insertQueuedWithdrawal(t, grm, "0xstaker7", "0xoperator7", "0xstrategy7", 1000, "1000000000000000000000")
 
-		// 100% slash
-		insertSlashingEvent(t, grm, "0xoperator7", "0xstrategy7", "1000000000000000000", 1005, "tx_1005", 1)
+		// Set up staker shares model to process slashing event
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		sharesModel, err := stakerShares.NewStakerSharesModel(esm, grm, l, cfg)
+		require.NoError(t, err)
+		err = sharesModel.SetupStateForBlock(1005)
+		require.NoError(t, err)
 
 		sp := &SlashingProcessor{
 			logger:       l,
@@ -649,16 +716,22 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			globalConfig: cfg,
 		}
 
+		// Process 100% slash
+		change, err := processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, 1005, 1, "0xoperator7", []string{"0xstrategy7"}, []*big.Int{big.NewInt(1e18)})
+		require.NoError(t, err)
+		diffs := change.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs.SlashDiffs))
+		slashDiff := diffs.SlashDiffs[0]
 		slashEvent := &SlashingEvent{
-			SlashedEntity:   "0xoperator7",
-			BeaconChain:     false,
-			Strategy:        "0xstrategy7",
-			WadSlashed:      "1000000000000000000",
-			TransactionHash: "tx_1005",
-			LogIndex:        1,
+			SlashedEntity:   slashDiff.SlashedEntity,
+			BeaconChain:     slashDiff.BeaconChain,
+			Strategy:        slashDiff.Strategy,
+			WadSlashed:      slashDiff.WadSlashed.String(),
+			TransactionHash: slashDiff.TransactionHash,
+			LogIndex:        slashDiff.LogIndex,
 		}
 
-		err := sp.createSlashingAdjustments(slashEvent, 1005)
+		err = sp.createSlashingAdjustments(slashEvent, 1005)
 		require.NoError(t, err)
 
 		// Verify adjustment record created with multiplier 0
@@ -681,8 +754,12 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		setupBlocksForCSA(t, grm, []uint64{1000, 1005})
 		insertQueuedWithdrawal(t, grm, "0xstaker8", "0xoperator8", "0xstrategyA", 1000, "1000000000000000000000")
 
-		// Slash on different strategy
-		insertSlashingEvent(t, grm, "0xoperator8", "0xstrategyB", "250000000000000000", 1005, "tx_1005", 1)
+		// Set up staker shares model to process slashing event
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		sharesModel, err := stakerShares.NewStakerSharesModel(esm, grm, l, cfg)
+		require.NoError(t, err)
+		err = sharesModel.SetupStateForBlock(1005)
+		require.NoError(t, err)
 
 		sp := &SlashingProcessor{
 			logger:       l,
@@ -690,16 +767,22 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			globalConfig: cfg,
 		}
 
+		// Process slash on different strategy (B instead of A)
+		change, err := processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, 1005, 1, "0xoperator8", []string{"0xstrategyB"}, []*big.Int{big.NewInt(25e16)})
+		require.NoError(t, err)
+		diffs := change.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs.SlashDiffs))
+		slashDiff := diffs.SlashDiffs[0]
 		slashEvent := &SlashingEvent{
-			SlashedEntity:   "0xoperator8",
-			BeaconChain:     false,
-			Strategy:        "0xstrategyB",
-			WadSlashed:      "250000000000000000",
-			TransactionHash: "tx_1005",
-			LogIndex:        1,
+			SlashedEntity:   slashDiff.SlashedEntity,
+			BeaconChain:     slashDiff.BeaconChain,
+			Strategy:        slashDiff.Strategy,
+			WadSlashed:      slashDiff.WadSlashed.String(),
+			TransactionHash: slashDiff.TransactionHash,
+			LogIndex:        slashDiff.LogIndex,
 		}
 
-		err := sp.createSlashingAdjustments(slashEvent, 1005)
+		err = sp.createSlashingAdjustments(slashEvent, 1005)
 		require.NoError(t, err)
 
 		// Verify NO adjustment created (different strategy)
@@ -726,6 +809,11 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		setupBlocksForCSA(t, grm, []uint64{1000, 1005, 1010})
 		insertQueuedWithdrawal(t, grm, "0xstaker9", "0xoperator9", nativeEthStrategy, 1000, "100000000000000000000") // 100 shares
 
+		// Set up staker shares model to process slashing events
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		sharesModel, err := stakerShares.NewStakerSharesModel(esm, grm, l, cfg)
+		require.NoError(t, err)
+
 		sp := &SlashingProcessor{
 			logger:       l,
 			grm:          grm,
@@ -733,17 +821,22 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		}
 
 		// First: Operator slash 25% at block 1005
-		// WadSlashed = 0.25 * 1e18 = 250000000000000000
-		insertSlashingEvent(t, grm, "0xoperator9", nativeEthStrategy, "250000000000000000", 1005, "tx_1005", 1)
+		err = sharesModel.SetupStateForBlock(1005)
+		require.NoError(t, err)
+		change1, err := processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, 1005, 1, "0xoperator9", []string{nativeEthStrategy}, []*big.Int{big.NewInt(25e16)})
+		require.NoError(t, err)
+		diffs1 := change1.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs1.SlashDiffs))
+		slashDiff1 := diffs1.SlashDiffs[0]
 		operatorSlashEvent := &SlashingEvent{
-			SlashedEntity:   "0xoperator9",
-			BeaconChain:     false,
-			Strategy:        nativeEthStrategy,
-			WadSlashed:      "250000000000000000", // 25%
-			TransactionHash: "tx_1005",
-			LogIndex:        1,
+			SlashedEntity:   slashDiff1.SlashedEntity,
+			BeaconChain:     slashDiff1.BeaconChain,
+			Strategy:        slashDiff1.Strategy,
+			WadSlashed:      slashDiff1.WadSlashed.String(),
+			TransactionHash: slashDiff1.TransactionHash,
+			LogIndex:        slashDiff1.LogIndex,
 		}
-		err := sp.createSlashingAdjustments(operatorSlashEvent, 1005)
+		err = sp.createSlashingAdjustments(operatorSlashEvent, 1005)
 		require.NoError(t, err)
 
 		// Verify first adjustment: multiplier = 0.75 (1 - 0.25)
@@ -756,14 +849,21 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		assert.Contains(t, multiplier1, "0.75", "Expected multiplier 0.75 after 25% operator slash")
 
 		// Second: Beacon chain slash 50% at block 1010
-		// WadSlashed = 0.5 * 1e18 = 500000000000000000
+		// Process through staker shares model
+		err = sharesModel.SetupStateForBlock(1010)
+		require.NoError(t, err)
+		change2, err := processBeaconChainSlashing(sharesModel, cfg.GetContractsMapForChain().EigenpodManager, 1010, 1, "0xstaker9", 1e18, 5e17)
+		require.NoError(t, err)
+		diffs2 := change2.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs2.SlashDiffs))
+		slashDiff2 := diffs2.SlashDiffs[0]
 		beaconSlashEvent := &SlashingEvent{
-			SlashedEntity:   "0xstaker9", // For beacon chain, SlashedEntity is the staker (pod owner)
-			BeaconChain:     true,
-			Strategy:        nativeEthStrategy,
-			WadSlashed:      "500000000000000000", // 50%
-			TransactionHash: "tx_1010",
-			LogIndex:        1,
+			SlashedEntity:   slashDiff2.SlashedEntity,
+			BeaconChain:     slashDiff2.BeaconChain,
+			Strategy:        slashDiff2.Strategy,
+			WadSlashed:      slashDiff2.WadSlashed.String(),
+			TransactionHash: slashDiff2.TransactionHash,
+			LogIndex:        slashDiff2.LogIndex,
 		}
 		err = sp.createSlashingAdjustments(beaconSlashEvent, 1010)
 		require.NoError(t, err)
@@ -795,22 +895,34 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		setupBlocksForCSA(t, grm, []uint64{1000, 1005})
 		insertQueuedWithdrawal(t, grm, "0xstaker10", "0xoperator10", nativeEthStrategy, 1000, "100000000000000000000")
 
+		// Set up staker shares model to process slashing event
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		sharesModel, err := stakerShares.NewStakerSharesModel(esm, grm, l, cfg)
+		require.NoError(t, err)
+		err = sharesModel.SetupStateForBlock(1005)
+		require.NoError(t, err)
+
 		sp := &SlashingProcessor{
 			logger:       l,
 			grm:          grm,
 			globalConfig: cfg,
 		}
 
-		// Beacon chain slash 50%
+		// Beacon chain slash 50% - process through staker shares model
+		change, err := processBeaconChainSlashing(sharesModel, cfg.GetContractsMapForChain().EigenpodManager, 1005, 1, "0xstaker10", 1e18, 5e17)
+		require.NoError(t, err)
+		diffs := change.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs.SlashDiffs))
+		slashDiff := diffs.SlashDiffs[0]
 		beaconSlashEvent := &SlashingEvent{
-			SlashedEntity:   "0xstaker10",
-			BeaconChain:     true,
-			Strategy:        nativeEthStrategy,
-			WadSlashed:      "500000000000000000", // 50%
-			TransactionHash: "tx_1005",
-			LogIndex:        1,
+			SlashedEntity:   slashDiff.SlashedEntity,
+			BeaconChain:     slashDiff.BeaconChain,
+			Strategy:        slashDiff.Strategy,
+			WadSlashed:      slashDiff.WadSlashed.String(),
+			TransactionHash: slashDiff.TransactionHash,
+			LogIndex:        slashDiff.LogIndex,
 		}
-		err := sp.createSlashingAdjustments(beaconSlashEvent, 1005)
+		err = sp.createSlashingAdjustments(beaconSlashEvent, 1005)
 		require.NoError(t, err)
 
 		// Verify multiplier = 0.5
@@ -833,22 +945,34 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		insertQueuedWithdrawal(t, grm, "0xstaker11a", "0xoperator11", nativeEthStrategy, 1000, "100000000000000000000")
 		insertQueuedWithdrawal(t, grm, "0xstaker11b", "0xoperator11", nativeEthStrategy, 1001, "100000000000000000000")
 
+		// Set up staker shares model to process slashing event
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		sharesModel, err := stakerShares.NewStakerSharesModel(esm, grm, l, cfg)
+		require.NoError(t, err)
+		err = sharesModel.SetupStateForBlock(1005)
+		require.NoError(t, err)
+
 		sp := &SlashingProcessor{
 			logger:       l,
 			grm:          grm,
 			globalConfig: cfg,
 		}
 
-		// Beacon chain slash only affects staker11a
+		// Beacon chain slash only affects staker11a - process through staker shares model
+		change, err := processBeaconChainSlashing(sharesModel, cfg.GetContractsMapForChain().EigenpodManager, 1005, 1, "0xstaker11a", 1e18, 5e17)
+		require.NoError(t, err)
+		diffs := change.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs.SlashDiffs))
+		slashDiff := diffs.SlashDiffs[0]
 		beaconSlashEvent := &SlashingEvent{
-			SlashedEntity:   "0xstaker11a",
-			BeaconChain:     true,
-			Strategy:        nativeEthStrategy,
-			WadSlashed:      "500000000000000000", // 50%
-			TransactionHash: "tx_1005",
-			LogIndex:        1,
+			SlashedEntity:   slashDiff.SlashedEntity,
+			BeaconChain:     slashDiff.BeaconChain,
+			Strategy:        slashDiff.Strategy,
+			WadSlashed:      slashDiff.WadSlashed.String(),
+			TransactionHash: slashDiff.TransactionHash,
+			LogIndex:        slashDiff.LogIndex,
 		}
-		err := sp.createSlashingAdjustments(beaconSlashEvent, 1005)
+		err = sp.createSlashingAdjustments(beaconSlashEvent, 1005)
 		require.NoError(t, err)
 
 		// Verify only staker11a has adjustment
@@ -939,11 +1063,33 @@ func insertQueuedWithdrawalWithLogIndex(t *testing.T, grm *gorm.DB, staker, oper
 	require.NoError(t, res.Error, "Failed to insert queued withdrawal")
 }
 
-func insertSlashingEvent(t *testing.T, grm *gorm.DB, operator, strategy, wadSlashed string, blockNumber uint64, txHash string, logIndex uint64) {
-	res := grm.Exec(`
-		INSERT INTO slashed_operator_shares (
-			operator, strategy, total_slashed_shares, block_number, transaction_hash, log_index
-		) VALUES (?, ?, ?, ?, ?, ?)
-	`, operator, strategy, wadSlashed, blockNumber, txHash, logIndex)
-	require.NoError(t, res.Error, "Failed to insert slashing event")
+// processBeaconChainSlashing processes a beacon chain slashing event through the staker shares model
+// prevBeaconChainScalingFactor and newBeaconChainScalingFactor are the scaling factors before and after the slash
+// The wadSlashed is calculated as: (prev - new) / prev * 1e18
+func processBeaconChainSlashing(sharesModel *stakerShares.StakerSharesModel, eigenpodManager string, blockNumber, logIndex uint64, staker string, prevBeaconChainScalingFactor, newBeaconChainScalingFactor uint64) (interface{}, error) {
+	beaconChainSlashingFactorDecreasedEvent := stakerShares.BeaconChainSlashingFactorDecreasedOutputData{
+		Staker:                        staker,
+		PrevBeaconChainSlashingFactor: prevBeaconChainScalingFactor,
+		NewBeaconChainSlashingFactor:  newBeaconChainScalingFactor,
+	}
+	beaconChainSlashingFactorDecreasedJson, err := json.Marshal(beaconChainSlashingFactorDecreasedEvent)
+	if err != nil {
+		return nil, err
+	}
+
+	beaconChainSlashingFactorDecreasedLog := storage.TransactionLog{
+		TransactionHash:  "some hash",
+		TransactionIndex: 100,
+		BlockNumber:      blockNumber,
+		Address:          eigenpodManager,
+		Arguments:        ``,
+		EventName:        "BeaconChainSlashingFactorDecreased",
+		LogIndex:         logIndex,
+		OutputData:       string(beaconChainSlashingFactorDecreasedJson),
+		CreatedAt:        time.Time{},
+		UpdatedAt:        time.Time{},
+		DeletedAt:        time.Time{},
+	}
+
+	return sharesModel.HandleStateChange(&beaconChainSlashingFactorDecreasedLog)
 }

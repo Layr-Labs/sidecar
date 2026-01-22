@@ -60,6 +60,7 @@ const stakerShareSnapshotsQuery = `
 					 WHERE adj.staker = qsw.staker
 					 AND adj.strategy = qsw.strategy
 					 AND adj.withdrawal_block_number = qsw.block_number
+					 AND adj.withdrawal_log_index = qsw.log_index
 					 AND DATE(b_slash.block_time) < day::date
 					 ORDER BY adj.slash_block_number DESC
 					 LIMIT 1),

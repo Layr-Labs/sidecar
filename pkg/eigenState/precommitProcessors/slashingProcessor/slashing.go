@@ -165,6 +165,7 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 			qsw.strategy,
 			qsw.operator,
 			qsw.block_number as withdrawal_block_number,
+			qsw.log_index as withdrawal_log_index,
 			@slashBlockNumber as slash_block_number,
 			-- Calculate cumulative slash multiplier: previous multipliers * (1 - current_slash)
 			COALESCE(
@@ -174,6 +175,7 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 				 AND adj.strategy = qsw.strategy
 				 AND adj.operator = qsw.operator
 				 AND adj.withdrawal_block_number = qsw.block_number
+				 AND adj.withdrawal_log_index = qsw.log_index
 				 ORDER BY adj.slash_block_number DESC
 				 LIMIT 1),
 				1
@@ -244,6 +246,7 @@ func (sp *SlashingProcessor) createSlashingAdjustments(slashEvent *SlashingEvent
 		Strategy              string
 		Operator              string
 		WithdrawalBlockNumber uint64
+		WithdrawalLogIndex    uint64
 		SlashBlockNumber      uint64
 		SlashMultiplier       string
 		BlockNumber           uint64
