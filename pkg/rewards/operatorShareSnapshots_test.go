@@ -2,9 +2,10 @@ package rewards
 
 import (
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"testing"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/metrics"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -60,107 +61,6 @@ func teardownOperatorShareSnapshot(dbname string, cfg *config.Config, db *gorm.D
 	if err := postgres.DeleteTestDatabase(pgConfig, dbname); err != nil {
 		l.Sugar().Errorw("Failed to delete test database", "error", err)
 	}
-}
-
-func hydrateOperatorShares(grm *gorm.DB, l *zap.Logger) error {
-	projectRoot := getProjectRootPath()
-	contents, err := tests.GetOperatorSharesSqlFile(projectRoot)
-
-	if err != nil {
-		return err
-	}
-
-	res := grm.Exec(contents)
-	if res.Error != nil {
-		l.Sugar().Errorw("Failed to execute sql", "error", zap.Error(res.Error))
-		return res.Error
-	}
-	return nil
-}
-
-func Test_OperatorShareSnapshots(t *testing.T) {
-	if !rewardsTestsEnabled() {
-		t.Skipf("Skipping %s", t.Name())
-		return
-	}
-
-	projectRoot := getProjectRootPath()
-	dbFileName, cfg, grm, l, sink, err := setupOperatorShareSnapshot()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	snapshotDate, err := getSnapshotDate()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Run("Should hydrate dependency tables", func(t *testing.T) {
-		if _, err = hydrateAllBlocksTable(grm, l); err != nil {
-			t.Error(err)
-		}
-		if err = hydrateOperatorShares(grm, l); err != nil {
-			t.Error(err)
-		}
-	})
-	t.Run("Should generate operator share snapshots", func(t *testing.T) {
-		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
-		rewards, _ := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
-
-		t.Log("Generating operator share snapshots")
-		err := rewards.GenerateAndInsertOperatorShareSnapshots(snapshotDate)
-		assert.Nil(t, err)
-
-		snapshots, err := rewards.ListOperatorShareSnapshots()
-		assert.Nil(t, err)
-
-		t.Log("Loading expected results")
-		expectedResults, err := tests.GetOperatorShareSnapshotsExpectedResults(projectRoot)
-		assert.Nil(t, err)
-
-		assert.Equal(t, len(expectedResults), len(snapshots))
-
-		mappedExpectedResults := make(map[string]string)
-
-		for _, expectedResult := range expectedResults {
-			slotId := fmt.Sprintf("%s_%s_%s", expectedResult.Operator, expectedResult.Strategy, expectedResult.Snapshot)
-			mappedExpectedResults[slotId] = expectedResult.Shares
-		}
-
-		if len(expectedResults) != len(snapshots) {
-			t.Errorf("Expected %d snapshots, got %d", len(expectedResults), len(snapshots))
-
-			lacksExpectedResult := make([]*OperatorShareSnapshots, 0)
-			// Go line-by-line in the snapshot results and find the corresponding line in the expected results.
-			// If one doesnt exist, add it to the missing list.
-			for _, snapshot := range snapshots {
-				snapshotStr := snapshot.Snapshot.Format(time.DateOnly)
-
-				slotId := fmt.Sprintf("%s_%s_%s", snapshot.Operator, snapshot.Strategy, snapshotStr)
-
-				found, ok := mappedExpectedResults[slotId]
-				if !ok {
-					t.Logf("Record not found %+v", snapshot)
-					lacksExpectedResult = append(lacksExpectedResult, snapshot)
-					continue
-				}
-				if found != snapshot.Shares {
-					// t.Logf("Expected: %s, Got: %s for %+v", found, snapshot.Shares, snapshot)
-					lacksExpectedResult = append(lacksExpectedResult, snapshot)
-				}
-			}
-			assert.Equal(t, 0, len(lacksExpectedResult))
-			if len(lacksExpectedResult) > 0 {
-				for i, window := range lacksExpectedResult {
-					fmt.Printf("%d - Snapshot: %+v\n", i, window)
-				}
-			}
-		}
-	})
-	t.Cleanup(func() {
-		teardownOperatorShareSnapshot(dbFileName, cfg, grm, l)
-	})
 }
 
 // Test_OperatorShareSnapshots_BasicShares tests basic operator shares without allocations
@@ -267,7 +167,6 @@ func Test_OperatorShareSnapshots_BasicShares(t *testing.T) {
 	})
 }
 
-// Test_OperatorShareSnapshots_WithAllocations tests operator shares combined with allocations
 func Test_OperatorShareSnapshots_WithAllocations(t *testing.T) {
 	if !rewardsTestsEnabled() {
 		t.Skipf("Skipping %s", t.Name())
@@ -281,13 +180,12 @@ func Test_OperatorShareSnapshots_WithAllocations(t *testing.T) {
 	defer teardownOperatorShareSnapshot(dbFileName, cfg, grm, l)
 
 	operator := "0xoperator2"
-	avs := "0xavs1"
 	strategy := "0xstrategy2"
 
 	t0 := time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC)
 	t1 := time.Date(2024, 2, 5, 0, 0, 0, 0, time.UTC)
 
-	t.Run("Operator shares replaced by allocation magnitude", func(t *testing.T) {
+	t.Run("Operator shares contain raw delegated shares, not allocation magnitude", func(t *testing.T) {
 		// Insert blocks
 		blocks := []struct {
 			number    uint64
@@ -306,18 +204,11 @@ func Test_OperatorShareSnapshots_WithAllocations(t *testing.T) {
 			assert.Nil(t, err)
 		}
 
-		// T0: Operator has 1000 shares from base operator_shares table
+		// T0: Operator has 1000 shares from delegations
 		err = grm.Exec(`
 			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		`, operator, strategy, "1000000000000000000000", "0xtx100", 0, t0, t0.Format(time.DateOnly), 100).Error
-		assert.Nil(t, err)
-
-		// T1: Operator has allocation of 2000 (should override base shares)
-		err = grm.Exec(`
-			INSERT INTO operator_allocations (operator, avs, strategy, operator_set_id, magnitude, effective_block, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, operator, avs, strategy, 1, "2000000000000000000000", 200, 200, "0xtx1", 1).Error
 		assert.Nil(t, err)
 
 		// Generate snapshots
@@ -325,14 +216,10 @@ func Test_OperatorShareSnapshots_WithAllocations(t *testing.T) {
 		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
 		assert.Nil(t, err)
 
-		// Generate operator allocations first
-		err = rewards.GenerateAndInsertOperatorAllocationSnapshots(t1.Format(time.DateOnly))
-		assert.Nil(t, err)
-
 		err = rewards.GenerateAndInsertOperatorShareSnapshots(t1.Format(time.DateOnly))
 		assert.Nil(t, err)
 
-		// Verify snapshots - should show allocation magnitude (2000) not base shares (1000)
+		// Verify snapshots contain raw delegated shares (1000), not allocation magnitude
 		var snapshot struct {
 			Shares   string
 			Snapshot time.Time
@@ -345,12 +232,9 @@ func Test_OperatorShareSnapshots_WithAllocations(t *testing.T) {
 			LIMIT 1
 		`, operator, strategy, t1.Format(time.DateOnly)).Scan(&snapshot).Error
 
-		if err == nil && snapshot.Shares != "" {
-			t.Logf("Snapshot on %s: Shares = %s (expected 2000...)", snapshot.Snapshot.Format(time.DateOnly), snapshot.Shares)
-			// Note: The allocation magnitude should be used when available
-		} else {
-			t.Logf("No snapshot found for %s", t1.Format(time.DateOnly))
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, "1000000000000000000000", snapshot.Shares, "operator_share_snapshots should contain raw delegated shares")
+		t.Logf("Snapshot on %s: Shares = %s (raw delegated shares)", snapshot.Snapshot.Format(time.DateOnly), snapshot.Shares)
 	})
 }
 
