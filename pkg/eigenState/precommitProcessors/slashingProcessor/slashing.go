@@ -63,7 +63,17 @@ func (sp *SlashingProcessor) Process(blockNumber uint64, models map[string]types
 		return nil
 	}
 
-	// get the in-memory staker delegations for this block. If there arent any, theres nothing to do
+	// Handle slashing adjustments for queued withdrawals
+	err := sp.processQueuedWithdrawalSlashing(blockNumber, models)
+	if err != nil {
+		sp.logger.Sugar().Errorw("Failed to process queued withdrawal slashing",
+			zap.Error(err),
+			zap.Uint64("blockNumber", blockNumber),
+		)
+		return err
+	}
+
+	// get the in-memory staker delegations for this block
 	delegations := stakerDelegationModel.GetAccumulatedState(blockNumber)
 	if len(delegations) == 0 {
 		sp.logger.Sugar().Debug("No staker delegations found for block number", zap.Uint64("blockNumber", blockNumber))
@@ -84,16 +94,6 @@ func (sp *SlashingProcessor) Process(blockNumber uint64, models map[string]types
 		precommitDelegations = append(precommitDelegations, delegation)
 	}
 	stakerSharesModel.PrecommitDelegatedStakers[blockNumber] = precommitDelegations
-
-	// Also handle slashing adjustments for queued withdrawals
-	err := sp.processQueuedWithdrawalSlashing(blockNumber, models)
-	if err != nil {
-		sp.logger.Sugar().Errorw("Failed to process queued withdrawal slashing",
-			zap.Error(err),
-			zap.Uint64("blockNumber", blockNumber),
-		)
-		return err
-	}
 
 	return nil
 }

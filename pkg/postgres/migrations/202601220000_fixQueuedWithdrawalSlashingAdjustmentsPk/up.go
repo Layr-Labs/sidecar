@@ -2,6 +2,7 @@ package _202601220000_fixQueuedWithdrawalSlashingAdjustmentsPk
 
 import (
 	"database/sql"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"gorm.io/gorm"
 )
