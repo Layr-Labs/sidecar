@@ -6,7 +6,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const _20_goldAvsOperatorSetTotalStakeRewardsQuery = `
+const _21_goldAvsOperatorSetTotalStakeRewardsQuery = `
 CREATE TABLE {{.destTableName}} AS
 
 -- Step 1: Calculate total tokens available per (reward_hash, snapshot)
@@ -59,19 +59,19 @@ snapshots_requiring_refund AS (
 SELECT * FROM snapshots_requiring_refund
 `
 
-func (rc *RewardsCalculator) GenerateGold20AvsOperatorSetTotalStakeRewardsTable(snapshotDate string, forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold21AvsOperatorSetTotalStakeRewardsTable(snapshotDate string, forks config.ForkMap) error {
 	rewardsV2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
 		return err
 	}
 	if !rewardsV2_2Enabled {
-		rc.logger.Sugar().Infow("Rewards v2.2 is not enabled, skipping v2.2 table 20")
+		rc.logger.Sugar().Infow("Rewards v2.2 is not enabled, skipping v2.2 table 21")
 		return nil
 	}
 
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_20_AvsOperatorSetTotalStakeRewards]
+	destTableName := allTableNames[rewardsUtils.Table_21_AvsOperatorSetTotalStakeRewards]
 
 	rc.logger.Sugar().Infow("Generating v2.2 AVS operator set reward refunds with total stake validation",
 		zap.String("cutoffDate", snapshotDate),
@@ -79,10 +79,10 @@ func (rc *RewardsCalculator) GenerateGold20AvsOperatorSetTotalStakeRewardsTable(
 		zap.String("coloradoHardforkDate", forks[config.RewardsFork_Colorado].Date),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_20_goldAvsOperatorSetTotalStakeRewardsQuery, map[string]interface{}{
+	query, err := rewardsUtils.RenderQueryTemplate(_21_goldAvsOperatorSetTotalStakeRewardsQuery, map[string]interface{}{
 		"destTableName":        destTableName,
 		"activeODRewardsTable": allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
-		"operatorRewardsTable": allTableNames[rewardsUtils.Table_18_OperatorOperatorSetTotalStakeRewards],
+		"operatorRewardsTable": allTableNames[rewardsUtils.Table_19_OperatorOperatorSetTotalStakeRewards],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

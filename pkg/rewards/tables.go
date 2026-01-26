@@ -164,3 +164,21 @@ type OperatorAllocationSnapshot struct {
 	MaxMagnitude  string
 	Snapshot      time.Time
 }
+
+type StakeOperatorSetRewards struct {
+	Avs            string
+	OperatorSetId  uint64
+	RewardHash     string
+	Token          string
+	Amount         string
+	Strategy       string
+	StrategyIndex  uint64
+	Multiplier     string
+	StartTimestamp time.Time
+	EndTimestamp   time.Time
+	Duration       uint64
+	RewardType     string
+	BlockNumber    uint64
+	BlockTime      time.Time
+	BlockDate      string
+}
