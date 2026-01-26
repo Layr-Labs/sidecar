@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const _20_goldAvsOperatorSetTotalStakeRewardsQuery = `
+const _18_goldAvsOperatorSetUniqueStakeRewardsQuery = `
 CREATE TABLE {{.destTableName}} AS
 
 -- Step 1: Calculate total tokens available per (reward_hash, snapshot)
@@ -55,30 +55,30 @@ snapshots_requiring_refund AS (
 SELECT * FROM snapshots_requiring_refund
 `
 
-func (rc *RewardsCalculator) GenerateGold20AvsOperatorSetTotalStakeRewardsTable(snapshotDate string, forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold18AvsOperatorSetUniqueStakeRewardsTable(snapshotDate string, forks config.ForkMap) error {
 	rewardsV2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
 		return err
 	}
 	if !rewardsV2_2Enabled {
-		rc.logger.Sugar().Infow("Rewards v2.2 is not enabled, skipping v2.2 table 20")
+		rc.logger.Sugar().Infow("Rewards v2.2 is not enabled, skipping v2.2 table 18")
 		return nil
 	}
 
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_20_AvsOperatorSetTotalStakeRewards]
+	destTableName := allTableNames[rewardsUtils.Table_18_AvsOperatorSetUniqueStakeRewards]
 
-	rc.logger.Sugar().Infow("Generating v2.2 AVS operator set reward refunds with total stake validation",
+	rc.logger.Sugar().Infow("Generating v2.2 AVS operator set unique stake rewards (refunds)",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 		zap.String("coloradoHardforkDate", forks[config.RewardsFork_Colorado].Date),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_20_goldAvsOperatorSetTotalStakeRewardsQuery, map[string]interface{}{
+	query, err := rewardsUtils.RenderQueryTemplate(_18_goldAvsOperatorSetUniqueStakeRewardsQuery, map[string]interface{}{
 		"destTableName":        destTableName,
 		"activeODRewardsTable": allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
-		"operatorRewardsTable": allTableNames[rewardsUtils.Table_18_OperatorOperatorSetTotalStakeRewards],
+		"operatorRewardsTable": allTableNames[rewardsUtils.Table_16_OperatorOperatorSetUniqueStakeRewards],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -87,7 +87,7 @@ func (rc *RewardsCalculator) GenerateGold20AvsOperatorSetTotalStakeRewardsTable(
 
 	res := rc.grm.Exec(query, sql.Named("coloradoHardforkDate", forks[config.RewardsFork_Colorado].Date))
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_avs_operator_set_total_stake_rewards v2.2", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to create gold_avs_operator_set_unique_stake_rewards v2.2", "error", res.Error)
 		return res.Error
 	}
 	return nil

@@ -27,6 +27,8 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/submittedDistributionRoots"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/totalStakeRewardSubmissions"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/uniqueStakeRewardSubmissions"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -131,6 +133,14 @@ func LoadEigenStateModels(
 	}
 	if _, err := completedSlashingWithdrawals.NewCompletedSlashingWithdrawalModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Errorw("Failed to create CompletedSlashingWithdrawalModel", zap.Error(err))
+		return err
+	}
+	if _, err := uniqueStakeRewardSubmissions.NewUniqueStakeRewardSubmissionsModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create UniqueStakeRewardSubmissionsModel", zap.Error(err))
+		return err
+	}
+	if _, err := totalStakeRewardSubmissions.NewTotalStakeRewardSubmissionsModel(sm, grm, l, cfg); err != nil {
+		l.Sugar().Errorw("Failed to create TotalStakeRewardSubmissionsModel", zap.Error(err))
 		return err
 	}
 
