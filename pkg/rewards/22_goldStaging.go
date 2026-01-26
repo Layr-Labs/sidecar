@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const _18_goldStagingQuery = `
+const _22_goldStagingQuery = `
 create table {{.destTableName}} as
 WITH staker_rewards AS (
   -- We can select DISTINCT here because the staker's tokens are the same for each strategy in the reward hash
@@ -236,9 +236,9 @@ SELECT *
 FROM deduped_earners
 `
 
-func (rc *RewardsCalculator) GenerateGold21StagingTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold22StagingTable(snapshotDate string) error {
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_21_GoldStaging]
+	destTableName := allTableNames[rewardsUtils.Table_22_GoldStaging]
 
 	rc.logger.Sugar().Infow("Generating gold staging",
 		zap.String("cutoffDate", snapshotDate),
@@ -266,7 +266,7 @@ func (rc *RewardsCalculator) GenerateGold21StagingTable(snapshotDate string) err
 	}
 	rc.logger.Sugar().Infow("Is RewardsV2_2 enabled?", "enabled", isRewardsV2_2Enabled)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_18_goldStagingQuery, map[string]interface{}{
+	query, err := rewardsUtils.RenderQueryTemplate(_22_goldStagingQuery, map[string]interface{}{
 		"destTableName":                              destTableName,
 		"stakerRewardAmountsTable":                   allTableNames[rewardsUtils.Table_2_StakerRewardAmounts],
 		"operatorRewardAmountsTable":                 allTableNames[rewardsUtils.Table_3_OperatorRewardAmounts],
@@ -281,12 +281,12 @@ func (rc *RewardsCalculator) GenerateGold21StagingTable(snapshotDate string) err
 		"stakerODOperatorSetRewardAmountsTable":      allTableNames[rewardsUtils.Table_13_StakerODOperatorSetRewardAmounts],
 		"avsODOperatorSetRewardAmountsTable":         allTableNames[rewardsUtils.Table_14_AvsODOperatorSetRewardAmounts],
 		"enableRewardsV2_1":                          isRewardsV2_1Enabled,
-		"operatorOperatorSetUniqueStakeRewardsTable": allTableNames[rewardsUtils.Table_15_OperatorOperatorSetUniqueStakeRewards],
-		"stakerOperatorSetUniqueStakeRewardsTable":   allTableNames[rewardsUtils.Table_16_StakerOperatorSetUniqueStakeRewards],
-		"avsOperatorSetUniqueStakeRewardsTable":      allTableNames[rewardsUtils.Table_17_AvsOperatorSetUniqueStakeRewards],
-		"operatorOperatorSetTotalStakeRewardsTable":  allTableNames[rewardsUtils.Table_18_OperatorOperatorSetTotalStakeRewards],
-		"stakerOperatorSetTotalStakeRewardsTable":    allTableNames[rewardsUtils.Table_19_StakerOperatorSetTotalStakeRewards],
-		"avsOperatorSetTotalStakeRewardsTable":       allTableNames[rewardsUtils.Table_20_AvsOperatorSetTotalStakeRewards],
+		"operatorOperatorSetUniqueStakeRewardsTable": allTableNames[rewardsUtils.Table_16_OperatorOperatorSetUniqueStakeRewards],
+		"stakerOperatorSetUniqueStakeRewardsTable":   allTableNames[rewardsUtils.Table_17_StakerOperatorSetUniqueStakeRewards],
+		"avsOperatorSetUniqueStakeRewardsTable":      allTableNames[rewardsUtils.Table_18_AvsOperatorSetUniqueStakeRewards],
+		"operatorOperatorSetTotalStakeRewardsTable":  allTableNames[rewardsUtils.Table_19_OperatorOperatorSetTotalStakeRewards],
+		"stakerOperatorSetTotalStakeRewardsTable":    allTableNames[rewardsUtils.Table_20_StakerOperatorSetTotalStakeRewards],
+		"avsOperatorSetTotalStakeRewardsTable":       allTableNames[rewardsUtils.Table_21_AvsOperatorSetTotalStakeRewards],
 		"enableRewardsV2_2":                          isRewardsV2_2Enabled,
 	})
 	if err != nil {
@@ -323,7 +323,7 @@ func (rc *RewardsCalculator) ListGoldStagingRowsForSnapshot(snapshotDate string)
 		amount
 	FROM {{.goldStagingTable}} WHERE DATE(snapshot) < @cutoffDate`
 	query, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
-		"goldStagingTable": allTableNames[rewardsUtils.Table_21_GoldStaging],
+		"goldStagingTable": allTableNames[rewardsUtils.Table_22_GoldStaging],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
