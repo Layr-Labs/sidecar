@@ -23,20 +23,33 @@ WITH total_available_tokens AS (
     GROUP BY reward_hash, snapshot, token, avs, operator_set_id, operator
 ),
 
--- Step 2: Calculate total tokens actually distributed per operator from the operator rewards table
-total_distributed_tokens AS (
+-- Step 2: Calculate total operator tokens distributed per operator from the operator rewards table
+operator_distributed_tokens AS (
     SELECT
         reward_hash,
         snapshot,
         avs,
         operator_set_id,
         operator,
-        COALESCE(SUM(operator_tokens), 0) as distributed_tokens
+        COALESCE(SUM(operator_tokens), 0) as operator_distributed
     FROM {{.operatorRewardsTable}}
     GROUP BY reward_hash, snapshot, avs, operator_set_id, operator
 ),
 
--- Step 3: Identify operator-sets where distributed tokens = 0, refund those tokens to AVS
+-- Step 3: Calculate total staker tokens distributed per operator from the staker rewards table
+staker_distributed_tokens AS (
+    SELECT
+        reward_hash,
+        snapshot,
+        avs,
+        operator_set_id,
+        operator,
+        COALESCE(SUM(staker_tokens), 0) as staker_distributed
+    FROM {{.stakerRewardsTable}}
+    GROUP BY reward_hash, snapshot, avs, operator_set_id, operator
+),
+
+-- Step 4: Identify operator-sets where total distributed tokens (operator + staker) = 0, refund those tokens to AVS
 snapshots_requiring_refund AS (
     SELECT
         tat.reward_hash,
@@ -47,13 +60,19 @@ snapshots_requiring_refund AS (
         tat.operator,
         tat.total_tokens as avs_tokens
     FROM total_available_tokens tat
-    LEFT JOIN total_distributed_tokens tdt
-        ON tat.reward_hash = tdt.reward_hash
-        AND tat.snapshot = tdt.snapshot
-        AND tat.avs = tdt.avs
-        AND tat.operator_set_id = tdt.operator_set_id
-        AND tat.operator = tdt.operator
-    WHERE COALESCE(tdt.distributed_tokens, 0) = 0
+    LEFT JOIN operator_distributed_tokens odt
+        ON tat.reward_hash = odt.reward_hash
+        AND tat.snapshot = odt.snapshot
+        AND tat.avs = odt.avs
+        AND tat.operator_set_id = odt.operator_set_id
+        AND tat.operator = odt.operator
+    LEFT JOIN staker_distributed_tokens sdt
+        ON tat.reward_hash = sdt.reward_hash
+        AND tat.snapshot = sdt.snapshot
+        AND tat.avs = sdt.avs
+        AND tat.operator_set_id = sdt.operator_set_id
+        AND tat.operator = sdt.operator
+    WHERE COALESCE(odt.operator_distributed, 0) + COALESCE(sdt.staker_distributed, 0) = 0
 )
 
 SELECT * FROM snapshots_requiring_refund
@@ -83,6 +102,7 @@ func (rc *RewardsCalculator) GenerateGold21AvsOperatorSetTotalStakeRewardsTable(
 		"destTableName":        destTableName,
 		"activeODRewardsTable": allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
 		"operatorRewardsTable": allTableNames[rewardsUtils.Table_19_OperatorOperatorSetTotalStakeRewards],
+		"stakerRewardsTable":   allTableNames[rewardsUtils.Table_20_StakerOperatorSetTotalStakeRewards],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
