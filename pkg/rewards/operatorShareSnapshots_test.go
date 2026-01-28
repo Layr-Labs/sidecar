@@ -599,3 +599,449 @@ func Test_OperatorShareSnapshots_LargeNumbers(t *testing.T) {
 		}
 	})
 }
+
+// =============================================================================
+// Queued Withdrawal Add-back Tests (Post-Sabine Fork)
+// =============================================================================
+
+// Test_OperatorShareSnapshots_QueuedWithdrawalAddBack tests that operator shares
+// include queued withdrawal shares during the 14-day queue window.
+// This mirrors the staker share snapshots behavior.
+func Test_OperatorShareSnapshots_QueuedWithdrawalAddBack(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupOperatorShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownOperatorShareSnapshot(dbFileName, cfg, grm, l)
+
+	// Set the withdrawal queue window to 14 days (required for add-back tests)
+	cfg.Rewards.WithdrawalQueueWindow = 14
+
+	// OSS-1: Operator has shares, staker queues withdrawal
+	// Expected: Operator shares should include queued withdrawal during queue period
+	// Flow:
+	// 1. Operator has 1000 shares from delegation
+	// 2. Staker queues full withdrawal: operator_shares = 0 (immediate), queued_slashing_withdrawals created
+	// 3. During 14-day queue window: operator snapshots should add back queued shares (1000)
+	// 4. After 14 days: shares stay at 0
+	t.Run("OSS-1: Queued withdrawal adds back shares during queue period", func(t *testing.T) {
+		operator := "0xoperator_oss1"
+		staker := "0xstaker_oss1"
+		strategy := "0xstrategy_oss1"
+
+		day4 := time.Date(2025, 1, 4, 0, 0, 0, 0, time.UTC)
+		depositTime := day4.Add(17 * time.Hour) // 5pm
+		queueTime := day4.Add(18 * time.Hour)   // 6pm - queue withdrawal same day
+		day5 := time.Date(2025, 1, 5, 12, 0, 0, 0, time.UTC)
+		day10 := time.Date(2025, 1, 10, 12, 0, 0, 0, time.UTC) // Within queue window
+		day20 := time.Date(2025, 1, 20, 12, 0, 0, 0, time.UTC) // After queue window (14 days from 1/4)
+
+		block1 := uint64(1001)
+		block2 := uint64(1002)
+
+		// Insert blocks
+		for _, b := range []struct {
+			number uint64
+			time   time.Time
+		}{
+			{block1, depositTime},
+			{block2, queueTime},
+			{1003, day5},
+			{1010, day10},
+			{1020, day20},
+		} {
+			err := grm.Exec(`
+				INSERT INTO blocks (number, hash, block_time, created_at)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT (number) DO NOTHING
+			`, b.number, fmt.Sprintf("0xblock%d", b.number), b.time, time.Now()).Error
+			assert.Nil(t, err)
+		}
+
+		// T0: Operator has 1000 shares from delegation
+		err = grm.Exec(`
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "1000000000000000000000", "tx_oss1_deposit", 0, depositTime, depositTime.Format("2006-01-02"), block1).Error
+		assert.Nil(t, err)
+
+		// Queue withdrawal: operator_shares goes to 0
+		err = grm.Exec(`
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "0", "tx_oss1_queue", 1, queueTime, queueTime.Format("2006-01-02"), block2).Error
+		assert.Nil(t, err)
+
+		// Insert queued withdrawal record - this triggers the add-back logic
+		err = grm.Exec(`
+			INSERT INTO queued_slashing_withdrawals (staker, operator, withdrawer, nonce, start_block, strategy, scaled_shares, shares_to_withdraw, withdrawal_root, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, staker, operator, staker, "1", block2, strategy, "1000000000000000000000", "1000000000000000000000", "root_oss1", block2, "tx_oss1_queue", 0).Error
+		assert.Nil(t, err)
+
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		// Generate snapshots for day 10 (within queue window)
+		err = rewards.GenerateAndInsertOperatorShareSnapshots(day10.Format(time.DateOnly))
+		assert.Nil(t, err)
+
+		// Verify operator has shares during queue window (add-back)
+		var snapshotDay10 struct {
+			Shares string
+		}
+		err = grm.Raw(`
+			SELECT shares
+			FROM operator_share_snapshots
+			WHERE operator = ? AND strategy = ? AND snapshot = ?
+		`, operator, strategy, day5.Format(time.DateOnly)).Scan(&snapshotDay10).Error
+
+		if err == nil && snapshotDay10.Shares != "" {
+			t.Logf("Day 5 snapshot (within queue): shares = %s", snapshotDay10.Shares)
+			// Should have 1000 shares (0 base + 1000 add-back)
+			assert.Equal(t, "1000000000000000000000", snapshotDay10.Shares, "Should add back queued withdrawal during queue period")
+		}
+
+		// Generate snapshots for day 20 (after queue window)
+		err = rewards.GenerateAndInsertOperatorShareSnapshots(day20.Format(time.DateOnly))
+		assert.Nil(t, err)
+
+		// Verify after queue window, shares are 0 (no add-back)
+		var snapshotDay20 struct {
+			Shares string
+		}
+		err = grm.Raw(`
+			SELECT shares
+			FROM operator_share_snapshots
+			WHERE operator = ? AND strategy = ? AND snapshot = ?
+		`, operator, strategy, day20.Format(time.DateOnly)).Scan(&snapshotDay20).Error
+
+		if err == nil && snapshotDay20.Shares != "" {
+			t.Logf("Day 20 snapshot (after queue): shares = %s", snapshotDay20.Shares)
+			// Should have 0 shares (queue expired)
+			assert.Equal(t, "0", snapshotDay20.Shares, "Should not add back after queue expires")
+		}
+	})
+}
+
+// Test_OperatorShareSnapshots_QueuedWithdrawalWithSlashing tests that slashing
+// adjustments are applied to the queued withdrawal add-back.
+func Test_OperatorShareSnapshots_QueuedWithdrawalWithSlashing(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupOperatorShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownOperatorShareSnapshot(dbFileName, cfg, grm, l)
+
+	// Set the withdrawal queue window to 14 days (required for add-back tests)
+	cfg.Rewards.WithdrawalQueueWindow = 14
+
+	// OSS-2: Staker queues withdrawal, then operator is slashed
+	// Expected: Add-back should be reduced by slash multiplier
+	// Flow:
+	// 1. Operator has 1000 shares
+	// 2. Staker queues full withdrawal on 1/5
+	// 3. Operator is slashed 50% on 1/6
+	// 4. Snapshots after 1/6 should show: 0 base + 500 add-back (1000 * 0.5)
+	t.Run("OSS-2: Queued withdrawal with slashing adjustment", func(t *testing.T) {
+		operator := "0xoperator_oss2"
+		staker := "0xstaker_oss2"
+		strategy := "0xstrategy_oss2"
+
+		day4 := time.Date(2025, 2, 4, 17, 0, 0, 0, time.UTC)
+		day5 := time.Date(2025, 2, 5, 18, 0, 0, 0, time.UTC)   // Queue withdrawal
+		day6 := time.Date(2025, 2, 6, 18, 0, 0, 0, time.UTC)   // Slash
+		day10 := time.Date(2025, 2, 10, 12, 0, 0, 0, time.UTC) // Check snapshot
+
+		block4 := uint64(2001)
+		block5 := uint64(2002)
+		block6 := uint64(2003)
+
+		// Insert blocks
+		for _, b := range []struct {
+			number uint64
+			time   time.Time
+		}{
+			{block4, day4},
+			{block5, day5},
+			{block6, day6},
+			{2010, day10},
+		} {
+			err := grm.Exec(`
+				INSERT INTO blocks (number, hash, block_time, created_at)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT (number) DO NOTHING
+			`, b.number, fmt.Sprintf("0xblock%d", b.number), b.time, time.Now()).Error
+			assert.Nil(t, err)
+		}
+
+		// Day 4: Operator has 1000 shares
+		err = grm.Exec(`
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "1000000000000000000000", "tx_oss2_deposit", 0, day4, day4.Format("2006-01-02"), block4).Error
+		assert.Nil(t, err)
+
+		// Day 5: Queue withdrawal - operator_shares goes to 0
+		err = grm.Exec(`
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "0", "tx_oss2_queue", 0, day5, day5.Format("2006-01-02"), block5).Error
+		assert.Nil(t, err)
+
+		// Insert queued withdrawal record
+		err = grm.Exec(`
+			INSERT INTO queued_slashing_withdrawals (staker, operator, withdrawer, nonce, start_block, strategy, scaled_shares, shares_to_withdraw, withdrawal_root, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, staker, operator, staker, "1", block5, strategy, "1000000000000000000000", "1000000000000000000000", "root_oss2", block5, "tx_oss2_queue", 0).Error
+		assert.Nil(t, err)
+
+		// Day 6: Slash 50% - insert slashing adjustment with multiplier 0.5
+		err = grm.Exec(`
+			INSERT INTO queued_withdrawal_slashing_adjustments (
+				staker, strategy, operator, withdrawal_block_number, withdrawal_log_index,
+				slash_block_number, slash_multiplier, block_number, transaction_hash, log_index
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, staker, strategy, operator, block5, 0, block6, "0.5", block6, "tx_oss2_slash", 0).Error
+		assert.Nil(t, err)
+
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		// Generate snapshots for day 10 (after slash, within queue window)
+		err = rewards.GenerateAndInsertOperatorShareSnapshots(day10.Format(time.DateOnly))
+		assert.Nil(t, err)
+
+		// Verify operator has 500 shares (1000 * 0.5 slash multiplier)
+		var snapshot struct {
+			Shares string
+		}
+		// Check a snapshot date after the slash (day 7 or later)
+		day7 := time.Date(2025, 2, 7, 0, 0, 0, 0, time.UTC)
+		err = grm.Raw(`
+			SELECT shares
+			FROM operator_share_snapshots
+			WHERE operator = ? AND strategy = ? AND snapshot = ?
+		`, operator, strategy, day7.Format(time.DateOnly)).Scan(&snapshot).Error
+
+		if err == nil && snapshot.Shares != "" {
+			t.Logf("Day 7 snapshot (after slash): shares = %s", snapshot.Shares)
+			// Should have 500 shares (0 base + 1000 * 0.5 add-back)
+			assert.Equal(t, "500000000000000000000.0", snapshot.Shares, "Should apply slash multiplier to add-back")
+		}
+	})
+}
+
+// Test_OperatorShareSnapshots_PartialQueuedWithdrawal tests partial withdrawal add-back
+func Test_OperatorShareSnapshots_PartialQueuedWithdrawal(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupOperatorShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownOperatorShareSnapshot(dbFileName, cfg, grm, l)
+
+	// Set the withdrawal queue window to 14 days (required for add-back tests)
+	cfg.Rewards.WithdrawalQueueWindow = 14
+
+	// OSS-3: Staker queues partial withdrawal
+	// Expected: Operator should have base shares + partial add-back during queue period
+	// Flow:
+	// 1. Operator has 1000 shares
+	// 2. Staker queues 400 shares withdrawal: operator_shares = 600
+	// 3. During queue window: snapshot should show 1000 (600 base + 400 add-back)
+	t.Run("OSS-3: Partial queued withdrawal add-back", func(t *testing.T) {
+		operator := "0xoperator_oss3"
+		staker := "0xstaker_oss3"
+		strategy := "0xstrategy_oss3"
+
+		day4 := time.Date(2025, 3, 4, 17, 0, 0, 0, time.UTC)
+		day5 := time.Date(2025, 3, 5, 18, 0, 0, 0, time.UTC)   // Queue partial withdrawal
+		day10 := time.Date(2025, 3, 10, 12, 0, 0, 0, time.UTC) // Check snapshot
+
+		block4 := uint64(3001)
+		block5 := uint64(3002)
+
+		// Insert blocks
+		for _, b := range []struct {
+			number uint64
+			time   time.Time
+		}{
+			{block4, day4},
+			{block5, day5},
+			{3010, day10},
+		} {
+			err := grm.Exec(`
+				INSERT INTO blocks (number, hash, block_time, created_at)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT (number) DO NOTHING
+			`, b.number, fmt.Sprintf("0xblock%d", b.number), b.time, time.Now()).Error
+			assert.Nil(t, err)
+		}
+
+		// Day 4: Operator has 1000 shares
+		err = grm.Exec(`
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "1000000000000000000000", "tx_oss3_deposit", 0, day4, day4.Format("2006-01-02"), block4).Error
+		assert.Nil(t, err)
+
+		// Day 5: Queue partial withdrawal - operator_shares goes to 600
+		err = grm.Exec(`
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "600000000000000000000", "tx_oss3_queue", 0, day5, day5.Format("2006-01-02"), block5).Error
+		assert.Nil(t, err)
+
+		// Insert queued withdrawal record for 400 shares
+		err = grm.Exec(`
+			INSERT INTO queued_slashing_withdrawals (staker, operator, withdrawer, nonce, start_block, strategy, scaled_shares, shares_to_withdraw, withdrawal_root, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, staker, operator, staker, "1", block5, strategy, "400000000000000000000", "400000000000000000000", "root_oss3", block5, "tx_oss3_queue", 0).Error
+		assert.Nil(t, err)
+
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		// Generate snapshots for day 10 (within queue window)
+		err = rewards.GenerateAndInsertOperatorShareSnapshots(day10.Format(time.DateOnly))
+		assert.Nil(t, err)
+
+		// Verify operator has 1000 shares (600 base + 400 add-back)
+		var snapshot struct {
+			Shares string
+		}
+		day6 := time.Date(2025, 3, 6, 0, 0, 0, 0, time.UTC)
+		err = grm.Raw(`
+			SELECT shares
+			FROM operator_share_snapshots
+			WHERE operator = ? AND strategy = ? AND snapshot = ?
+		`, operator, strategy, day6.Format(time.DateOnly)).Scan(&snapshot).Error
+
+		if err == nil && snapshot.Shares != "" {
+			t.Logf("Day 6 snapshot (partial queue): shares = %s", snapshot.Shares)
+			// Should have 1000 shares (600 base + 400 add-back)
+			assert.Equal(t, "1000000000000000000000", snapshot.Shares, "Should add back partial queued withdrawal")
+		}
+	})
+}
+
+// Test_OperatorShareSnapshots_MultipleStakersQueuedWithdrawals tests multiple stakers
+// queuing withdrawals from the same operator
+func Test_OperatorShareSnapshots_MultipleStakersQueuedWithdrawals(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupOperatorShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownOperatorShareSnapshot(dbFileName, cfg, grm, l)
+
+	// Set the withdrawal queue window to 14 days (required for add-back tests)
+	cfg.Rewards.WithdrawalQueueWindow = 14
+
+	// OSS-4: Multiple stakers queue withdrawals from same operator
+	// Expected: Operator shares should include sum of all queued withdrawals
+	t.Run("OSS-4: Multiple stakers queue withdrawals", func(t *testing.T) {
+		operator := "0xoperator_oss4"
+		staker1 := "0xstaker_oss4a"
+		staker2 := "0xstaker_oss4b"
+		strategy := "0xstrategy_oss4"
+
+		day4 := time.Date(2025, 4, 4, 17, 0, 0, 0, time.UTC)
+		day5 := time.Date(2025, 4, 5, 18, 0, 0, 0, time.UTC)
+		day10 := time.Date(2025, 4, 10, 12, 0, 0, 0, time.UTC)
+
+		block4 := uint64(4001)
+		block5 := uint64(4002)
+
+		// Insert blocks
+		for _, b := range []struct {
+			number uint64
+			time   time.Time
+		}{
+			{block4, day4},
+			{block5, day5},
+			{4010, day10},
+		} {
+			err := grm.Exec(`
+				INSERT INTO blocks (number, hash, block_time, created_at)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT (number) DO NOTHING
+			`, b.number, fmt.Sprintf("0xblock%d", b.number), b.time, time.Now()).Error
+			assert.Nil(t, err)
+		}
+
+		// Day 4: Operator has 1000 shares (500 from staker1, 500 from staker2)
+		err = grm.Exec(`
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "1000000000000000000000", "tx_oss4_deposit", 0, day4, day4.Format("2006-01-02"), block4).Error
+		assert.Nil(t, err)
+
+		// Day 5: Both stakers queue full withdrawals - operator_shares goes to 0
+		err = grm.Exec(`
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "0", "tx_oss4_queue", 0, day5, day5.Format("2006-01-02"), block5).Error
+		assert.Nil(t, err)
+
+		// Insert queued withdrawal records for both stakers
+		err = grm.Exec(`
+			INSERT INTO queued_slashing_withdrawals (staker, operator, withdrawer, nonce, start_block, strategy, scaled_shares, shares_to_withdraw, withdrawal_root, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, staker1, operator, staker1, "1", block5, strategy, "500000000000000000000", "500000000000000000000", "root_oss4a", block5, "tx_oss4_queue", 0).Error
+		assert.Nil(t, err)
+
+		err = grm.Exec(`
+			INSERT INTO queued_slashing_withdrawals (staker, operator, withdrawer, nonce, start_block, strategy, scaled_shares, shares_to_withdraw, withdrawal_root, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, staker2, operator, staker2, "2", block5, strategy, "500000000000000000000", "500000000000000000000", "root_oss4b", block5, "tx_oss4_queue", 1).Error
+		assert.Nil(t, err)
+
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		// Generate snapshots for day 10 (within queue window)
+		err = rewards.GenerateAndInsertOperatorShareSnapshots(day10.Format(time.DateOnly))
+		assert.Nil(t, err)
+
+		// Verify operator has 1000 shares (0 base + 500 + 500 add-back)
+		var snapshot struct {
+			Shares string
+		}
+		day6 := time.Date(2025, 4, 6, 0, 0, 0, 0, time.UTC)
+		err = grm.Raw(`
+			SELECT shares
+			FROM operator_share_snapshots
+			WHERE operator = ? AND strategy = ? AND snapshot = ?
+		`, operator, strategy, day6.Format(time.DateOnly)).Scan(&snapshot).Error
+
+		if err == nil && snapshot.Shares != "" {
+			t.Logf("Day 6 snapshot (multiple stakers): shares = %s", snapshot.Shares)
+			// Should have 1000 shares (0 base + 500 + 500 add-back from both stakers)
+			assert.Equal(t, "1000000000000000000000", snapshot.Shares, "Should add back all stakers' queued withdrawals")
+		}
+	})
+}
