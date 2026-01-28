@@ -9,6 +9,7 @@ import (
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/queuedSlashingWithdrawals"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerDelegations"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stakerShares"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -356,7 +357,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			LogIndex:        slashDiff.LogIndex,
 		}
 
-		err = sp.createSlashingAdjustments(slashEvent, 1005)
+		err = sp.createSlashingAdjustments(slashEvent, 1005, nil)
 		require.NoError(t, err)
 
 		// Verify adjustment record created with multiplier 0.75
@@ -419,7 +420,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			TransactionHash: slashDiff1.TransactionHash,
 			LogIndex:        slashDiff1.LogIndex,
 		}
-		err = sp.createSlashingAdjustments(slashEvent1, 1005)
+		err = sp.createSlashingAdjustments(slashEvent1, 1005, nil)
 		require.NoError(t, err)
 
 		// Verify first adjustment: 0.75
@@ -447,7 +448,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			TransactionHash: slashDiff2.TransactionHash,
 			LogIndex:        slashDiff2.LogIndex,
 		}
-		err = sp.createSlashingAdjustments(slashEvent2, 1010)
+		err = sp.createSlashingAdjustments(slashEvent2, 1010, nil)
 		require.NoError(t, err)
 
 		// Verify cumulative multiplier: 0.75 * 0.5 = 0.375
@@ -496,7 +497,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			LogIndex:        slashDiff.LogIndex,
 		}
 
-		err = sp.createSlashingAdjustments(slashEvent, 1000)
+		err = sp.createSlashingAdjustments(slashEvent, 1000, nil)
 		require.NoError(t, err)
 
 		// Verify NO adjustment created (slash before withdrawal in execution order)
@@ -507,6 +508,85 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 		`, "0xstaker3", "0xstrategy3").Scan(&count)
 		require.NoError(t, res.Error)
 		assert.Equal(t, int64(0), count, "No adjustment should be created when slash occurs before withdrawal in same block")
+	})
+
+	// CSA-3b: Same-block event ordering with accumulator (withdrawal before slash)
+	// This tests the real E2E flow where withdrawals go to accumulator before DB commit
+	t.Run("CSA-3b: Same-block withdrawal before slash via accumulator", func(t *testing.T) {
+		cleanupCSATest(t, grm)
+
+		// Setup block
+		setupBlocksForCSA(t, grm, []uint64{1000})
+
+		// Set up models
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		sharesModel, err := stakerShares.NewStakerSharesModel(esm, grm, l, cfg)
+		require.NoError(t, err)
+		err = sharesModel.SetupStateForBlock(1000)
+		require.NoError(t, err)
+
+		// Create QueuedSlashingWithdrawalModel and set up for block
+		qswModel, err := queuedSlashingWithdrawals.NewQueuedSlashingWithdrawalModel(esm, grm, l, cfg)
+		require.NoError(t, err)
+		err = qswModel.SetupStateForBlock(1000)
+		require.NoError(t, err)
+
+		// Process withdrawal through model at log_index 1 (earlier)
+		// This puts it in the accumulator, NOT the DB
+		withdrawalLog := &storage.TransactionLog{
+			TransactionHash:  "0xtx_withdrawal",
+			TransactionIndex: 100,
+			BlockNumber:      1000,
+			Address:          cfg.GetContractsMapForChain().DelegationManager,
+			EventName:        "SlashingWithdrawalQueued",
+			LogIndex:         1,
+			OutputData:       `{"withdrawal":{"nonce":"1","staker":"0xstaker3b","startBlock":1000,"strategies":["0xstrategy3b"],"withdrawer":"0xstaker3b","delegatedTo":"0xoperator3b","scaledShares":["1000000000000000000000"]},"withdrawalRoot":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","sharesToWithdraw":["1000000000000000000000"]}`,
+		}
+		_, err = qswModel.HandleStateChange(withdrawalLog)
+		require.NoError(t, err)
+
+		sp := &SlashingProcessor{
+			logger:       l,
+			grm:          grm,
+			globalConfig: cfg,
+		}
+
+		// Process slashing at log_index 2 (after withdrawal at log_index 1)
+		change, err := processSlashing(sharesModel, cfg.GetContractsMapForChain().AllocationManager, 1000, 2, "0xoperator3b", []string{"0xstrategy3b"}, []*big.Int{big.NewInt(25e16)})
+		require.NoError(t, err)
+		diffs := change.(*stakerShares.AccumulatedStateChanges)
+		require.Equal(t, 1, len(diffs.SlashDiffs))
+		slashDiff := diffs.SlashDiffs[0]
+		slashEvent := &SlashingEvent{
+			SlashedEntity:   slashDiff.SlashedEntity,
+			BeaconChain:     slashDiff.BeaconChain,
+			Strategy:        slashDiff.Strategy,
+			WadSlashed:      slashDiff.WadSlashed.String(),
+			TransactionHash: slashDiff.TransactionHash,
+			LogIndex:        slashDiff.LogIndex,
+		}
+
+		// Pass qswModel so it can find the withdrawal in the accumulator
+		err = sp.createSlashingAdjustments(slashEvent, 1000, qswModel)
+		require.NoError(t, err)
+
+		// Verify adjustment WAS created (withdrawal happened before slash via accumulator)
+		var count int64
+		res := grm.Raw(`
+			SELECT COUNT(*) FROM queued_withdrawal_slashing_adjustments
+			WHERE staker = ? AND strategy = ?
+		`, "0xstaker3b", "0xstrategy3b").Scan(&count)
+		require.NoError(t, res.Error)
+		assert.Equal(t, int64(1), count, "Adjustment should be created when withdrawal occurs before slash in same block (via accumulator)")
+
+		// Verify multiplier value (0.75 for 25% slash)
+		var multiplier string
+		res = grm.Raw(`
+			SELECT slash_multiplier FROM queued_withdrawal_slashing_adjustments
+			WHERE staker = ? AND strategy = ?
+		`, "0xstaker3b", "0xstrategy3b").Scan(&multiplier)
+		require.NoError(t, res.Error)
+		assert.Contains(t, multiplier, "0.75", "Expected multiplier 0.75 after 25% slash")
 	})
 
 	// CSA-4: Expired withdrawal queue (no adjustment after 14 days)
@@ -556,7 +636,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			LogIndex:        slashDiff.LogIndex,
 		}
 
-		err = sp.createSlashingAdjustments(slashEvent, 1200)
+		err = sp.createSlashingAdjustments(slashEvent, 1200, nil)
 		require.NoError(t, err)
 
 		// Verify NO adjustment created (withdrawal already completable)
@@ -607,7 +687,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			LogIndex:        slashDiff.LogIndex,
 		}
 
-		err = sp.createSlashingAdjustments(slashEvent, 1005)
+		err = sp.createSlashingAdjustments(slashEvent, 1005, nil)
 		require.NoError(t, err, "Both stakers should get adjustment records")
 
 		// Verify both stakers got adjustment records
@@ -675,7 +755,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			LogIndex:        slashDiff.LogIndex,
 		}
 
-		err = sp.createSlashingAdjustments(slashEvent, 1005)
+		err = sp.createSlashingAdjustments(slashEvent, 1005, nil)
 		require.NoError(t, err)
 
 		// Verify only first withdrawal gets adjustment (second queued after slash)
@@ -731,7 +811,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			LogIndex:        slashDiff.LogIndex,
 		}
 
-		err = sp.createSlashingAdjustments(slashEvent, 1005)
+		err = sp.createSlashingAdjustments(slashEvent, 1005, nil)
 		require.NoError(t, err)
 
 		// Verify adjustment record created with multiplier 0
@@ -782,7 +862,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			LogIndex:        slashDiff.LogIndex,
 		}
 
-		err = sp.createSlashingAdjustments(slashEvent, 1005)
+		err = sp.createSlashingAdjustments(slashEvent, 1005, nil)
 		require.NoError(t, err)
 
 		// Verify NO adjustment created (different strategy)
@@ -836,7 +916,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			TransactionHash: slashDiff1.TransactionHash,
 			LogIndex:        slashDiff1.LogIndex,
 		}
-		err = sp.createSlashingAdjustments(operatorSlashEvent, 1005)
+		err = sp.createSlashingAdjustments(operatorSlashEvent, 1005, nil)
 		require.NoError(t, err)
 
 		// Verify first adjustment: multiplier = 0.75 (1 - 0.25)
@@ -865,7 +945,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			TransactionHash: slashDiff2.TransactionHash,
 			LogIndex:        slashDiff2.LogIndex,
 		}
-		err = sp.createSlashingAdjustments(beaconSlashEvent, 1010)
+		err = sp.createSlashingAdjustments(beaconSlashEvent, 1010, nil)
 		require.NoError(t, err)
 
 		// Verify cumulative multiplier: 0.75 * 0.5 = 0.375
@@ -922,7 +1002,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			TransactionHash: slashDiff.TransactionHash,
 			LogIndex:        slashDiff.LogIndex,
 		}
-		err = sp.createSlashingAdjustments(beaconSlashEvent, 1005)
+		err = sp.createSlashingAdjustments(beaconSlashEvent, 1005, nil)
 		require.NoError(t, err)
 
 		// Verify multiplier = 0.5
@@ -972,7 +1052,7 @@ func Test_CreateSlashingAdjustments(t *testing.T) {
 			TransactionHash: slashDiff.TransactionHash,
 			LogIndex:        slashDiff.LogIndex,
 		}
-		err = sp.createSlashingAdjustments(beaconSlashEvent, 1005)
+		err = sp.createSlashingAdjustments(beaconSlashEvent, 1005, nil)
 		require.NoError(t, err)
 
 		// Verify only staker11a has adjustment

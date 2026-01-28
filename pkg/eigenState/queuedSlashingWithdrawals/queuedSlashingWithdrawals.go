@@ -4,6 +4,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"sort"
+	"strings"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/base"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -11,9 +15,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"slices"
-	"sort"
-	"strings"
 )
 
 type QueuedSlashingWithdrawal struct {
@@ -345,4 +346,8 @@ func (omm *QueuedSlashingWithdrawalModel) IsActiveForBlockHeight(blockHeight uin
 	}
 
 	return blockHeight >= forks[config.RewardsFork_Red].BlockNumber, nil
+}
+
+func (omm *QueuedSlashingWithdrawalModel) GetAccumulatedState(blockNumber uint64) map[types.SlotID]*QueuedSlashingWithdrawal {
+	return omm.stateAccumulator[blockNumber]
 }

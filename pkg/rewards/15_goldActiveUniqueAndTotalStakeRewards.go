@@ -132,7 +132,7 @@ tokens_per_day AS (
         *,
         -- Total tokens per day = floor(amount / duration_in_days)
         -- duration is in seconds, convert to days
-        FLOOR(CAST(amount AS NUMERIC(78,0)) / (duration / 86400)) AS tokens_per_day_decimal
+        FLOOR(amount / (duration / 86400)) AS tokens_per_day_decimal
     FROM exploded_active_range_rewards
 )
 

@@ -41,9 +41,9 @@ od_operators_with_weight AS (
     SELECT
         rso.*,
         SUM(
-            CAST(oss.shares AS NUMERIC(78,0)) *
-            CAST(oas.magnitude AS NUMERIC(78,0)) /
-            CAST(oas.max_magnitude AS NUMERIC(78,0)) * rso.multiplier
+            oss.shares *
+            oas.magnitude /
+            oas.max_magnitude * rso.multiplier
         ) OVER (PARTITION BY rso.reward_hash, rso.snapshot, rso.operator) as operator_allocated_weight
     FROM od_registered_operators rso
     JOIN {{.operatorAllocationSnapshotsTable}} oas
@@ -108,9 +108,9 @@ stake_operators_with_weight AS (
     SELECT
         rso.*,
         SUM(
-            CAST(oss.shares AS NUMERIC(78,0)) *
-            CAST(oas.magnitude AS NUMERIC(78,0)) /
-            CAST(oas.max_magnitude AS NUMERIC(78,0)) * rso.multiplier
+            oss.shares *
+            oas.magnitude /
+            oas.max_magnitude * rso.multiplier
         ) OVER (PARTITION BY rso.reward_hash, rso.snapshot, rso.operator) as operator_allocated_weight
     FROM stake_registered_operators rso
     JOIN {{.operatorAllocationSnapshotsTable}} oas

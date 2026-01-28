@@ -744,11 +744,6 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	// ------------------------------------------------------------------------
 	// Rewards V2.2 snapshots (Unique Stake)
 	// ------------------------------------------------------------------------
-	if err = rc.GenerateAndInsertOperatorAllocationSnapshots(snapshotDate); err != nil {
-		rc.logger.Sugar().Errorw("Failed to generate operator allocation snapshots", "error", err)
-		return err
-	}
-	rc.logger.Sugar().Debugw("Generated operator allocation snapshots")
 
 	if err := rc.GenerateAndInsertStakeOperatorSetRewards(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate stake operator set rewards", "error", err)
