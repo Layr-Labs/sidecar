@@ -5,10 +5,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const _19_goldStakerOperatorSetTotalStakeRewardsQuery = `
+const _17_goldStakerOperatorSetUniqueStakeRewardsQuery = `
 CREATE TABLE {{.destTableName}} AS
 
--- Step 1: Get operator rewards and staker splits from previous table 18
+-- Step 1: Get operator rewards and staker splits from previous table 15
 WITH operator_rewards AS (
     SELECT
         reward_hash,
@@ -19,9 +19,8 @@ WITH operator_rewards AS (
         operator_set_id,
         strategy,
         multiplier,
-        tokens_per_registered_snapshot_decimal,
-        -- Calculate staker split (total rewards minus operator split)
-        tokens_per_registered_snapshot_decimal - operator_tokens as staker_split_total
+        adjusted_tokens_per_snapshot,
+        adjusted_tokens_per_snapshot - operator_tokens as staker_split_total
     FROM {{.operatorRewardsTable}}
 ),
 
@@ -54,7 +53,7 @@ staker_strategy_shares AS (
 staker_weights AS (
     SELECT
         *,
-        CAST(shares AS NUMERIC(78,0)) * multiplier as staker_weight
+        shares * multiplier as staker_weight
     FROM staker_strategy_shares
 ),
 
@@ -66,50 +65,55 @@ staker_weight_with_totals AS (
     FROM staker_weights
 ),
 
--- Step 6: Calculate staker proportions and rewards
+-- Step 6: Calculate staker proportions with 15 decimal place precision
+staker_proportions AS (
+    SELECT
+        *,
+        CASE
+            WHEN total_operator_weight > 0 THEN
+                FLOOR((staker_weight / total_operator_weight) * 1000000000000000) / 1000000000000000
+            ELSE 0
+        END as staker_proportion
+    FROM staker_weight_with_totals
+),
+
+-- Step 7: Calculate staker rewards
 staker_rewards AS (
     SELECT
         *,
-        -- Staker's proportion of operator's total delegated stake
         CASE
             WHEN total_operator_weight > 0 THEN
-                staker_weight / total_operator_weight
-            ELSE 0
-        END as staker_proportion,
-        -- Staker's reward = proportion * operator's staker_split_total
-        CASE
-            WHEN total_operator_weight > 0 THEN
-                FLOOR((staker_weight / total_operator_weight) * staker_split_total)
+                FLOOR(staker_proportion * staker_split_total)
             ELSE 0
         END as staker_tokens
-    FROM staker_weight_with_totals
+    FROM staker_proportions
 )
 
 -- Output the final table
 SELECT * FROM staker_rewards
 `
 
-func (rc *RewardsCalculator) GenerateGold19StakerOperatorSetTotalStakeRewardsTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold17StakerOperatorSetUniqueStakeRewardsTable(snapshotDate string) error {
 	rewardsV2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
 		return err
 	}
 	if !rewardsV2_2Enabled {
-		rc.logger.Sugar().Infow("Rewards v2.2 is not enabled, skipping v2.2 table 19")
+		rc.logger.Sugar().Infow("Rewards v2.2 is not enabled, skipping v2.2 table 17")
 		return nil
 	}
 
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_19_StakerOperatorSetTotalStakeRewards]
-	operatorRewardsTable := allTableNames[rewardsUtils.Table_18_OperatorOperatorSetTotalStakeRewards]
+	destTableName := allTableNames[rewardsUtils.Table_17_StakerOperatorSetUniqueStakeRewards]
+	operatorRewardsTable := allTableNames[rewardsUtils.Table_16_OperatorOperatorSetUniqueStakeRewards]
 
-	rc.logger.Sugar().Infow("Generating v2.2 staker operator set reward amounts with total stake",
+	rc.logger.Sugar().Infow("Generating v2.2 staker operator set unique stake rewards",
 		zap.String("snapshotDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_19_goldStakerOperatorSetTotalStakeRewardsQuery, map[string]interface{}{
+	query, err := rewardsUtils.RenderQueryTemplate(_17_goldStakerOperatorSetUniqueStakeRewardsQuery, map[string]interface{}{
 		"destTableName":        destTableName,
 		"operatorRewardsTable": operatorRewardsTable,
 	})
@@ -120,11 +124,11 @@ func (rc *RewardsCalculator) GenerateGold19StakerOperatorSetTotalStakeRewardsTab
 
 	res := rc.grm.Exec(query)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to generate v2.2 staker operator set total stake rewards", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to generate v2.2 staker operator set unique stake rewards", "error", res.Error)
 		return res.Error
 	}
 
-	rc.logger.Sugar().Infow("Successfully generated v2.2 total stake rewards",
+	rc.logger.Sugar().Infow("Successfully generated v2.2 unique stake rewards",
 		zap.String("snapshotDate", snapshotDate),
 		zap.Int64("rowsAffected", res.RowsAffected),
 	)

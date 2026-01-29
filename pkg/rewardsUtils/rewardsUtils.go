@@ -26,14 +26,15 @@ var (
 	Table_12_OperatorODOperatorSetRewardAmounts    = "gold_12_operator_od_operator_set_reward_amounts"
 	Table_13_StakerODOperatorSetRewardAmounts      = "gold_13_staker_od_operator_set_reward_amounts"
 	Table_14_AvsODOperatorSetRewardAmounts         = "gold_14_avs_od_operator_set_reward_amounts"
-	Table_15_OperatorOperatorSetUniqueStakeRewards = "gold_15_operator_operator_set_unique_stake_rewards"
-	Table_16_StakerOperatorSetUniqueStakeRewards   = "gold_16_staker_operator_set_unique_stake_rewards"
-	Table_17_AvsOperatorSetUniqueStakeRewards      = "gold_17_avs_operator_set_unique_stake_rewards"
-	Table_18_OperatorOperatorSetTotalStakeRewards  = "gold_18_operator_operator_set_total_stake_rewards"
-	Table_19_StakerOperatorSetTotalStakeRewards    = "gold_19_staker_operator_set_total_stake_rewards"
-	Table_20_AvsOperatorSetTotalStakeRewards       = "gold_20_avs_operator_set_total_stake_rewards"
-	Table_21_GoldStaging                           = "gold_21_staging"
-	Table_22_GoldTable                             = "gold_table"
+	Table_15_ActiveUniqueAndTotalStakeRewards      = "gold_15_active_unique_and_total_stake_rewards"
+	Table_16_OperatorOperatorSetUniqueStakeRewards = "gold_16_operator_operator_set_unique_stake_rewards"
+	Table_17_StakerOperatorSetUniqueStakeRewards   = "gold_17_staker_operator_set_unique_stake_rewards"
+	Table_18_AvsOperatorSetUniqueStakeRewards      = "gold_18_avs_operator_set_unique_stake_rewards"
+	Table_19_OperatorOperatorSetTotalStakeRewards  = "gold_19_operator_operator_set_total_stake_rewards"
+	Table_20_StakerOperatorSetTotalStakeRewards    = "gold_20_staker_operator_set_total_stake_rewards"
+	Table_21_AvsOperatorSetTotalStakeRewards       = "gold_21_avs_operator_set_total_stake_rewards"
+	Table_22_GoldStaging                           = "gold_22_staging"
+	Table_23_GoldTable                             = "gold_table"
 
 	Table_OperatorAllocationSnapshots = "operator_allocation_snapshots"
 
@@ -67,14 +68,15 @@ var goldTableBaseNames = map[string]string{
 	Table_12_OperatorODOperatorSetRewardAmounts:    Table_12_OperatorODOperatorSetRewardAmounts,
 	Table_13_StakerODOperatorSetRewardAmounts:      Table_13_StakerODOperatorSetRewardAmounts,
 	Table_14_AvsODOperatorSetRewardAmounts:         Table_14_AvsODOperatorSetRewardAmounts,
-	Table_15_OperatorOperatorSetUniqueStakeRewards: Table_15_OperatorOperatorSetUniqueStakeRewards,
-	Table_16_StakerOperatorSetUniqueStakeRewards:   Table_16_StakerOperatorSetUniqueStakeRewards,
-	Table_17_AvsOperatorSetUniqueStakeRewards:      Table_17_AvsOperatorSetUniqueStakeRewards,
-	Table_18_OperatorOperatorSetTotalStakeRewards:  Table_18_OperatorOperatorSetTotalStakeRewards,
-	Table_19_StakerOperatorSetTotalStakeRewards:    Table_19_StakerOperatorSetTotalStakeRewards,
-	Table_20_AvsOperatorSetTotalStakeRewards:       Table_20_AvsOperatorSetTotalStakeRewards,
-	Table_21_GoldStaging:                           Table_21_GoldStaging,
-	Table_22_GoldTable:                             Table_22_GoldTable,
+	Table_15_ActiveUniqueAndTotalStakeRewards:      Table_15_ActiveUniqueAndTotalStakeRewards,
+	Table_16_OperatorOperatorSetUniqueStakeRewards: Table_16_OperatorOperatorSetUniqueStakeRewards,
+	Table_17_StakerOperatorSetUniqueStakeRewards:   Table_17_StakerOperatorSetUniqueStakeRewards,
+	Table_18_AvsOperatorSetUniqueStakeRewards:      Table_18_AvsOperatorSetUniqueStakeRewards,
+	Table_19_OperatorOperatorSetTotalStakeRewards:  Table_19_OperatorOperatorSetTotalStakeRewards,
+	Table_20_StakerOperatorSetTotalStakeRewards:    Table_20_StakerOperatorSetTotalStakeRewards,
+	Table_21_AvsOperatorSetTotalStakeRewards:       Table_21_AvsOperatorSetTotalStakeRewards,
+	Table_22_GoldStaging:                           Table_22_GoldStaging,
+	Table_23_GoldTable:                             Table_23_GoldTable,
 
 	Table_OperatorAllocationSnapshots: Table_OperatorAllocationSnapshots,
 
@@ -108,13 +110,14 @@ var GoldTableNameSearchPattern = map[string]string{
 	Table_12_OperatorODOperatorSetRewardAmounts:    "gold_%_operator_od_operator_set_reward_amounts",
 	Table_13_StakerODOperatorSetRewardAmounts:      "gold_%_staker_od_operator_set_reward_amounts",
 	Table_14_AvsODOperatorSetRewardAmounts:         "gold_%_avs_od_operator_set_reward_amounts",
-	Table_15_OperatorOperatorSetUniqueStakeRewards: "gold_%_operator_operator_set_unique_stake_rewards",
-	Table_16_StakerOperatorSetUniqueStakeRewards:   "gold_%_staker_operator_set_unique_stake_rewards",
-	Table_17_AvsOperatorSetUniqueStakeRewards:      "gold_%_avs_operator_set_unique_stake_rewards",
-	Table_18_OperatorOperatorSetTotalStakeRewards:  "gold_%_operator_operator_set_total_stake_rewards",
-	Table_19_StakerOperatorSetTotalStakeRewards:    "gold_%_staker_operator_set_total_stake_rewards",
-	Table_20_AvsOperatorSetTotalStakeRewards:       "gold_%_avs_operator_set_total_stake_rewards",
-	Table_21_GoldStaging:                           "gold_%_staging",
+	Table_15_ActiveUniqueAndTotalStakeRewards:      "gold_%_active_unique_and_total_stake_rewards",
+	Table_16_OperatorOperatorSetUniqueStakeRewards: "gold_%_operator_operator_set_unique_stake_rewards",
+	Table_17_StakerOperatorSetUniqueStakeRewards:   "gold_%_staker_operator_set_unique_stake_rewards",
+	Table_18_AvsOperatorSetUniqueStakeRewards:      "gold_%_avs_operator_set_unique_stake_rewards",
+	Table_19_OperatorOperatorSetTotalStakeRewards:  "gold_%_operator_operator_set_total_stake_rewards",
+	Table_20_StakerOperatorSetTotalStakeRewards:    "gold_%_staker_operator_set_total_stake_rewards",
+	Table_21_AvsOperatorSetTotalStakeRewards:       "gold_%_avs_operator_set_total_stake_rewards",
+	Table_22_GoldStaging:                           "gold_%_staging",
 
 	Sot_1_StakerStrategyPayouts:                "sot_%_staker_strategy_payouts",
 	Sot_2_OperatorStrategyPayouts:              "sot_%_operator_strategy_payouts",

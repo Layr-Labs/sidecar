@@ -744,11 +744,12 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	// ------------------------------------------------------------------------
 	// Rewards V2.2 snapshots (Unique Stake)
 	// ------------------------------------------------------------------------
-	if err = rc.GenerateAndInsertOperatorAllocationSnapshots(snapshotDate); err != nil {
-		rc.logger.Sugar().Errorw("Failed to generate operator allocation snapshots", "error", err)
+
+	if err := rc.GenerateAndInsertStakeOperatorSetRewards(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate stake operator set rewards", "error", err)
 		return err
 	}
-	rc.logger.Sugar().Debugw("Generated operator allocation snapshots")
+	rc.logger.Sugar().Debugw("Generated stake operator set rewards")
 
 	return nil
 }
@@ -835,47 +836,51 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
-	if err := rc.GenerateGold15OperatorOperatorSetUniqueStakeRewardsTable(snapshotDate); err != nil {
+	// ------------------------------------------------------------------------
+	// Rewards V2.2 - Unique and Total Stake Rewards
+	// ------------------------------------------------------------------------
+
+	if err := rc.GenerateGold15ActiveUniqueAndTotalStakeRewardsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate v2.2 active unique and total stake rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold16OperatorOperatorSetUniqueStakeRewardsTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate v2.2 operator unique stake rewards", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold16StakerOperatorSetUniqueStakeRewardsTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold17StakerOperatorSetUniqueStakeRewardsTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate v2.2 staker unique stake rewards", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold17AvsOperatorSetUniqueStakeRewardsTable(snapshotDate, forks); err != nil {
+	if err := rc.GenerateGold18AvsOperatorSetUniqueStakeRewardsTable(snapshotDate, forks); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate v2.2 avs unique stake rewards", "error", err)
 		return err
 	}
 
-	// ------------------------------------------------------------------------
-	// Rewards V2.2 - Total Stake Weighted Rewards
-	// Each function internally checks if it should run based on v2.2 config
-	// ------------------------------------------------------------------------
-
-	if err := rc.GenerateGold18OperatorOperatorSetTotalStakeRewardsTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold19OperatorOperatorSetTotalStakeRewardsTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate v2.2 operator total stake rewards", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold19StakerOperatorSetTotalStakeRewardsTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold20StakerOperatorSetTotalStakeRewardsTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate v2.2 staker total stake rewards", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold20AvsOperatorSetTotalStakeRewardsTable(snapshotDate, forks); err != nil {
+	if err := rc.GenerateGold21AvsOperatorSetTotalStakeRewardsTable(snapshotDate, forks); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate v2.2 avs total stake rewards", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold21StagingTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold22StagingTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate gold staging", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold22FinalTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold23FinalTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate final table", "error", err)
 		return err
 	}

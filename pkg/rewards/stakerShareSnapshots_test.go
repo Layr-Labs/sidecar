@@ -383,8 +383,8 @@ func Test_StakerShareSnapshots_V22(t *testing.T) {
 
 		// Insert initial slashing adjustment (multiplier = 1.0, no slashing yet)
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
 		`, "0xstaker03", "0xstrat03", "0xoperator03", block5, block5, 1.0, block5, "tx_2021_queue", 0)
 		assert.Nil(t, res.Error)
 
@@ -628,8 +628,8 @@ func Test_StakerShareSnapshots_V22(t *testing.T) {
 
 		// Slash 50% on 3/6: insert slashing adjustment with multiplier 0.5
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
 		`, "0xstaker06", "0xstrat06", "0xoperator06", block5, block6, 0.5, block6, "tx_5002_slash", 0)
 		assert.Nil(t, res.Error)
 
@@ -725,15 +725,15 @@ func Test_StakerShareSnapshots_V22(t *testing.T) {
 
 		// First slash 50% on 1/6 @ 6pm (block 7002): multiplier = 0.5
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
 		`, "0xstaker07", "0xstrat07", "0xoperator07", block5, block6a, 0.5, block6a, "tx_7002_slash1", 0)
 		assert.Nil(t, res.Error)
 
 		// Second slash 50% on 1/6 @ 6pm (block 7003, same day): cumulative multiplier = 0.5 * 0.5 = 0.25
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
 		`, "0xstaker07", "0xstrat07", "0xoperator07", block5, block6b, 0.25, block6b, "tx_7003_slash2", 0)
 		assert.Nil(t, res.Error)
 
@@ -825,15 +825,15 @@ func Test_StakerShareSnapshots_V22(t *testing.T) {
 
 		// First slash 50% on 1/6: multiplier = 0.5
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
 		`, "0xstaker08", "0xstrat08", "0xoperator08", 8001, 8002, 0.5, 8002, "tx_8002_slash1", 0)
 		assert.Nil(t, res.Error)
 
 		// Second slash 50% on 1/7: cumulative multiplier = 0.5 * 0.5 = 0.25
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
 		`, "0xstaker08", "0xstrat08", "0xoperator08", 8001, 8003, 0.25, 8003, "tx_8003_slash2", 0)
 		assert.Nil(t, res.Error)
 
@@ -960,8 +960,8 @@ func Test_StakerShareSnapshots_V22(t *testing.T) {
 		assert.Nil(t, res.Error)
 
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
 		`, "0xstaker09", "0xstrat09", "0xoperator09", 9001, 9002, 0.5, 9002, "tx_9002_slash1", 0)
 		assert.Nil(t, res.Error)
 
@@ -975,8 +975,8 @@ func Test_StakerShareSnapshots_V22(t *testing.T) {
 		assert.Nil(t, res.Error)
 
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
 		`, "0xstaker09", "0xstrat09", "0xoperator09", 9001, 9003, 0.25, 9003, "tx_9003_slash2", 0)
 		assert.Nil(t, res.Error)
 
@@ -1101,8 +1101,8 @@ func Test_StakerShareSnapshots_V22(t *testing.T) {
 
 		// Insert slash adjustment with multiplier 0.5
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
 		`, "0xstaker10", "0xstrat10", "0xoperator10", block2, block3, 0.5, block3, "tx_100200_slash", 0)
 		assert.Nil(t, res.Error)
 
@@ -1254,8 +1254,8 @@ func Test_StakerShareSnapshots_V22(t *testing.T) {
 
 		// Insert slash adjustment with multiplier 0.5
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
 		`, "0xstaker11", "0xstrat11", "0xoperator11", block2, block3, 0.5, block3, "tx_200200_slash", 0)
 		assert.Nil(t, res.Error)
 
@@ -1375,8 +1375,8 @@ func Test_StakerShareSnapshots_V22(t *testing.T) {
 
 		// Insert operator set slash adjustment with multiplier 0.75
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
 		`, "0xstaker12", "0xstrat12", "0xoperator12", 3101, 3102, 0.75, 3102, "tx_3102_slash", 0)
 		assert.Nil(t, res.Error)
 
@@ -1389,8 +1389,8 @@ func Test_StakerShareSnapshots_V22(t *testing.T) {
 
 		// Insert beacon chain slash adjustment with cumulative multiplier 0.375 (0.75 * 0.5)
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
 		`, "0xstaker12", "0xstrat12", "0xoperator12", 3101, 3103, 0.375, 3103, "tx_3103_slash", 0)
 		assert.Nil(t, res.Error)
 
@@ -1498,8 +1498,8 @@ func Test_StakerShareSnapshots_V22(t *testing.T) {
 		// Insert slash adjustment at log index 3 with multiplier 0.5
 		// (withdrawal at log 2 < slash at log 3, so withdrawal IS affected)
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 2, ?, ?, ?, ?, ?)
 		`, "0xstaker13", "0xstrat13", "0xoperator13", block2, block2, 0.5, block2, "tx_1001_slash", 3)
 		assert.Nil(t, res.Error)
 
@@ -2917,8 +2917,8 @@ func Test_WithdrawalQueueAddBack_Integration(t *testing.T) {
 
 		// Day 5: Slash 50% - insert slashing adjustment with multiplier 0.5
 		res = grm.Exec(`
-			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO queued_withdrawal_slashing_adjustments (staker, strategy, operator, withdrawal_block_number, withdrawal_log_index, slash_block_number, slash_multiplier, block_number, transaction_hash, log_index)
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
 		`, staker, strategy, operator, 20002, 20005, 0.5, 20005, "tx_20005_slash", 0)
 		assert.Nil(t, res.Error)
 
