@@ -350,15 +350,13 @@ func Test_ProRataDistribution(t *testing.T) {
 		// Query Table 16 to verify pro-rata distribution
 		var operatorRewards []struct {
 			Operator       string
-			RewardSource   string
 			OperatorTokens string
 			Snapshot       string
 		}
 
 		query := `
-			SELECT operator, reward_source, operator_tokens::text, snapshot::text
+			SELECT operator, operator_tokens::text, snapshot::text
 			FROM gold_16_operator_operator_set_unique_stake_rewards_` + strings.ReplaceAll(snapshotDate, "-", "_") + `
-			WHERE reward_source = 'stake'
 			ORDER BY operator, snapshot
 		`
 		err = grm.Raw(query).Scan(&operatorRewards).Error
