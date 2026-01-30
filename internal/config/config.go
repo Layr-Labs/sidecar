@@ -47,10 +47,23 @@ const (
 	RewardsFork_Colorado    ForkName = "colorado"
 	RewardsFork_Red         ForkName = "red"
 	RewardsFork_Pecos       ForkName = "pecos"
+	RewardsFork_Sabine      ForkName = "sabine"
 )
 
 func normalizeFlagName(name string) string {
 	return strings.ReplaceAll(name, "-", "_")
+}
+
+// getDefaultWithdrawalQueueDuration returns the default withdrawal queue duration in days based on chain
+func getDefaultWithdrawalQueueDuration(chain Chain) float64 {
+	switch chain {
+	case Chain_Mainnet:
+		return 14.0 // Mainnet uses 14-day withdrawal queue
+	case Chain_Preprod, Chain_Holesky, Chain_Sepolia, Chain_Hoodi, Chain_PreprodHoodi:
+		return 10.0 / (24.0 * 60.0) // Testnet/preprod uses 10 minutes = ~0.0069 days
+	default:
+		return 14.0 // Default to mainnet behavior
+	}
 }
 
 type EthereumRpcConfig struct {
@@ -104,6 +117,9 @@ type RewardsConfig struct {
 	ValidateRewardsRoot          bool
 	GenerateStakerOperatorsTable bool
 	CalculateRewardsDaily        bool
+	WithdrawalQueueWindow        float64 // Duration in days for withdrawal queue period (14.0 for mainnet, 0.0069 for testnet/preprod ~10 min)
+	RewardsV2_2Enabled           bool
+	ForkOverrides                map[ForkName]Fork // Test-only: override fork dates/blocks
 }
 
 type StatsdConfig struct {
@@ -184,6 +200,20 @@ func StringWithDefaults(values ...string) string {
 	return ""
 }
 
+func IntWithDefault(value, defaultValue int) int {
+	if value == 0 {
+		return defaultValue
+	}
+	return value
+}
+
+func FloatWithDefault(value, defaultValue float64) float64 {
+	if value == 0.0 {
+		return defaultValue
+	}
+	return value
+}
+
 var (
 	Debug               = "debug"
 	DatabaseHost        = "database.host"
@@ -212,6 +242,8 @@ var (
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
 	RewardsCalculateRewardsDaily        = "rewards.calculate_rewards_daily"
+	RewardsWithdrawalQueueWindow        = "rewards.withdrawal_queue_window"
+	RewardsV2_2Enabled                  = "rewards.v2_2_enabled"
 
 	EthereumRpcBaseUrl               = "ethereum.rpc_url"
 	EthereumRpcContractCallBatchSize = "ethereum.contract_call_batch_size"
@@ -247,9 +279,11 @@ var (
 )
 
 func NewConfig() *Config {
+	chain := Chain(StringWithDefault(viper.GetString(normalizeFlagName("chain")), "holesky"))
+
 	return &Config{
 		Debug: viper.GetBool(normalizeFlagName("debug")),
-		Chain: Chain(StringWithDefault(viper.GetString(normalizeFlagName("chain")), "holesky")),
+		Chain: chain,
 
 		EthereumRpcConfig: EthereumRpcConfig{
 			BaseUrl:               viper.GetString(normalizeFlagName(EthereumRpcBaseUrl)),
@@ -297,6 +331,8 @@ func NewConfig() *Config {
 			ValidateRewardsRoot:          viper.GetBool(normalizeFlagName(RewardsValidateRewardsRoot)),
 			GenerateStakerOperatorsTable: viper.GetBool(normalizeFlagName(RewardsGenerateStakerOperatorsTable)),
 			CalculateRewardsDaily:        viper.GetBool(normalizeFlagName(RewardsCalculateRewardsDaily)),
+			WithdrawalQueueWindow:        FloatWithDefault(viper.GetFloat64(normalizeFlagName(RewardsWithdrawalQueueWindow)), getDefaultWithdrawalQueueDuration(chain)),
+			RewardsV2_2Enabled:           viper.GetBool(normalizeFlagName(RewardsV2_2Enabled)),
 		},
 
 		DataDogConfig: DataDogConfig{
@@ -419,13 +455,19 @@ func (c *Config) GetContractsMapForChain() *ContractAddresses {
 		}
 	} else if c.Chain == Chain_Hoodi {
 		return &ContractAddresses{
-			AllocationManager:  "0x95a7431400f362f3647a69535c5666ca0133caa0",
-			AvsDirectory:       "0xd58f6844f79eb1fbd9f7091d05f7cb30d3363926",
-			DelegationManager:  "0x867837a9722c512e0862d8c2e15b8be220e8b87d",
-			EigenpodManager:    "0xcd1442415fc5c29aa848a49d2e232720be07976c",
-			RewardsCoordinator: "0x29e8572678e0c272350aa0b4b8f304e47ebcd5e7",
-			StrategyManager:    "0xee45e76ddbedda2918b8c7e3035cd37eab3b5d41",
-			KeyRegistrar:       "0x5737e38a260545d8feccb4cae2cfd984da4130ed",
+			AllocationManager:        "0x95a7431400f362f3647a69535c5666ca0133caa0",
+			AvsDirectory:             "0xd58f6844f79eb1fbd9f7091d05f7cb30d3363926",
+			DelegationManager:        "0x867837a9722c512e0862d8c2e15b8be220e8b87d",
+			EigenpodManager:          "0xcd1442415fc5c29aa848a49d2e232720be07976c",
+			RewardsCoordinator:       "0x29e8572678e0c272350aa0b4b8f304e47ebcd5e7",
+			StrategyManager:          "0xee45e76ddbedda2918b8c7e3035cd37eab3b5d41",
+			KeyRegistrar:             "0x5737e38a260545d8feccb4cae2cfd984da4130ed",
+			ReleaseManager:           "0xe863060013cb95473b96f7c3e1444e3e3df65671",
+			CrossChainRegistry:       "0x9269432451965996be7796582c062cb0795d3e8b",
+			OperatorTableUpdater:     "0xb02a15c6bd0882b35e9936a9579f35fb26e11476",
+			ECDSACertificateVerifier: "0xb3cd1a457dea9a9a6f6406c6419b1c326670a96f",
+			BN254CertificateVerifier: "0xff58a373c18268f483c1f5ca03cf885c0c43373a",
+			TaskMailbox:              "0xb99cc53e8db7018f557606c2a5b066527bf96b26",
 		}
 	} else if c.Chain == Chain_PreprodHoodi {
 		return &ContractAddresses{
@@ -514,6 +556,22 @@ type Fork struct {
 type ForkMap map[ForkName]Fork
 
 func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
+	forkMap, err := c.getBaseForkMap()
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply fork overrides (for testing)
+	if c.Rewards.ForkOverrides != nil {
+		for forkName, override := range c.Rewards.ForkOverrides {
+			forkMap[forkName] = override
+		}
+	}
+
+	return forkMap, nil
+}
+
+func (c *Config) getBaseForkMap() (ForkMap, error) {
 	switch c.Chain {
 	case Chain_Preprod:
 		return ForkMap{
@@ -551,6 +609,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 			RewardsFork_Pecos: Fork{
 				Date:        "2025-05-14",
 				BlockNumber: 3840004,
+			},
+			RewardsFork_Sabine: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
 			},
 		}, nil
 	case Chain_Holesky:
@@ -590,6 +652,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-05-14",
 				BlockNumber: 3840004,
 			},
+			RewardsFork_Sabine: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
 		}, nil
 	case Chain_Sepolia:
 		return ForkMap{
@@ -617,6 +683,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 			RewardsFork_Pecos: Fork{
 				Date:        "2025-05-14",
 				BlockNumber: 8327038,
+			},
+			RewardsFork_Sabine: Fork{
+				Date:        "2026-01-28",
+				BlockNumber: 9916073,
 			},
 		}, nil
 	case Chain_Hoodi:
@@ -646,6 +716,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "1970-01-01",
 				BlockNumber: 0,
 			},
+			RewardsFork_Sabine: Fork{
+				Date:        "2026-01-28",
+				BlockNumber: 1850631,
+			},
 		}, nil
 	case Chain_PreprodHoodi:
 		return ForkMap{
@@ -671,6 +745,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 0,
 			},
 			RewardsFork_Pecos: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Sabine: Fork{
 				Date:        "1970-01-01",
 				BlockNumber: 0,
 			},
@@ -716,9 +794,25 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-05-14",
 				BlockNumber: 22483225,
 			},
+			RewardsFork_Sabine: Fork{
+				Date:        "2026-02-16",
+				BlockNumber: 24274311,
+			},
 		}, nil
 	}
 	return nil, errors.New("unsupported chain")
+}
+
+// SetForkOverride sets a fork override for testing purposes.
+// This allows tests to override fork block numbers to enable/disable fork-specific logic.
+func (c *Config) SetForkOverride(forkName ForkName, blockNumber uint64, date string) {
+	if c.Rewards.ForkOverrides == nil {
+		c.Rewards.ForkOverrides = make(map[ForkName]Fork)
+	}
+	c.Rewards.ForkOverrides[forkName] = Fork{
+		Date:        date,
+		BlockNumber: blockNumber,
+	}
 }
 
 type ModelForkMap map[ForkName]uint64
@@ -839,6 +933,23 @@ func (c *Config) IsRewardsV2_1EnabledForCutoffDate(cutoffDate string) (bool, err
 	}
 
 	return cutoffDateTime.Compare(mississippiForkDateTime) >= 0, nil
+}
+
+func (c *Config) IsRewardsV2_2EnabledForCutoffDate(cutoffDate string) (bool, error) {
+	forks, err := c.GetRewardsSqlForkDates()
+	if err != nil {
+		return false, err
+	}
+	cutoffDateTime, err := time.Parse(time.DateOnly, cutoffDate)
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("failed to parse cutoff date %s", cutoffDate), err)
+	}
+	sabineForkDateTime, err := time.Parse(time.DateOnly, forks[RewardsFork_Sabine].Date)
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("failed to parse Sabine fork date %s", forks[RewardsFork_Sabine].Date), err)
+	}
+
+	return cutoffDateTime.Compare(sabineForkDateTime) >= 0, nil
 }
 
 // CanIgnoreIncorrectRewardsRoot returns true if the rewards root can be ignored for the given block number

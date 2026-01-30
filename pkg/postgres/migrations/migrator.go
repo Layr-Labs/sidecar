@@ -82,6 +82,10 @@ import (
 	_202507301346_taskMailboxTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202507301346_taskMailboxTables"
 	_202507301421_crossChainRegistryTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202507301421_crossChainRegistryTables"
 	_202511051502_keyRotationScheduled "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202511051502_keyRotationScheduled"
+	_202511141700_withdrawalQueueAndAllocationRounding "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202511141700_withdrawalQueueAndAllocationRounding"
+	_202512101500_queuedWithdrawalSlashingAdjustments "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202512101500_queuedWithdrawalSlashingAdjustments"
+	_202512160000_addSlashableUntilToOperatorRegistrationSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202512160000_addSlashableUntilToOperatorRegistrationSnapshots"
+	_202512161200_addMaxMagnitudeToAllocationSnapshots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202512161200_addMaxMagnitudeToAllocationSnapshots"
 )
 
 // Migration interface defines the contract for database migrations.
@@ -226,6 +230,10 @@ func (m *Migrator) MigrateAll() error {
 		&_202507301421_crossChainRegistryTables.Migration{},
 		&_202507301346_taskMailboxTables.Migration{},
 		&_202511051502_keyRotationScheduled.Migration{},
+		&_202511141700_withdrawalQueueAndAllocationRounding.Migration{},
+		&_202512101500_queuedWithdrawalSlashingAdjustments.Migration{},
+		&_202512160000_addSlashableUntilToOperatorRegistrationSnapshots.Migration{},
+		&_202512161200_addMaxMagnitudeToAllocationSnapshots.Migration{},
 	}
 
 	for _, migration := range migrations {

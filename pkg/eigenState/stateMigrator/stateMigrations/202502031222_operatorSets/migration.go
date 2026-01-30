@@ -48,7 +48,7 @@ func (sm *StateMigration) MigrateState(currentBlockNumber uint64) ([][]byte, map
 		return nil, nil, err
 	}
 
-	precommitProcessors.LoadPrecommitProcessors(stateMan, sm.db, sm.logger)
+	precommitProcessors.LoadPrecommitProcessors(stateMan, sm.db, sm.logger, sm.globalConfig)
 
 	contracts := sm.globalConfig.GetContractsMapForChain()
 

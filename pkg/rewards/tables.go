@@ -122,10 +122,11 @@ type OperatorSetSplitSnapshots struct {
 }
 
 type OperatorSetOperatorRegistrationSnapshots struct {
-	Operator      string
-	Avs           string
-	OperatorSetId uint64
-	Snapshot      time.Time
+	Operator       string
+	Avs            string
+	OperatorSetId  uint64
+	Snapshot       time.Time
+	SlashableUntil *time.Time // NULL when operator is still active
 }
 
 type OperatorSetStrategyRegistrationSnapshots struct {
@@ -152,4 +153,14 @@ type OperatorDirectedOperatorSetRewards struct {
 	BlockNumber    uint64
 	BlockTime      time.Time
 	BlockDate      string
+}
+
+type OperatorAllocationSnapshot struct {
+	Operator      string
+	Avs           string
+	Strategy      string
+	OperatorSetId uint64
+	Magnitude     string
+	MaxMagnitude  string
+	Snapshot      time.Time
 }

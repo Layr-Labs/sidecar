@@ -136,3 +136,204 @@ func Test_OperatorSetOperatorRegistrationSnapshots(t *testing.T) {
 		teardownOperatorSetOperatorRegistrationSnapshot(dbFileName, cfg, grm, l)
 	})
 }
+
+func Test_OperatorSetOperatorRegistrationSnapshots_SlashableUntil(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupOperatorSetOperatorRegistrationSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownOperatorSetOperatorRegistrationSnapshot(dbFileName, cfg, grm, l)
+
+	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+	rc, _ := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+
+	t.Run("Test 1: Operator deregisters - slashable_until should be deregistration + 14 days", func(t *testing.T) {
+		// Clean up from previous tests
+		grm.Exec("TRUNCATE TABLE operator_set_operator_registrations CASCADE")
+		grm.Exec("TRUNCATE TABLE operator_set_operator_registration_snapshots CASCADE")
+		grm.Exec("DELETE FROM blocks WHERE number >= 100")
+
+		// Setup: Operator registers day 1, deregisters day 5
+		// Expected: snapshots days 2-5 with slashable_until = day 19 (day 5 + 14)
+
+		// Create blocks
+		res := grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time, block_date, state_root, created_at, updated_at)
+			VALUES
+				(100, 'hash_100', '2024-11-01 10:00:00', '2024-11-01', 'root', NOW(), NOW()),
+				(105, 'hash_105', '2024-11-05 10:00:00', '2024-11-05', 'root', NOW(), NOW())
+		`)
+		assert.Nil(t, res.Error)
+
+		// Create registration event at day 1
+		res = grm.Exec(`
+			INSERT INTO operator_set_operator_registrations (operator, avs, operator_set_id, is_active, block_number, transaction_hash, log_index, created_at, updated_at)
+			VALUES ('0xoperator1', '0xavs1', 1, true, 100, 'tx_100', 1, NOW(), NOW())
+		`)
+		assert.Nil(t, res.Error)
+
+		// Create deregistration event at day 5
+		res = grm.Exec(`
+			INSERT INTO operator_set_operator_registrations (operator, avs, operator_set_id, is_active, block_number, transaction_hash, log_index, created_at, updated_at)
+			VALUES ('0xoperator1', '0xavs1', 1, false, 105, 'tx_105', 1, NOW(), NOW())
+		`)
+		assert.Nil(t, res.Error)
+
+		// Generate snapshots
+		snapshotDate := "2024-11-20"
+		err = rc.GenerateAndInsertOperatorSetOperatorRegistrationSnapshots(snapshotDate)
+		assert.Nil(t, err)
+
+		// Query snapshots
+		var snapshots []struct {
+			Snapshot       string
+			SlashableUntil string
+		}
+		res = grm.Raw(`
+			SELECT
+				to_char(snapshot, 'YYYY-MM-DD') as snapshot,
+				to_char(slashable_until, 'YYYY-MM-DD') as slashable_until
+			FROM operator_set_operator_registration_snapshots
+			WHERE operator = '0xoperator1' AND avs = '0xavs1' AND operator_set_id = 1
+			ORDER BY snapshot
+		`).Scan(&snapshots)
+		assert.Nil(t, res.Error)
+
+		t.Logf("Found %d snapshots", len(snapshots))
+		// Should have snapshots for days 2-5 (registration rounds up, deregistration rounds down)
+		assert.Equal(t, 4, len(snapshots))
+
+		// All snapshots should have slashable_until = November 19 (day 5 + 14 days)
+		for _, snapshot := range snapshots {
+			assert.Equal(t, "2024-11-19", snapshot.SlashableUntil,
+				fmt.Sprintf("Snapshot %s should have slashable_until = 2024-11-19", snapshot.Snapshot))
+		}
+	})
+
+	t.Run("Test 2: Active operator - slashable_until should be NULL", func(t *testing.T) {
+		// Clean up
+		grm.Exec("TRUNCATE TABLE operator_set_operator_registrations CASCADE")
+		grm.Exec("TRUNCATE TABLE operator_set_operator_registration_snapshots CASCADE")
+		grm.Exec("DELETE FROM blocks WHERE number >= 200")
+
+		// Setup: Operator registers, never deregisters
+		res := grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time, block_date, state_root, created_at, updated_at)
+			VALUES (200, 'hash_200', '2024-12-01 10:00:00', '2024-12-01', 'root', NOW(), NOW())
+		`)
+		assert.Nil(t, res.Error)
+
+		// Create registration event
+		res = grm.Exec(`
+			INSERT INTO operator_set_operator_registrations (operator, avs, operator_set_id, is_active, block_number, transaction_hash, log_index, created_at, updated_at)
+			VALUES ('0xoperator2', '0xavs2', 2, true, 200, 'tx_200', 1, NOW(), NOW())
+		`)
+		assert.Nil(t, res.Error)
+
+		// Generate snapshots
+		snapshotDate := "2024-12-10"
+		err = rc.GenerateAndInsertOperatorSetOperatorRegistrationSnapshots(snapshotDate)
+		assert.Nil(t, err)
+
+		// Query snapshots
+		var snapshots []struct {
+			SlashableUntil *string
+		}
+		res = grm.Raw(`
+			SELECT slashable_until
+			FROM operator_set_operator_registration_snapshots
+			WHERE operator = '0xoperator2' AND avs = '0xavs2' AND operator_set_id = 2
+			LIMIT 1
+		`).Scan(&snapshots)
+		assert.Nil(t, res.Error)
+		assert.Greater(t, len(snapshots), 0)
+
+		// slashable_until should be NULL for active operators
+		assert.Nil(t, snapshots[0].SlashableUntil)
+	})
+
+	t.Run("Test 3: Multiple deregistrations - each period has correct slashable_until", func(t *testing.T) {
+		// Clean up
+		grm.Exec("TRUNCATE TABLE operator_set_operator_registrations CASCADE")
+		grm.Exec("TRUNCATE TABLE operator_set_operator_registration_snapshots CASCADE")
+		grm.Exec("DELETE FROM blocks WHERE number >= 300")
+
+		// Setup: Register day 1, deregister day 5, re-register day 20, deregister day 25
+		res := grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time, block_date, state_root, created_at, updated_at)
+			VALUES
+				(300, 'hash_300', '2025-01-01 10:00:00', '2025-01-01', 'root', NOW(), NOW()),
+				(305, 'hash_305', '2025-01-05 10:00:00', '2025-01-05', 'root', NOW(), NOW()),
+				(320, 'hash_320', '2025-01-20 10:00:00', '2025-01-20', 'root', NOW(), NOW()),
+				(325, 'hash_325', '2025-01-25 10:00:00', '2025-01-25', 'root', NOW(), NOW())
+		`)
+		assert.Nil(t, res.Error)
+
+		// Registration events
+		res = grm.Exec(`
+			INSERT INTO operator_set_operator_registrations (operator, avs, operator_set_id, is_active, block_number, transaction_hash, log_index, created_at, updated_at)
+			VALUES
+				('0xoperator3', '0xavs3', 3, true, 300, 'tx_300', 1, NOW(), NOW()),
+				('0xoperator3', '0xavs3', 3, false, 305, 'tx_305', 1, NOW(), NOW()),
+				('0xoperator3', '0xavs3', 3, true, 320, 'tx_320', 1, NOW(), NOW()),
+				('0xoperator3', '0xavs3', 3, false, 325, 'tx_325', 1, NOW(), NOW())
+		`)
+		assert.Nil(t, res.Error)
+
+		// Generate snapshots
+		snapshotDate := "2025-02-15"
+		err = rc.GenerateAndInsertOperatorSetOperatorRegistrationSnapshots(snapshotDate)
+		assert.Nil(t, err)
+
+		// Query first period snapshots
+		var firstPeriod []struct {
+			Snapshot       string
+			SlashableUntil string
+		}
+		res = grm.Raw(`
+			SELECT
+				to_char(snapshot, 'YYYY-MM-DD') as snapshot,
+				to_char(slashable_until, 'YYYY-MM-DD') as slashable_until
+			FROM operator_set_operator_registration_snapshots
+			WHERE operator = '0xoperator3' AND avs = '0xavs3' AND operator_set_id = 3
+			  AND snapshot >= '2025-01-02' AND snapshot <= '2025-01-05'
+			ORDER BY snapshot
+		`).Scan(&firstPeriod)
+		assert.Nil(t, res.Error)
+		assert.Greater(t, len(firstPeriod), 0)
+
+		// First period should have slashable_until = January 19 (day 5 + 14)
+		for _, snapshot := range firstPeriod {
+			assert.Equal(t, "2025-01-19", snapshot.SlashableUntil,
+				fmt.Sprintf("First period snapshot %s should have slashable_until = 2025-01-19", snapshot.Snapshot))
+		}
+
+		// Query second period snapshots
+		var secondPeriod []struct {
+			Snapshot       string
+			SlashableUntil string
+		}
+		res = grm.Raw(`
+			SELECT
+				to_char(snapshot, 'YYYY-MM-DD') as snapshot,
+				to_char(slashable_until, 'YYYY-MM-DD') as slashable_until
+			FROM operator_set_operator_registration_snapshots
+			WHERE operator = '0xoperator3' AND avs = '0xavs3' AND operator_set_id = 3
+			  AND snapshot >= '2025-01-21' AND snapshot <= '2025-01-25'
+			ORDER BY snapshot
+		`).Scan(&secondPeriod)
+		assert.Nil(t, res.Error)
+		assert.Greater(t, len(secondPeriod), 0)
+
+		// Second period should have slashable_until = February 8 (day 25 + 14)
+		for _, snapshot := range secondPeriod {
+			assert.Equal(t, "2025-02-08", snapshot.SlashableUntil,
+				fmt.Sprintf("Second period snapshot %s should have slashable_until = 2025-02-08", snapshot.Snapshot))
+		}
+	})
+}
