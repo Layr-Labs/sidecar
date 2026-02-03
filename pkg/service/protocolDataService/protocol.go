@@ -416,6 +416,123 @@ func (pds *ProtocolDataService) ListDelegatedStakersForOperator(ctx context.Cont
 	return stakers, nil
 }
 
+// DelegationFilter specifies which stakers to include based on delegation status
+type DelegationFilter string
+
+const (
+	DelegationFilterAll         DelegationFilter = "ALL"
+	DelegationFilterDelegated   DelegationFilter = "DELEGATED"
+	DelegationFilterUndelegated DelegationFilter = "UNDELEGATED"
+)
+
+// StakerForStrategy represents a staker's shares in a specific strategy along with their delegation status
+type StakerForStrategy struct {
+	Staker    string
+	Shares    string
+	Operator  *string
+	Delegated bool
+}
+
+// ListStakersForStrategy returns all stakers who have deposited in a specific strategy,
+// along with their current delegation status. This enables finding stakers who are NOT
+// delegated to any operator (either never delegated or have undelegated).
+//
+// Parameters:
+//   - strategy: The strategy address to query
+//   - blockHeight: The block height to query at (0 for latest)
+//   - delegationFilter: Filter by delegation status (ALL, DELEGATED, UNDELEGATED)
+//   - pagination: Optional pagination parameters
+func (pds *ProtocolDataService) ListStakersForStrategy(
+	ctx context.Context,
+	strategy string,
+	blockHeight uint64,
+	delegationFilter DelegationFilter,
+	pagination *types.Pagination,
+) ([]*StakerForStrategy, error) {
+	strategy = strings.ToLower(strategy)
+	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build the query with conditional delegation filter
+	queryTemplate := `
+		WITH staker_shares AS (
+			SELECT staker, SUM(shares) as shares
+			FROM staker_share_deltas
+			WHERE strategy = @strategy AND block_number <= @blockHeight
+			GROUP BY staker
+			HAVING SUM(shares) > 0
+		),
+		latest_delegations AS (
+			SELECT DISTINCT ON (staker)
+				staker, operator, delegated
+			FROM staker_delegation_changes
+			WHERE block_number <= @blockHeight
+			ORDER BY staker, block_number DESC, log_index DESC
+		)
+		SELECT 
+			ss.staker,
+			ss.shares,
+			ld.operator,
+			COALESCE(ld.delegated, false) as delegated
+		FROM staker_shares ss
+		LEFT JOIN latest_delegations ld ON ss.staker = ld.staker
+		{{if eq .DelegationFilter "DELEGATED"}}
+		WHERE ld.delegated = true
+		{{else if eq .DelegationFilter "UNDELEGATED"}}
+		WHERE ld.delegated IS NULL OR ld.delegated = false
+		{{end}}
+		ORDER BY ss.shares::numeric DESC
+		{{if .HasPagination}}LIMIT @limit{{if .HasOffset}} OFFSET @offset{{end}}{{end}}
+	`
+
+	// Template data for conditional rendering
+	templateData := struct {
+		DelegationFilter string
+		HasPagination    bool
+		HasOffset        bool
+	}{
+		DelegationFilter: string(delegationFilter),
+		HasPagination:    pagination != nil,
+		HasOffset:        pagination != nil && pagination.Page > 0,
+	}
+
+	// Render the template
+	tmpl, err := template.New("query").Parse(queryTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse query template: %w", err)
+	}
+
+	var queryBuffer bytes.Buffer
+	if err := tmpl.Execute(&queryBuffer, templateData); err != nil {
+		return nil, fmt.Errorf("failed to execute query template: %w", err)
+	}
+
+	query := queryBuffer.String()
+
+	// Build query parameters
+	queryParams := []interface{}{
+		sql.Named("strategy", strategy),
+		sql.Named("blockHeight", bh),
+	}
+
+	if pagination != nil {
+		queryParams = append(queryParams, sql.Named("limit", pagination.PageSize))
+		if pagination.Page > 0 {
+			queryParams = append(queryParams, sql.Named("offset", pagination.Page*pagination.PageSize))
+		}
+	}
+
+	var stakers []*StakerForStrategy
+	res := pds.db.Raw(query, queryParams...).Scan(&stakers)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+
+	return stakers, nil
+}
+
 type AvsAddresses []string
 
 func (aa *AvsAddresses) Value() (driver.Value, error) {
