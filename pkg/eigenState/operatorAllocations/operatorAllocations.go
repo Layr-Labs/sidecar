@@ -27,6 +27,7 @@ type OperatorAllocation struct {
 	BlockNumber     uint64
 	TransactionHash string
 	LogIndex        uint64
+	// Audit: The table has been altered to store an effective_date, but it's not added to the model
 }
 
 type OperatorAllocationModel struct {

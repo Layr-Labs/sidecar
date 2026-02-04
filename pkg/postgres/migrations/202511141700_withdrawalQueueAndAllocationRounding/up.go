@@ -42,7 +42,9 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 
 		// Add effective_date column for allocation/deallocation rounding
 		// This is a computed value based on magnitude changes (round UP for increases, DOWN for decreases)
-		// block_timestamp can be derived from block_number FK to blocks table
+		// block_timestamp can be derived from block_number FK to blocks tablet
+
+		// @audit info: can remove effective_date column as its only used by rewards calc for rounding logic
 		`alter table operator_allocations add column if not exists effective_date date`,
 
 		// Create index for effective_date queries (includes operator_set_id for proper partitioning)

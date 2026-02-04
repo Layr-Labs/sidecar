@@ -5,13 +5,40 @@ import (
 	"go.uber.org/zap"
 )
 
+// @information Edge Cases
+/**
+ * 1. Max Magnitude can be 0 OR null. If null, then default to 1e18. If 0, then use 0
+ * 2. Allocation can be 0 but NOT null. If 0, then there is no slashable stake for that operator/operatorSet
+ * 3. Operators can allocate without being registered.
+ * 4. Operators can be allocated to non-registered strategies (eg. strategy removed from operator set)
+ * 5. Operator can deallocate then have a strategy removed from the operatorSet
+ *    NOTE: in 4/5, the operator should stop earning unique stake rewards immediately
+ * 6. Scenario -> AVS scams operators. This is a known edge case -> We should document it. The AVS MUST be honest.
+      - Day 1: Operator allocates to Strategy A for 100 ETH
+	  - Day 2: Strategy removed from operatorSet. Operator doesn't earn rewards
+	  - Day 3: Strategy added back to operatorSet. Operator earns rewards again
+*/
+
+// Scenario: Deallocation & then slash.
+// Day 1: Bob allocates 100% of his stake to Strategy A on 1/2
+// Day 2: Bob deallocates to 50% of his stake. Block: 100. Effective Date: 1/16. Effective Block: 200
+// Day 3: Bob is slashed 60%% of his stake.
+//   - 3 Events
+//   - 1. Allocation is updated from 100% to 40% immediately.
+//   - 2. Max Magnitude is updated from 100% to 40% immediately.
+//   - 3. Allocation (for pending deallocation) is updated from 50% to 20%.
+//     -> Block: 110. Effective Date: 1/16. Effective Block: 200
+
+// @audit In above scenario, we handle properly as long as we do not default to the block number if the effective_block is not available.
 const operatorAllocationSnapshotsQuery = `
 	insert into operator_allocation_snapshots(operator, avs, strategy, operator_set_id, magnitude, max_magnitude, snapshot)
 	WITH ranked_allocation_records as (
 		SELECT *,
+		       -- @audit: We should only order by block_time DESC (other tables do this). Ordering by both block_time and block_number provide no additional info on ordering. 
 			   ROW_NUMBER() OVER (PARTITION BY operator, avs, strategy, operator_set_id, cast(block_time AS DATE) ORDER BY block_time DESC, oa.block_number DESC, log_index DESC) AS rn
 		FROM operator_allocations oa
 		-- Backward compatibility: use effective_block if available, fall back to block_number for old records
+		-- @audit: We should not default to the block number if the effective_block is not available.
 		INNER JOIN blocks b ON COALESCE(oa.effective_block, oa.block_number) = b.number
 		WHERE b.block_time < TIMESTAMP '{{.cutoffDate}}'
 	),
@@ -62,6 +89,7 @@ const operatorAllocationSnapshotsQuery = `
 			operator_set_id,
 			magnitude,
 			block_time,
+			-- @audit information: previous_magnitude not used anywhere. Probably make sense to set this value in a previous CTE and then use it here for readability
 			LAG(magnitude) OVER (PARTITION BY operator, avs, strategy, operator_set_id ORDER BY block_time, block_number, log_index) as previous_magnitude,
 			-- Allocation (increase) rounds UP, deallocation (decrease) rounds DOWN
 			CASE
@@ -71,7 +99,7 @@ const operatorAllocationSnapshotsQuery = `
 				WHEN magnitude > LAG(magnitude) OVER (PARTITION BY operator, avs, strategy, operator_set_id ORDER BY block_time, block_number, log_index) THEN
 					-- Increase: round up to next day
 					date_trunc('day', block_time) + INTERVAL '1' day
-				ELSE
+				ELSE -- @information. No change is not possible, so it is less than. 
 					-- Decrease or no change: round down to current day
 					date_trunc('day', block_time)
 			END AS snapshot_time
@@ -148,6 +176,11 @@ const operatorAllocationSnapshotsQuery = `
 `
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorAllocationSnapshots(snapshotDate string) error {
+	// TODO: let's look into this edge case.
+	// Scenario: Same day
+	// 1. Bob allocated 100% of his stake to Strategy A.
+	// 2. Bob is slashed 20%, his allocation is now 80%. MaxMagnitude is 80%
+	// 3. Bob deallocates all of his stake from Strategy A.
 	query, err := rewardsUtils.RenderQueryTemplate(operatorAllocationSnapshotsQuery, map[string]interface{}{
 		"cutoffDate": snapshotDate,
 	})
