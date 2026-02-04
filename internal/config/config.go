@@ -47,6 +47,7 @@ const (
 	RewardsFork_Colorado    ForkName = "colorado"
 	RewardsFork_Red         ForkName = "red"
 	RewardsFork_Pecos       ForkName = "pecos"
+	RewardsFork_Sabine      ForkName = "sabine"
 )
 
 func normalizeFlagName(name string) string {
@@ -585,6 +586,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-05-14",
 				BlockNumber: 3840004,
 			},
+			RewardsFork_Sabine: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
 		}, nil
 	case Chain_Holesky:
 		return ForkMap{
@@ -623,6 +628,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "2025-05-14",
 				BlockNumber: 3840004,
 			},
+			RewardsFork_Sabine: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
 		}, nil
 	case Chain_Sepolia:
 		return ForkMap{
@@ -650,6 +659,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 			RewardsFork_Pecos: Fork{
 				Date:        "2025-05-14",
 				BlockNumber: 8327038,
+			},
+			RewardsFork_Sabine: Fork{
+				Date:        "2026-01-28",
+				BlockNumber: 9916073,
 			},
 		}, nil
 	case Chain_Hoodi:
@@ -679,6 +692,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				Date:        "1970-01-01",
 				BlockNumber: 0,
 			},
+			RewardsFork_Sabine: Fork{
+				Date:        "2026-01-28",
+				BlockNumber: 1850631,
+			},
 		}, nil
 	case Chain_PreprodHoodi:
 		return ForkMap{
@@ -704,6 +721,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 0,
 			},
 			RewardsFork_Pecos: Fork{
+				Date:        "1970-01-01",
+				BlockNumber: 0,
+			},
+			RewardsFork_Sabine: Fork{
 				Date:        "1970-01-01",
 				BlockNumber: 0,
 			},
@@ -748,6 +769,10 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 			RewardsFork_Pecos: Fork{
 				Date:        "2025-05-14",
 				BlockNumber: 22483225,
+			},
+			RewardsFork_Sabine: Fork{
+				Date:        "2026-02-16",
+				BlockNumber: 24274311,
 			},
 		}, nil
 	}
