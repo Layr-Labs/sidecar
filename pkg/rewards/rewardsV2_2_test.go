@@ -401,8 +401,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			assert.Nil(t, err)
 
 			// V2.2 specific validation - ensure operator allocations snapshot was created
-			operatorAllocSnapshotTable := goldTableNames[rewardsUtils.Table_OperatorAllocationSnapshots]
-			rows, err = getRowCountForTable(grm, operatorAllocSnapshotTable)
+			rows, err = getRowCountForTable(grm, "operator_allocation_snapshots")
 			assert.Nil(t, err)
 			t.Logf("Operator allocation snapshots: %v", rows)
 			assert.True(t, rows > 0, "Operator allocation snapshots should be created for v2.2")

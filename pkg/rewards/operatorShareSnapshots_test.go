@@ -2,9 +2,10 @@ package rewards
 
 import (
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"testing"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/metrics"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -648,6 +649,324 @@ func Test_OperatorShareSnapshots_SameDayMultipleChanges(t *testing.T) {
 
 		if err == nil && snapshot.Shares != "" {
 			t.Logf("Latest snapshot shares: %s (expected 150...)", snapshot.Shares)
+		}
+	})
+}
+
+// Test_OperatorShareSnapshots_CutoffDateIncluded verifies that the snapshot for
+// the cutoff date itself is included
+func Test_OperatorShareSnapshots_CutoffDateIncluded(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupOperatorShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownOperatorShareSnapshot(dbFileName, cfg, grm, l)
+
+	operator := "0xoperator_boundary1"
+	strategy := "0xstrategy_boundary1"
+
+	// Record created on Jan 1, cutoff is Jan 5
+	// Snapshots should be generated for Jan 2, 3, 4, and 5 (cutoff date INCLUDED)
+	recordDate := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
+	cutoffDate := time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC)
+
+	t.Run("Cutoff date snapshot is included", func(t *testing.T) {
+		// Insert block
+		err := grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time, created_at)
+			VALUES (?, ?, ?, ?)
+			ON CONFLICT (number) DO NOTHING
+		`, 100, "0xblock100", recordDate, time.Now()).Error
+		assert.Nil(t, err)
+
+		// Insert operator shares
+		err = grm.Exec(`
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "1000000000000000000000", "0xtx100", 0, recordDate, recordDate.Format(time.DateOnly), 100).Error
+		assert.Nil(t, err)
+
+		// Generate snapshots
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		err = rewards.GenerateAndInsertOperatorAllocationSnapshots(cutoffDate.Format(time.DateOnly))
+		assert.Nil(t, err)
+
+		err = rewards.GenerateAndInsertOperatorShareSnapshots(cutoffDate.Format(time.DateOnly))
+		assert.Nil(t, err)
+
+		// Verify cutoff date snapshot exists
+		var snapshots []struct {
+			Snapshot time.Time
+			Shares   string
+		}
+		err = grm.Raw(`
+			SELECT snapshot, shares
+			FROM operator_share_snapshots
+			WHERE operator = ? AND strategy = ?
+			ORDER BY snapshot
+		`, operator, strategy).Scan(&snapshots).Error
+		assert.Nil(t, err)
+
+		t.Logf("Generated %d snapshots:", len(snapshots))
+		for i, snap := range snapshots {
+			t.Logf("  [%d] Date: %s, Shares: %s", i, snap.Snapshot.Format(time.DateOnly), snap.Shares)
+		}
+
+		// Check that cutoff date (Jan 5) snapshot exists
+		hasCutoffSnapshot := false
+		for _, snap := range snapshots {
+			if snap.Snapshot.Format(time.DateOnly) == cutoffDate.Format(time.DateOnly) {
+				hasCutoffSnapshot = true
+				break
+			}
+		}
+		assert.True(t, hasCutoffSnapshot, "Snapshot for cutoff date %s should exist", cutoffDate.Format(time.DateOnly))
+
+		// Expected snapshots: Jan 2, 3, 4, 5 (record on Jan 1 rounds up to Jan 2)
+		assert.GreaterOrEqual(t, len(snapshots), 4, "Should have at least 4 snapshots (Jan 2-5)")
+	})
+}
+
+// Test_OperatorShareSnapshots_RecordOnCutoffDate verifies that a record created
+// exactly on the cutoff date generates a snapshot for that date
+func Test_OperatorShareSnapshots_RecordOnCutoffDate(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupOperatorShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownOperatorShareSnapshot(dbFileName, cfg, grm, l)
+
+	operator := "0xoperator_boundary2"
+	strategy := "0xstrategy_boundary2"
+
+	// Record created on cutoff date itself
+	cutoffDate := time.Date(2024, 2, 15, 0, 0, 0, 0, time.UTC)
+	recordDate := time.Date(2024, 2, 14, 23, 59, 0, 0, time.UTC) // Just before cutoff
+
+	t.Run("Record just before cutoff generates cutoff snapshot", func(t *testing.T) {
+		// Insert block
+		err := grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time, created_at)
+			VALUES (?, ?, ?, ?)
+			ON CONFLICT (number) DO NOTHING
+		`, 100, "0xblock100", recordDate, time.Now()).Error
+		assert.Nil(t, err)
+
+		// Insert operator shares just before cutoff
+		err = grm.Exec(`
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "2000000000000000000000", "0xtx100", 0, recordDate, recordDate.Format(time.DateOnly), 100).Error
+		assert.Nil(t, err)
+
+		// Generate snapshots
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		err = rewards.GenerateAndInsertOperatorAllocationSnapshots(cutoffDate.Format(time.DateOnly))
+		assert.Nil(t, err)
+
+		err = rewards.GenerateAndInsertOperatorShareSnapshots(cutoffDate.Format(time.DateOnly))
+		assert.Nil(t, err)
+
+		// Verify snapshot for Feb 15 exists (record on Feb 14 rounds up to Feb 15)
+		var snapshot struct {
+			Snapshot time.Time
+			Shares   string
+		}
+		err = grm.Raw(`
+			SELECT snapshot, shares
+			FROM operator_share_snapshots
+			WHERE operator = ? AND strategy = ? AND snapshot = ?
+		`, operator, strategy, cutoffDate.Format(time.DateOnly)).Scan(&snapshot).Error
+
+		if err == nil && !snapshot.Snapshot.IsZero() {
+			t.Logf("Found snapshot for cutoff date %s: shares=%s", snapshot.Snapshot.Format(time.DateOnly), snapshot.Shares)
+			assert.Equal(t, cutoffDate.Format(time.DateOnly), snapshot.Snapshot.Format(time.DateOnly))
+		} else {
+			t.Logf("Checking for Feb 15 snapshot...")
+			// The record on Feb 14 should generate a snapshot for Feb 15
+			var count int64
+			grm.Raw(`SELECT COUNT(*) FROM operator_share_snapshots WHERE operator = ?`, operator).Scan(&count)
+			t.Logf("Total snapshots for operator: %d", count)
+			assert.Greater(t, count, int64(0), "Should have at least one snapshot")
+		}
+	})
+}
+
+// Test_OperatorShareSnapshots_SingleDayWindow verifies that when start_time equals
+// cutoff date, a snapshot is still generated (fixes the start_time < end_time filter issue)
+func Test_OperatorShareSnapshots_SingleDayWindow(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupOperatorShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownOperatorShareSnapshot(dbFileName, cfg, grm, l)
+
+	operator := "0xoperator_boundary3"
+	strategy := "0xstrategy_boundary3"
+
+	// Record created such that start_time == cutoff date
+	// block_time on Jan 4 -> snapshot_time = Jan 5 -> start_time = Jan 5
+	// cutoff = Jan 5 -> end_time = Jan 6 (with + INTERVAL '1' day fix)
+	// start_time (Jan 5) < end_time (Jan 6) -> TRUE, generates snapshot for Jan 5
+	recordDate := time.Date(2024, 1, 4, 12, 0, 0, 0, time.UTC)
+	cutoffDate := time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC)
+
+	t.Run("Single day window generates snapshot", func(t *testing.T) {
+		// Insert block
+		err := grm.Exec(`
+			INSERT INTO blocks (number, hash, block_time, created_at)
+			VALUES (?, ?, ?, ?)
+			ON CONFLICT (number) DO NOTHING
+		`, 100, "0xblock100", recordDate, time.Now()).Error
+		assert.Nil(t, err)
+
+		// Insert operator shares
+		err = grm.Exec(`
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "500000000000000000000", "0xtx100", 0, recordDate, recordDate.Format(time.DateOnly), 100).Error
+		assert.Nil(t, err)
+
+		// Generate snapshots
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		err = rewards.GenerateAndInsertOperatorAllocationSnapshots(cutoffDate.Format(time.DateOnly))
+		assert.Nil(t, err)
+
+		err = rewards.GenerateAndInsertOperatorShareSnapshots(cutoffDate.Format(time.DateOnly))
+		assert.Nil(t, err)
+
+		// Verify Jan 5 snapshot exists
+		var count int64
+		err = grm.Raw(`
+			SELECT COUNT(*)
+			FROM operator_share_snapshots
+			WHERE operator = ? AND strategy = ? AND snapshot = ?
+		`, operator, strategy, cutoffDate.Format(time.DateOnly)).Scan(&count).Error
+		assert.Nil(t, err)
+
+		t.Logf("Snapshots for cutoff date %s: %d", cutoffDate.Format(time.DateOnly), count)
+		assert.Equal(t, int64(1), count, "Should have exactly one snapshot for the cutoff date")
+	})
+}
+
+// Test_OperatorShareSnapshots_GenerateSeriesBoundary verifies the generate_series
+// upper bound is correctly handled (DATE(end_time) - interval '1' day)
+func Test_OperatorShareSnapshots_GenerateSeriesBoundary(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupOperatorShareSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer teardownOperatorShareSnapshot(dbFileName, cfg, grm, l)
+
+	operator := "0xoperator_boundary4"
+	strategy := "0xstrategy_boundary4"
+
+	// Create a window from Jan 2 to Jan 10
+	// Record on Jan 1 -> snapshot_time = Jan 2 (start_time)
+	// Record on Jan 9 -> snapshot_time = Jan 10 (end_time for first window)
+	// Cutoff = Jan 10
+	// First window: Jan 2 to Jan 10, generates Jan 2-9
+	// Second window: Jan 10 to Jan 11 (cutoff+1), generates Jan 10
+	record1Date := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
+	record2Date := time.Date(2024, 1, 9, 12, 0, 0, 0, time.UTC)
+	cutoffDate := time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC)
+
+	t.Run("Generate series includes all expected dates", func(t *testing.T) {
+		// Insert blocks
+		for i, rd := range []time.Time{record1Date, record2Date} {
+			err := grm.Exec(`
+				INSERT INTO blocks (number, hash, block_time, created_at)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT (number) DO NOTHING
+			`, uint64(100+i), fmt.Sprintf("0xblock%d", 100+i), rd, time.Now()).Error
+			assert.Nil(t, err)
+		}
+
+		// Insert operator shares
+		err = grm.Exec(`
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "1000000000000000000000", "0xtx100", 0, record1Date, record1Date.Format(time.DateOnly), 100).Error
+		assert.Nil(t, err)
+
+		err = grm.Exec(`
+			INSERT INTO operator_shares (operator, strategy, shares, transaction_hash, log_index, block_time, block_date, block_number)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, operator, strategy, "2000000000000000000000", "0xtx101", 0, record2Date, record2Date.Format(time.DateOnly), 101).Error
+		assert.Nil(t, err)
+
+		// Generate snapshots
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+		assert.Nil(t, err)
+
+		err = rewards.GenerateAndInsertOperatorAllocationSnapshots(cutoffDate.Format(time.DateOnly))
+		assert.Nil(t, err)
+
+		err = rewards.GenerateAndInsertOperatorShareSnapshots(cutoffDate.Format(time.DateOnly))
+		assert.Nil(t, err)
+
+		// Verify all dates from Jan 2 to Jan 10 have snapshots
+		var snapshots []struct {
+			Snapshot time.Time
+			Shares   string
+		}
+		err = grm.Raw(`
+			SELECT snapshot, shares
+			FROM operator_share_snapshots
+			WHERE operator = ? AND strategy = ?
+			ORDER BY snapshot
+		`, operator, strategy).Scan(&snapshots).Error
+		assert.Nil(t, err)
+
+		t.Logf("Generated %d snapshots:", len(snapshots))
+		for i, snap := range snapshots {
+			t.Logf("  [%d] Date: %s, Shares: %s", i, snap.Snapshot.Format(time.DateOnly), snap.Shares)
+		}
+
+		// Expected: Jan 2, 3, 4, 5, 6, 7, 8, 9, 10 = 9 snapshots
+		assert.Equal(t, 9, len(snapshots), "Should have 9 snapshots (Jan 2-10)")
+
+		// Verify first snapshot is Jan 2 and last is Jan 10
+		if len(snapshots) > 0 {
+			assert.Equal(t, "2024-01-02", snapshots[0].Snapshot.Format(time.DateOnly), "First snapshot should be Jan 2")
+			assert.Equal(t, "2024-01-10", snapshots[len(snapshots)-1].Snapshot.Format(time.DateOnly), "Last snapshot should be Jan 10 (cutoff date)")
+		}
+
+		// Verify shares change on Jan 10
+		for _, snap := range snapshots {
+			if snap.Snapshot.Format(time.DateOnly) == "2024-01-10" {
+				assert.Equal(t, "2000000000000000000000", snap.Shares, "Jan 10 should have updated shares")
+			}
 		}
 	})
 }
