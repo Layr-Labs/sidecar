@@ -4,6 +4,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"sort"
+	"strings"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/base"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -11,9 +15,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"slices"
-	"sort"
-	"strings"
 )
 
 type QueuedSlashingWithdrawal struct {
@@ -123,7 +124,7 @@ func (omm *QueuedSlashingWithdrawalModel) GetStateTransitions() (types.StateTran
 				Withdrawer:       strings.ToLower(outputData.Withdrawal.Withdrawer),
 				Nonce:            outputData.Withdrawal.Nonce.String(),
 				StartBlock:       outputData.Withdrawal.StartBlock,
-				Strategy:         strategy,
+				Strategy:         strings.ToLower(strategy),
 				ScaledShares:     outputData.Withdrawal.ScaledShares[i].String(),
 				WithdrawalRoot:   withdrawalRoot,
 				SharesToWithdraw: outputData.SharesToWithdraw[i].String(),
