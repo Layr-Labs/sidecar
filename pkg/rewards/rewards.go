@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 
 	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
@@ -851,7 +852,7 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
-	if err := rc.GenerateGold18AvsOperatorSetUniqueStakeRewardsTable(snapshotDate, forks); err != nil {
+	if err := rc.GenerateGold18AvsOperatorSetUniqueStakeRewardsTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate v2.2 avs unique stake rewards", "error", err)
 		return err
 	}
@@ -866,7 +867,7 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
-	if err := rc.GenerateGold21AvsOperatorSetTotalStakeRewardsTable(snapshotDate, forks); err != nil {
+	if err := rc.GenerateGold21AvsOperatorSetTotalStakeRewardsTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate v2.2 avs total stake rewards", "error", err)
 		return err
 	}
