@@ -3,11 +3,12 @@ package indexer
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
-	"strings"
 )
 
 // ProcessRestakedStrategiesForBlock processes and indexes all restaked strategies
@@ -30,10 +31,13 @@ func (idx *Indexer) ProcessRestakedStrategiesForBlock(ctx context.Context, block
 
 	addresses := make([]string, 0)
 
-	if idx.Config.Chain == config.Chain_Preprod || idx.Config.Chain == config.Chain_Holesky {
+	switch idx.Config.Chain {
+	case config.Chain_Preprod, config.Chain_Holesky:
 		addresses = append(addresses, config.AVSDirectoryAddresses[config.Chain_Preprod])
 		addresses = append(addresses, config.AVSDirectoryAddresses[config.Chain_Holesky])
-	} else {
+	case config.Chain_PreprodHoodi, config.Chain_Hoodi, config.Chain_Sepolia:
+		addresses = append(addresses, config.AVSDirectoryAddresses[idx.Config.Chain])
+	default:
 		addresses = append(addresses, config.AVSDirectoryAddresses[config.Chain_Mainnet])
 	}
 
