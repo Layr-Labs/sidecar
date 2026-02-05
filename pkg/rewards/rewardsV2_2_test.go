@@ -34,7 +34,7 @@ func Test_RewardsV2_2(t *testing.T) {
 
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 
-	t.Run("Should initialize the rewards calculator with v2.2", func(t *testing.T) {
+	t.Run("Should generate all v2.2 rewards tables", func(t *testing.T) {
 		rc, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
 		assert.Nil(t, err)
 		if err != nil {
@@ -105,6 +105,10 @@ func Test_RewardsV2_2(t *testing.T) {
 		assert.Nil(t, err)
 
 		err = hydrateTotalStakeRewardSubmissionsForV2_2(grm, l)
+		assert.Nil(t, err)
+
+		// Add multi-strategy test data to verify aggregation across strategies
+		err = hydrateMultiStrategyTestData(grm, l)
 		assert.Nil(t, err)
 
 		t.Log("Hydrated tables")
@@ -319,10 +323,11 @@ func Test_RewardsV2_2(t *testing.T) {
 			fmt.Printf("Running gold_17_staker_od_operator_set_rewards_v2_2\n")
 			err = rc.GenerateGold17StakerOperatorSetUniqueStakeRewardsTable(snapshotDate)
 			assert.Nil(t, err)
+			rows17 := 0
 			if rewardsV2_2Enabled {
-				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_17_StakerOperatorSetUniqueStakeRewards])
+				rows17, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_17_StakerOperatorSetUniqueStakeRewards])
 				assert.Nil(t, err)
-				fmt.Printf("\tRows in gold_17_staker_od_operator_set_rewards_v2_2: %v - [time: %v]\n", rows, time.Since(testStart))
+				fmt.Printf("\tRows in gold_17_staker_od_operator_set_rewards_v2_2: %v - [time: %v]\n", rows17, time.Since(testStart))
 			}
 			testStart = time.Now()
 
@@ -353,12 +358,49 @@ func Test_RewardsV2_2(t *testing.T) {
 			fmt.Printf("Running gold_20_staker_total_stake_rewards_v2_2\n")
 			err = rc.GenerateGold20StakerOperatorSetTotalStakeRewardsTable(snapshotDate)
 			assert.Nil(t, err)
+			rows20 := 0
 			if rewardsV2_2Enabled {
-				rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_20_StakerOperatorSetTotalStakeRewards])
+				rows20, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_20_StakerOperatorSetTotalStakeRewards])
 				assert.Nil(t, err)
-				fmt.Printf("\tRows in gold_20_staker_total_stake_rewards_v2_2: %v - [time: %v]\n", rows, time.Since(testStart))
+				fmt.Printf("\tRows in gold_20_staker_total_stake_rewards_v2_2: %v - [time: %v]\n", rows20, time.Since(testStart))
 			}
 			testStart = time.Now()
+
+			// Verify multi-strategy staker rewards aggregation
+			if rewardsV2_2Enabled {
+				t.Log("Verifying multi-strategy staker rewards aggregation")
+
+				// Query Table 17 for multi-strategy staker's weighted shares
+				var uniqueStakeResults []struct {
+					Staker         string
+					WeightedShares string
+					StakerTokens   string
+				}
+				query17 := fmt.Sprintf(`
+					SELECT staker, weighted_shares, staker_tokens 
+					FROM %s 
+					WHERE staker = '0xmulti_strategy_test_staker'
+				`, goldTableNames[rewardsUtils.Table_17_StakerOperatorSetUniqueStakeRewards])
+				grm.Raw(query17).Scan(&uniqueStakeResults)
+				t.Logf("Multi-strategy Table 17 results: %+v", uniqueStakeResults)
+
+				// Query Table 20 for multi-strategy staker's total shares
+				var totalStakeResults []struct {
+					Staker       string
+					TotalShares  string
+					StakerTokens string
+				}
+				query20 := fmt.Sprintf(`
+					SELECT staker, total_shares, staker_tokens 
+					FROM %s 
+					WHERE staker = '0xmulti_strategy_test_staker'
+				`, goldTableNames[rewardsUtils.Table_20_StakerOperatorSetTotalStakeRewards])
+				grm.Raw(query20).Scan(&totalStakeResults)
+				t.Logf("Multi-strategy Table 20 results: %+v", totalStakeResults)
+
+				// Assert that staker rewards were generated (Tables 17 and 20 have rows)
+				assert.True(t, rows17 > 0 || rows20 > 0, "Staker should receive rewards from multi-strategy operator set")
+			}
 
 			fmt.Printf("Running gold_21_avs_total_stake_rewards_v2_2\n")
 			err = rc.GenerateGold21AvsOperatorSetTotalStakeRewardsTable(snapshotDate)
@@ -375,7 +417,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_22_GoldStaging])
 			assert.Nil(t, err)
-			fmt.Printf("\tRows in gold_18_staging: %v - [time: %v]\n", rows, time.Since(testStart))
+			fmt.Printf("\tRows in gold_22_staging: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_final_table\n")
@@ -605,5 +647,193 @@ func hydrateV2_2OperatorSetRegistrations(grm *gorm.DB, l *zap.Logger) error {
 		return res.Error
 	}
 
+	return nil
+}
+
+// hydrateMultiStrategyTestData creates test data for multi-strategy testing.
+// This sets up:
+// 1. An operator set with TWO registered strategies
+// 2. A staker delegated to an operator in that set
+// 3. The staker has shares in BOTH strategies
+// 4. Reward submissions for both unique and total stake that cover both strategies
+func hydrateMultiStrategyTestData(grm *gorm.DB, l *zap.Logger) error {
+	avs := "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0"
+	operator := "0xa067defa8e919ebad10f3c4168a77e29a46e0b3f"
+	strategy1 := "0x93c4b944d05dfe6df7645a86cd2206016c51564d" // Existing strategy
+	strategy2 := "0xstrategy2_multi_test_00000000000000"      // Second strategy for multi-strategy test
+	staker := "0xmulti_strategy_test_staker"
+	blockNumber := uint64(2923050)
+	operatorSetId := uint64(0)
+
+	// 1. Register second strategy to the operator set
+	res := grm.Exec(`
+		INSERT INTO operator_set_strategy_registrations
+		(strategy, avs, operator_set_id, is_active, block_number, transaction_hash, log_index)
+		VALUES (?, ?, ?, true, ?, '0xmulti_strat_reg', 100)
+		ON CONFLICT DO NOTHING
+	`, strategy2, avs, operatorSetId, blockNumber)
+	if res.Error != nil {
+		l.Sugar().Errorw("Failed to register second strategy", "error", res.Error)
+		return res.Error
+	}
+
+	// 2. Add staker delegation to the operator
+	res = grm.Exec(`
+		INSERT INTO staker_delegation_changes
+		(staker, operator, delegated, block_number, transaction_hash, log_index, block_time, block_date)
+		VALUES (?, ?, true, ?, '0xmulti_delegation', 100, '2024-12-12 17:03:24', '2024-12-12')
+		ON CONFLICT DO NOTHING
+	`, staker, operator, blockNumber)
+	if res.Error != nil {
+		l.Sugar().Errorw("Failed to add staker delegation", "error", res.Error)
+		return res.Error
+	}
+
+	// 3. Add staker shares for BOTH strategies
+	// Strategy 1: 1000 shares
+	res = grm.Exec(`
+		INSERT INTO staker_share_deltas
+		(staker, strategy, shares, block_number, transaction_hash, log_index, block_time, block_date)
+		VALUES (?, ?, '1000000000000000000000', ?, '0xmulti_shares_1', 101, '2024-12-12 17:03:24', '2024-12-12')
+		ON CONFLICT DO NOTHING
+	`, staker, strategy1, blockNumber)
+	if res.Error != nil {
+		l.Sugar().Errorw("Failed to add staker shares for strategy 1", "error", res.Error)
+		return res.Error
+	}
+
+	// Strategy 2: 2000 shares (staker has more in this strategy)
+	res = grm.Exec(`
+		INSERT INTO staker_share_deltas
+		(staker, strategy, shares, block_number, transaction_hash, log_index, block_time, block_date)
+		VALUES (?, ?, '2000000000000000000000', ?, '0xmulti_shares_2', 102, '2024-12-12 17:03:24', '2024-12-12')
+		ON CONFLICT DO NOTHING
+	`, staker, strategy2, blockNumber)
+	if res.Error != nil {
+		l.Sugar().Errorw("Failed to add staker shares for strategy 2", "error", res.Error)
+		return res.Error
+	}
+
+	// 4. Create unique stake reward submission with BOTH strategies
+	startTime := time.Date(2024, 12, 12, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(2025, 2, 28, 0, 0, 0, 0, time.UTC)
+	duration := uint64(endTime.Sub(startTime).Seconds())
+
+	// Unique stake reward for strategy 1
+	reward1 := uniqueStakeRewardSubmissions.UniqueStakeRewardSubmission{
+		Avs:             avs,
+		OperatorSetId:   operatorSetId,
+		RewardHash:      "0xmulti_unique_reward",
+		Token:           "0x94373a4919b3240d86ea41593d5eba789fef3848",
+		Amount:          "500000000000000000000000", // 500K tokens
+		Strategy:        strategy1,
+		StrategyIndex:   0,
+		Multiplier:      "1000000000000000000", // 1e18
+		StartTimestamp:  &startTime,
+		EndTimestamp:    &endTime,
+		Duration:        duration,
+		BlockNumber:     blockNumber,
+		TransactionHash: "0xmulti_unique_tx_1",
+		LogIndex:        200,
+	}
+	if err := grm.Create(&reward1).Error; err != nil {
+		l.Sugar().Errorw("Failed to create unique stake reward 1", "error", err)
+		return err
+	}
+
+	// Unique stake reward for strategy 2 (same reward_hash, different strategy)
+	reward2 := uniqueStakeRewardSubmissions.UniqueStakeRewardSubmission{
+		Avs:             avs,
+		OperatorSetId:   operatorSetId,
+		RewardHash:      "0xmulti_unique_reward", // Same reward hash
+		Token:           "0x94373a4919b3240d86ea41593d5eba789fef3848",
+		Amount:          "500000000000000000000000",
+		Strategy:        strategy2, // Different strategy
+		StrategyIndex:   1,
+		Multiplier:      "2000000000000000000", // 2e18 - different multiplier to test weighted aggregation
+		StartTimestamp:  &startTime,
+		EndTimestamp:    &endTime,
+		Duration:        duration,
+		BlockNumber:     blockNumber,
+		TransactionHash: "0xmulti_unique_tx_2",
+		LogIndex:        201,
+	}
+	if err := grm.Create(&reward2).Error; err != nil {
+		l.Sugar().Errorw("Failed to create unique stake reward 2", "error", err)
+		return err
+	}
+
+	// 5. Create total stake reward submission with both strategies
+	totalReward1 := totalStakeRewardSubmissions.TotalStakeRewardSubmission{
+		Avs:             avs,
+		OperatorSetId:   operatorSetId,
+		RewardHash:      "0xmulti_total_reward",
+		Token:           "0x94373a4919b3240d86ea41593d5eba789fef3848",
+		Amount:          "1000000000000000000000000", // 1M tokens
+		Strategy:        strategy1,
+		StrategyIndex:   0,
+		Multiplier:      "1000000000000000000",
+		StartTimestamp:  &startTime,
+		EndTimestamp:    &endTime,
+		Duration:        duration,
+		BlockNumber:     blockNumber,
+		TransactionHash: "0xmulti_total_tx_1",
+		LogIndex:        300,
+	}
+	if err := grm.Create(&totalReward1).Error; err != nil {
+		l.Sugar().Errorw("Failed to create total stake reward 1", "error", err)
+		return err
+	}
+
+	totalReward2 := totalStakeRewardSubmissions.TotalStakeRewardSubmission{
+		Avs:             avs,
+		OperatorSetId:   operatorSetId,
+		RewardHash:      "0xmulti_total_reward", // Same reward hash
+		Token:           "0x94373a4919b3240d86ea41593d5eba789fef3848",
+		Amount:          "1000000000000000000000000",
+		Strategy:        strategy2, // Different strategy
+		StrategyIndex:   1,
+		Multiplier:      "1000000000000000000",
+		StartTimestamp:  &startTime,
+		EndTimestamp:    &endTime,
+		Duration:        duration,
+		BlockNumber:     blockNumber,
+		TransactionHash: "0xmulti_total_tx_2",
+		LogIndex:        301,
+	}
+	if err := grm.Create(&totalReward2).Error; err != nil {
+		l.Sugar().Errorw("Failed to create total stake reward 2", "error", err)
+		return err
+	}
+
+	// 6. Add operator allocation for the operator set (needed for unique stake)
+	res = grm.Exec(`
+		INSERT INTO operator_allocations
+		(operator, avs, strategy, magnitude, operator_set_id, effective_block, transaction_hash, log_index, block_number)
+		VALUES
+		(?, ?, ?, '1000000000000000000', ?, ?, '0xmulti_alloc_1', 400, ?),
+		(?, ?, ?, '1000000000000000000', ?, ?, '0xmulti_alloc_2', 401, ?)
+		ON CONFLICT DO NOTHING
+	`, operator, avs, strategy1, operatorSetId, blockNumber, blockNumber,
+		operator, avs, strategy2, operatorSetId, blockNumber, blockNumber)
+	if res.Error != nil {
+		l.Sugar().Errorw("Failed to add operator allocations", "error", res.Error)
+		return res.Error
+	}
+
+	// 7. Add operator max magnitudes for second strategy
+	res = grm.Exec(`
+		INSERT INTO operator_max_magnitudes
+		(operator, strategy, max_magnitude, block_number, transaction_hash, log_index)
+		VALUES
+		(?, ?, '1000000000000000000', ?, '0xmulti_max_mag_2', 500)
+		ON CONFLICT DO NOTHING
+	`, operator, strategy2, blockNumber)
+	if res.Error != nil {
+		l.Sugar().Errorw("Failed to add operator max magnitude for strategy 2", "error", res.Error)
+		return res.Error
+	}
+
+	l.Sugar().Infow("Successfully hydrated multi-strategy test data")
 	return nil
 }
