@@ -129,9 +129,9 @@ const operatorAllocationSnapshotsQuery = `
 			cast(day AS DATE) AS snapshot
 		FROM
 			max_magnitude_windows
-		WHERE start_time < end_time
 		CROSS JOIN
 			generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+		WHERE start_time < end_time
 	)
 	SELECT
 		das.operator,

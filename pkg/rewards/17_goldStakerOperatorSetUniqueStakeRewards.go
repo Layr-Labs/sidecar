@@ -27,20 +27,19 @@ WITH operator_rewards AS (
 -- Step 2: Get stakers delegated to each operator
 staker_delegations AS (
     SELECT
-        or.*,
+        opr.*,
         sds.staker
-    FROM operator_rewards or
+    FROM operator_rewards opr
     JOIN staker_delegation_snapshots sds
-        ON or.operator = sds.operator
-        AND or.snapshot = sds.snapshot
+        ON opr.operator = sds.operator
+        AND opr.snapshot = sds.snapshot
 ),
 
 -- Step 3: Get each staker's shares for the strategy
 staker_strategy_shares AS (
     SELECT
         sd.*,
-        sss.shares,
-        sd.multiplier
+        sss.shares
     FROM staker_delegations sd
     JOIN staker_share_snapshots sss
         ON sd.staker = sss.staker
