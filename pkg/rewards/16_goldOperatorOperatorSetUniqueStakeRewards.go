@@ -5,47 +5,47 @@ import (
 	"go.uber.org/zap"
 )
 
-const _15_goldOperatorOperatorSetUniqueStakeRewardsQuery = `
+const _16_goldOperatorOperatorSetUniqueStakeRewardsQuery = `
 CREATE TABLE {{.destTableName}} AS
 
--- Step 1: Get registered operators for the operator set
--- Uses slashable_until to include 14-day deregistration queue for unique stake rewards
-WITH reward_snapshot_operators AS (
+-- ============================================================================
+-- Stake Rewards Path (pool amounts from Table 15, needs pro-rata)
+-- ============================================================================
+
+-- Step 1: Get registered operators (join to get all operators for the operator set)
+WITH registered_operators AS (
     SELECT
         ap.reward_hash,
         ap.snapshot AS snapshot,
         ap.token,
-        ap.tokens_per_registered_snapshot_decimal,
+        ap.tokens_per_day_decimal,
         ap.avs AS avs,
         ap.operator_set_id AS operator_set_id,
-        ap.operator AS operator,
         ap.strategy,
         ap.multiplier,
         ap.reward_submission_date,
+        osor.operator,
         osor.snapshot as registration_snapshot,
         osor.slashable_until
-    FROM {{.activeODRewardsTable}} ap
+    FROM {{.activeStakeRewardsTable}} ap
     JOIN operator_set_operator_registration_snapshots osor
         ON ap.avs = osor.avs
        AND ap.operator_set_id = osor.operator_set_id
-       AND ap.operator = osor.operator
-       -- Use slashable_until for unique stake rewards (includes 14-day queue)
-       -- NULL slashable_until means operator is still active
        AND ap.snapshot >= osor.snapshot
        AND (osor.slashable_until IS NULL OR ap.snapshot <= osor.slashable_until)
+    WHERE ap.reward_type = 'unique_stake'
 ),
 
-operators_with_allocated_stake AS (
+-- Step 2: Calculate allocated weight per operator
+operators_with_weight AS (
     SELECT
         rso.*,
-        oas.magnitude,
-        oas.max_magnitude,
-        oss.shares as operator_total_shares,
-        -- Calculate effective allocated stake for this strategy
-        CAST(oss.shares AS NUMERIC(78,0)) *
-        CAST(oas.magnitude AS NUMERIC(78,0)) /
-        CAST(oas.max_magnitude AS NUMERIC(78,0)) as allocated_stake
-    FROM reward_snapshot_operators rso
+        SUM(
+            oss.shares *
+            oas.magnitude /
+            oas.max_magnitude * rso.multiplier
+        ) OVER (PARTITION BY rso.reward_hash, rso.snapshot, rso.operator) as operator_allocated_weight
+    FROM registered_operators rso
     JOIN {{.operatorAllocationSnapshotsTable}} oas
         ON rso.operator = oas.operator
         AND rso.avs = oas.avs
@@ -61,71 +61,64 @@ operators_with_allocated_stake AS (
         AND oss.shares > 0
 ),
 
--- Calculate weighted allocated stake per operator (sum across strategies)
-operators_with_unique_stake AS (
-    SELECT
+-- Step 3: Calculate total weight per (reward_hash, snapshot) for pro-rata
+total_weight AS (
+    SELECT DISTINCT
         reward_hash,
         snapshot,
-        token,
-        tokens_per_registered_snapshot_decimal,
-        avs,
-        operator_set_id,
-        operator,
-        strategy,
-        multiplier,
-        reward_submission_date,
-        registration_snapshot,
-        slashable_until,
-        -- Sum the weighted allocated stake across strategies
-        SUM(allocated_stake * multiplier) OVER (
-            PARTITION BY reward_hash, snapshot, operator
-        ) as operator_allocated_weight
-    FROM operators_with_allocated_stake
-),
-
--- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
--- Since the above result is a flattened operator-directed reward submission across strategies.
-distinct_operators AS (
-    SELECT *
+        SUM(operator_allocated_weight) OVER (PARTITION BY reward_hash, snapshot) as total_weight
     FROM (
-        SELECT 
-            *,
-            -- We can use an arbitrary order here since the operator_tokens is the same for each (operator, strategy, hash, snapshot)
-            -- We use strategy ASC for better debuggability
-            ROW_NUMBER() OVER (
-                PARTITION BY reward_hash, snapshot, operator 
-                ORDER BY strategy ASC
-            ) AS rn
-        FROM operators_with_unique_stake
-    ) t
-    -- Keep only the first row for each (operator, reward hash, snapshot)
-    WHERE rn = 1
+        SELECT DISTINCT reward_hash, snapshot, operator, operator_allocated_weight
+        FROM operators_with_weight
+    ) distinct_ops
 ),
 
--- Step 3: Check if operators are in deregistration queue (between registration and slashable_until)
+-- Step 4: Calculate pro-rata tokens per operator
+distinct_operators AS (
+    SELECT
+        pow.reward_hash, pow.snapshot, pow.token,
+        FLOOR(pow.tokens_per_day_decimal * pow.operator_allocated_weight / tw.total_weight) as tokens_per_registered_snapshot_decimal,
+        pow.avs, pow.operator_set_id, pow.operator, pow.strategy, pow.multiplier,
+        pow.reward_submission_date, pow.registration_snapshot, pow.slashable_until,
+        pow.operator_allocated_weight
+    FROM (
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY reward_hash, snapshot, operator ORDER BY strategy ASC) AS rn
+        FROM operators_with_weight
+    ) pow
+    JOIN total_weight tw
+        ON pow.reward_hash = tw.reward_hash
+        AND pow.snapshot = tw.snapshot
+    WHERE pow.rn = 1 AND tw.total_weight > 0
+),
+
+-- ============================================================================
+-- Slashing and Splits Processing
+-- ============================================================================
+
+-- Step 5: Check deregistration queue status
 operators_with_deregistration_status AS (
     SELECT
-        dop.*,
+        *,
         CASE
-            WHEN dop.snapshot > dop.registration_snapshot
-             AND dop.snapshot <= dop.slashable_until
+            WHEN slashable_until IS NOT NULL
+             AND snapshot > (slashable_until - INTERVAL '14 days')
+             AND snapshot <= slashable_until
             THEN TRUE
             ELSE FALSE
         END as in_deregistration_queue
-    FROM distinct_operators dop
+    FROM distinct_operators
 ),
 
--- Step 4: Calculate cumulative slash multiplier during deregistration queue
+-- Step 6: Calculate cumulative slash multiplier during deregistration queue
 -- Slashing only affects rewards during the 14-day deregistration period
 -- GUARD: If wad_slashed >= 1e18 (100% slash), use a very large negative value for LN
--- instead of LN(0) which would cause a math error. This effectively makes the multiplier ~0.
 operators_with_slash_multiplier AS (
     SELECT
         owds.*,
         COALESCE(
             EXP(SUM(
                 CASE
-                    WHEN COALESCE(so.wad_slashed, 0) >= CAST(1e18 AS NUMERIC) THEN -100  -- Effectively 0 multiplier (e^-100 ≈ 0)
+                    WHEN COALESCE(so.wad_slashed, 0) >= CAST(1e18 AS NUMERIC) THEN -100
                     ELSE LN(1 - COALESCE(so.wad_slashed, 0) / CAST(1e18 AS NUMERIC))
                 END
             ) FILTER (
@@ -148,10 +141,10 @@ operators_with_slash_multiplier AS (
     GROUP BY owds.reward_hash, owds.snapshot, owds.token, owds.tokens_per_registered_snapshot_decimal,
              owds.avs, owds.operator_set_id, owds.operator, owds.strategy, owds.multiplier,
              owds.reward_submission_date, owds.registration_snapshot, owds.slashable_until,
-             owds.operator_allocated_weight, owds.rn, owds.in_deregistration_queue
+             owds.operator_allocated_weight, owds.in_deregistration_queue
 ),
 
--- Step 5: Apply slash multiplier to tokens
+-- Step 7: Apply slash multiplier to tokens
 operators_with_adjusted_tokens AS (
     SELECT
         *,
@@ -164,7 +157,7 @@ operators_with_adjusted_tokens AS (
     FROM operators_with_slash_multiplier
 ),
 
--- Step 6: Calculate the tokens for each operator with dynamic split logic
+-- Step 8: Calculate operator tokens with dynamic split logic
 -- If no split is found, default to 1000 (10%)
 operator_splits AS (
     SELECT
@@ -180,32 +173,31 @@ operator_splits AS (
     LEFT JOIN default_operator_split_snapshots dos ON (oat.snapshot = dos.snapshot)
 )
 
--- Step 7: Output the final table with operator splits
 SELECT * FROM operator_splits
 `
 
-func (rc *RewardsCalculator) GenerateGold15OperatorOperatorSetUniqueStakeRewardsTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold16OperatorOperatorSetUniqueStakeRewardsTable(snapshotDate string) error {
 	rewardsV2_2Enabled, err := rc.globalConfig.IsRewardsV2_2EnabledForCutoffDate(snapshotDate)
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to check if rewards v2.2 is enabled", "error", err)
 		return err
 	}
 	if !rewardsV2_2Enabled {
-		rc.logger.Sugar().Infow("Rewards v2.2 is not enabled, skipping v2.2 table 15")
+		rc.logger.Sugar().Infow("Rewards v2.2 is not enabled, skipping v2.2 table 16")
 		return nil
 	}
 
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
-	destTableName := allTableNames[rewardsUtils.Table_15_OperatorOperatorSetUniqueStakeRewards]
+	destTableName := allTableNames[rewardsUtils.Table_16_OperatorOperatorSetUniqueStakeRewards]
 
 	rc.logger.Sugar().Infow("Generating v2.2 Operator operator set unique stake rewards",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_15_goldOperatorOperatorSetUniqueStakeRewardsQuery, map[string]interface{}{
+	query, err := rewardsUtils.RenderQueryTemplate(_16_goldOperatorOperatorSetUniqueStakeRewardsQuery, map[string]interface{}{
 		"destTableName":                    destTableName,
-		"activeODRewardsTable":             allTableNames[rewardsUtils.Table_11_ActiveODOperatorSetRewards],
+		"activeStakeRewardsTable":          allTableNames[rewardsUtils.Table_15_ActiveUniqueAndTotalStakeRewards],
 		"operatorAllocationSnapshotsTable": "operator_allocation_snapshots",
 		"operatorShareSnapshotsTable":      "operator_share_snapshots",
 	})
