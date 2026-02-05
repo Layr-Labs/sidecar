@@ -8,7 +8,7 @@ import (
 const _20_goldStakerOperatorSetTotalStakeRewardsQuery = `
 CREATE TABLE {{.destTableName}} AS
 
--- Step 1: Get operator rewards and staker splits from previous table 18
+-- Step 1: Get operator rewards and staker splits from previous table 19
 WITH operator_rewards AS (
     SELECT
         reward_hash,
@@ -17,7 +17,6 @@ WITH operator_rewards AS (
         operator,
         avs,
         operator_set_id,
-        strategy,
         tokens_per_registered_snapshot_decimal,
         -- Calculate staker split (total rewards minus operator split)
         tokens_per_registered_snapshot_decimal - operator_tokens as staker_split_total
@@ -35,24 +34,39 @@ staker_delegations AS (
         AND opr.snapshot = sds.snapshot
 ),
 
--- Step 3: Get each staker's shares for the strategy
+-- Step 3: Get each staker's shares across ALL strategies in the operator set
 staker_strategy_shares AS (
     SELECT
-        sd.*,
-        sss.shares
+        sd.reward_hash,
+        sd.snapshot,
+        sd.token,
+        sd.operator,
+        sd.avs,
+        sd.operator_set_id,
+        sd.staker,
+        sd.tokens_per_registered_snapshot_decimal,
+        sd.staker_split_total,
+        SUM(CAST(sss.shares AS NUMERIC(78,0))) as total_shares
     FROM staker_delegations sd
+    JOIN operator_set_strategy_registration_snapshots ossr
+        ON sd.avs = ossr.avs
+        AND sd.operator_set_id = ossr.operator_set_id
+        AND sd.snapshot = ossr.snapshot
     JOIN staker_share_snapshots sss
         ON sd.staker = sss.staker
-        AND sd.strategy = sss.strategy
+        AND ossr.strategy = sss.strategy
         AND sd.snapshot = sss.snapshot
     WHERE sss.shares > 0
+    GROUP BY sd.reward_hash, sd.snapshot, sd.token, sd.operator,
+             sd.avs, sd.operator_set_id, sd.staker,
+             sd.tokens_per_registered_snapshot_decimal, sd.staker_split_total
 ),
 
--- Step 4: Calculate each staker's weighted shares (total stake uses raw shares)
+-- Step 4: Calculate each staker's weight (total stake uses raw shares)
 staker_weights AS (
     SELECT
         *,
-        CAST(shares AS NUMERIC(78,0)) as staker_weight
+        total_shares as staker_weight
     FROM staker_strategy_shares
 ),
 

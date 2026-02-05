@@ -8,7 +8,7 @@ import (
 const _17_goldStakerOperatorSetUniqueStakeRewardsQuery = `
 CREATE TABLE {{.destTableName}} AS
 
--- Step 1: Get operator rewards and staker splits from previous table 15
+-- Step 1: Get operator rewards and staker splits from previous table 16
 WITH operator_rewards AS (
     SELECT
         reward_hash,
@@ -17,8 +17,6 @@ WITH operator_rewards AS (
         operator,
         avs,
         operator_set_id,
-        strategy,
-        multiplier,
         adjusted_tokens_per_snapshot,
         adjusted_tokens_per_snapshot - operator_tokens as staker_split_total
     FROM {{.operatorRewardsTable}}
@@ -35,25 +33,41 @@ staker_delegations AS (
         AND opr.snapshot = sds.snapshot
 ),
 
--- Step 3: Get each staker's shares for the strategy
+-- Step 3: Get each staker's weighted shares across ALL strategies in the operator set
 staker_strategy_shares AS (
     SELECT
-        sd.*,
-        sss.shares
+        sd.reward_hash,
+        sd.snapshot,
+        sd.token,
+        sd.operator,
+        sd.avs,
+        sd.operator_set_id,
+        sd.staker,
+        sd.adjusted_tokens_per_snapshot,
+        sd.staker_split_total,
+        SUM(CAST(sss.shares AS NUMERIC(78,0)) * asr.multiplier) as weighted_shares
     FROM staker_delegations sd
+    JOIN {{.activeStakeRewardsTable}} asr
+        ON sd.reward_hash = asr.reward_hash
+        AND sd.avs = asr.avs
+        AND sd.operator_set_id = asr.operator_set_id
+        AND sd.snapshot = asr.snapshot
     JOIN staker_share_snapshots sss
         ON sd.staker = sss.staker
-        AND sd.strategy = sss.strategy
+        AND asr.strategy = sss.strategy
         AND sd.snapshot = sss.snapshot
     WHERE sss.shares > 0
-        AND sd.multiplier != 0
+        AND asr.multiplier != 0
+    GROUP BY sd.reward_hash, sd.snapshot, sd.token, sd.operator,
+             sd.avs, sd.operator_set_id, sd.staker,
+             sd.adjusted_tokens_per_snapshot, sd.staker_split_total
 ),
 
--- Step 4: Calculate each staker's weighted shares
+-- Step 4: Calculate each staker's weight
 staker_weights AS (
     SELECT
         *,
-        shares * multiplier as staker_weight
+        weighted_shares as staker_weight
     FROM staker_strategy_shares
 ),
 
@@ -107,6 +121,7 @@ func (rc *RewardsCalculator) GenerateGold17StakerOperatorSetUniqueStakeRewardsTa
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 	destTableName := allTableNames[rewardsUtils.Table_17_StakerOperatorSetUniqueStakeRewards]
 	operatorRewardsTable := allTableNames[rewardsUtils.Table_16_OperatorOperatorSetUniqueStakeRewards]
+	activeStakeRewardsTable := allTableNames[rewardsUtils.Table_15_ActiveUniqueAndTotalStakeRewards]
 
 	rc.logger.Sugar().Infow("Generating v2.2 staker operator set unique stake rewards",
 		zap.String("snapshotDate", snapshotDate),
@@ -114,8 +129,9 @@ func (rc *RewardsCalculator) GenerateGold17StakerOperatorSetUniqueStakeRewardsTa
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_17_goldStakerOperatorSetUniqueStakeRewardsQuery, map[string]interface{}{
-		"destTableName":        destTableName,
-		"operatorRewardsTable": operatorRewardsTable,
+		"destTableName":           destTableName,
+		"operatorRewardsTable":    operatorRewardsTable,
+		"activeStakeRewardsTable": activeStakeRewardsTable,
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render v2.2 query template", "error", err)
