@@ -140,60 +140,56 @@ func (rpc *RpcServer) GetDelegatedStakersForOperator(ctx context.Context, reques
 	}, nil
 }
 
-// TODO: ListStakersForStrategy - Blocked on protocol-apis protobuf updates
-// Once the protobuf definitions are added to github.com/Layr-Labs/protocol-apis
-// uncomment and update this handler:
-//
-// func (rpc *RpcServer) ListStakersForStrategy(ctx context.Context, request *protocolV1.ListStakersForStrategyRequest) (*protocolV1.ListStakersForStrategyResponse, error) {
-//     strategy := request.GetStrategyAddress()
-//     if strategy == "" {
-//         return nil, errors.New("strategy address is required")
-//     }
-//
-//     var pagination *types.Pagination
-//     if p := request.GetPagination(); p != nil {
-//         pagination = types.NewDefaultPagination()
-//         pagination.Load(p.GetPageNumber(), p.GetPageSize())
-//     }
-//
-//     // Map protobuf delegation filter to service DelegationFilter
-//     delegationFilter := protocolDataService.DelegationFilterAll
-//     switch request.GetDelegationFilter() {
-//     case protocolV1.DelegationFilter_DELEGATION_FILTER_DELEGATED:
-//         delegationFilter = protocolDataService.DelegationFilterDelegated
-//     case protocolV1.DelegationFilter_DELEGATION_FILTER_UNDELEGATED:
-//         delegationFilter = protocolDataService.DelegationFilterUndelegated
-//     }
-//
-//     stakers, err := rpc.protocolDataService.ListStakersForStrategy(ctx, strategy, request.GetBlockHeight(), delegationFilter, pagination)
-//     if err != nil {
-//         return nil, err
-//     }
-//
-//     var nextPage *common.Pagination
-//     if pagination != nil && uint32(len(stakers)) == pagination.PageSize {
-//         nextPage = &common.Pagination{
-//             PageNumber: pagination.Page + 1,
-//             PageSize:   pagination.PageSize,
-//         }
-//     }
-//
-//     return &protocolV1.ListStakersForStrategyResponse{
-//         Stakers: utils.Map(stakers, func(s *protocolDataService.StakerForStrategy, i uint64) *protocolV1.StakerForStrategy {
-//             operatorAddr := ""
-//             if s.Operator != nil {
-//                 operatorAddr = *s.Operator
-//             }
-//             return &protocolV1.StakerForStrategy{
-//                 StakerAddress:   s.Staker,
-//                 Shares:          s.Shares,
-//                 OperatorAddress: operatorAddr,
-//                 Delegated:       s.Delegated,
-//             }
-//         }),
-//         NextPage: nextPage,
-//     }, nil
-// }
+func (rpc *RpcServer) ListStakersForStrategy(ctx context.Context, request *protocolV1.ListStakersForStrategyRequest) (*protocolV1.ListStakersForStrategyResponse, error) {
+	strategy := request.GetStrategyAddress()
+	if strategy == "" {
+		return nil, errors.New("strategy address is required")
+	}
+
+	var pagination *types.Pagination
+	if p := request.GetPagination(); p != nil {
+		pagination = types.NewDefaultPagination()
+		pagination.Load(p.GetPageNumber(), p.GetPageSize())
+	}
+
+	// Map protobuf delegation filter to service DelegationFilter
+	delegationFilter := protocolDataService.DelegationFilterAll
+	switch request.GetDelegationFilter() {
+	case protocolV1.DelegationFilter_DELEGATION_FILTER_DELEGATED:
+		delegationFilter = protocolDataService.DelegationFilterDelegated
+	case protocolV1.DelegationFilter_DELEGATION_FILTER_UNDELEGATED:
+		delegationFilter = protocolDataService.DelegationFilterUndelegated
+	}
+
+	stakers, err := rpc.protocolDataService.ListStakersForStrategy(ctx, strategy, request.GetBlockHeight(), delegationFilter, pagination)
+	if err != nil {
+		return nil, err
+	}
+
+	var nextPage *common.Pagination
+	if pagination != nil && uint32(len(stakers)) == pagination.PageSize {
+		nextPage = &common.Pagination{
+			PageNumber: pagination.Page + 1,
+			PageSize:   pagination.PageSize,
+		}
+	}
+
+	return &protocolV1.ListStakersForStrategyResponse{
+		Stakers: utils.Map(stakers, func(s *protocolDataService.StakerForStrategy, i uint64) *protocolV1.StakerForStrategy {
+			operatorAddr := ""
+			if s.Operator != nil {
+				operatorAddr = *s.Operator
+			}
+			return &protocolV1.StakerForStrategy{
+				StakerAddress:   s.Staker,
+				Shares:          s.Shares,
+				OperatorAddress: operatorAddr,
+				Delegated:       s.Delegated,
+			}
+		}),
+		NextPage: nextPage,
+	}, nil
+}
 
 func (rpc *RpcServer) GetStakerShares(ctx context.Context, request *protocolV1.GetStakerSharesRequest) (*protocolV1.GetStakerSharesResponse, error) {
 	shares, err := rpc.protocolDataService.ListStakerShares(ctx, request.GetStakerAddress(), request.GetBlockHeight())
