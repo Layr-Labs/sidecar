@@ -69,7 +69,7 @@ distinct_operators AS (
         pow.avs, pow.operator_set_id, pow.operator, pow.strategy, pow.multiplier,
         pow.reward_submission_date, pow.operator_total_shares, pow.operator_total_weight
     FROM (
-        SELECT *, ROW_NUMBER() OVER (PARTITION BY reward_hash, snapshot, operator ORDER BY strategy ASC) AS rn
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY reward_hash, snapshot, operator ORDER BY CASE WHEN multiplier = 0 THEN 1 ELSE 0 END, strategy ASC) AS rn
         FROM operators_with_weight
     ) pow
     JOIN total_weight tw

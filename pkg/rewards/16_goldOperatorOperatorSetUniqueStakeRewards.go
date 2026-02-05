@@ -82,7 +82,7 @@ distinct_operators AS (
         pow.reward_submission_date, pow.registration_snapshot, pow.slashable_until,
         pow.operator_allocated_weight
     FROM (
-        SELECT *, ROW_NUMBER() OVER (PARTITION BY reward_hash, snapshot, operator ORDER BY strategy ASC) AS rn
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY reward_hash, snapshot, operator ORDER BY CASE WHEN multiplier = 0 THEN 1 ELSE 0 END, strategy ASC) AS rn
         FROM operators_with_weight
     ) pow
     JOIN total_weight tw
@@ -123,7 +123,7 @@ operators_with_slash_multiplier AS (
                 END
             ) FILTER (
                 WHERE owds.in_deregistration_queue
-                  AND so.block_number > b_reg.number
+                  AND so.block_number >= b_reg.number
                   AND so.block_number <= b_snapshot.number
             )),
             1.0
@@ -134,10 +134,20 @@ operators_with_slash_multiplier AS (
        AND owds.avs = so.avs
        AND owds.operator_set_id = so.operator_set_id
        AND owds.strategy = so.strategy
-    LEFT JOIN blocks b_reg
-        ON DATE(b_reg.block_time) = owds.registration_snapshot
-    LEFT JOIN blocks b_snapshot
-        ON DATE(b_snapshot.block_time) = owds.snapshot
+    LEFT JOIN LATERAL (
+        SELECT number
+        FROM blocks
+        WHERE DATE(block_time) = owds.registration_snapshot
+        ORDER BY number ASC
+        LIMIT 1
+    ) b_reg ON true
+    LEFT JOIN LATERAL (
+        SELECT number
+        FROM blocks
+        WHERE DATE(block_time) = owds.snapshot
+        ORDER BY number DESC
+        LIMIT 1
+    ) b_snapshot ON true
     GROUP BY owds.reward_hash, owds.snapshot, owds.token, owds.tokens_per_registered_snapshot_decimal,
              owds.avs, owds.operator_set_id, owds.operator, owds.strategy, owds.multiplier,
              owds.reward_submission_date, owds.registration_snapshot, owds.slashable_until,
