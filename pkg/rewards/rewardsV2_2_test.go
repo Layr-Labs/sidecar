@@ -47,86 +47,66 @@ func Test_RewardsV2_2(t *testing.T) {
 		testStart := time.Now()
 
 		// Setup all tables and source data
-		fmt.Printf("[%s] Starting hydration: rewardsV2Blocks...\n", time.Now().Format("15:04:05"))
 		_, err = hydrateRewardsV2Blocks(grm, l)
 		assert.Nil(t, err)
-		fmt.Printf("[%s] Done: rewardsV2Blocks\n", time.Now().Format("15:04:05"))
 
-		fmt.Printf("[%s] Hydrating: operatorAvsStateChanges...\n", time.Now().Format("15:04:05"))
 		err = hydrateOperatorAvsStateChangesTable(grm, l)
 		assert.Nil(t, err)
 
-		fmt.Printf("[%s] Hydrating: operatorAvsRestakedStrategies...\n", time.Now().Format("15:04:05"))
 		err = hydrateOperatorAvsRestakedStrategies(grm, l)
 		assert.Nil(t, err)
 
-		fmt.Printf("[%s] Hydrating: operatorShareDeltas...\n", time.Now().Format("15:04:05"))
 		err = hydrateOperatorShareDeltas(grm, l)
 		assert.Nil(t, err)
 
-		fmt.Printf("[%s] Hydrating: stakerDelegations...\n", time.Now().Format("15:04:05"))
 		err = hydrateStakerDelegations(grm, l)
 		assert.Nil(t, err)
 
-		fmt.Printf("[%s] Hydrating: stakerShareDeltas...\n", time.Now().Format("15:04:05"))
 		err = hydrateStakerShareDeltas(grm, l)
 		assert.Nil(t, err)
 
-		fmt.Printf("[%s] Hydrating: rewardSubmissions...\n", time.Now().Format("15:04:05"))
 		err = hydrateRewardSubmissionsTable(grm, l)
 		assert.Nil(t, err)
 
 		// RewardsV2 tables
-		fmt.Printf("[%s] Hydrating: operatorAvsSplits...\n", time.Now().Format("15:04:05"))
 		err = hydrateOperatorAvsSplits(grm, l)
 		assert.Nil(t, err)
 
-		fmt.Printf("[%s] Hydrating: operatorPISplits...\n", time.Now().Format("15:04:05"))
 		err = hydrateOperatorPISplits(grm, l)
 		assert.Nil(t, err)
 
-		fmt.Printf("[%s] Hydrating: operatorDirectedRewardSubmissions...\n", time.Now().Format("15:04:05"))
 		err = hydrateOperatorDirectedRewardSubmissionsTable(grm, l)
 		assert.Nil(t, err)
 
 		// RewardsV2_1 tables
-		fmt.Printf("[%s] Hydrating: operatorSetOperatorRegistrations...\n", time.Now().Format("15:04:05"))
 		err = hydrateOperatorSetOperatorRegistrationsTable(grm, l)
 		assert.Nil(t, err)
 
-		fmt.Printf("[%s] Hydrating: operatorSetStrategyRegistrations...\n", time.Now().Format("15:04:05"))
 		err = hydrateOperatorSetStrategyRegistrationsTable(grm, l)
 		assert.Nil(t, err)
 
-		fmt.Printf("[%s] Hydrating: operatorSetSplits...\n", time.Now().Format("15:04:05"))
 		err = hydrateOperatorSetSplits(grm, l)
 		assert.Nil(t, err)
 
-		fmt.Printf("[%s] Hydrating: operatorDirectedOperatorSetRewardSubmissions...\n", time.Now().Format("15:04:05"))
 		err = hydrateOperatorDirectedOperatorSetRewardSubmissionsTable(grm, l)
 		assert.Nil(t, err)
 
 		// RewardsV2_2 tables - Operator allocations for unique stake
-		fmt.Printf("[%s] Hydrating: operatorAllocations (v2.2)...\n", time.Now().Format("15:04:05"))
 		err = hydrateOperatorAllocations(grm, l)
 		assert.Nil(t, err)
 
 		// RewardsV2_2 tables - Operator set registrations and supporting data
-		fmt.Printf("[%s] Hydrating: v2.2 operator set registrations...\n", time.Now().Format("15:04:05"))
 		err = hydrateV2_2OperatorSetRegistrations(grm, l)
 		assert.Nil(t, err)
 
 		// RewardsV2_2 tables - Stake reward submissions (unique and total)
 		// Using v2.2-specific hydrate functions with correct block numbers and dates
-		fmt.Printf("[%s] Hydrating: uniqueStakeRewardSubmissions (v2.2)...\n", time.Now().Format("15:04:05"))
 		err = hydrateUniqueStakeRewardSubmissionsForV2_2(grm, l)
 		assert.Nil(t, err)
 
-		fmt.Printf("[%s] Hydrating: totalStakeRewardSubmissions (v2.2)...\n", time.Now().Format("15:04:05"))
 		err = hydrateTotalStakeRewardSubmissionsForV2_2(grm, l)
 		assert.Nil(t, err)
 
-		fmt.Printf("[%s] === HYDRATION COMPLETE ===\n", time.Now().Format("15:04:05"))
 		t.Log("Hydrated tables")
 
 		snapshotDates := []string{
@@ -137,28 +117,25 @@ func Test_RewardsV2_2(t *testing.T) {
 		testStart = time.Now()
 
 		for _, snapshotDate := range snapshotDates {
-			fmt.Printf("\n[%s] =============================\n", time.Now().Format("15:04:05"))
-			fmt.Printf("[%s] Processing snapshot date: %s\n", time.Now().Format("15:04:05"), snapshotDate)
-			fmt.Printf("[%s] =============================\n", time.Now().Format("15:04:05"))
+			t.Log("-----------------------------\n")
 
 			snapshotStartTime := time.Now()
 
-			fmt.Printf("[%s] Generating snapshot data (this may take several minutes)...\n", time.Now().Format("15:04:05"))
+			t.Logf("Generating rewards - snapshotDate: %s", snapshotDate)
 			// Generate snapshots
 			err = rc.generateSnapshotData(snapshotDate)
 			assert.Nil(t, err)
-			fmt.Printf("[%s] Snapshot data generation complete [took: %v]\n", time.Now().Format("15:04:05"), time.Since(snapshotStartTime))
 
 			goldTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 
 			fmt.Printf("Snapshot duration: %v\n", time.Since(testStart))
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Generated and inserted snapshots\n", time.Now().Format("15:04:05"))
+			t.Log("Generated and inserted snapshots")
 			forks, err := cfg.GetRewardsSqlForkDates()
 			assert.Nil(t, err)
 
-			fmt.Printf("[%s] Running gold_1_active_rewards\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_1_active_rewards\n")
 			err = rc.Generate1ActiveRewards(snapshotDate)
 			assert.Nil(t, err)
 			rows, err := getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_1_ActiveRewards])
@@ -166,7 +143,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			fmt.Printf("\tRows in gold_1_active_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_2_staker_reward_amounts\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_2_staker_reward_amounts %+v\n", time.Now())
 			err = rc.GenerateGold2StakerRewardAmountsTable(snapshotDate, forks)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_2_StakerRewardAmounts])
@@ -174,7 +151,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			fmt.Printf("\tRows in gold_2_staker_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_3_operator_reward_amounts\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_3_operator_reward_amounts\n")
 			err = rc.GenerateGold3OperatorRewardAmountsTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_3_OperatorRewardAmounts])
@@ -182,7 +159,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			fmt.Printf("\tRows in gold_3_operator_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_4_rewards_for_all\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_4_rewards_for_all\n")
 			err = rc.GenerateGold4RewardsForAllTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_4_RewardsForAll])
@@ -190,7 +167,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			fmt.Printf("\tRows in gold_4_rewards_for_all: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_5_rfae_stakers (SLOW - expect 4+ min)\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_5_rfae_stakers\n")
 			err = rc.GenerateGold5RfaeStakersTable(snapshotDate, forks)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_5_RfaeStakers])
@@ -198,7 +175,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			fmt.Printf("\tRows in gold_5_rfae_stakers: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_6_rfae_operators\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_6_rfae_operators\n")
 			err = rc.GenerateGold6RfaeOperatorsTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_6_RfaeOperators])
@@ -212,7 +189,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			rewardsV2Enabled, err := cfg.IsRewardsV2EnabledForCutoffDate(snapshotDate)
 			assert.Nil(t, err)
 
-			fmt.Printf("[%s] Running gold_7_active_od_rewards\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_7_active_od_rewards\n")
 			err = rc.Generate7ActiveODRewards(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2Enabled {
@@ -222,7 +199,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			}
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_8_operator_od_reward_amounts\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_8_operator_od_reward_amounts\n")
 			err = rc.GenerateGold8OperatorODRewardAmountsTable(snapshotDate, forks)
 			assert.Nil(t, err)
 			if rewardsV2Enabled {
@@ -232,7 +209,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			}
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_9_staker_od_reward_amounts\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_9_staker_od_reward_amounts\n")
 			err = rc.GenerateGold9StakerODRewardAmountsTable(snapshotDate, forks)
 			assert.Nil(t, err)
 			if rewardsV2Enabled {
@@ -242,7 +219,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			}
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_10_avs_od_reward_amounts\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_10_avs_od_reward_amounts\n")
 			err = rc.GenerateGold10AvsODRewardAmountsTable(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2Enabled {
@@ -259,7 +236,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			rewardsV2_1Enabled, err := cfg.IsRewardsV2_1EnabledForCutoffDate(snapshotDate)
 			assert.Nil(t, err)
 
-			fmt.Printf("[%s] Running gold_11_active_od_operator_set_rewards\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_11_active_od_operator_set_rewards\n")
 			err = rc.GenerateGold11ActiveODOperatorSetRewards(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_1Enabled {
@@ -269,7 +246,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			}
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_12_operator_od_operator_set_rewards\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_12_operator_od_operator_set_rewards\n")
 			err = rc.GenerateGold12OperatorODOperatorSetRewardAmountsTable(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_1Enabled {
@@ -279,7 +256,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			}
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_13_staker_od_operator_set_rewards\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_13_staker_od_operator_set_rewards\n")
 			err = rc.GenerateGold13StakerODOperatorSetRewardAmountsTable(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_1Enabled {
@@ -289,7 +266,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			}
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_14_avs_od_operator_set_rewards\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_14_avs_od_operator_set_rewards\n")
 			err = rc.GenerateGold14AvsODOperatorSetRewardAmountsTable(snapshotDate, forks)
 			assert.Nil(t, err)
 			if rewardsV2_1Enabled {
@@ -319,7 +296,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			testStart = time.Now()
 
 			// Table 15: Active Unique and Total Stake Rewards (source for unique/total stake calculations)
-			fmt.Printf("[%s] Running gold_15_active_unique_and_total_stake_rewards (v2.2)\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_15_active_unique_and_total_stake_rewards\n")
 			err = rc.GenerateGold15ActiveUniqueAndTotalStakeRewardsTable(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_2Enabled {
@@ -329,7 +306,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			}
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_16_operator_od_operator_set_rewards_v2_2\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_16_operator_od_operator_set_rewards_v2_2\n")
 			err = rc.GenerateGold16OperatorOperatorSetUniqueStakeRewardsTable(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_2Enabled {
@@ -339,7 +316,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			}
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_17_staker_od_operator_set_rewards_v2_2\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_17_staker_od_operator_set_rewards_v2_2\n")
 			err = rc.GenerateGold17StakerOperatorSetUniqueStakeRewardsTable(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_2Enabled {
@@ -349,7 +326,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			}
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_18_avs_od_operator_set_rewards_v2_2\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_18_avs_od_operator_set_rewards_v2_2\n")
 			err = rc.GenerateGold18AvsOperatorSetUniqueStakeRewardsTable(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_2Enabled {
@@ -363,7 +340,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			// Rewards V2.2 (Total Stake)
 			// ------------------------------------------------------------------------
 
-			fmt.Printf("[%s] Running gold_19_operator_total_stake_rewards_v2_2\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_19_operator_total_stake_rewards_v2_2\n")
 			err = rc.GenerateGold19OperatorOperatorSetTotalStakeRewardsTable(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_2Enabled {
@@ -373,7 +350,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			}
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_20_staker_total_stake_rewards_v2_2\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_20_staker_total_stake_rewards_v2_2\n")
 			err = rc.GenerateGold20StakerOperatorSetTotalStakeRewardsTable(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_2Enabled {
@@ -383,7 +360,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			}
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_21_avs_total_stake_rewards_v2_2\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_21_avs_total_stake_rewards_v2_2\n")
 			err = rc.GenerateGold21AvsOperatorSetTotalStakeRewardsTable(snapshotDate)
 			assert.Nil(t, err)
 			if rewardsV2_2Enabled {
@@ -393,7 +370,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			}
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_22_staging\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_22_staging\n")
 			err = rc.GenerateGold22StagingTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[rewardsUtils.Table_22_GoldStaging])
@@ -401,7 +378,7 @@ func Test_RewardsV2_2(t *testing.T) {
 			fmt.Printf("\tRows in gold_18_staging: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
-			fmt.Printf("[%s] Running gold_final_table\n", time.Now().Format("15:04:05"))
+			fmt.Printf("Running gold_final_table\n")
 			err = rc.GenerateGold23FinalTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, "gold_table")
@@ -419,19 +396,17 @@ func Test_RewardsV2_2(t *testing.T) {
 				}
 			}
 
-			fmt.Printf("[%s] Generating staker operators table (SLOW - this is the main bottleneck)...\n", time.Now().Format("15:04:05"))
-			stakerOpStart := time.Now()
+			t.Logf("Generating staker operators table")
 			err = rc.sog.GenerateStakerOperatorsTable(snapshotDate)
 			assert.Nil(t, err)
-			fmt.Printf("[%s] Staker operators table complete [took: %v]\n", time.Now().Format("15:04:05"), time.Since(stakerOpStart))
 
 			// V2.2 specific validation - ensure operator allocations snapshot was created
 			rows, err = getRowCountForTable(grm, "operator_allocation_snapshots")
 			assert.Nil(t, err)
-			fmt.Printf("[%s] Operator allocation snapshots: %v\n", time.Now().Format("15:04:05"), rows)
+			t.Logf("Operator allocation snapshots: %v", rows)
 			assert.True(t, rows > 0, "Operator allocation snapshots should be created for v2.2")
 
-			fmt.Printf("[%s] ===== SNAPSHOT %s COMPLETE [total: %v] =====\n", time.Now().Format("15:04:05"), snapshotDate, time.Since(snapshotStartTime))
+			fmt.Printf("Total duration for rewards compute %s: %v\n", snapshotDate, time.Since(snapshotStartTime))
 			testStart = time.Now()
 		}
 
