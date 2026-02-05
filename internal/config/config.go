@@ -661,8 +661,8 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 8327038,
 			},
 			RewardsFork_Sabine: Fork{
-				Date:        "2026-01-28",
-				BlockNumber: 9916073,
+				Date:        "2026-02-09",
+				BlockNumber: 10225000,
 			},
 		}, nil
 	case Chain_Hoodi:
@@ -693,8 +693,8 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 0,
 			},
 			RewardsFork_Sabine: Fork{
-				Date:        "2026-01-28",
-				BlockNumber: 1850631,
+				Date:        "2026-02-09",
+				BlockNumber: 1990000,
 			},
 		}, nil
 	case Chain_PreprodHoodi:
