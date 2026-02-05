@@ -86,8 +86,8 @@ const operatorAllocationSnapshotsQuery = `
 			magnitude,
 			snapshot_time as start_time,
 			CASE
-				-- If the range does not have the end, use the current timestamp truncated to 0 UTC
-				WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, avs, strategy, operator_set_id ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}')
+				-- If the range does not have the end, use cutoff + 1 day to include cutoff date snapshot
+				WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, avs, strategy, operator_set_id ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}') + INTERVAL '1' day
 				ELSE LEAD(snapshot_time) OVER (PARTITION BY operator, avs, strategy, operator_set_id ORDER BY snapshot_time)
 			END AS end_time
 		FROM records_with_comparison
@@ -116,7 +116,8 @@ const operatorAllocationSnapshotsQuery = `
 			max_magnitude,
 			block_time as start_time,
 			CASE
-				WHEN LEAD(block_time) OVER (PARTITION BY operator, strategy ORDER BY block_time) is null THEN TIMESTAMP '{{.cutoffDate}}'
+				-- Use cutoff + 1 day to include cutoff date snapshot
+				WHEN LEAD(block_time) OVER (PARTITION BY operator, strategy ORDER BY block_time) is null THEN TIMESTAMP '{{.cutoffDate}}' + INTERVAL '1' day
 				ELSE LEAD(block_time) OVER (PARTITION BY operator, strategy ORDER BY block_time)
 			END AS end_time
 		FROM daily_max_magnitude_records
@@ -129,9 +130,9 @@ const operatorAllocationSnapshotsQuery = `
 			cast(day AS DATE) AS snapshot
 		FROM
 			max_magnitude_windows
+		WHERE start_time < end_time
 		CROSS JOIN
 			generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
-		WHERE start_time < end_time
 	)
 	SELECT
 		das.operator,
