@@ -693,8 +693,8 @@ func hydrateMultiStrategyTestData(grm *gorm.DB, l *zap.Logger) error {
 	// Strategy 1: 1000 shares
 	res = grm.Exec(`
 		INSERT INTO staker_share_deltas
-		(staker, strategy, shares, block_number, transaction_hash, log_index, block_time, block_date)
-		VALUES (?, ?, '1000000000000000000000', ?, '0xmulti_shares_1', 101, '2024-12-12 17:03:24', '2024-12-12')
+		(staker, strategy, shares, block_number, transaction_hash, log_index, strategy_index, block_time, block_date)
+		VALUES (?, ?, '1000000000000000000000', ?, '0xmulti_shares_1', 101, 0, '2024-12-12 17:03:24', '2024-12-12')
 		ON CONFLICT DO NOTHING
 	`, staker, strategy1, blockNumber)
 	if res.Error != nil {
@@ -705,8 +705,8 @@ func hydrateMultiStrategyTestData(grm *gorm.DB, l *zap.Logger) error {
 	// Strategy 2: 2000 shares (staker has more in this strategy)
 	res = grm.Exec(`
 		INSERT INTO staker_share_deltas
-		(staker, strategy, shares, block_number, transaction_hash, log_index, block_time, block_date)
-		VALUES (?, ?, '2000000000000000000000', ?, '0xmulti_shares_2', 102, '2024-12-12 17:03:24', '2024-12-12')
+		(staker, strategy, shares, block_number, transaction_hash, log_index, strategy_index, block_time, block_date)
+		VALUES (?, ?, '2000000000000000000000', ?, '0xmulti_shares_2', 102, 1, '2024-12-12 17:03:24', '2024-12-12')
 		ON CONFLICT DO NOTHING
 	`, staker, strategy2, blockNumber)
 	if res.Error != nil {

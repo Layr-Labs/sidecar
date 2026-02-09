@@ -96,17 +96,17 @@ distinct_operators AS (
 -- If no split is found, default to 1000 (10%)
 operator_splits AS (
     SELECT
-        do.*,
-        do.tokens_per_registered_snapshot_decimal as adjusted_tokens_per_snapshot,
+        dop.*,
+        dop.tokens_per_registered_snapshot_decimal as adjusted_tokens_per_snapshot,
         COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS NUMERIC) AS split_pct,
-        FLOOR(do.tokens_per_registered_snapshot_decimal * COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS NUMERIC)) AS operator_tokens
-    FROM distinct_operators do
+        FLOOR(dop.tokens_per_registered_snapshot_decimal * COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS NUMERIC)) AS operator_tokens
+    FROM distinct_operators dop
     LEFT JOIN operator_set_split_snapshots oss
-        ON do.operator = oss.operator
-       AND do.avs = oss.avs
-       AND do.operator_set_id = oss.operator_set_id
-       AND do.snapshot = oss.snapshot
-    LEFT JOIN default_operator_split_snapshots dos ON (do.snapshot = dos.snapshot)
+        ON dop.operator = oss.operator
+       AND dop.avs = oss.avs
+       AND dop.operator_set_id = oss.operator_set_id
+       AND dop.snapshot = oss.snapshot
+    LEFT JOIN default_operator_split_snapshots dos ON (dop.snapshot = dos.snapshot)
 )
 
 SELECT * FROM operator_splits
