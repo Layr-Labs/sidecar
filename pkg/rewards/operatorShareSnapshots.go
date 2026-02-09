@@ -39,26 +39,22 @@ operator_share_windows as (
 cleaned_records as (
 	SELECT * FROM operator_share_windows
 	WHERE start_time < end_time
-),
-base_snapshots as (
-	SELECT
-		operator,
-		strategy,
-		shares,
-		cast(day AS DATE) AS snapshot
-	FROM
-		cleaned_records
-	CROSS JOIN
-		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 )
-SELECT * FROM base_snapshots
+SELECT
+	operator,
+	strategy,
+	shares,
+	cast(day AS DATE) AS snapshot
+FROM
+	cleaned_records
+CROSS JOIN
+	generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 on conflict on constraint uniq_operator_share_snapshots do nothing;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(snapshotDate string) error {
 	query, err := rewardsUtils.RenderQueryTemplate(operatorShareSnapshotsQuery, map[string]interface{}{
-		"cutoffDate":   snapshotDate,
-		"snapshotDate": snapshotDate,
+		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to render operator share snapshots query", "error", err)

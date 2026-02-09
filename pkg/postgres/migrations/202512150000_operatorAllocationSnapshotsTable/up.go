@@ -12,13 +12,14 @@ type Migration struct{}
 func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		// Create operator_allocation_snapshots table for unique stake calculations
-		// Stores daily snapshots of operator allocations (magnitude) per operator set
+		// Stores daily snapshots of operator allocations (magnitude and max_magnitude) per operator set
 		`CREATE TABLE IF NOT EXISTS operator_allocation_snapshots (
 			operator varchar not null,
 			avs varchar not null,
 			strategy varchar not null,
 			operator_set_id bigint not null,
 			magnitude numeric not null,
+			max_magnitude numeric not null default 0,
 			snapshot date not null,
 			primary key (operator, avs, strategy, operator_set_id, snapshot)
 		)`,
@@ -30,6 +31,11 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 		// Index for efficient allocation queries
 		`CREATE INDEX IF NOT EXISTS idx_operator_allocations_effective_date 
 		 ON operator_allocations(operator, avs, strategy, operator_set_id, effective_date)`,
+
+		// Create index for max_magnitude queries for performance
+		`CREATE INDEX IF NOT EXISTS idx_operator_allocation_snapshots_max_magnitude
+		 ON operator_allocation_snapshots(operator, strategy, snapshot)
+		 WHERE max_magnitude > 0`,
 	}
 
 	for _, query := range queries {
