@@ -105,7 +105,6 @@ type RewardsConfig struct {
 	ValidateRewardsRoot          bool
 	GenerateStakerOperatorsTable bool
 	CalculateRewardsDaily        bool
-	WithdrawalQueueWindow        float64 // Duration in days for withdrawal queue period (14.0 for mainnet, 0.0069 for testnet/preprod ~10 min)
 	RewardsV2_2Enabled           bool
 }
 
@@ -215,7 +214,6 @@ var (
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
 	RewardsCalculateRewardsDaily        = "rewards.calculate_rewards_daily"
-	RewardsWithdrawalQueueWindow        = "rewards.withdrawal_queue_window"
 	RewardsV2_2Enabled                  = "rewards.v2_2_enabled"
 
 	EthereumRpcBaseUrl               = "ethereum.rpc_url"
@@ -251,18 +249,6 @@ var (
 	CoingeckoApiKey = "coingecko.api-key"
 )
 
-// getDefaultWithdrawalQueueDuration returns the default withdrawal queue duration in days based on chain
-func getDefaultWithdrawalQueueDuration(chain Chain) float64 {
-	switch chain {
-	case Chain_Mainnet:
-		return 14.0 // Mainnet uses 14-day withdrawal queue
-	case Chain_Preprod, Chain_Holesky, Chain_Sepolia, Chain_Hoodi, Chain_PreprodHoodi:
-		return 10.0 / (24.0 * 60.0) // Testnet/preprod uses 10 minutes = ~0.0069 days
-	default:
-		return 14.0 // Default to mainnet behavior
-	}
-}
-
 func FloatWithDefault(value, defaultValue float64) float64 {
 	if value == 0.0 {
 		return defaultValue
@@ -271,11 +257,9 @@ func FloatWithDefault(value, defaultValue float64) float64 {
 }
 
 func NewConfig() *Config {
-	chain := Chain(StringWithDefault(viper.GetString(normalizeFlagName("chain")), "holesky"))
-
 	return &Config{
 		Debug: viper.GetBool(normalizeFlagName("debug")),
-		Chain: chain,
+		Chain: Chain(StringWithDefault(viper.GetString(normalizeFlagName("chain")), "holesky")),
 
 		EthereumRpcConfig: EthereumRpcConfig{
 			BaseUrl:               viper.GetString(normalizeFlagName(EthereumRpcBaseUrl)),
@@ -323,7 +307,6 @@ func NewConfig() *Config {
 			ValidateRewardsRoot:          viper.GetBool(normalizeFlagName(RewardsValidateRewardsRoot)),
 			GenerateStakerOperatorsTable: viper.GetBool(normalizeFlagName(RewardsGenerateStakerOperatorsTable)),
 			CalculateRewardsDaily:        viper.GetBool(normalizeFlagName(RewardsCalculateRewardsDaily)),
-			WithdrawalQueueWindow:        FloatWithDefault(viper.GetFloat64(normalizeFlagName(RewardsWithdrawalQueueWindow)), getDefaultWithdrawalQueueDuration(chain)),
 			RewardsV2_2Enabled:           viper.GetBool(normalizeFlagName(RewardsV2_2Enabled)),
 		},
 
