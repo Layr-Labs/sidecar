@@ -680,8 +680,8 @@ func hydrateMultiStrategyTestData(grm *gorm.DB, l *zap.Logger) error {
 	// 2. Add staker delegation to the operator
 	res = grm.Exec(`
 		INSERT INTO staker_delegation_changes
-		(staker, operator, delegated, block_number, transaction_hash, log_index, block_time, block_date)
-		VALUES (?, ?, true, ?, '0xmulti_delegation', 100, '2024-12-12 17:03:24', '2024-12-12')
+		(staker, operator, delegated, block_number, transaction_hash, log_index)
+		VALUES (?, ?, true, ?, '0xmulti_delegation', 100)
 		ON CONFLICT DO NOTHING
 	`, staker, operator, blockNumber)
 	if res.Error != nil {
