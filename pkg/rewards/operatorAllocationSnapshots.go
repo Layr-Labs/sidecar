@@ -9,7 +9,7 @@ const operatorAllocationSnapshotsQuery = `
 	insert into operator_allocation_snapshots(operator, avs, strategy, operator_set_id, magnitude, max_magnitude, snapshot)
 	WITH ranked_allocation_records as (
 		SELECT *,
-			   ROW_NUMBER() OVER (PARTITION BY operator, avs, strategy, operator_set_id, cast(block_time AS DATE) ORDER BY block_time DESC, oa.block_number DESC, log_index DESC) AS rn
+			   ROW_NUMBER() OVER (PARTITION BY operator, avs, strategy, operator_set_id, cast(block_time AS DATE) ORDER BY oa.block_number DESC, log_index DESC) AS rn
 		FROM operator_allocations oa
 		-- Backward compatibility: use effective_block if available, fall back to block_number for old records
 		INNER JOIN blocks b ON COALESCE(oa.effective_block, oa.block_number) = b.number
@@ -37,7 +37,7 @@ const operatorAllocationSnapshotsQuery = `
 			b.block_time,
 			omm.block_number,
 			omm.log_index,
-			ROW_NUMBER() OVER (PARTITION BY omm.operator, omm.strategy, cast(b.block_time AS DATE) ORDER BY b.block_time DESC, omm.log_index DESC) AS rn
+			ROW_NUMBER() OVER (PARTITION BY omm.operator, omm.strategy, cast(b.block_time AS DATE) ORDER BY omm.block_number DESC, omm.log_index DESC) AS rn
 		FROM operator_max_magnitudes omm
 		INNER JOIN blocks b ON omm.block_number = b.number
 		WHERE b.block_time < TIMESTAMP '{{.cutoffDate}}'

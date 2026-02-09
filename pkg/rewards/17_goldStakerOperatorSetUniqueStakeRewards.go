@@ -45,7 +45,7 @@ staker_strategy_shares AS (
         sd.staker,
         sd.adjusted_tokens_per_snapshot,
         sd.staker_split_total,
-        SUM(CAST(sss.shares AS NUMERIC(78,0)) * asr.multiplier) as weighted_shares
+        SUM(sss.shares * asr.multiplier) as weighted_shares
     FROM staker_delegations sd
     JOIN {{.activeStakeRewardsTable}} asr
         ON sd.reward_hash = asr.reward_hash
