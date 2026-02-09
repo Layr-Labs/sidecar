@@ -19,6 +19,7 @@ WITH total_available_tokens AS (
         operator_set_id,
         MAX(tokens_per_day_decimal) as total_tokens
     FROM {{.activeStakeRewardsTable}}
+    WHERE reward_type = 'total_stake'
     GROUP BY reward_hash, snapshot, token, avs, operator_set_id
 ),
 
