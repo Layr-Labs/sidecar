@@ -38,7 +38,7 @@ operators_with_weight AS (
     SELECT
         rso.*,
         oss.shares as operator_total_shares,
-        SUM(CAST(oss.shares AS NUMERIC(78,0)) * rso.multiplier) OVER (
+        SUM(oss.shares * rso.multiplier) OVER (
             PARTITION BY rso.reward_hash, rso.snapshot, rso.operator
         ) as operator_total_weight
     FROM registered_operators rso

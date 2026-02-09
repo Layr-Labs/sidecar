@@ -50,31 +50,8 @@ base_snapshots as (
 		cleaned_records
 	CROSS JOIN
 		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
-),
--- Add operator allocations for all days in the generated window
-allocation_adjustments as (
-	SELECT
-		oas.operator,
-		oas.strategy,
-		SUM(oas.magnitude) as total_magnitude,
-		oas.snapshot
-	FROM operator_allocation_snapshots oas
-	WHERE oas.snapshot <= DATE '{{.snapshotDate}}'
-	GROUP BY oas.operator, oas.strategy, oas.snapshot
-),
-combined_snapshots as (
-	SELECT
-		coalesce(base.operator, alloc.operator) as operator,
-		coalesce(base.strategy, alloc.strategy) as strategy,
-		coalesce(alloc.total_magnitude, base.shares::numeric) as shares,
-		coalesce(base.snapshot, alloc.snapshot) as snapshot
-	FROM base_snapshots base
-	FULL OUTER JOIN allocation_adjustments alloc
-		ON base.operator = alloc.operator
-		AND base.strategy = alloc.strategy
-		AND base.snapshot = alloc.snapshot
 )
-SELECT * FROM combined_snapshots
+SELECT * FROM base_snapshots
 on conflict on constraint uniq_operator_share_snapshots do nothing;
 `
 

@@ -384,14 +384,14 @@ func Test_RewardsV2_2(t *testing.T) {
 				grm.Raw(query17).Scan(&uniqueStakeResults)
 				t.Logf("Multi-strategy Table 17 results: %+v", uniqueStakeResults)
 
-				// Query Table 20 for multi-strategy staker's total shares
+				// Query Table 20 for multi-strategy staker's weighted shares
 				var totalStakeResults []struct {
-					Staker       string
-					TotalShares  string
-					StakerTokens string
+					Staker         string
+					WeightedShares string
+					StakerTokens   string
 				}
 				query20 := fmt.Sprintf(`
-					SELECT staker, total_shares, staker_tokens 
+					SELECT staker, weighted_shares, staker_tokens 
 					FROM %s 
 					WHERE staker = '0xmulti_strategy_test_staker'
 				`, goldTableNames[rewardsUtils.Table_20_StakerOperatorSetTotalStakeRewards])

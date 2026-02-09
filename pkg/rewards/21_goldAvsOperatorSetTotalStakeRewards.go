@@ -17,7 +17,7 @@ WITH total_available_tokens AS (
         token,
         avs,
         operator_set_id,
-        SUM(tokens_per_day_decimal) as total_tokens
+        MAX(tokens_per_day_decimal) as total_tokens
     FROM {{.activeStakeRewardsTable}}
     GROUP BY reward_hash, snapshot, token, avs, operator_set_id
 ),
