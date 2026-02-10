@@ -26,7 +26,7 @@ active_rewards_modified AS (
         block_number,
         block_time,
         block_date,
-        CAST('{{.cutoffDate}}' AS TIMESTAMP(6)) AS global_end_inclusive
+        CAST('{{.cutoffDate}}' AS TIMESTAMP(6)) - interval '1' day AS global_end_inclusive
     FROM stake_operator_set_rewards
     WHERE end_timestamp >= TIMESTAMP '{{.rewardsStart}}'
       AND start_timestamp <= TIMESTAMP '{{.cutoffDate}}'
