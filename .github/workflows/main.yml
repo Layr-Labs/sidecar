@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 jobs:
   test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:15
@@ -29,7 +29,7 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Install dependencies
         run: make deps
       - name: Run tests
@@ -40,12 +40,24 @@ jobs:
           SIDECAR_DATABASE_PASSWORD: sidecar
         run: make ci-test
   lint:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            azure.archive.ubuntu.com:80
+            esm.ubuntu.com:443
+            github.com:443
+            packages.microsoft.com:443
+            proxy.golang.org:443
+            
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34
         with:
           go-version: '1.23'
       - name: Run linter
@@ -55,31 +67,38 @@ jobs:
           export PATH=$PATH:$(go env GOPATH)/bin
           echo $PATH
           make lint
+          
   build-container:
     runs-on: protocol-gha-runners
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911
+        with:
+          egress-policy: block
+          allowed-endpoints: >+
+          
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Set release version
         env:
           REF: ${{ github.ref }}
         run: |
           ./scripts/version.sh $REF
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Login to Amazon ECR
         id: login-ecr-public
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076
         with:
           registry-type: public
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435
       - name: Build, tag, and push docker image to Amazon ECR
         env:
           REGISTRY: "public.ecr.aws/z6g0f8n7"
@@ -91,11 +110,24 @@ jobs:
           else
             docker buildx build --platform "linux/amd64" -t $REGISTRY/$REPOSITORY:$VERSION --push .
           fi
+          
   build-binaries:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            auth.docker.io:443
+            github.com:443
+            production.cloudflare.docker.com:443
+            proxy.golang.org:443
+            registry-1.docker.io:443
+            storage.googleapis.com:443
+          
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Check and set release version
         env:
           REF: ${{ github.ref }}
@@ -108,6 +140,7 @@ jobs:
           make release-with-docker
           sudo chown -R $USER:$USER .
           ./scripts/bundleReleases.sh $VERSION
+          
   build-create-release:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -115,7 +148,7 @@ jobs:
     permissions: write-all
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Check and set release version
         env:
           REF: ${{ github.ref }}
@@ -162,14 +195,20 @@ jobs:
               --data-binary @"$asset" \
               "${upload_url}?name=$asset_name"
           done
+          
   release-helm-chart:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master'
     needs: [lint, test]
     permissions: write-all
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911
+        with:
+          egress-policy: block
+          
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Release Helm Chart
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
