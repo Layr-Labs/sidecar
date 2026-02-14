@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 
 	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
@@ -474,8 +475,26 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 
 	// purge from gold table
 	if lowerBoundSnapshot != nil {
-		rc.logger.Sugar().Infow("Purging rewards from gold table where snapshot >=", "snapshotDate", lowerBoundSnapshot.SnapshotDate)
-		res = rc.grm.Exec(`delete from gold_table where snapshot >= @snapshotDate`, sql.Named("snapshotDate", lowerBoundSnapshot.SnapshotDate))
+		rc.logger.Sugar().Infow("Purging rewards from gold table")
+		query := `
+		with all_combined_rewards as (
+			select
+				distinct(reward_hash) as reward_hash
+			from (
+				select reward_hash from combined_rewards where block_number > @blockHeight
+				union all
+				select reward_hash from operator_directed_rewards where block_number > @blockHeight
+				union all
+				select
+					odosrs.reward_hash
+				from operator_directed_operator_set_reward_submissions as odosrs
+				where odosrs.block_number > @blockHeight
+			) as t
+		)
+		delete from gold_table 
+		where reward_hash in (select reward_hash from all_combined_rewards)
+		`
+		res = rc.grm.Exec(query, sql.Named("blockHeight", blockHeight))
 	} else {
 		// if the lower bound is nil, ther we're deleting everything
 		rc.logger.Sugar().Infow("Purging all rewards from gold table")
