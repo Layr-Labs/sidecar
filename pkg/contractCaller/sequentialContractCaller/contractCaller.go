@@ -2,6 +2,12 @@ package sequentialContractCaller
 
 import (
 	"context"
+	"math/big"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/Layr-Labs/eigenlayer-contracts/pkg/bindings/IRewardsCoordinator"
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/chainClient"
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/services"
@@ -13,11 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
-	"math/big"
-	"regexp"
-	"strings"
-	"sync"
-	"time"
 )
 
 type SequentialContractCaller struct {
