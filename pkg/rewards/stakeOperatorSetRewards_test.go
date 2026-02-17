@@ -411,6 +411,249 @@ func Test_ProRataDistribution(t *testing.T) {
 	})
 }
 
+// Test_StakerAllocationFactorWeighting verifies that staker weights in Table 17
+// (unique stake staker rewards) apply the allocation factor (magnitude / max_magnitude).
+//
+// Scenario:
+// - One operator with two strategies in the same operator set
+// - Strategy A: fully allocated (magnitude = max_magnitude, ratio = 1.0)
+// - Strategy B: 10% allocated (magnitude = 0.1 * max_magnitude, ratio = 0.1)
+// - Staker X: 100 shares in Strategy A
+// - Staker Y: 100 shares in Strategy B
+//
+// Without allocation factor (BUG):
+//
+//	Staker X weight: 100 * 1e18 = 1e20
+//	Staker Y weight: 100 * 1e18 = 1e20
+//	Each gets 50% of staker split
+//
+// With allocation factor (FIX):
+//
+//	Staker X weight: 100 * (1e18/1e18) * 1e18 = 1e20
+//	Staker Y weight: 100 * (1e17/1e18) * 1e18 = 1e19
+//	Total: 1.1e20
+//	Staker X gets ~90.9%, Staker Y gets ~9.1%
+func Test_StakerAllocationFactorWeighting(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupStakeOperatorSetRewards()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg.Rewards.RewardsV2_2Enabled = true
+
+	snapshotDate := "2024-09-15"
+
+	t.Run("Should weight stakers by allocation factor in unique_stake rewards", func(t *testing.T) {
+		t.Log("Hydrating blocks")
+		_, err := hydrateRewardsV2Blocks(grm, l)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		avs := "0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101"
+		operator := "0xoperator_alloc_factor_test"
+		stakerX := "0xstaker_x_alloc_factor_test"
+		stakerY := "0xstaker_y_alloc_factor_test"
+		strategyA := "0xstrategy_a_alloc_factor_test"
+		strategyB := "0xstrategy_b_alloc_factor_test"
+		token := "0x0ddd9dc88e638aef6a8e42d0c98aaa6a48a98d24"
+
+		// Register operator to operator set 1
+		res := grm.Exec(`
+			INSERT INTO operator_set_operator_registrations
+			(operator, avs, operator_set_id, is_active, block_number, transaction_hash, log_index)
+			VALUES (?, ?, 1, true, 1477000, '0xtx_af_opreg', 0)
+		`, operator, avs)
+		assert.Nil(t, res.Error)
+
+		// Register both strategies to operator set 1
+		res = grm.Exec(`
+			INSERT INTO operator_set_strategy_registrations
+			(strategy, avs, operator_set_id, is_active, block_number, transaction_hash, log_index)
+			VALUES
+			(?, ?, 1, true, 1477000, '0xtx_af_stratreg_a', 0),
+			(?, ?, 1, true, 1477000, '0xtx_af_stratreg_b', 1)
+		`, strategyA, avs, strategyB, avs)
+		assert.Nil(t, res.Error)
+
+		// Insert operator allocations:
+		// Strategy A: magnitude = 1e18 (fully allocated)
+		// Strategy B: magnitude = 1e17 (10% allocated)
+		res = grm.Exec(`
+			INSERT INTO operator_allocations
+			(operator, avs, strategy, magnitude, operator_set_id, effective_block, transaction_hash, log_index, block_number)
+			VALUES
+			(?, ?, ?, '1000000000000000000', 1, 1477000, '0xtx_af_alloc_a', 0, 1477000),
+			(?, ?, ?, '100000000000000000', 1, 1477000, '0xtx_af_alloc_b', 1, 1477000)
+		`, operator, avs, strategyA, operator, avs, strategyB)
+		assert.Nil(t, res.Error)
+
+		// Insert max magnitudes (both 1e18)
+		res = grm.Exec(`
+			INSERT INTO operator_max_magnitudes
+			(operator, strategy, max_magnitude, block_number, transaction_hash, log_index)
+			VALUES
+			(?, ?, '1000000000000000000', 1477000, '0xtx_af_maxmag_a', 0),
+			(?, ?, '1000000000000000000', 1477000, '0xtx_af_maxmag_b', 1)
+		`, operator, strategyA, operator, strategyB)
+		assert.Nil(t, res.Error)
+
+		// Insert operator shares for both strategies (equal shares)
+		res = grm.Exec(`
+			INSERT INTO operator_share_deltas
+			(operator, strategy, shares, block_number, block_time, block_date, transaction_hash, log_index)
+			VALUES
+			(?, ?, '100000000000000000000', 1477000, '2024-09-01 00:00:00', '2024-09-01', '0xtx_af_opshare_a', 0),
+			(?, ?, '100000000000000000000', 1477000, '2024-09-01 00:00:00', '2024-09-01', '0xtx_af_opshare_b', 1)
+		`, operator, strategyA, operator, strategyB)
+		assert.Nil(t, res.Error)
+
+		// Insert staker delegations to the operator
+		res = grm.Exec(`
+			INSERT INTO staker_delegation_changes
+			(staker, operator, delegated, block_number, transaction_hash, log_index)
+			VALUES
+			(?, ?, true, 1477000, '0xtx_af_deleg_x', 0),
+			(?, ?, true, 1477000, '0xtx_af_deleg_y', 1)
+		`, stakerX, operator, stakerY, operator)
+		assert.Nil(t, res.Error)
+
+		// Insert staker shares:
+		// Staker X: 100 shares in Strategy A (fully allocated)
+		// Staker Y: 100 shares in Strategy B (10% allocated)
+		res = grm.Exec(`
+			INSERT INTO staker_share_deltas
+			(staker, strategy, shares, block_number, transaction_hash, log_index, strategy_index, block_time, block_date)
+			VALUES
+			(?, ?, '100000000000000000000', 1477000, '0xtx_af_sshare_x', 0, 0, '2024-09-01 00:00:00', '2024-09-01'),
+			(?, ?, '100000000000000000000', 1477000, '0xtx_af_sshare_y', 1, 1, '2024-09-01 00:00:00', '2024-09-01')
+		`, stakerX, strategyA, stakerY, strategyB)
+		assert.Nil(t, res.Error)
+
+		// Create unique stake reward submissions for both strategies
+		startTime := time.Unix(1725494400, 0) // Sept 5, 2024
+		endTime := time.Unix(1726358400, 0)   // Sept 15, 2024 (10 days later)
+
+		strategies := []struct {
+			strategy      string
+			strategyIndex uint64
+		}{
+			{strategyA, 0},
+			{strategyB, 1},
+		}
+
+		for _, s := range strategies {
+			reward := uniqueStakeRewardSubmissions.UniqueStakeRewardSubmission{
+				Avs:             avs,
+				OperatorSetId:   1,
+				RewardHash:      "0xalloc_factor_test_hash",
+				Token:           token,
+				Amount:          "1000000000000000000000000", // 1M tokens
+				Strategy:        s.strategy,
+				StrategyIndex:   s.strategyIndex,
+				Multiplier:      "1000000000000000000", // 1e18
+				StartTimestamp:  &startTime,
+				EndTimestamp:    &endTime,
+				Duration:        864000, // 10 days
+				BlockNumber:     1477020,
+				TransactionHash: "alloc_factor_stake_hash",
+				LogIndex:        40 + s.strategyIndex,
+			}
+			result := grm.Create(&reward)
+			assert.Nil(t, result.Error)
+		}
+
+		// Generate rewards pipeline
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, _ := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+
+		err = rewards.GenerateAndInsertStakeOperatorSetRewards(snapshotDate)
+		assert.Nil(t, err)
+
+		err = rewards.generateSnapshotData(snapshotDate)
+		assert.Nil(t, err)
+
+		err = rewards.generateGoldTables(snapshotDate)
+		assert.Nil(t, err)
+
+		// Query Table 17 to verify staker allocation factor weighting
+		var stakerRewards []struct {
+			Staker       string
+			StakerTokens string
+			StakerWeight string
+			Snapshot     string
+		}
+
+		query := `
+			SELECT staker, staker_tokens::text, staker_weight::text, snapshot::text
+			FROM gold_17_staker_operator_set_unique_stake_rewards_` + strings.ReplaceAll(snapshotDate, "-", "_") + `
+			WHERE reward_hash = '0xalloc_factor_test_hash'
+			ORDER BY staker, snapshot
+		`
+		err = grm.Raw(query).Scan(&stakerRewards).Error
+		if err != nil {
+			t.Fatalf("Failed to query Table 17 results: %v", err)
+		}
+
+		t.Logf("Found %d staker reward entries", len(stakerRewards))
+
+		// Sum tokens by staker
+		stakerTotals := make(map[string]*big.Int)
+		for _, r := range stakerRewards {
+			tokens, ok := new(big.Int).SetString(r.StakerTokens, 10)
+			if !ok {
+				t.Fatalf("Failed to parse staker tokens: %s", r.StakerTokens)
+			}
+			if stakerTotals[r.Staker] == nil {
+				stakerTotals[r.Staker] = new(big.Int)
+			}
+			stakerTotals[r.Staker].Add(stakerTotals[r.Staker], tokens)
+			t.Logf("  Staker: %s, Snapshot: %s, Tokens: %s, Weight: %s",
+				r.Staker, r.Snapshot, r.StakerTokens, r.StakerWeight)
+		}
+
+		assert.GreaterOrEqual(t, len(stakerTotals), 2, "Should have rewards for both stakers")
+
+		tokensX := stakerTotals[stakerX]
+		tokensY := stakerTotals[stakerY]
+
+		t.Logf("Staker X total tokens: %s", tokensX.String())
+		t.Logf("Staker Y total tokens: %s", tokensY.String())
+
+		// With allocation factor applied:
+		//   Staker X weight: 100 * (1e18/1e18) * 1e18 = 1e20
+		//   Staker Y weight: 100 * (1e17/1e18) * 1e18 = 1e19
+		//   Ratio X/Y should be ~10.0
+		//
+		// Without allocation factor (old bug):
+		//   Staker X weight: 100 * 1e18 = 1e20
+		//   Staker Y weight: 100 * 1e18 = 1e20
+		//   Ratio X/Y would be ~1.0
+		if tokensX != nil && tokensY != nil && tokensX.Sign() > 0 && tokensY.Sign() > 0 {
+			ratioNum := new(big.Float).SetInt(tokensX)
+			ratioDen := new(big.Float).SetInt(tokensY)
+			ratioFloat, _ := new(big.Float).Quo(ratioNum, ratioDen).Float64()
+			t.Logf("Ratio X/Y: %.4f (expected ~10.0)", ratioFloat)
+
+			assert.InDelta(t, 10.0, ratioFloat, 1.0,
+				"Staker X should receive ~10x Staker Y's tokens due to allocation factor (1.0 vs 0.1)")
+			assert.True(t, ratioFloat > 2.0,
+				"Ratio must be > 2.0, proving allocation factor is applied to staker weights")
+		} else {
+			t.Fatalf("Expected non-zero tokens for both stakers: X=%v, Y=%v", tokensX, tokensY)
+		}
+	})
+
+	t.Cleanup(func() {
+		teardownStakeOperatorSetRewards(dbFileName, cfg, grm, l)
+	})
+}
+
 // Test_UnregisteredStrategyWeighting verifies that strategies included in a reward
 // submission are used for weighting even when they are NOT registered to the operator set.
 //
