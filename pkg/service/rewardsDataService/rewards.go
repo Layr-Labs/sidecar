@@ -843,3 +843,148 @@ func (rds *RewardsDataService) ListHistoricalRewardsForEarner(
 	}
 	return historicalRewards, nil
 }
+
+type OperatorRewardResult struct {
+	Operator     string
+	RewardAmount string
+}
+
+type StrategyMultiplierParam struct {
+	Strategy   string
+	Multiplier string
+}
+
+// GetRewardDistributionByStake computes a hypothetical V1 reward distribution across operators
+// based on their delegated stake weight over the specified time range.
+func (rds *RewardsDataService) GetRewardDistributionByStake(
+	ctx context.Context,
+	avs string,
+	amount string,
+	startDate string,
+	endDate string,
+	duration uint64,
+	strategiesAndMultipliers []StrategyMultiplierParam,
+) ([]*OperatorRewardResult, error) {
+	strategyValues := make([]string, 0, len(strategiesAndMultipliers))
+	for _, sm := range strategiesAndMultipliers {
+		strategyValues = append(strategyValues,
+			fmt.Sprintf("('%s', %s)", strings.ToLower(sm.Strategy), sm.Multiplier),
+		)
+	}
+	strategyValuesClause := strings.Join(strategyValues, ", ")
+
+	query := `
+		WITH strategy_params(strategy, multiplier) AS (
+		VALUES {{.strategyValues}}
+		),
+		-- Generate daily snapshots for the reward period (exclusive of start, inclusive of end)
+		snapshots AS (
+		SELECT day::date AS snapshot
+		FROM generate_series(
+			DATE '{{.startDate}}',
+			DATE '{{.endDate}}',
+			INTERVAL '1 day'
+		) AS day
+		WHERE day::date > DATE '{{.startDate}}'
+		),
+		-- Find operators registered to the AVS for each snapshot, filtered by restaked strategies
+		reward_snapshot_operators AS (
+		SELECT
+			s.snapshot,
+			sp.strategy,
+			sp.multiplier,
+			oar.operator
+		FROM snapshots s
+		CROSS JOIN strategy_params sp
+		JOIN operator_avs_registration_snapshots oar
+			ON oar.avs = @avs AND oar.snapshot = s.snapshot
+		JOIN operator_avs_strategy_snapshots oas
+			ON oas.operator = oar.operator
+			AND oas.avs = @avs
+			AND oas.strategy = sp.strategy
+			AND oas.snapshot = s.snapshot
+		),
+		-- Get staker shares for each operator/strategy/snapshot
+		staker_shares AS (
+		SELECT
+			rso.snapshot,
+			rso.operator,
+			rso.strategy,
+			rso.multiplier,
+			sds.staker,
+			sss.shares
+		FROM reward_snapshot_operators rso
+		JOIN staker_delegation_snapshots sds
+			ON sds.operator = rso.operator AND sds.snapshot = rso.snapshot
+		JOIN staker_share_snapshots sss
+			ON sss.staker = sds.staker
+			AND sss.snapshot = rso.snapshot
+			AND sss.strategy = rso.strategy
+		WHERE sss.shares > 0 AND rso.multiplier != 0
+		),
+		-- Compute each operator's total weight per snapshot (sum of multiplier * shares across stakers and strategies)
+		operator_weights AS (
+		SELECT
+			snapshot,
+			operator,
+			SUM(multiplier * shares) AS operator_weight
+		FROM staker_shares
+		GROUP BY snapshot, operator
+		),
+		-- Compute total weight across all operators per snapshot
+		total_weights AS (
+		SELECT
+			snapshot,
+			operator,
+			operator_weight,
+			SUM(operator_weight) OVER (PARTITION BY snapshot) AS total_weight
+		FROM operator_weights
+		),
+		-- Allocate tokens_per_day proportionally to each operator per snapshot
+		daily_rewards AS (
+		SELECT
+			operator,
+			FLOOR(
+			(FLOOR((operator_weight / total_weight) * 1000000000000000) / 1000000000000000)
+			* FLOOR({{.amount}}::numeric / ({{.duration}}::numeric / 86400))
+			) AS daily_reward
+		FROM total_weights
+		)
+		SELECT
+		operator,
+		SUM(daily_reward)::text AS reward_amount
+		FROM daily_rewards
+		GROUP BY operator
+		ORDER BY SUM(daily_reward) DESC
+	`
+
+	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
+		"strategyValues": strategyValuesClause,
+		"startDate":      startDate,
+		"endDate":        endDate,
+		"amount":         amount,
+		"duration":       duration,
+	})
+	if err != nil {
+		rds.logger.Sugar().Errorw("failed to render reward distribution query template",
+			zap.String("avs", avs),
+			zap.Error(err),
+		)
+		return nil, err
+	}
+
+	args := []interface{}{
+		sql.Named("avs", strings.ToLower(avs)),
+	}
+
+	var results []*OperatorRewardResult
+	res := rds.db.Raw(renderedQuery, args...).Scan(&results)
+	if res.Error != nil {
+		rds.logger.Sugar().Errorw("failed to execute reward distribution query",
+			zap.String("avs", avs),
+			zap.Error(res.Error),
+		)
+		return nil, res.Error
+	}
+	return results, nil
+}
