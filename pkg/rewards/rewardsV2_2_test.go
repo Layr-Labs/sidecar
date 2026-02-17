@@ -448,6 +448,57 @@ func Test_RewardsV2_2(t *testing.T) {
 			t.Logf("Operator allocation snapshots: %v", rows)
 			assert.True(t, rows > 0, "Operator allocation snapshots should be created for v2.2")
 
+			// verify unique/total stake reward hashes are included
+			// in FetchRewardsForSnapshot (merkleization input). Without the fix, these
+			// reward hashes would be filtered out of the all_combined_rewards CTE,
+			// making the corresponding rewards unclaimable.
+			if rewardsV2_2Enabled {
+				t.Log("Verifying unique/total stake rewards are included in FetchRewardsForSnapshot (SIDE1-5)")
+
+				// First confirm that gold_table has rows for stake reward hashes
+				stakeRewardHashes := []string{
+					"0xunique_stake_v2_2_test_hash_0001",
+					"0xtotal_stake_v2_2_test_hash_0001",
+					"0xmulti_unique_reward",
+					"0xmulti_total_reward",
+				}
+				var goldTableStakeRows int
+				grm.Raw(`
+					SELECT count(*) FROM gold_table
+					WHERE reward_hash IN (?, ?, ?, ?)
+				`, stakeRewardHashes[0], stakeRewardHashes[1], stakeRewardHashes[2], stakeRewardHashes[3]).Scan(&goldTableStakeRows)
+				t.Logf("Gold table rows with stake reward hashes: %d", goldTableStakeRows)
+
+				if goldTableStakeRows > 0 {
+					// Now verify FetchRewardsForSnapshot returns these earners
+					fetchedRewards, fetchErr := rc.FetchRewardsForSnapshot(snapshotDate, nil, nil)
+					assert.Nil(t, fetchErr)
+					assert.NotNil(t, fetchedRewards)
+
+					// Collect all earners from fetched rewards
+					fetchedEarners := make(map[string]bool)
+					for _, r := range fetchedRewards {
+						fetchedEarners[r.Earner] = true
+					}
+
+					// Get earners from gold_table for stake reward hashes
+					var stakeEarners []string
+					grm.Raw(`
+						SELECT DISTINCT earner FROM gold_table
+						WHERE reward_hash IN (?, ?, ?, ?)
+						AND snapshot <= date '`+snapshotDate+`'
+					`, stakeRewardHashes[0], stakeRewardHashes[1], stakeRewardHashes[2], stakeRewardHashes[3]).Scan(&stakeEarners)
+
+					t.Logf("Stake reward earners in gold_table: %v", stakeEarners)
+					t.Logf("Total earners from FetchRewardsForSnapshot: %d", len(fetchedEarners))
+
+					for _, earner := range stakeEarners {
+						assert.True(t, fetchedEarners[earner],
+							"Earner %s from stake rewards must be included in FetchRewardsForSnapshot (SIDE1-5)", earner)
+					}
+				}
+			}
+
 			fmt.Printf("Total duration for rewards compute %s: %v\n", snapshotDate, time.Since(snapshotStartTime))
 			testStart = time.Now()
 		}
