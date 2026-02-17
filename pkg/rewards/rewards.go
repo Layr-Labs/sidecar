@@ -517,13 +517,14 @@ func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earner
 				union all
 				select reward_hash from operator_directed_rewards where block_time <= TIMESTAMP '{{.cutoffDate}}'
 				union all
-				select
-					odosrs.reward_hash
+				select odosrs.reward_hash
 				from operator_directed_operator_set_reward_submissions as odosrs
 				-- operator_directed_operator_set_reward_submissions lacks a block_time column, so we need to join blocks
 				join blocks as b on (b.number = odosrs.block_number)
 				where
 					b.block_time::timestamp(6) <= TIMESTAMP '{{.cutoffDate}}'
+				union all
+				select reward_hash from stake_operator_set_rewards where block_time <= TIMESTAMP '{{.cutoffDate}}'
 			) as t
 		)
 		select
