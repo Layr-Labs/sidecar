@@ -206,6 +206,11 @@ func Test_StakeOperatorSetRewards(t *testing.T) {
 // Test_ProRataDistribution tests that stake-based rewards are correctly distributed
 // proportionally across operators based on their allocated weight.
 //
+// Note: This test uses a strategy that IS registered to the operator set.
+// See Test_UnregisteredStrategyWeighting for the case where strategies in a
+// reward submission are NOT registered to the operator set (they should still
+// contribute to weighting).
+//
 // Scenario:
 // - Pool reward: 1,000,000 tokens for 10 days (100,000 tokens/day)
 // - Operator A: weight 1 (allocated stake * multiplier)
@@ -291,10 +296,10 @@ func Test_ProRataDistribution(t *testing.T) {
 		// But we want weight ratio 1:2, so give operator B 2x shares
 		res = grm.Exec(`
 			INSERT INTO operator_share_deltas
-			(operator, strategy, shares, strategy_index, block_number, transaction_hash, log_index)
+			(operator, strategy, shares, block_number, block_time, block_date, transaction_hash, log_index)
 			VALUES
-			(?, ?, '1000000000000000000000', 0, 1477000, '0xtx_opshare_a', 0),
-			(?, ?, '2000000000000000000000', 0, 1477000, '0xtx_opshare_b', 1)
+			(?, ?, '1000000000000000000000', 1477000, '2024-09-01 00:00:00', '2024-09-01', '0xtx_opshare_a', 0),
+			(?, ?, '2000000000000000000000', 1477000, '2024-09-01 00:00:00', '2024-09-01', '0xtx_opshare_b', 1)
 		`, operatorA, strategy, operatorB, strategy)
 		assert.Nil(t, res.Error)
 
@@ -366,13 +371,17 @@ func Test_ProRataDistribution(t *testing.T) {
 
 		t.Logf("Found %d operator reward entries", len(operatorRewards))
 
-		// Count and sum by operator
-		operatorTotals := make(map[string]int64)
+		// Count and sum by operator using big.Int to avoid overflow
+		operatorTotals := make(map[string]*big.Int)
 		for _, r := range operatorRewards {
-			tokens, _ := new(big.Int).SetString(r.OperatorTokens, 10)
-			if tokens != nil {
-				operatorTotals[r.Operator] += tokens.Int64()
+			tokens, ok := new(big.Int).SetString(r.OperatorTokens, 10)
+			if !ok {
+				t.Fatalf("Failed to parse operator tokens: %s", r.OperatorTokens)
 			}
+			if operatorTotals[r.Operator] == nil {
+				operatorTotals[r.Operator] = new(big.Int)
+			}
+			operatorTotals[r.Operator].Add(operatorTotals[r.Operator], tokens)
 			t.Logf("  Operator: %s, Snapshot: %s, Tokens: %s", r.Operator, r.Snapshot, r.OperatorTokens)
 		}
 
@@ -381,17 +390,244 @@ func Test_ProRataDistribution(t *testing.T) {
 			tokensA := operatorTotals[operatorA]
 			tokensB := operatorTotals[operatorB]
 
-			t.Logf("Operator A total tokens: %d", tokensA)
-			t.Logf("Operator B total tokens: %d", tokensB)
+			t.Logf("Operator A total tokens: %s", tokensA.String())
+			t.Logf("Operator B total tokens: %s", tokensB.String())
 
 			// The ratio should be approximately 1:2
-			if tokensA > 0 && tokensB > 0 {
-				ratio := float64(tokensB) / float64(tokensA)
+			if tokensA != nil && tokensB != nil && tokensA.Sign() > 0 && tokensB.Sign() > 0 {
+				ratioNum := new(big.Float).SetInt(tokensB)
+				ratioDen := new(big.Float).SetInt(tokensA)
+				ratio, _ := new(big.Float).Quo(ratioNum, ratioDen).Float64()
 				t.Logf("Ratio B/A: %.4f (expected ~2.0)", ratio)
 
 				// Allow for some rounding error due to FLOOR operations
 				assert.InDelta(t, 2.0, ratio, 0.1, "Tokens should be distributed in 1:2 ratio")
 			}
+		}
+	})
+
+	t.Cleanup(func() {
+		teardownStakeOperatorSetRewards(dbFileName, cfg, grm, l)
+	})
+}
+
+// Test_UnregisteredStrategyWeighting verifies that strategies included in a reward
+// submission are used for weighting even when they are NOT registered to the operator set.
+//
+// Scenario (from Slack thread):
+// - Alice: WETH(100 shares), stETH(100 shares)
+// - Bob:   WETH(100 shares), stETH(100 shares), cbETH(800 shares)
+// - cbETH is NOT registered to the operator set
+// - The reward submission includes all 3 strategies
+//
+// Expected: Bob gets weight for cbETH too
+//
+//	Alice weight: 100 + 100 = 200
+//	Bob weight:   100 + 100 + 800 = 1000
+//	Total weight: 1200
+//	Ratio Bob/Alice = 5:1
+func Test_UnregisteredStrategyWeighting(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, sink, err := setupStakeOperatorSetRewards()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg.Rewards.RewardsV2_2Enabled = true
+
+	snapshotDate := "2024-09-15"
+
+	t.Run("Should include unregistered strategies in weighting", func(t *testing.T) {
+		t.Log("Hydrating blocks")
+		_, err := hydrateRewardsV2Blocks(grm, l)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		avs := "0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101"
+		alice := "0xoperator_alice_unreg_test"
+		bob := "0xoperator_bob_unreg_test"
+		weth := "0xstrategy_weth_unreg_test"
+		steth := "0xstrategy_steth_unreg_test"
+		cbeth := "0xstrategy_cbeth_unreg_test"
+		token := "0x0ddd9dc88e638aef6a8e42d0c98aaa6a48a98d24"
+
+		// Register both operators to operator set 1
+		res := grm.Exec(`
+			INSERT INTO operator_set_operator_registrations
+			(operator, avs, operator_set_id, is_active, block_number, transaction_hash, log_index)
+			VALUES
+			(?, ?, 1, true, 1477000, '0xtx_unreg_opreg_a', 0),
+			(?, ?, 1, true, 1477000, '0xtx_unreg_opreg_b', 1)
+		`, alice, avs, bob, avs)
+		assert.Nil(t, res.Error)
+
+		// Register only WETH and stETH strategies (NOT cbETH)
+		res = grm.Exec(`
+			INSERT INTO operator_set_strategy_registrations
+			(strategy, avs, operator_set_id, is_active, block_number, transaction_hash, log_index)
+			VALUES
+			(?, ?, 1, true, 1477000, '0xtx_unreg_stratreg_weth', 0),
+			(?, ?, 1, true, 1477000, '0xtx_unreg_stratreg_steth', 1)
+		`, weth, avs, steth, avs)
+		assert.Nil(t, res.Error)
+		// cbETH is intentionally NOT registered
+
+		// Insert operator allocations (magnitude = max_magnitude so ratio = 1 for all)
+		res = grm.Exec(`
+			INSERT INTO operator_allocations
+			(operator, avs, strategy, magnitude, operator_set_id, effective_block, transaction_hash, log_index, block_number)
+			VALUES
+			(?, ?, ?, '1000000000000000000', 1, 1477000, '0xtx_unreg_alloc_a_weth', 0, 1477000),
+			(?, ?, ?, '1000000000000000000', 1, 1477000, '0xtx_unreg_alloc_a_steth', 1, 1477000),
+			(?, ?, ?, '1000000000000000000', 1, 1477000, '0xtx_unreg_alloc_b_weth', 2, 1477000),
+			(?, ?, ?, '1000000000000000000', 1, 1477000, '0xtx_unreg_alloc_b_steth', 3, 1477000),
+			(?, ?, ?, '1000000000000000000', 1, 1477000, '0xtx_unreg_alloc_b_cbeth', 4, 1477000)
+		`, alice, avs, weth, alice, avs, steth, bob, avs, weth, bob, avs, steth, bob, avs, cbeth)
+		assert.Nil(t, res.Error)
+
+		// Insert max magnitudes (all 1e18 so magnitude/max_magnitude = 1)
+		res = grm.Exec(`
+			INSERT INTO operator_max_magnitudes
+			(operator, strategy, max_magnitude, block_number, transaction_hash, log_index)
+			VALUES
+			(?, ?, '1000000000000000000', 1477000, '0xtx_unreg_maxmag_a_weth', 0),
+			(?, ?, '1000000000000000000', 1477000, '0xtx_unreg_maxmag_a_steth', 1),
+			(?, ?, '1000000000000000000', 1477000, '0xtx_unreg_maxmag_b_weth', 2),
+			(?, ?, '1000000000000000000', 1477000, '0xtx_unreg_maxmag_b_steth', 3),
+			(?, ?, '1000000000000000000', 1477000, '0xtx_unreg_maxmag_b_cbeth', 4)
+		`, alice, weth, alice, steth, bob, weth, bob, steth, bob, cbeth)
+		assert.Nil(t, res.Error)
+
+		// Insert operator shares
+		// Alice: WETH=100, stETH=100
+		// Bob:   WETH=100, stETH=100, cbETH=800
+		res = grm.Exec(`
+			INSERT INTO operator_share_deltas
+			(operator, strategy, shares, block_number, block_time, block_date, transaction_hash, log_index)
+			VALUES
+			(?, ?, '100000000000000000000', 1477000, '2024-09-01 00:00:00', '2024-09-01', '0xtx_unreg_opshare_a_weth', 0),
+			(?, ?, '100000000000000000000', 1477000, '2024-09-01 00:00:00', '2024-09-01', '0xtx_unreg_opshare_a_steth', 1),
+			(?, ?, '100000000000000000000', 1477000, '2024-09-01 00:00:00', '2024-09-01', '0xtx_unreg_opshare_b_weth', 2),
+			(?, ?, '100000000000000000000', 1477000, '2024-09-01 00:00:00', '2024-09-01', '0xtx_unreg_opshare_b_steth', 3),
+			(?, ?, '800000000000000000000', 1477000, '2024-09-01 00:00:00', '2024-09-01', '0xtx_unreg_opshare_b_cbeth', 4)
+		`, alice, weth, alice, steth, bob, weth, bob, steth, bob, cbeth)
+		assert.Nil(t, res.Error)
+
+		// Create reward submissions for all 3 strategies with same reward_hash
+		// 1,200,000 tokens over 10 days = 120,000 tokens/day
+		startTime := time.Unix(1725494400, 0) // Sept 5, 2024
+		endTime := time.Unix(1726358400, 0)   // Sept 15, 2024 (10 days later)
+
+		strategies := []struct {
+			strategy      string
+			strategyIndex uint64
+		}{
+			{weth, 0},
+			{steth, 1},
+			{cbeth, 2},
+		}
+
+		for _, s := range strategies {
+			reward := uniqueStakeRewardSubmissions.UniqueStakeRewardSubmission{
+				Avs:             avs,
+				OperatorSetId:   1,
+				RewardHash:      "0xunreg_strategy_test_hash",
+				Token:           token,
+				Amount:          "1200000000000000000000000", // 1,200,000 tokens (1.2e24)
+				Strategy:        s.strategy,
+				StrategyIndex:   s.strategyIndex,
+				Multiplier:      "1000000000000000000", // 1e18
+				StartTimestamp:  &startTime,
+				EndTimestamp:    &endTime,
+				Duration:        864000, // 10 days in seconds
+				BlockNumber:     1477020,
+				TransactionHash: "unreg_strategy_stake_hash",
+				LogIndex:        30 + s.strategyIndex,
+			}
+			result := grm.Create(&reward)
+			assert.Nil(t, result.Error)
+		}
+
+		// Generate rewards
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, _ := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
+
+		err = rewards.GenerateAndInsertStakeOperatorSetRewards(snapshotDate)
+		assert.Nil(t, err)
+
+		err = rewards.generateSnapshotData(snapshotDate)
+		assert.Nil(t, err)
+
+		err = rewards.generateGoldTables(snapshotDate)
+		assert.Nil(t, err)
+
+		// Query Table 16 results
+		var operatorRewards []struct {
+			Operator       string
+			OperatorTokens string
+			Snapshot       string
+		}
+
+		query := `
+			SELECT operator, operator_tokens::text, snapshot::text
+			FROM gold_16_operator_operator_set_unique_stake_rewards_` + strings.ReplaceAll(snapshotDate, "-", "_") + `
+			WHERE reward_hash = '0xunreg_strategy_test_hash'
+			ORDER BY operator, snapshot
+		`
+		err = grm.Raw(query).Scan(&operatorRewards).Error
+		if err != nil {
+			t.Fatalf("Failed to query Table 16 results: %v", err)
+		}
+
+		t.Logf("Found %d operator reward entries", len(operatorRewards))
+
+		// Sum tokens by operator using big.Int to avoid overflow
+		operatorTotals := make(map[string]*big.Int)
+		for _, r := range operatorRewards {
+			tokens, ok := new(big.Int).SetString(r.OperatorTokens, 10)
+			if !ok {
+				t.Fatalf("Failed to parse operator tokens: %s", r.OperatorTokens)
+			}
+			if operatorTotals[r.Operator] == nil {
+				operatorTotals[r.Operator] = new(big.Int)
+			}
+			operatorTotals[r.Operator].Add(operatorTotals[r.Operator], tokens)
+			t.Logf("  Operator: %s, Snapshot: %s, Tokens: %s", r.Operator, r.Snapshot, r.OperatorTokens)
+		}
+
+		assert.GreaterOrEqual(t, len(operatorTotals), 2, "Should have rewards for both operators")
+
+		tokensAlice := operatorTotals[alice]
+		tokensBob := operatorTotals[bob]
+
+		t.Logf("Alice total tokens: %s", tokensAlice.String())
+		t.Logf("Bob total tokens: %s", tokensBob.String())
+
+		// With cbETH included (unregistered strategy):
+		//   Alice weight: 100 + 100 = 200
+		//   Bob weight:   100 + 100 + 800 = 1000
+		//   Ratio Bob/Alice should be ~5.0
+		//
+		// Without cbETH (old behavior):
+		//   Alice weight: 100 + 100 = 200
+		//   Bob weight:   100 + 100 = 200
+		//   Ratio would be ~1.0
+		if tokensAlice != nil && tokensBob != nil && tokensAlice.Sign() > 0 && tokensBob.Sign() > 0 {
+			// Compute ratio as float: Bob / Alice
+			ratioNum := new(big.Float).SetInt(tokensBob)
+			ratioDen := new(big.Float).SetInt(tokensAlice)
+			ratioFloat, _ := new(big.Float).Quo(ratioNum, ratioDen).Float64()
+			t.Logf("Ratio Bob/Alice: %.4f (expected ~5.0)", ratioFloat)
+
+			assert.InDelta(t, 5.0, ratioFloat, 0.5, "Bob should receive ~5x Alice's tokens since cbETH (unregistered) contributes to weight")
+			assert.True(t, ratioFloat > 2.0, "Ratio must be > 2.0 proving unregistered strategy cbETH is included in weighting")
+		} else {
+			t.Fatalf("Expected non-zero tokens for both operators: Alice=%s, Bob=%s", tokensAlice, tokensBob)
 		}
 	})
 
