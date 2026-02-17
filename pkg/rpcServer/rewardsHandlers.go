@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"slices"
 	"strings"
 	"time"
@@ -642,5 +643,107 @@ func (s *RpcServer) ListEarnerHistoricalRewards(ctx context.Context, request *re
 
 	return &rewardsV1.ListEarnerHistoricalRewardsResponse{
 		Rewards: convertHistoricalRewardsToResponse(historicalRewards),
+	}, nil
+}
+
+// GetRewardDistributionByStake computes a reward distribution based on stake weight,
+// as if submitting a v1 reward. Returns a mapping of each operator to their reward amount,
+// proportional to their stake weight over the specified time range.
+func (rpc *RpcServer) GetRewardDistributionByStake(
+	ctx context.Context,
+	req *rewardsV1.GetRewardDistributionByStakeRequest,
+) (*rewardsV1.GetRewardDistributionByStakeResponse, error) {
+	avs := req.GetAvs()
+	if avs == "" {
+		return nil, status.Error(codes.InvalidArgument, "avs is required")
+	}
+
+	token := req.GetToken()
+	if token == "" {
+		return nil, status.Error(codes.InvalidArgument, "token is required")
+	}
+
+	amount := req.GetAmount()
+	if amount == "" {
+		return nil, status.Error(codes.InvalidArgument, "amount is required")
+	}
+	amountBig, ok := new(big.Int).SetString(amount, 10)
+	if !ok || amountBig.Sign() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "amount must be a positive integer")
+	}
+
+	startTimestamp := req.GetStartTimestamp()
+	if startTimestamp == 0 {
+		return nil, status.Error(codes.InvalidArgument, "start_timestamp is required and must be > 0")
+	}
+
+	duration := req.GetDuration()
+	if duration == 0 {
+		return nil, status.Error(codes.InvalidArgument, "duration is required and must be > 0")
+	}
+	if duration%86400 != 0 {
+		return nil, status.Error(codes.InvalidArgument, "duration must be a multiple of 86400 (whole days)")
+	}
+
+	strategies := req.GetStrategiesAndMultipliers()
+	if len(strategies) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "at least one strategy_and_multiplier is required")
+	}
+
+	strategyParams := make([]rewardsDataService.StrategyMultiplierParam, 0, len(strategies))
+	for i, sm := range strategies {
+		if sm.GetStrategy() == "" {
+			return nil, status.Errorf(codes.InvalidArgument, "strategy at index %d must not be empty", i)
+		}
+		multiplier := sm.GetMultiplier()
+		if multiplier == "" {
+			return nil, status.Errorf(codes.InvalidArgument, "multiplier at index %d must not be empty", i)
+		}
+		multBig, ok := new(big.Int).SetString(multiplier, 10)
+		if !ok || multBig.Sign() <= 0 {
+			return nil, status.Errorf(codes.InvalidArgument, "multiplier at index %d must be a positive integer", i)
+		}
+		strategyParams = append(strategyParams, rewardsDataService.StrategyMultiplierParam{
+			Strategy:   sm.GetStrategy(),
+			Multiplier: multiplier,
+		})
+	}
+
+	startTime := time.Unix(int64(startTimestamp), 0).UTC()
+	endTime := startTime.Add(time.Duration(duration) * time.Second).UTC()
+	startDate := startTime.Format(time.DateOnly)
+	endDate := endTime.Format(time.DateOnly)
+
+	rpc.Logger.Sugar().Infow("Computing reward distribution by stake",
+		zap.String("avs", avs),
+		zap.String("token", token),
+		zap.String("amount", amount),
+		zap.String("startDate", startDate),
+		zap.String("endDate", endDate),
+		zap.Uint64("duration", duration),
+		zap.Int("numStrategies", len(strategyParams)),
+	)
+
+	results, err := rpc.rewardsDataService.GetRewardDistributionByStake(
+		ctx, avs, amount, startDate, endDate, duration, strategyParams,
+	)
+	if err != nil {
+		rpc.Logger.Sugar().Errorw("failed to compute reward distribution by stake",
+			zap.String("avs", avs),
+			zap.Error(err),
+		)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	operatorRewards := make([]*rewardsV1.OperatorReward, 0, len(results))
+	for _, r := range results {
+		operatorRewards = append(operatorRewards, &rewardsV1.OperatorReward{
+			Operator: r.Operator,
+			Amount:   r.RewardAmount,
+		})
+	}
+
+	return &rewardsV1.GetRewardDistributionByStakeResponse{
+		OperatorRewards: operatorRewards,
 	}, nil
 }
