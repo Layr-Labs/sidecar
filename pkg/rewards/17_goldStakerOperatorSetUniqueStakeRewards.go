@@ -34,6 +34,9 @@ staker_delegations AS (
 ),
 
 -- Step 3: Get each staker's weighted shares across ALL strategies in the operator set
+-- Apply the allocation factor (magnitude / max_magnitude) so that partially-allocated
+-- strategies contribute proportionally less weight, preventing dilution of stakers
+-- in fully-allocated strategies.
 staker_strategy_shares AS (
     SELECT
         sd.reward_hash,
@@ -45,7 +48,7 @@ staker_strategy_shares AS (
         sd.staker,
         sd.adjusted_tokens_per_snapshot,
         sd.staker_split_total,
-        SUM(sss.shares * asr.multiplier) as weighted_shares
+        SUM(sss.shares * oas.magnitude / oas.max_magnitude * asr.multiplier) as weighted_shares
     FROM staker_delegations sd
     JOIN {{.activeStakeRewardsTable}} asr
         ON sd.reward_hash = asr.reward_hash
@@ -56,8 +59,16 @@ staker_strategy_shares AS (
         ON sd.staker = sss.staker
         AND asr.strategy = sss.strategy
         AND sd.snapshot = sss.snapshot
+    JOIN {{.operatorAllocationSnapshotsTable}} oas
+        ON sd.operator = oas.operator
+        AND sd.avs = oas.avs
+        AND asr.strategy = oas.strategy
+        AND sd.operator_set_id = oas.operator_set_id
+        AND sd.snapshot = oas.snapshot
     WHERE sss.shares > 0
         AND asr.multiplier != 0
+        AND oas.magnitude > 0
+        AND oas.max_magnitude > 0
     GROUP BY sd.reward_hash, sd.snapshot, sd.token, sd.operator,
              sd.avs, sd.operator_set_id, sd.staker,
              sd.adjusted_tokens_per_snapshot, sd.staker_split_total
@@ -129,9 +140,10 @@ func (rc *RewardsCalculator) GenerateGold17StakerOperatorSetUniqueStakeRewardsTa
 	)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_17_goldStakerOperatorSetUniqueStakeRewardsQuery, map[string]interface{}{
-		"destTableName":           destTableName,
-		"operatorRewardsTable":    operatorRewardsTable,
-		"activeStakeRewardsTable": activeStakeRewardsTable,
+		"destTableName":                    destTableName,
+		"operatorRewardsTable":             operatorRewardsTable,
+		"activeStakeRewardsTable":          activeStakeRewardsTable,
+		"operatorAllocationSnapshotsTable": "operator_allocation_snapshots",
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render v2.2 query template", "error", err)
