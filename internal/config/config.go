@@ -708,8 +708,8 @@ func (c *Config) GetRewardsSqlForkDates() (ForkMap, error) {
 				BlockNumber: 0,
 			},
 			RewardsFork_Sabine: Fork{
-				Date:        "1970-01-01",
-				BlockNumber: 0,
+				Date:        "2026-01-12",
+				BlockNumber: 2019400,
 			},
 		}, nil
 	case Chain_Mainnet:
