@@ -735,7 +735,7 @@ func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Co
 	queryArgs := []interface{}{}
 	if pagination != nil {
 		queryArgs = append(queryArgs, sql.Named("limit", pagination.PageSize))
-		queryArgs = append(queryArgs, sql.Named("offset", pagination.Page))
+		queryArgs = append(queryArgs, sql.Named("offset", pagination.Page*pagination.PageSize))
 	}
 
 	if len(earnerAddresses) > 0 {
