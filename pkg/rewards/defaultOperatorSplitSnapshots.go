@@ -9,7 +9,7 @@ const defaultOperatorSplitSnapshotQuery = `
 insert into default_operator_split_snapshots (split, snapshot)
 WITH default_operator_splits_with_block_info as (
 	select
-		dos.new_default_operator_split_bips as split,
+		LEAST(dos.new_default_operator_split_bips, 10000) as split,
 		dos.block_number,
 		dos.log_index,
 		b.block_time::timestamp(6) as block_time
