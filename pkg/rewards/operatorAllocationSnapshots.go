@@ -149,7 +149,12 @@ const operatorAllocationSnapshotsQuery = `
 		ON das.operator = dmms.operator
 		AND das.strategy = dmms.strategy
 		AND das.snapshot = dmms.snapshot
-	on conflict do nothing;
+	on conflict (operator, avs, strategy, operator_set_id, snapshot)
+	do update set
+		magnitude = excluded.magnitude,
+		max_magnitude = excluded.max_magnitude
+	where operator_allocation_snapshots.magnitude != excluded.magnitude
+	   or operator_allocation_snapshots.max_magnitude != excluded.max_magnitude;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorAllocationSnapshots(snapshotDate string) error {

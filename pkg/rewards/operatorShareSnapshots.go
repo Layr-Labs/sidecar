@@ -49,7 +49,9 @@ FROM
 	cleaned_records
 CROSS JOIN
 	generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
-on conflict on constraint uniq_operator_share_snapshots do nothing;
+on conflict on constraint uniq_operator_share_snapshots
+do update set shares = excluded.shares
+where operator_share_snapshots.shares != excluded.shares;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(snapshotDate string) error {
