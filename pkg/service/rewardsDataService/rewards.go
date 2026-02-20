@@ -115,11 +115,8 @@ func (rds *RewardsDataService) GetTotalClaimedRewards(ctx context.Context, earne
 		sql.Named("blockHeight", blockHeight),
 	}
 	if len(tokens) > 0 {
-		query += " and token in (?)"
-		formattedTokens := utils.Map(tokens, func(token string, i uint64) string {
-			return strings.ToLower(token)
-		})
-		args = append(args, sql.Named("tokens", formattedTokens))
+		query += " and rc.token in @tokens"
+		args = append(args, sql.Named("tokens", tokens))
 	}
 
 	query += " group by earner, token"
@@ -175,7 +172,7 @@ func (rds *RewardsDataService) ListClaimedRewardsByBlockRange(
 		args = append(args, sql.Named("earner", strings.ToLower(earner)))
 	}
 	if len(tokens) > 0 {
-		query += " and token in (?)"
+		query += " and rc.token in @tokens"
 		tokens = lowercaseTokenList(tokens)
 		args = append(args, sql.Named("tokens", tokens))
 	}
@@ -316,7 +313,7 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 		sql.Named("snapshot", snapshot.GetSnapshotDate()),
 	}
 	if len(tokens) > 0 {
-		query += " and token in (?)"
+		query += " where er.token in @tokens"
 		tokens = lowercaseTokenList(tokens)
 		args = append(args, sql.Named("tokens", tokens))
 	}
@@ -829,7 +826,7 @@ func (rds *RewardsDataService) ListHistoricalRewardsForEarner(
 	}
 
 	if len(tokens) > 0 {
-		query += " and gt.token in (?)"
+		query += " and gt.token in @tokens"
 		tokens = lowercaseTokenList(tokens)
 		args = append(args, sql.Named("tokens", tokens))
 	}
