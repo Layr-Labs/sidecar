@@ -1938,6 +1938,223 @@ func Test_StakerSharesState(t *testing.T) {
 		teardown(grm)
 	})
 
+	t.Run("Bug67091 - multiple AVS slashings cannot inflate attacker claim beyond original stake", func(t *testing.T) {
+		teardown(grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+
+		operator := "0xbde83df53bc7d159700e966ad5d21e8b7c619459"
+		attacker := "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d"
+		victim := "0x4444444444444444444444444444444444444444"
+		strategyA := "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"
+		strategyB := "0x1234567890abcdef1234567890abcdef12345678"
+		attackerDeposit := new(big.Int).Mul(big.NewInt(2), big.NewInt(1e18)) // 2e18 each strategy
+		victimDeposit := new(big.Int).Mul(big.NewInt(10), big.NewInt(1e18))  // 10e18 in B only
+
+		// ---------- Block 200: deposits + delegations ----------
+		blockNumber := uint64(200)
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		delegationModel, err := stakerDelegations.NewStakerDelegationsModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+		err = delegationModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		sharesModel, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+		err = sharesModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 300, victim, operator)
+		assert.Nil(t, err)
+		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 301, attacker, operator)
+		assert.Nil(t, err)
+
+		// Victim deposits 10e18 in Strategy B only
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400, victim, strategyB, victimDeposit)
+		assert.Nil(t, err)
+
+		// Attacker deposits 2e18 in Strategy A and 2e18 in Strategy B
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, attacker, strategyA, attackerDeposit)
+		assert.Nil(t, err)
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 402, attacker, strategyB, attackerDeposit)
+		assert.Nil(t, err)
+
+		err = delegationModel.CommitFinalState(blockNumber, false)
+		assert.Nil(t, err)
+		err = sharesModel.CommitFinalState(blockNumber, false)
+		assert.Nil(t, err)
+
+		// ---------- Block 201: attacker withdraws, then TWO separate AVSs slash ----------
+		blockNumber = blockNumber + 1
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		err = sharesModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		// Attacker fully withdraws from both strategies (txIdx=80)
+		_, err = processSlashingWithdrawal(
+			sharesModel,
+			cfg.GetContractsMapForChain().DelegationManager,
+			blockNumber, 80, 400,
+			attacker,
+			[]string{strategyA, strategyB},
+			[]*big.Int{attackerDeposit, attackerDeposit},
+		)
+		assert.Nil(t, err)
+
+		// AVS-1 slashes operator for [A, B] at 10% (txIdx=100)
+		_, err = processSlashingWithTxIndex(
+			sharesModel,
+			cfg.GetContractsMapForChain().AllocationManager,
+			blockNumber, 100, 500,
+			operator,
+			[]string{strategyA, strategyB},
+			[]*big.Int{big.NewInt(1e17), big.NewInt(1e17)},
+		)
+		assert.Nil(t, err)
+
+		// AVS-2 slashes operator for [A, B] at 15% (txIdx=110, separate tx)
+		_, err = processSlashingWithTxIndex(
+			sharesModel,
+			cfg.GetContractsMapForChain().AllocationManager,
+			blockNumber, 110, 600,
+			operator,
+			[]string{strategyA, strategyB},
+			[]*big.Int{big.NewInt(15e16), big.NewInt(15e16)},
+		)
+		assert.Nil(t, err)
+
+		err = sharesModel.CommitFinalState(blockNumber, false)
+		assert.Nil(t, err)
+
+		// ---------- Verify: reward-pipeline claim calculation ----------
+		// Replicate the exact window function used in pkg/rewards/stakerShares.go:
+		//   SUM(shares) OVER (PARTITION BY staker, strategy ORDER BY block_time, log_index)
+		// This gives the running cumulative shares at every delta row — the same value
+		// that determines a staker's proportional reward entitlement at each snapshot.
+		type windowRow struct {
+			Staker           string
+			Strategy         string
+			Shares           string
+			CumulativeShares string `gorm:"column:cumulative_shares"`
+			LogIndex         uint64
+			BlockNumber      uint64
+		}
+		windowQuery := `
+			SELECT
+				staker,
+				strategy,
+				shares,
+				CAST(SUM(CAST(shares AS NUMERIC)) OVER (
+					PARTITION BY staker, strategy
+					ORDER BY block_number, log_index
+				) AS TEXT) AS cumulative_shares,
+				log_index,
+				block_number
+			FROM staker_share_deltas
+			ORDER BY staker, strategy, block_number, log_index
+		`
+		var rows []windowRow
+		res := sharesModel.DB.Raw(windowQuery).Scan(&rows)
+		assert.Nil(t, res.Error)
+
+		t.Logf("Running cumulative shares (reward pipeline view):")
+		attackerMaxSharesInB := big.NewInt(0)
+		attackerFinalSharesInB := big.NewInt(0)
+		victimFinalSharesInB := big.NewInt(0)
+		for _, row := range rows {
+			cumulative, _ := new(big.Int).SetString(row.CumulativeShares, 10)
+			t.Logf("  staker=%s strategy=%s block=%d logIdx=%d delta=%s cumulative=%s",
+				row.Staker, row.Strategy, row.BlockNumber, row.LogIndex, row.Shares, row.CumulativeShares)
+
+			if row.Staker == attacker && row.Strategy == strategyB {
+				attackerFinalSharesInB = cumulative
+				if cumulative.Cmp(attackerMaxSharesInB) > 0 {
+					attackerMaxSharesInB = new(big.Int).Set(cumulative)
+				}
+			}
+			if row.Staker == victim && row.Strategy == strategyB {
+				victimFinalSharesInB = cumulative
+			}
+		}
+
+		// 1) Attacker's cumulative shares in B must never exceed their original deposit
+		assert.True(t, attackerMaxSharesInB.Cmp(attackerDeposit) <= 0,
+			"Attacker's peak cumulative shares (%s) must not exceed original deposit (%s)",
+			attackerMaxSharesInB.String(), attackerDeposit.String())
+
+		// 2) After full withdrawal, attacker's final cumulative shares must be exactly 0
+		assert.Equal(t, "0", attackerFinalSharesInB.String(),
+			"Attacker cumulative shares in B must be 0 after full withdrawal")
+
+		// 3) Simulate proportional reward claim from a hypothetical 100-token pool
+		rewardPool := new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18))
+		totalSharesInB := new(big.Int).Add(victimFinalSharesInB, attackerFinalSharesInB)
+
+		t.Logf("Reward claim simulation (Strategy B, pool=%s):", rewardPool.String())
+		t.Logf("  Victim final shares:   %s", victimFinalSharesInB.String())
+		t.Logf("  Attacker final shares: %s", attackerFinalSharesInB.String())
+		t.Logf("  Total shares:          %s", totalSharesInB.String())
+
+		var attackerClaim *big.Int
+		if totalSharesInB.Sign() > 0 && attackerFinalSharesInB.Sign() > 0 {
+			attackerClaim = new(big.Int).Div(
+				new(big.Int).Mul(rewardPool, attackerFinalSharesInB),
+				totalSharesInB,
+			)
+		} else {
+			attackerClaim = big.NewInt(0)
+		}
+
+		var victimClaim *big.Int
+		if totalSharesInB.Sign() > 0 {
+			victimClaim = new(big.Int).Div(
+				new(big.Int).Mul(rewardPool, victimFinalSharesInB),
+				totalSharesInB,
+			)
+		} else {
+			victimClaim = big.NewInt(0)
+		}
+
+		t.Logf("  Attacker claim: %s", attackerClaim.String())
+		t.Logf("  Victim claim:   %s", victimClaim.String())
+
+		// Attacker should receive nothing from the pool
+		assert.Equal(t, int64(0), attackerClaim.Int64(),
+			"Attacker must not be able to claim any rewards after full withdrawal")
+
+		// Victim should receive 100% of the pool
+		assert.Equal(t, rewardPool.String(), victimClaim.String(),
+			"Victim should claim the entire reward pool")
+
+		// 4) Verify no individual slash delta record is positive (should all be negative)
+		type deltaRec struct {
+			Staker   string
+			Strategy string
+			Shares   string
+			LogIndex uint64
+		}
+		slashQuery := `
+			SELECT staker, strategy, shares, log_index
+			FROM staker_share_deltas
+			WHERE block_number = ? AND staker = ? AND log_index IN (500, 600)
+		`
+		var slashRecs []deltaRec
+		res = sharesModel.DB.Raw(slashQuery, blockNumber, attacker).Scan(&slashRecs)
+		assert.Nil(t, res.Error)
+		for _, sr := range slashRecs {
+			shares, _ := new(big.Int).SetString(sr.Shares, 10)
+			if shares.Sign() > 0 {
+				t.Errorf("Positive slash delta for attacker: strategy=%s logIdx=%d shares=%s",
+					sr.Strategy, sr.LogIndex, sr.Shares)
+			}
+		}
+
+		teardown(grm)
+	})
+
 	t.Cleanup(func() {
 		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
