@@ -1523,6 +1523,420 @@ func Test_StakerSharesState(t *testing.T) {
 		_, err = sharesModel.HandleStateChange(&beaconChainSlashingFactorDecreasedLog)
 		assert.Error(t, err)
 	})
+	// ---------------------------------------------------------------------------
+	// Bug report #67091: Cross-strategy double-counting of netDeltas
+	// ---------------------------------------------------------------------------
+	//
+	// When OperatorSlashed fires with N strategies, handleOperatorSlashedEvent creates
+	// N SlashDiff entries sharing the same TransactionIndex/LogIndex. In prepareState
+	// the inner loop re-accumulates every shareDelta into the persisted netDeltas map
+	// on every outer iteration. With a withdrawal delta of -X for each strategy, after
+	// k iterations netDeltas[staker-Sk] == -k*X instead of -X. This makes
+	// currentShares go negative and the division by -1e18 produces phantom positive
+	// shares that inflate the attacker's rewards proportion.
+	t.Run("Bug67091 - multi-strategy slash with withdrawal in same block should not produce phantom positive shares", func(t *testing.T) {
+		teardown(grm)
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+
+		operator := "0xbde83df53bc7d159700e966ad5d21e8b7c619459"
+		attacker := "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d"
+		strategyA := "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"
+		strategyB := "0x1234567890abcdef1234567890abcdef12345678"
+		depositAmount := big.NewInt(1e18)
+
+		// ---------- Block 200: setup deposits + delegation ----------
+		blockNumber := uint64(200)
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		delegationModel, err := stakerDelegations.NewStakerDelegationsModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+		err = delegationModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		sharesModel, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+		err = sharesModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 300, attacker, operator)
+		assert.Nil(t, err)
+
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400, attacker, strategyA, depositAmount)
+		assert.Nil(t, err)
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, attacker, strategyB, depositAmount)
+		assert.Nil(t, err)
+
+		err = delegationModel.CommitFinalState(blockNumber, false)
+		assert.Nil(t, err)
+		err = sharesModel.CommitFinalState(blockNumber, false)
+		assert.Nil(t, err)
+
+		// ---------- Block 201: withdrawal + multi-strategy slash ----------
+		blockNumber = blockNumber + 1
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		err = sharesModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		// Attacker queues withdrawal for BOTH strategies (txIndex=90, before the slash)
+		_, err = processSlashingWithdrawal(
+			sharesModel,
+			cfg.GetContractsMapForChain().DelegationManager,
+			blockNumber,
+			90,  // transactionIndex: before the slash
+			400, // logIndex
+			attacker,
+			[]string{strategyA, strategyB},
+			[]*big.Int{depositAmount, depositAmount},
+		)
+		assert.Nil(t, err)
+
+		// Operator is slashed for BOTH strategies in a single OperatorSlashed event
+		// wadSlashed = 1e17 (10%) — the minimum on-chain is 1, but 10% makes the math clear
+		_, err = processSlashingWithTxIndex(
+			sharesModel,
+			cfg.GetContractsMapForChain().AllocationManager,
+			blockNumber,
+			100, // transactionIndex: after the withdrawal
+			500, // logIndex
+			operator,
+			[]string{strategyA, strategyB},
+			[]*big.Int{big.NewInt(1e17), big.NewInt(1e17)},
+		)
+		assert.Nil(t, err)
+
+		// Run prepareState to see what deltas get generated
+		prepared, err := sharesModel.prepareState(blockNumber)
+		assert.Nil(t, err)
+
+		t.Logf("Total prepared records: %d", len(prepared))
+		for i, r := range prepared {
+			t.Logf("  record[%d]: staker=%s strategy=%s shares=%s txIdx=%d logIdx=%d",
+				i, r.Staker, r.Strategy, r.Shares, r.TransactionIndex, r.LogIndex)
+		}
+
+		// Count phantom positive share deltas produced by the slash event (logIndex=500)
+		phantomCount := 0
+		for _, r := range prepared {
+			if r.LogIndex == 500 {
+				shares, _ := new(big.Int).SetString(r.Shares, 10)
+				t.Logf("  SLASH DELTA: staker=%s strategy=%s shares=%s", r.Staker, r.Strategy, r.Shares)
+
+				// A slash delta must never be positive — positive means phantom shares
+				if shares.Sign() > 0 {
+					phantomCount++
+					t.Errorf("BUG CONFIRMED: phantom positive slash delta: staker=%s strategy=%s shares=%s",
+						r.Staker, r.Strategy, r.Shares)
+				}
+			}
+		}
+
+		if phantomCount == 0 {
+			t.Log("No phantom positive deltas detected — bug is NOT exploitable in this scenario")
+		} else {
+			t.Logf("Found %d phantom positive delta(s) — bug IS exploitable", phantomCount)
+		}
+
+		// With the withdrawal making net shares = 0 for both strategies, the staker
+		// should be skipped entirely by the shares==0 check. Expected: only the 2
+		// withdrawal deltas, zero slash records.
+		slashRecordCount := 0
+		for _, r := range prepared {
+			if r.LogIndex == 500 {
+				slashRecordCount++
+			}
+		}
+		t.Logf("Slash records produced: %d (expected 0 if no bug)", slashRecordCount)
+
+		teardown(grm)
+	})
+	t.Run("Bug67091 - attacker cumulative shares must not be positive after full withdrawal + multi-strategy slash", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+
+		operator := "0xbde83df53bc7d159700e966ad5d21e8b7c619459"
+		attacker := "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d"
+		strategyA := "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"
+		strategyB := "0x1234567890abcdef1234567890abcdef12345678"
+		strategyC := "0x2222222222222222222222222222222222222222"
+		depositAmount := big.NewInt(1e18)
+
+		// ---------- Block 200: setup ----------
+		blockNumber := uint64(200)
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		delegationModel, err := stakerDelegations.NewStakerDelegationsModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+		err = delegationModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		sharesModel, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+		err = sharesModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 300, attacker, operator)
+		assert.Nil(t, err)
+
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400, attacker, strategyA, depositAmount)
+		assert.Nil(t, err)
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, attacker, strategyB, depositAmount)
+		assert.Nil(t, err)
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 402, attacker, strategyC, depositAmount)
+		assert.Nil(t, err)
+
+		err = delegationModel.CommitFinalState(blockNumber, false)
+		assert.Nil(t, err)
+		err = sharesModel.CommitFinalState(blockNumber, false)
+		assert.Nil(t, err)
+
+		// ---------- Block 201: attack — withdraw all + multi-strategy slash ----------
+		blockNumber = blockNumber + 1
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		err = sharesModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		// Withdraw everything from all 3 strategies
+		_, err = processSlashingWithdrawal(
+			sharesModel,
+			cfg.GetContractsMapForChain().DelegationManager,
+			blockNumber,
+			90, 400,
+			attacker,
+			[]string{strategyA, strategyB, strategyC},
+			[]*big.Int{depositAmount, depositAmount, depositAmount},
+		)
+		assert.Nil(t, err)
+
+		// Slash across all 3 strategies with 10% wadSlashed
+		_, err = processSlashingWithTxIndex(
+			sharesModel,
+			cfg.GetContractsMapForChain().AllocationManager,
+			blockNumber,
+			100, 500,
+			operator,
+			[]string{strategyA, strategyB, strategyC},
+			[]*big.Int{big.NewInt(1e17), big.NewInt(1e17), big.NewInt(1e17)},
+		)
+		assert.Nil(t, err)
+
+		// Commit the attack block
+		err = sharesModel.CommitFinalState(blockNumber, false)
+		assert.Nil(t, err)
+
+		// ---------- Verify cumulative shares from DB ----------
+		type cumulativeResult struct {
+			Staker   string
+			Strategy string
+			Total    string
+		}
+		query := `
+			SELECT staker, strategy, CAST(SUM(CAST(shares AS NUMERIC)) AS TEXT) as total
+			FROM staker_share_deltas
+			WHERE staker = ?
+			GROUP BY staker, strategy
+		`
+		var results []cumulativeResult
+		res := sharesModel.DB.Raw(query, attacker).Scan(&results)
+		assert.Nil(t, res.Error)
+
+		t.Logf("Cumulative shares per (staker, strategy) after attack:")
+		for _, r := range results {
+			total, _ := new(big.Int).SetString(r.Total, 10)
+			t.Logf("  staker=%s strategy=%s cumulative_shares=%s", r.Staker, r.Strategy, r.Total)
+
+			// After depositing X and withdrawing X, cumulative shares should be 0.
+			// Any positive value means phantom shares were created.
+			if total.Sign() > 0 {
+				t.Errorf("BUG CONFIRMED: attacker has phantom positive cumulative shares: strategy=%s shares=%s",
+					r.Strategy, r.Total)
+			}
+			// Cumulative should also never be negative — that would mean more was
+			// slashed than existed, which is also a bug indicator.
+			if total.Sign() < 0 {
+				t.Errorf("UNEXPECTED: attacker has negative cumulative shares (over-slashed): strategy=%s shares=%s",
+					r.Strategy, r.Total)
+			}
+		}
+
+		// Also verify: no individual slash record should be positive
+		type deltaRecord struct {
+			Staker   string
+			Strategy string
+			Shares   string
+			LogIndex uint64
+		}
+		slashQuery := `
+			SELECT staker, strategy, shares, log_index
+			FROM staker_share_deltas
+			WHERE block_number = ? AND log_index = 500
+		`
+		var slashRecords []deltaRecord
+		res = sharesModel.DB.Raw(slashQuery, blockNumber).Scan(&slashRecords)
+		assert.Nil(t, res.Error)
+
+		t.Logf("Slash delta records in attack block (logIndex=500):")
+		for _, sr := range slashRecords {
+			shares, _ := new(big.Int).SetString(sr.Shares, 10)
+			t.Logf("  staker=%s strategy=%s shares=%s", sr.Staker, sr.Strategy, sr.Shares)
+			if shares.Sign() > 0 {
+				t.Errorf("BUG CONFIRMED: positive slash delta written to DB: strategy=%s shares=%s", sr.Strategy, sr.Shares)
+			}
+		}
+
+		teardown(grm)
+	})
+	t.Run("Bug67091 - AVS-controlled attack steals reward share from innocent victim via phantom shares", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+
+		operator := "0xbde83df53bc7d159700e966ad5d21e8b7c619459"
+		attacker := "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d"
+		victim := "0x4444444444444444444444444444444444444444"
+		strategyA := "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"
+		strategyB := "0x1234567890abcdef1234567890abcdef12345678"
+		depositAmount := big.NewInt(1e18)
+		victimDeposit := new(big.Int).Mul(big.NewInt(10), big.NewInt(1e18)) // 10e18
+
+		// ---------- Block 200: setup deposits + delegations ----------
+		blockNumber := uint64(200)
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		delegationModel, err := stakerDelegations.NewStakerDelegationsModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+		err = delegationModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		sharesModel, err := NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+		err = sharesModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		// Both victim and attacker delegate to the same operator
+		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 300, victim, operator)
+		assert.Nil(t, err)
+		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 301, attacker, operator)
+		assert.Nil(t, err)
+
+		// Victim deposits 10e18 in Strategy B only
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 400, victim, strategyB, victimDeposit)
+		assert.Nil(t, err)
+
+		// Attacker deposits 1e18 in Strategy A and 1e18 in Strategy B
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 401, attacker, strategyA, depositAmount)
+		assert.Nil(t, err)
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 402, attacker, strategyB, depositAmount)
+		assert.Nil(t, err)
+
+		err = delegationModel.CommitFinalState(blockNumber, false)
+		assert.Nil(t, err)
+		err = sharesModel.CommitFinalState(blockNumber, false)
+		assert.Nil(t, err)
+
+		// ---------- Block 201: attack ----------
+		blockNumber = blockNumber + 1
+		err = createBlock(grm, blockNumber)
+		assert.Nil(t, err)
+
+		err = sharesModel.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		// Attacker withdraws from BOTH strategies (txIdx=90, before the slash)
+		_, err = processSlashingWithdrawal(
+			sharesModel,
+			cfg.GetContractsMapForChain().DelegationManager,
+			blockNumber, 90, 400,
+			attacker,
+			[]string{strategyA, strategyB},
+			[]*big.Int{depositAmount, depositAmount},
+		)
+		assert.Nil(t, err)
+
+		// Attacker's AVS slashes operator for [A, B] with 10% wadSlashed
+		_, err = processSlashingWithTxIndex(
+			sharesModel,
+			cfg.GetContractsMapForChain().AllocationManager,
+			blockNumber, 100, 500,
+			operator,
+			[]string{strategyA, strategyB},
+			[]*big.Int{big.NewInt(1e17), big.NewInt(1e17)},
+		)
+		assert.Nil(t, err)
+
+		// Commit the attack block
+		err = sharesModel.CommitFinalState(blockNumber, false)
+		assert.Nil(t, err)
+
+		// ---------- Verify: attacker should have 0 cumulative shares ----------
+		type cumulativeResult struct {
+			Staker   string
+			Strategy string
+			Total    string
+		}
+		query := `
+			SELECT staker, strategy, CAST(SUM(CAST(shares AS NUMERIC)) AS TEXT) as total
+			FROM staker_share_deltas
+			GROUP BY staker, strategy
+			ORDER BY staker, strategy
+		`
+		var results []cumulativeResult
+		res := sharesModel.DB.Raw(query).Scan(&results)
+		assert.Nil(t, res.Error)
+
+		t.Logf("Cumulative shares per (staker, strategy) after attack:")
+		attackerSharesInB := big.NewInt(0)
+		victimSharesInB := big.NewInt(0)
+		for _, r := range results {
+			total, _ := new(big.Int).SetString(r.Total, 10)
+			t.Logf("  staker=%s strategy=%s cumulative=%s", r.Staker, r.Strategy, r.Total)
+
+			if r.Staker == attacker {
+				assert.Equal(t, "0", r.Total,
+					"Attacker cumulative shares must be exactly 0 after full withdrawal (strategy=%s)", r.Strategy)
+				if r.Strategy == strategyB {
+					attackerSharesInB = total
+				}
+			}
+			if r.Staker == victim && r.Strategy == strategyB {
+				victimSharesInB = total
+			}
+		}
+
+		// ---------- Verify: reward proportion distortion ----------
+		totalSharesInB := new(big.Int).Add(victimSharesInB, attackerSharesInB)
+		t.Logf("Strategy B reward breakdown:")
+		t.Logf("  Victim shares:   %s", victimSharesInB.String())
+		t.Logf("  Attacker shares: %s", attackerSharesInB.String())
+		t.Logf("  Total shares:    %s", totalSharesInB.String())
+
+		if attackerSharesInB.Sign() > 0 {
+			// Compute distortion as a percentage: attacker_shares / total * 100
+			attackerPct := new(big.Float).Quo(
+				new(big.Float).SetInt(attackerSharesInB),
+				new(big.Float).SetInt(totalSharesInB),
+			)
+			attackerPctFloat, _ := attackerPct.Mul(attackerPct, new(big.Float).SetFloat64(100)).Float64()
+			t.Errorf("BUG CONFIRMED: attacker steals %.2f%% of Strategy B rewards via phantom shares "+
+				"(attacker=%s, victim=%s, total=%s)",
+				attackerPctFloat, attackerSharesInB.String(), victimSharesInB.String(), totalSharesInB.String())
+		} else {
+			t.Log("Attacker has 0 shares in Strategy B — victim keeps 100% of rewards (correct)")
+		}
+
+		// Victim should still have exactly 9e18 (10e18 deposit - 10% slash)
+		expectedVictimShares := new(big.Int).Sub(victimDeposit, new(big.Int).Div(
+			new(big.Int).Mul(victimDeposit, big.NewInt(1e17)),
+			big.NewInt(1e18),
+		))
+		assert.Equal(t, expectedVictimShares.String(), victimSharesInB.String(),
+			"Victim should have exactly 9e18 shares (10e18 - 10%% slash)")
+
+		teardown(grm)
+	})
 
 	t.Cleanup(func() {
 		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
@@ -1597,6 +2011,71 @@ func processSlashing(stakerSharesModel *StakerSharesModel, allocationManager str
 	slashingLog := storage.TransactionLog{
 		TransactionHash:  "some hash",
 		TransactionIndex: 100,
+		BlockNumber:      blockNumber,
+		Address:          allocationManager,
+		Arguments:        ``,
+		EventName:        "OperatorSlashed",
+		LogIndex:         logIndex,
+		OutputData:       string(operatorJson),
+		CreatedAt:        time.Time{},
+		UpdatedAt:        time.Time{},
+		DeletedAt:        time.Time{},
+	}
+
+	return stakerSharesModel.HandleStateChange(&slashingLog)
+}
+
+func processSlashingWithdrawal(stakerSharesModel *StakerSharesModel, delegationManager string, blockNumber, transactionIndex, logIndex uint64, staker string, strategies []string, sharesToWithdraw []*big.Int) (interface{}, error) {
+	scaledShares := make([]int64, len(sharesToWithdraw))
+	sharesToWithdrawJson := make([]int64, len(sharesToWithdraw))
+	for i, s := range sharesToWithdraw {
+		scaledShares[i] = s.Int64()
+		sharesToWithdrawJson[i] = s.Int64()
+	}
+
+	strategiesJson, _ := json.Marshal(strategies)
+	scaledSharesJson, _ := json.Marshal(scaledShares)
+	sharesToWithdrawJsonBytes, _ := json.Marshal(sharesToWithdrawJson)
+
+	outputData := fmt.Sprintf(`{"withdrawal": {"nonce": 0, "scaledShares": %s, "staker": "%s", "startBlock": %d, "strategies": %s, "withdrawer": "%s", "delegatedTo": "0x0000000000000000000000000000000000000000"}, "withdrawalRoot": [1,2,3], "sharesToWithdraw": %s}`,
+		string(scaledSharesJson), staker, blockNumber, string(strategiesJson), staker, string(sharesToWithdrawJsonBytes))
+
+	withdrawalLog := storage.TransactionLog{
+		TransactionHash:  "withdrawal hash",
+		TransactionIndex: transactionIndex,
+		BlockNumber:      blockNumber,
+		Address:          delegationManager,
+		Arguments:        `[{"Name": "withdrawalRoot", "Type": "bytes32", "Value": null, "Indexed": false}, {"Name": "withdrawal", "Type": "(address,address,address,uint256,uint32,address[],uint256[])", "Value": null, "Indexed": false}, {"Name": "sharesToWithdraw", "Type": "uint256[]", "Value": null, "Indexed": false}]`,
+		EventName:        "SlashingWithdrawalQueued",
+		LogIndex:         logIndex,
+		OutputData:       outputData,
+		CreatedAt:        time.Time{},
+		UpdatedAt:        time.Time{},
+		DeletedAt:        time.Time{},
+	}
+
+	return stakerSharesModel.HandleStateChange(&withdrawalLog)
+}
+
+func processSlashingWithTxIndex(stakerSharesModel *StakerSharesModel, allocationManager string, blockNumber, transactionIndex, logIndex uint64, operator string, strategies []string, wadSlashed []*big.Int) (interface{}, error) {
+	wadSlashedJson := make([]json.Number, len(wadSlashed))
+	for i, wad := range wadSlashed {
+		wadSlashedJson[i] = json.Number(wad.String())
+	}
+
+	operatorSlashedEvent := OperatorSlashedOutputData{
+		Operator:   operator,
+		Strategies: strategies,
+		WadSlashed: wadSlashedJson,
+	}
+	operatorJson, err := json.Marshal(operatorSlashedEvent)
+	if err != nil {
+		return nil, err
+	}
+
+	slashingLog := storage.TransactionLog{
+		TransactionHash:  "slash hash",
+		TransactionIndex: transactionIndex,
 		BlockNumber:      blockNumber,
 		Address:          allocationManager,
 		Arguments:        ``,
