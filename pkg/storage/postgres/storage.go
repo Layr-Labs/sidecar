@@ -122,15 +122,21 @@ func (s *PostgresBlockStore) InsertTransactionLog(
 		s.Logger.Sugar().Errorw("Failed to marshal output data", zap.Error(err))
 	}
 
+	// PostgreSQL cannot store \u0000 (null bytes) in text/jsonb columns.
+	// On-chain event data (e.g. slashing descriptions) may contain raw null bytes
+	// which json.Marshal encodes as \u0000 escape sequences.
+	sanitizedArgs := strings.ReplaceAll(string(argsJson), "\\u0000", "")
+	sanitizedOutputData := strings.ReplaceAll(string(outputDataJson), "\\u0000", "")
+
 	txLog := &storage.TransactionLog{
 		TransactionHash:  txHash,
 		TransactionIndex: transactionIndex,
 		BlockNumber:      blockNumber,
 		Address:          strings.ToLower(log.Address),
-		Arguments:        string(argsJson),
+		Arguments:        sanitizedArgs,
 		EventName:        log.EventName,
 		LogIndex:         log.LogIndex,
-		OutputData:       string(outputDataJson),
+		OutputData:       sanitizedOutputData,
 	}
 	clauses := []clause.Expression{clause.Returning{}}
 	if ignoreOnConflict {
