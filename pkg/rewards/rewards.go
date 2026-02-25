@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 
 	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/metrics/metricsTypes"
@@ -516,13 +517,14 @@ func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string, earner
 				union all
 				select reward_hash from operator_directed_rewards where block_time <= TIMESTAMP '{{.cutoffDate}}'
 				union all
-				select
-					odosrs.reward_hash
+				select odosrs.reward_hash
 				from operator_directed_operator_set_reward_submissions as odosrs
 				-- operator_directed_operator_set_reward_submissions lacks a block_time column, so we need to join blocks
 				join blocks as b on (b.number = odosrs.block_number)
 				where
 					b.block_time::timestamp(6) <= TIMESTAMP '{{.cutoffDate}}'
+				union all
+				select reward_hash from stake_operator_set_rewards where block_time <= TIMESTAMP '{{.cutoffDate}}'
 			) as t
 		)
 		select
@@ -732,6 +734,21 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	}
 	rc.logger.Sugar().Debugw("Generated operator set strategy registration snapshots")
 
+	// ------------------------------------------------------------------------
+	// Rewards V2.2 snapshots
+	// ------------------------------------------------------------------------
+	if err = rc.GenerateAndInsertOperatorAllocationSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator allocation snapshots", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated operator allocation snapshots")
+
+	if err := rc.GenerateAndInsertStakeOperatorSetRewards(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate stake operator set rewards", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated stake operator set rewards")
+
 	return nil
 }
 
@@ -810,12 +827,51 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
-	if err := rc.GenerateGold15StagingTable(snapshotDate); err != nil {
+	// ------------------------------------------------------------------------
+	// Rewards V2.2 - Unique and Total Stake Rewards
+	// ------------------------------------------------------------------------
+
+	if err := rc.GenerateGold15ActiveUniqueAndTotalStakeRewardsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate v2.2 active unique and total stake rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold16OperatorOperatorSetUniqueStakeRewardsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate v2.2 operator unique stake rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold17StakerOperatorSetUniqueStakeRewardsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate v2.2 staker unique stake rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold18AvsOperatorSetUniqueStakeRewardsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate v2.2 avs unique stake rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold19OperatorOperatorSetTotalStakeRewardsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate v2.2 operator total stake rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold20StakerOperatorSetTotalStakeRewardsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate v2.2 staker total stake rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold21AvsOperatorSetTotalStakeRewardsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate v2.2 avs total stake rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold22StagingTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate gold staging", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold16FinalTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold23FinalTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate final table", "error", err)
 		return err
 	}

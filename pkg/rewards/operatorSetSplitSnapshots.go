@@ -13,7 +13,7 @@ WITH operator_set_splits_with_block_info as (
 		oss.avs,
 		oss.operator_set_id,
 		oss.activated_at::timestamp(6) as activated_at,
-		oss.new_operator_set_split_bips as split,
+		LEAST(oss.new_operator_set_split_bips, 10000) as split,
 		oss.block_number,
 		oss.log_index,
 		b.block_time::timestamp(6) as block_time

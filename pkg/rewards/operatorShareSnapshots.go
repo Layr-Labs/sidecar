@@ -30,8 +30,8 @@ operator_share_windows as (
 	SELECT
 		operator, strategy, shares, snapshot_time as start_time,
 		CASE
-			-- If the range does not have the end, use the current timestamp truncated to 0 UTC
-			WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}')
+			-- If the range does not have the end, use cutoff + 1 day to include cutoff date snapshot
+			WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}') + INTERVAL '1' day
 			ELSE LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time)
 		END AS end_time
 	FROM snapshotted_records
@@ -41,15 +41,17 @@ cleaned_records as (
 	WHERE start_time < end_time
 )
 SELECT
-    operator,
-    strategy,
-    shares,
-    cast(day AS DATE) AS snapshot
+	operator,
+	strategy,
+	shares,
+	cast(day AS DATE) AS snapshot
 FROM
-    cleaned_records
-        CROSS JOIN
-    generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
-on conflict on constraint uniq_operator_share_snapshots do nothing;
+	cleaned_records
+CROSS JOIN
+	generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+on conflict on constraint uniq_operator_share_snapshots
+do update set shares = excluded.shares
+where operator_share_snapshots.shares != excluded.shares;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(snapshotDate string) error {

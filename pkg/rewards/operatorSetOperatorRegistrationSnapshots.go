@@ -74,8 +74,7 @@ marked_statuses AS (
 		block_time AS start_time,
 		-- Mark the next_block_time as the end_time for the range
 		-- Use coalesce because if the next_block_time for a registration is not closed, then we use cutoff_date
-		COALESCE(next_block_time, '{{.cutoffDate}}')::timestamp AS end_time,
-		is_active
+		COALESCE(next_block_time, '{{.cutoffDate}}')::timestamp AS end_time
 	FROM removed_same_day_deregistrations
 	WHERE is_active = TRUE
  ),

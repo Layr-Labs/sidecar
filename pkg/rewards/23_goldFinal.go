@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const _16_goldFinalQuery = `
+const _23_goldFinalQuery = `
 insert into gold_table
 SELECT
     earner,
@@ -26,15 +26,15 @@ type GoldRow struct {
 	Amount     string
 }
 
-func (rc *RewardsCalculator) GenerateGold16FinalTable(snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold23FinalTable(snapshotDate string) error {
 	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 
 	rc.logger.Sugar().Infow("Generating gold final table",
 		zap.String("cutoffDate", snapshotDate),
 	)
 
-	query, err := rewardsUtils.RenderQueryTemplate(_16_goldFinalQuery, map[string]interface{}{
-		"goldStagingTable": allTableNames[rewardsUtils.Table_15_GoldStaging],
+	query, err := rewardsUtils.RenderQueryTemplate(_23_goldFinalQuery, map[string]interface{}{
+		"goldStagingTable": allTableNames[rewardsUtils.Table_22_GoldStaging],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
