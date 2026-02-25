@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lib/pq"
 	"math/big"
 	"slices"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -1073,18 +1074,18 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 	// ensure our slashing events are ordered by transactionIndex asc, logIndex asc
 	orderedSlashes := orderSlashes(slashes)
 
+	// keep track of the running sum of deltas found in this current block, if any
+	netDeltas := make(map[string]*big.Int)
 	records := make([]*StakerShareDeltas, 0)
 
 	// copy share deltas to the new records result slice so we dont mutate the original list of deltas
 	records = append(records, shareDeltas...)
 
 	for _, slash := range orderedSlashes {
-		// Reset netDeltas on each iteration so base deltas are accumulated exactly once.
-		// Without this reset, the same shareDeltas would be added N times for N slashes
-		// from a single OperatorSlashed event, causing phantom positive shares.
-		netDeltas := make(map[string]*big.Int)
-
-		// Accumulate base share deltas (deposits, withdrawals) that occurred before this slash
+		// Iterate over all of the in-memory deltas and find the ones that are before the slashing event
+		//
+		// For the records that DO come before the slashing event, capture their running share sum up to the slashing
+		// event so that we can add it to the existing sum from the database.
 		for _, delta := range shareDeltas {
 			if delta.TransactionIndex > slash.TransactionIndex {
 				continue
@@ -1099,26 +1100,6 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 			shares, success := new(big.Int).SetString(delta.Shares, 10)
 			if !success {
 				return nil, fmt.Errorf("failed to convert shares to big.Int: %s", delta.Shares)
-			}
-			netDeltas[key] = netDeltas[key].Add(netDeltas[key], shares)
-		}
-
-		// Accumulate slash deltas from prior iterations that precede this slash,
-		// so that earlier slash events in the same block correctly affect later ones.
-		for _, rec := range records[len(shareDeltas):] {
-			if rec.TransactionIndex > slash.TransactionIndex {
-				continue
-			}
-			if rec.TransactionIndex == slash.TransactionIndex && rec.LogIndex > slash.LogIndex {
-				continue
-			}
-			key := getNetDeltaKey(rec.Staker, rec.Strategy)
-			if _, ok := netDeltas[key]; !ok {
-				netDeltas[key] = big.NewInt(0)
-			}
-			shares, success := new(big.Int).SetString(rec.Shares, 10)
-			if !success {
-				return nil, fmt.Errorf("failed to convert shares to big.Int: %s", rec.Shares)
 			}
 			netDeltas[key] = netDeltas[key].Add(netDeltas[key], shares)
 		}
@@ -1160,9 +1141,9 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDel
 			// add any delta shares
 			shares = shares.Add(shares, newDeltaShares)
 
-			// if the delegated staker has 0 or negative total shares after accounting for delta shares, skip them
-			if shares.Cmp(big.NewInt(0)) <= 0 {
-				ss.logger.Sugar().Debugw("Staker shares are <= 0, skipping",
+			// if the delegated staker has 0 total shares after accounting for delta shares, skip them
+			if shares.Cmp(big.NewInt(0)) == 0 {
+				ss.logger.Sugar().Debugw("Staker shares are 0, skipping",
 					zap.String("staker", stakerShare.Staker),
 					zap.String("strategy", slash.Strategy),
 					zap.String("shares", shares.String()),
