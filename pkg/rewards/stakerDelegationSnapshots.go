@@ -73,8 +73,8 @@ func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(snapshotD
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {
-		r.logger.Sugar().Errorw("Failed to render operator share snapshots query", "error", err)
-		return nil
+		r.logger.Sugar().Errorw("Failed to render staker delegation snapshots query", "error", err)
+		return err
 	}
 
 	res := r.grm.Exec(query)

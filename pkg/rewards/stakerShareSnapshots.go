@@ -25,13 +25,13 @@ const stakerShareSnapshotsQuery = `
 	 from ranked_staker_records
 	 where rn = 1
 	),
-	-- Get the range for each operator, strategy pairing
+	-- Get the range for each staker, strategy pairing
 	staker_share_windows as (
 	 SELECT
 		 staker, strategy, shares, snapshot_time as start_time,
 		 CASE
-			 -- If the range does not have the end, use the current timestamp truncated to 0 UTC
-			 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}')
+			 -- If the range does not have the end, use cutoff + 1 day to include cutoff date snapshot
+			 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}') + INTERVAL '1' day
 			 ELSE LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time)
 			 END AS end_time
 	 FROM snapshotted_records
@@ -49,7 +49,9 @@ const stakerShareSnapshotsQuery = `
 		cleaned_records
 	CROSS JOIN
 		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
-	on conflict on constraint uniq_staker_share_snapshots do nothing;
+	on conflict on constraint uniq_staker_share_snapshots
+	do update set shares = excluded.shares
+	where staker_share_snapshots.shares != excluded.shares;
 `
 
 func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(snapshotDate string) error {

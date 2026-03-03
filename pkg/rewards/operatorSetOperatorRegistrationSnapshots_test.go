@@ -2,8 +2,9 @@ package rewards
 
 import (
 	"fmt"
-	"github.com/Layr-Labs/sidecar/pkg/metrics"
 	"testing"
+
+	"github.com/Layr-Labs/sidecar/pkg/metrics"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/tests"
