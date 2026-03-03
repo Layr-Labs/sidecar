@@ -17,6 +17,7 @@ import (
 	_202602050924_upgradeTestnetHoodi "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202602050924_upgradeTestnetHoodi"
 	_202602060110_upgradeTestnetSepolia "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202602060110_upgradeTestnetSepolia"
 	_202602061552_rewardsCoordinatorAndStrategyManager "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202602061552_rewardsCoordinatorAndStrategyManager"
+	_202603031000_mainnetRewardsCoordinatorAndStrategyManager "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202603031000_mainnetRewardsCoordinatorAndStrategyManager"
 	"github.com/Layr-Labs/sidecar/pkg/coreContracts/types"
 )
 
@@ -38,5 +39,6 @@ func GetCoreContractMigrations() []types.ICoreContractMigration {
 		&_202602050924_upgradeTestnetHoodi.ContractMigration{},
 		&_202602060110_upgradeTestnetSepolia.ContractMigration{},
 		&_202602061552_rewardsCoordinatorAndStrategyManager.ContractMigration{},
+		&_202603031000_mainnetRewardsCoordinatorAndStrategyManager.ContractMigration{},
 	}
 }
