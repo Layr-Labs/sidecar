@@ -323,12 +323,12 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 
 ### Operator Splits
 
-Three types of operator splits are tracked daily:
+Four types of operator splits are tracked daily:
 
 1. Default Operator Split: Determines reward split between operator and their delegated stakers for all operators (10% default, 1000 bips)
 2. Operator-PI Split: Determines reward split between operator and their delegated stakers for Programmatic Incentives.
 3. Operator-AVS Split: Determines reward split between operator and their delegated stakers for non-slashable stake.
-4. Operator-Set Split: Determines reward split between operator and their delegated stakers for slashable stake.
+4. Operator-Set Split: Determines reward split between operator and their delegated stakers for slashable stake (used by v2.1 and v2.2 rewards).
 
 Split calculation follows these rules:
 
@@ -356,12 +356,14 @@ WHERE activated_at < TIMESTAMP '{{.cutoffDate}}'
 
 ### Rewards Submissions
 
-There are four types of rewards submissions in the protocol:
+There are six types of rewards submissions in the protocol:
 
-1. AVS Rewards Submission: Permissionless function called by any AVS for non-slashable stake.
+1. AVS Rewards Submission (v1): Permissionless function called by any AVS for non-slashable stake. Auto-weighted by total delegated stake, AVS-wide.
 2. Reward for All Earners: Permissioned reward to all earners of the protocol for Programmatic Incentives.
-3. Operator-Directed Rewards Submission: Permissionless function called by any AVS to direct rewards to a specific operators for non-slashable stake.
-4. Operator-Directed Operator Set Rewards Submission: Permissionless function called by any AVS to direct rewards to a specific operators for slashable stake.
+3. Operator-Directed Rewards Submission (v2): Permissionless function called by any AVS to direct rewards to specific operators for non-slashable stake.
+4. Operator-Directed Operator Set Rewards Submission (v2.1): Permissionless function called by any AVS to direct rewards to specific operators scoped to a specific Operator Set for slashable stake.
+5. Unique Stake Rewards Submission (v2.2): Permissionless function called by any AVS to create auto-weighted rewards for an Operator Set based on unique allocated stake (`magnitude / max_magnitude`). Supports both retroactive and forward-looking submissions.
+6. Total Stake Rewards Submission (v2.2): Permissionless function called by any AVS to create auto-weighted rewards for an Operator Set based on total delegated stake. Supports both retroactive and forward-looking submissions.
 
 _Note: The amount in the RewardsCoordinator has a max value of $1e38-1$, which allows us to truncate it to a DECIMAL(38,0)._
 
@@ -534,6 +536,60 @@ FROM operator_directed_operator_set_reward_submissions AS odosrs
 JOIN blocks AS b ON (b.number = odosrs.block_number)
 WHERE b.block_time < TIMESTAMP '{{.cutoffDate}}'
 ```
+
+#### Unique Stake Rewards Submissions
+
+Unique stake rewards are stored with one row per strategy. The `amount` is the total pool amount (not per-operator). The sidecar automatically calculates per-operator distribution based on allocated unique stake weight.
+
+```sql
+SELECT
+	usrs.avs,
+	usrs.operator_set_id,
+	usrs.reward_hash,
+	usrs.token,
+	usrs.amount,
+	usrs.strategy,
+	usrs.strategy_index,
+	usrs.multiplier,
+	usrs.start_timestamp::TIMESTAMP(6),
+	usrs.end_timestamp::TIMESTAMP(6),
+	usrs.duration,
+	'unique_stake' as reward_type,
+	usrs.block_number,
+	b.block_time::TIMESTAMP(6),
+	TO_CHAR(b.block_time, 'YYYY-MM-DD') AS block_date
+FROM unique_stake_reward_submissions AS usrs
+JOIN blocks AS b ON (b.number = usrs.block_number)
+WHERE b.block_time < TIMESTAMP '{{.cutoffDate}}'
+```
+
+#### Total Stake Rewards Submissions
+
+Total stake rewards follow the same schema as unique stake, but the off-chain calculation uses total delegated shares instead of allocated unique stake.
+
+```sql
+SELECT
+	tsrs.avs,
+	tsrs.operator_set_id,
+	tsrs.reward_hash,
+	tsrs.token,
+	tsrs.amount,
+	tsrs.strategy,
+	tsrs.strategy_index,
+	tsrs.multiplier,
+	tsrs.start_timestamp::TIMESTAMP(6),
+	tsrs.end_timestamp::TIMESTAMP(6),
+	tsrs.duration,
+	'total_stake' as reward_type,
+	tsrs.block_number,
+	b.block_time::TIMESTAMP(6),
+	TO_CHAR(b.block_time, 'YYYY-MM-DD') AS block_date
+FROM total_stake_reward_submissions AS tsrs
+JOIN blocks AS b ON (b.number = tsrs.block_number)
+WHERE b.block_time < TIMESTAMP '{{.cutoffDate}}'
+```
+
+Both unique and total stake submissions are staged into the `stake_operator_set_rewards` intermediate table with a `reward_type` column (`'unique_stake'` or `'total_stake'`) for unified downstream processing.
 
 ### Operator{'<>'}AVS State
 
@@ -1507,6 +1563,68 @@ SELECT
 	d AS snapshot
 FROM cleaned_records
 CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
+```
+
+#### Operator Allocation Snapshots
+
+Used by v2.2 unique stake rewards to determine each operator's allocated unique stake. The snapshot captures each operator's `magnitude` and `max_magnitude` per (operator, avs, strategy, operator_set_id) tuple from the `AllocationManager`.
+
+**Rounding logic (Sabine fork):**
+- **Allocations (increase in magnitude):** Rounded UP to the next day (`date_trunc('day', block_time) + INTERVAL '1' day`)
+- **Deallocations (decrease in magnitude):** Rounded DOWN to the current day (`date_trunc('day', block_time)`)
+- **First allocation:** Rounded UP to the next day
+
+This ensures that newly allocated stake takes effect the day after allocation, while deallocated stake stops earning rewards on the day of deallocation.
+
+```sql
+WITH ranked_allocation_records as (
+    SELECT *,
+        ROW_NUMBER() OVER (
+            PARTITION BY operator, avs, strategy, operator_set_id, cast(block_time AS DATE) 
+            ORDER BY block_number DESC, log_index DESC
+        ) AS rn
+    FROM operator_allocations oa
+    INNER JOIN blocks b ON COALESCE(oa.effective_block, oa.block_number) = b.number
+    WHERE b.block_time < TIMESTAMP '{{.cutoffDate}}'
+),
+daily_records as (
+    SELECT operator, avs, strategy, operator_set_id, magnitude, block_time
+    FROM ranked_allocation_records
+    WHERE rn = 1
+),
+records_with_comparison as (
+    SELECT
+        operator, avs, strategy, operator_set_id, magnitude, block_time,
+        CASE
+            WHEN LAG(magnitude) OVER (
+                PARTITION BY operator, avs, strategy, operator_set_id ORDER BY block_time
+            ) IS NULL THEN
+                date_trunc('day', block_time) + INTERVAL '1' day
+            WHEN magnitude > LAG(magnitude) OVER (
+                PARTITION BY operator, avs, strategy, operator_set_id ORDER BY block_time
+            ) THEN
+                date_trunc('day', block_time) + INTERVAL '1' day
+            ELSE
+                date_trunc('day', block_time)
+        END AS snapshot_time
+    FROM daily_records
+),
+-- Windows and cross-join to generate daily snapshots (same pattern as other snapshots)
+-- ...
+-- Then join with max_magnitude from operator_max_magnitudes table
+final AS (
+    SELECT
+        das.operator, das.avs, das.strategy, das.operator_set_id,
+        das.magnitude,
+        COALESCE(dmms.max_magnitude, '1000000000000000000') as max_magnitude,
+        das.snapshot
+    FROM daily_allocation_snapshots das
+    LEFT JOIN daily_max_magnitude_snapshots dmms
+        ON das.operator = dmms.operator
+        AND das.strategy = dmms.strategy
+        AND das.snapshot = dmms.snapshot
+)
+SELECT * FROM final
 ```
 
 ## Reward Calculation
@@ -3285,9 +3403,201 @@ combined_avs_refund_amounts AS (
 SELECT * FROM combined_avs_refund_amounts
 ```
 
-### 15. Gold Table Staging
+### 15. Gold Active Unique and Total Stake Rewards
 
-This query combines the rewards from steps 2,3,4,5,6,7,8,9,10,11,12,13,14 to generate a table with the following columns:
+_Enabled when `IsRewardsV2_2EnabledForCutoffDate` is true (post-Sabine fork)._
+
+This table processes both unique stake and total stake reward submissions from the `stake_operator_set_rewards` intermediate table. It explodes each submission into daily snapshots over the active window and computes `tokens_per_day`.
+
+```sql
+WITH 
+active_rewards_modified AS (
+    SELECT 
+        avs, operator_set_id, reward_hash, token, amount, strategy, strategy_index,
+        multiplier, start_timestamp, end_timestamp, duration, reward_type,
+        block_number, block_time, block_date,
+        CAST('{{.cutoffDate}}' AS TIMESTAMP(6)) - interval '1' day AS global_end_inclusive
+    FROM stake_operator_set_rewards
+    WHERE end_timestamp >= TIMESTAMP '{{.rewardsStart}}'
+      AND start_timestamp <= TIMESTAMP '{{.cutoffDate}}'
+      AND block_time <= TIMESTAMP '{{.cutoffDate}}'
+),
+-- Cut start/end windows, find latest snapshot per reward hash, filter invalid ranges
+-- ...
+exploded_active_range_rewards AS (
+    SELECT *, d AS snapshot
+    FROM active_reward_ranges
+    CROSS JOIN generate_series(DATE(reward_start_exclusive), DATE(reward_end_inclusive), INTERVAL '1' day) AS d
+    WHERE d != reward_start_exclusive
+),
+tokens_per_day AS (
+    SELECT *,
+        FLOOR(CAST(amount AS NUMERIC(78,0)) / (duration / 86400)) AS tokens_per_day_decimal
+    FROM exploded_active_range_rewards
+)
+SELECT * FROM tokens_per_day
+```
+
+### 16. Gold Operator Operator Set Unique Stake Rewards
+
+Calculates each operator's reward share based on **unique allocated stake** within the Operator Set. Only operators registered to the Operator Set with allocated unique stake (`magnitude > 0`) are eligible.
+
+**Operator weight:** `SUM(shares * magnitude / max_magnitude * multiplier)` — uses `operator_allocation_snapshots` and `operator_share_snapshots`.
+
+**Pro-rata:** `FLOOR(tokens_per_day * operator_allocated_weight / total_weight)`
+
+**Split:** `FLOOR(tokens_per_snapshot * COALESCE(operator_set_split, default_split, 1000) / 10000)`
+
+```sql
+WITH registered_operators AS (
+    SELECT ap.*, osor.operator
+    FROM gold_15_active_unique_and_total_stake_rewards ap
+    JOIN operator_set_operator_registration_snapshots osor
+        ON ap.avs = osor.avs AND ap.operator_set_id = osor.operator_set_id AND ap.snapshot = osor.snapshot
+    WHERE ap.reward_type = 'unique_stake'
+),
+operators_with_weight AS (
+    SELECT rso.*,
+        SUM(oss.shares * oas.magnitude / oas.max_magnitude * rso.multiplier) 
+            OVER (PARTITION BY rso.reward_hash, rso.snapshot, rso.operator) as operator_allocated_weight
+    FROM registered_operators rso
+    JOIN operator_allocation_snapshots oas ON (rso.operator = oas.operator AND rso.avs = oas.avs 
+        AND rso.strategy = oas.strategy AND rso.operator_set_id = oas.operator_set_id AND rso.snapshot = oas.snapshot)
+    JOIN operator_share_snapshots oss ON (rso.operator = oss.operator AND rso.strategy = oss.strategy AND rso.snapshot = oss.snapshot)
+    WHERE oas.magnitude > 0 AND oas.max_magnitude > 0 AND oss.shares > 0
+),
+-- total_weight, distinct_operators (pro-rata), operator_splits (split lookup chain)
+-- ...
+operator_splits AS (
+    SELECT dop.*,
+        COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS NUMERIC) AS split_pct,
+        FLOOR(dop.tokens_per_registered_snapshot_decimal * COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS NUMERIC)) AS operator_tokens
+    FROM distinct_operators dop
+    LEFT JOIN operator_set_split_snapshots oss ON (...)
+    LEFT JOIN default_operator_split_snapshots dos ON (dop.snapshot = dos.snapshot)
+)
+SELECT * FROM operator_splits
+```
+
+### 17. Gold Staker Operator Set Unique Stake Rewards
+
+Distributes the remaining staker portion (after operator split) to stakers delegated to each operator. Staker weights use the same unique stake formula: `SUM(shares * magnitude / max_magnitude * multiplier)`.
+
+**Staker proportion:** `FLOOR((staker_weight / total_operator_weight) * 1e15) / 1e15` (15-digit precision)
+
+**Staker tokens:** `FLOOR(staker_proportion * staker_split_total)`
+
+```sql
+WITH operator_rewards AS (
+    SELECT *, adjusted_tokens_per_snapshot - operator_tokens as staker_split_total
+    FROM gold_16_operator_operator_set_unique_stake_rewards
+),
+staker_strategy_shares AS (
+    SELECT sd.*, SUM(sss.shares * oas.magnitude / oas.max_magnitude * asr.multiplier) as weighted_shares
+    FROM staker_delegations sd
+    JOIN gold_15_active_unique_and_total_stake_rewards asr ON (...)
+    JOIN staker_share_snapshots sss ON (sd.staker = sss.staker AND asr.strategy = sss.strategy AND sd.snapshot = sss.snapshot)
+    JOIN operator_allocation_snapshots oas ON (...)
+    WHERE sss.shares > 0 AND asr.multiplier != 0 AND oas.magnitude > 0 AND oas.max_magnitude > 0
+    GROUP BY ...
+),
+-- staker_weights, staker_weight_with_totals, staker_proportions, staker_rewards
+-- ...
+SELECT * FROM staker_rewards
+```
+
+### 18. Gold AVS Operator Set Unique Stake Rewards
+
+Computes AVS refunds for unique stake rewards when no operators are registered (or no stake is allocated) during a given snapshot — i.e., when `operator_distributed + staker_distributed = 0`.
+
+```sql
+WITH total_available_tokens AS (
+    SELECT reward_hash, snapshot, token, avs, operator_set_id,
+        MAX(tokens_per_day_decimal) as total_tokens
+    FROM gold_15_active_unique_and_total_stake_rewards
+    WHERE reward_type = 'unique_stake'
+    GROUP BY reward_hash, snapshot, token, avs, operator_set_id
+),
+-- operator_distributed_tokens (from Table 16), staker_distributed_tokens (from Table 17)
+snapshots_requiring_refund AS (
+    SELECT tat.reward_hash, tat.snapshot, tat.token, tat.avs, tat.operator_set_id,
+        tat.total_tokens as avs_tokens
+    FROM total_available_tokens tat
+    LEFT JOIN operator_distributed_tokens odt ON (...)
+    LEFT JOIN staker_distributed_tokens sdt ON (...)
+    WHERE COALESCE(odt.operator_distributed, 0) + COALESCE(sdt.staker_distributed, 0) = 0
+)
+SELECT * FROM snapshots_requiring_refund
+```
+
+### 19. Gold Operator Operator Set Total Stake Rewards
+
+Same structure as Table 16, but uses **total delegated stake** instead of unique allocated stake.
+
+**Operator weight:** `SUM(shares * multiplier)` — uses `operator_share_snapshots` only (no allocation factor).
+
+```sql
+WITH registered_operators AS (
+    SELECT ap.*, osor.operator
+    FROM gold_15_active_unique_and_total_stake_rewards ap
+    JOIN operator_set_operator_registration_snapshots osor ON (...)
+    WHERE ap.reward_type = 'total_stake'
+),
+operators_with_weight AS (
+    SELECT rso.*,
+        SUM(oss.shares * rso.multiplier) OVER (PARTITION BY rso.reward_hash, rso.snapshot, rso.operator) as operator_total_weight
+    FROM registered_operators rso
+    JOIN operator_share_snapshots oss ON (rso.operator = oss.operator AND rso.strategy = oss.strategy AND rso.snapshot = oss.snapshot)
+    WHERE oss.shares > 0
+),
+-- total_weight, distinct_operators (pro-rata), operator_splits (same split lookup chain)
+operator_splits AS (
+    SELECT dop.*,
+        COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS NUMERIC) AS split_pct,
+        FLOOR(dop.tokens_per_registered_snapshot_decimal * COALESCE(oss.split, dos.split, 1000) / CAST(10000 AS NUMERIC)) AS operator_tokens
+    FROM distinct_operators dop
+    LEFT JOIN operator_set_split_snapshots oss ON (...)
+    LEFT JOIN default_operator_split_snapshots dos ON (dop.snapshot = dos.snapshot)
+)
+SELECT * FROM operator_splits
+```
+
+### 20. Gold Staker Operator Set Total Stake Rewards
+
+Same structure as Table 17, but uses **total delegated shares** instead of unique allocated stake for staker weighting.
+
+**Staker weight:** `SUM(shares * multiplier)` (no allocation factor)
+
+```sql
+WITH operator_rewards AS (
+    SELECT *, tokens_per_registered_snapshot_decimal - operator_tokens as staker_split_total
+    FROM gold_19_operator_operator_set_total_stake_rewards
+),
+staker_strategy_shares AS (
+    SELECT sd.*, SUM(sss.shares * asr.multiplier) as weighted_shares
+    FROM staker_delegations sd
+    JOIN gold_15_active_unique_and_total_stake_rewards asr ON (...)
+    JOIN staker_share_snapshots sss ON (sd.staker = sss.staker AND asr.strategy = sss.strategy AND sd.snapshot = sss.snapshot)
+    WHERE sss.shares > 0 AND asr.multiplier != 0
+    GROUP BY ...
+),
+-- staker_weights, staker_weight_with_totals, staker_proportions, staker_rewards
+SELECT * FROM staker_rewards
+```
+
+### 21. Gold AVS Operator Set Total Stake Rewards
+
+Same structure as Table 18, but for total stake rewards. Refunds daily tokens to the AVS when no operators are registered during a snapshot.
+
+```sql
+-- Same pattern as Table 18 but sourcing from Table 19 (operator) and Table 20 (staker)
+-- and filtering active rewards WHERE reward_type = 'total_stake'
+SELECT * FROM snapshots_requiring_refund
+```
+
+### 22. Gold Table Staging
+
+This query combines the rewards from steps 2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21 to generate a table with the following columns:
 
 | Earner | Snapshot | Reward Hash | Token | Amount |
 | ------ | -------- | ----------- | ----- | ------ |
@@ -3408,6 +3718,62 @@ avs_od_operator_set_rewards AS (
   FROM {{.avsODOperatorSetRewardAmountsTable}}
 ),
 {{ end }}
+{{ if .enableRewardsV2_2 }}
+operator_od_operator_set_rewards_v2_2_unique_stake AS (
+  SELECT DISTINCT
+    operator as earner,
+    snapshot,
+    reward_hash,
+    token,
+    operator_tokens as amount
+  FROM {{.operatorOperatorSetUniqueStakeRewardsTable}}
+),
+staker_od_operator_set_rewards_v2_2_unique_stake AS (
+  SELECT DISTINCT
+    staker as earner,
+    snapshot,
+    reward_hash,
+    token,
+    staker_tokens as amount
+  FROM {{.stakerOperatorSetUniqueStakeRewardsTable}}
+),
+avs_od_operator_set_rewards_v2_2_unique_stake AS (
+  SELECT DISTINCT
+    avs as earner,
+    snapshot,
+    reward_hash,
+    token,
+    avs_tokens as amount
+  FROM {{.avsOperatorSetUniqueStakeRewardsTable}}
+),
+operator_operator_set_total_stake_rewards AS (
+  SELECT DISTINCT
+    operator as earner,
+    snapshot,
+    reward_hash,
+    token,
+    operator_tokens as amount
+  FROM {{.operatorOperatorSetTotalStakeRewardsTable}}
+),
+staker_operator_set_total_stake_rewards AS (
+  SELECT DISTINCT
+    staker as earner,
+    snapshot,
+    reward_hash,
+    token,
+    staker_tokens as amount
+  FROM {{.stakerOperatorSetTotalStakeRewardsTable}}
+),
+avs_operator_set_total_stake_rewards AS (
+  SELECT DISTINCT
+    avs as earner,
+    snapshot,
+    reward_hash,
+    token,
+    avs_tokens as amount
+  FROM {{.avsOperatorSetTotalStakeRewardsTable}}
+),
+{{ end }}
 combined_rewards AS (
   SELECT * FROM operator_rewards
   UNION ALL
@@ -3433,6 +3799,20 @@ combined_rewards AS (
   SELECT * FROM staker_od_operator_set_rewards
   UNION ALL
   SELECT * FROM avs_od_operator_set_rewards
+{{ end }}
+{{ if .enableRewardsV2_2 }}
+  UNION ALL
+  SELECT * FROM operator_od_operator_set_rewards_v2_2_unique_stake
+  UNION ALL
+  SELECT * FROM staker_od_operator_set_rewards_v2_2_unique_stake
+  UNION ALL
+  SELECT * FROM avs_od_operator_set_rewards_v2_2_unique_stake
+  UNION ALL
+  SELECT * FROM operator_operator_set_total_stake_rewards
+  UNION ALL
+  SELECT * FROM staker_operator_set_total_stake_rewards
+  UNION ALL
+  SELECT * FROM avs_operator_set_total_stake_rewards
 {{ end }}
 )
 ```
@@ -3461,9 +3841,9 @@ FROM deduped_earners
 
 Sum up the balances for earners with multiple rows for a given `reward_hash` and `snapshot`. This step handles the case for operators who are also delegated to themselves.
 
-### 16. Gold Table Merge
+### 23. Gold Table Merge
 
-The previous queries were all views. This step selects rows from the [step 7](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw#6-Gold-Table-Staging) and appends them to a table.
+The previous queries were all views. This step selects rows from [step 22 (Gold Table Staging)](#22-gold-table-staging) and appends them to the `gold_table`.
 
 ```sql
 SELECT
