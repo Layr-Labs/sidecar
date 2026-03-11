@@ -214,6 +214,93 @@ func Test_SlashingPrecommitProcessor(t *testing.T) {
 		teardown(grm)
 	})
 
+	t.Run("Should not slash unrelated same-block delegation", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(nil, l, grm)
+		withSlashingProcessor(esm, grm, l)
+
+		delegationModel, err := stakerDelegations.NewStakerDelegationsModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+		sharesModel, err := stakerShares.NewStakerSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		operatorSlashed := "0xbde83df53bc7d159700e966ad5d21e8b7c619459"
+		operatorOther := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		stakerVictim := "0x1111111111111111111111111111111111111111"
+		stakerLegit := "0x2222222222222222222222222222222222222222"
+		strategy := "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3"
+
+		// Block 199: setup clean state.
+		blockNumber := uint64(199)
+		assert.Nil(t, createBlock(grm, blockNumber))
+		assert.Nil(t, delegationModel.SetupStateForBlock(blockNumber))
+		assert.Nil(t, sharesModel.SetupStateForBlock(blockNumber))
+
+		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 210, stakerLegit, operatorSlashed)
+		assert.Nil(t, err)
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 220, stakerVictim, strategy, big.NewInt(1e18))
+		assert.Nil(t, err)
+		_, err = processDeposit(sharesModel, cfg.GetContractsMapForChain().StrategyManager, blockNumber, 230, stakerLegit, strategy, big.NewInt(1e15))
+		assert.Nil(t, err)
+
+		assert.Nil(t, esm.RunPrecommitProcessors(blockNumber))
+		assert.Nil(t, delegationModel.CommitFinalState(blockNumber, false))
+		assert.Nil(t, sharesModel.CommitFinalState(blockNumber, false))
+
+		// Block 200: victim delegates to unrelated operator while slash hits operatorSlashed.
+		blockNumber = 200
+		assert.Nil(t, createBlock(grm, blockNumber))
+		assert.Nil(t, delegationModel.SetupStateForBlock(blockNumber))
+		assert.Nil(t, sharesModel.SetupStateForBlock(blockNumber))
+
+		_, err = processDelegation(delegationModel, cfg.GetContractsMapForChain().DelegationManager, blockNumber, 300, stakerVictim, operatorOther)
+		assert.Nil(t, err)
+		_, err = processSlashing(
+			sharesModel,
+			cfg.GetContractsMapForChain().AllocationManager,
+			blockNumber,
+			500,
+			operatorSlashed,
+			[]string{strategy},
+			[]*big.Int{big.NewInt(1e18)},
+		)
+		assert.Nil(t, err)
+
+		assert.Nil(t, esm.RunPrecommitProcessors(blockNumber))
+		assert.Nil(t, delegationModel.CommitFinalState(blockNumber, false))
+		assert.Nil(t, sharesModel.CommitFinalState(blockNumber, false))
+
+		type slashDelta struct {
+			Staker string
+			Shares string
+		}
+		deltas := make([]*slashDelta, 0)
+		res := grm.Raw(`
+			select staker, shares
+			from staker_share_deltas
+			where block_number = ? and log_index = ?
+			order by staker asc
+		`, blockNumber, 500).Scan(&deltas)
+		assert.Nil(t, res.Error)
+
+		slashed := make(map[string]string)
+		for _, d := range deltas {
+			slashed[d.Staker] = d.Shares
+		}
+		assert.NotContains(t, slashed, stakerVictim, "victim must not be slashed for unrelated operator")
+		assert.Equal(t, "-1000000000000000", slashed[stakerLegit], "legit staker delegated to slashed operator should be slashed")
+
+		var victimCumulative string
+		res = grm.Raw(`
+			select cast(coalesce(sum(cast(shares as numeric)), 0) as text) as shares
+			from staker_share_deltas
+			where staker = ? and strategy = ?
+		`, stakerVictim, strategy).Scan(&victimCumulative)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, "1000000000000000000", victimCumulative, "victim shares should remain unchanged")
+
+		teardown(grm)
+	})
+
 	t.Cleanup(func() {
 		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})

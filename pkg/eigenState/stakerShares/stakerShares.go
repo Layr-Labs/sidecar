@@ -778,7 +778,7 @@ func (ss *StakerSharesModel) GetDelegatedStakerSharesInPrecommitState(slashDiff 
 
 	delegatedStakers := make([]string, 0)
 	for _, staker := range precommitStakers {
-		if staker.Delegated {
+		if staker.Delegated && strings.EqualFold(staker.Operator, slashDiff.SlashedEntity) {
 			delegatedStakers = append(delegatedStakers, strings.ToLower(staker.Staker))
 		}
 	}
