@@ -20,6 +20,124 @@ import (
 	"gorm.io/gorm"
 )
 
+func setupRewardDistributionTest() (
+	string,
+	*gorm.DB,
+	*zap.Logger,
+	*config.Config,
+	error,
+) {
+	cfg := tests.GetConfig()
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
+	if err != nil {
+		return dbname, nil, nil, nil, err
+	}
+
+	return dbname, grm, l, cfg, nil
+}
+
+func teardownRewardDistributionTest(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
+	rawDb, _ := db.DB()
+	_ = rawDb.Close()
+
+	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
+	if err := postgres.DeleteTestDatabase(pgConfig, dbname); err != nil {
+		l.Sugar().Errorw("Failed to delete test database", "error", err)
+	}
+}
+
+// hydrateSnapshotTables inserts test data into the snapshot tables required
+// for the GetRewardDistributionByStake query.
+//
+// Test scenario:
+//   - AVS: 0xavs1
+//   - 2 operators: 0xop1, 0xop2 (both registered to AVS with strategy 0xstrat1)
+//   - 3 stakers:
+//     staker1 -> delegated to op1, 3000 shares in strat1
+//     staker2 -> delegated to op1, 1000 shares in strat1
+//     staker3 -> delegated to op2, 2000 shares in strat1
+//   - Reward: 1,000,000 tokens over 1 day (86400s)
+//
+// Expected weights:
+//   - op1: multiplier*(3000 + 1000) = 4000 * multiplier
+//   - op2: multiplier*(2000)        = 2000 * multiplier
+//   - total: 6000 * multiplier
+//
+// Expected rewards (with FLOOR precision matching gold table logic):
+//   - op1: FLOOR(FLOOR(4/6 * 1e15) / 1e15 * 1000000) = 666666
+//   - op2: FLOOR(FLOOR(2/6 * 1e15) / 1e15 * 1000000) = 333333
+func hydrateSnapshotTables(grm *gorm.DB) error {
+	snapshot := "2025-01-15"
+
+	// operator_avs_registration_snapshots
+	registrations := []map[string]interface{}{
+		{"avs": "0xavs1", "operator": "0xop1", "snapshot": snapshot},
+		{"avs": "0xavs1", "operator": "0xop2", "snapshot": snapshot},
+	}
+	for _, r := range registrations {
+		res := grm.Exec(
+			"INSERT INTO operator_avs_registration_snapshots (avs, operator, snapshot) VALUES (?, ?, ?)",
+			r["avs"], r["operator"], r["snapshot"],
+		)
+		if res.Error != nil {
+			return fmt.Errorf("failed to insert operator_avs_registration_snapshot: %w", res.Error)
+		}
+	}
+
+	// operator_avs_strategy_snapshots
+	stratRegistrations := []map[string]interface{}{
+		{"operator": "0xop1", "avs": "0xavs1", "strategy": "0xstrat1", "snapshot": snapshot},
+		{"operator": "0xop2", "avs": "0xavs1", "strategy": "0xstrat1", "snapshot": snapshot},
+	}
+	for _, r := range stratRegistrations {
+		res := grm.Exec(
+			"INSERT INTO operator_avs_strategy_snapshots (operator, avs, strategy, snapshot) VALUES (?, ?, ?, ?)",
+			r["operator"], r["avs"], r["strategy"], r["snapshot"],
+		)
+		if res.Error != nil {
+			return fmt.Errorf("failed to insert operator_avs_strategy_snapshot: %w", res.Error)
+		}
+	}
+
+	// staker_delegation_snapshots
+	delegations := []map[string]interface{}{
+		{"staker": "0xstaker1", "operator": "0xop1", "snapshot": snapshot},
+		{"staker": "0xstaker2", "operator": "0xop1", "snapshot": snapshot},
+		{"staker": "0xstaker3", "operator": "0xop2", "snapshot": snapshot},
+	}
+	for _, r := range delegations {
+		res := grm.Exec(
+			"INSERT INTO staker_delegation_snapshots (staker, operator, snapshot) VALUES (?, ?, ?)",
+			r["staker"], r["operator"], r["snapshot"],
+		)
+		if res.Error != nil {
+			return fmt.Errorf("failed to insert staker_delegation_snapshot: %w", res.Error)
+		}
+	}
+
+	// staker_share_snapshots
+	shares := []map[string]interface{}{
+		{"staker": "0xstaker1", "strategy": "0xstrat1", "shares": "3000", "snapshot": snapshot},
+		{"staker": "0xstaker2", "strategy": "0xstrat1", "shares": "1000", "snapshot": snapshot},
+		{"staker": "0xstaker3", "strategy": "0xstrat1", "shares": "2000", "snapshot": snapshot},
+	}
+	for _, r := range shares {
+		res := grm.Exec(
+			"INSERT INTO staker_share_snapshots (staker, strategy, shares, snapshot) VALUES (?, ?, ?, ?)",
+			r["staker"], r["strategy"], r["shares"], r["snapshot"],
+		)
+		if res.Error != nil {
+			return fmt.Errorf("failed to insert staker_share_snapshot: %w", res.Error)
+		}
+	}
+
+	return nil
+}
+
 func setup() (
 	*gorm.DB,
 	*zap.Logger,
@@ -236,5 +354,98 @@ func Test_RewardsDataService(t *testing.T) {
 		nonExistentDate := "1970-01-01"
 		_, err = rds.GetBlockHeightForSnapshotDate(context.Background(), nonExistentDate)
 		assert.NotNil(t, err, "Should return an error for non-existent date")
+	})
+}
+
+func Test_GetRewardDistributionByStake(t *testing.T) {
+	dbCfg := tests.GetDbConfigFromEnv()
+	if dbCfg.Host == "" {
+		t.Skipf("Skipping %s - no database configured (set SIDECAR_DATABASE_HOST)", t.Name())
+		return
+	}
+
+	dbname, grm, l, cfg, err := setupRewardDistributionTest()
+	if err != nil {
+		t.Fatalf("Failed to setup test: %v", err)
+	}
+	defer teardownRewardDistributionTest(dbname, cfg, grm, l)
+
+	rds := NewRewardsDataService(grm, l, cfg, nil)
+
+	err = hydrateSnapshotTables(grm)
+	if err != nil {
+		t.Fatalf("Failed to hydrate snapshot tables: %v", err)
+	}
+
+	t.Run("basic distribution with two operators", func(t *testing.T) {
+		results, err := rds.GetRewardDistributionByStake(
+			context.Background(),
+			"0xavs1",
+			"1000000",
+			"2025-01-14", // startDate (exclusive)
+			"2025-01-15", // endDate (inclusive)
+			86400,
+			[]StrategyMultiplierParam{
+				{Strategy: "0xstrat1", Multiplier: "1000000000000000000"},
+			},
+		)
+		assert.Nil(t, err)
+		assert.NotNil(t, results)
+		assert.Len(t, results, 2, "should have 2 operators")
+
+		rewardMap := make(map[string]string)
+		for _, r := range results {
+			rewardMap[r.Operator] = r.RewardAmount
+			t.Logf("Operator: %s, Amount: %s", r.Operator, r.RewardAmount)
+		}
+
+		assert.Equal(t, "666666", rewardMap["0xop1"], "op1 should get ~2/3 of 1000000")
+		assert.Equal(t, "333333", rewardMap["0xop2"], "op2 should get ~1/3 of 1000000")
+	})
+
+	t.Run("validation: empty avs returns error", func(t *testing.T) {
+		_, err := rds.GetRewardDistributionByStake(
+			context.Background(),
+			"",
+			"1000000",
+			"2025-01-14",
+			"2025-01-15",
+			86400,
+			[]StrategyMultiplierParam{
+				{Strategy: "0xstrat1", Multiplier: "1"},
+			},
+		)
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "avs is required")
+	})
+
+	t.Run("validation: empty strategies returns error", func(t *testing.T) {
+		_, err := rds.GetRewardDistributionByStake(
+			context.Background(),
+			"0xavs1",
+			"1000000",
+			"2025-01-14",
+			"2025-01-15",
+			86400,
+			[]StrategyMultiplierParam{},
+		)
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "at least one strategy")
+	})
+
+	t.Run("no operators registered returns empty results", func(t *testing.T) {
+		results, err := rds.GetRewardDistributionByStake(
+			context.Background(),
+			"0xnonexistent_avs",
+			"1000000",
+			"2025-01-14",
+			"2025-01-15",
+			86400,
+			[]StrategyMultiplierParam{
+				{Strategy: "0xstrat1", Multiplier: "1000000000000000000"},
+			},
+		)
+		assert.Nil(t, err)
+		assert.Len(t, results, 0, "should have no operators for non-existent AVS")
 	})
 }
