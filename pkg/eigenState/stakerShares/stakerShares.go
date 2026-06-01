@@ -136,18 +136,14 @@ type depositOutputData struct {
 // Allowing the standard json.Unmarshal to parse the shares value to a float64 which
 // causes it to lose precision by being represented as scientific notation.
 func parseLogOutputForDepositEvent(outputDataStr string) (*depositOutputData, error) {
-	outputData := &depositOutputData{}
-	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
-	decoder.UseNumber()
-
-	err := decoder.Decode(&outputData)
+	outputData, err := base.ParseLogOutputAsType[depositOutputData](outputDataStr)
 	if err != nil {
 		return nil, err
 	}
 	outputData.Staker = strings.ToLower(outputData.Staker)
 	outputData.Depositor = strings.ToLower(outputData.Depositor)
 	outputData.Strategy = strings.ToLower(outputData.Strategy)
-	return outputData, err
+	return outputData, nil
 }
 
 func (ss *StakerSharesModel) handleStakerDepositEvent(log *storage.TransactionLog) (*StakerShareDeltas, error) {
@@ -192,15 +188,7 @@ type podSharesUpdatedOutputData struct {
 }
 
 func parseLogOutputForPodSharesUpdatedEvent(outputDataStr string) (*podSharesUpdatedOutputData, error) {
-	outputData := &podSharesUpdatedOutputData{}
-	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
-	decoder.UseNumber()
-
-	err := decoder.Decode(&outputData)
-	if err != nil {
-		return nil, err
-	}
-	return outputData, err
+	return base.ParseLogOutputAsType[podSharesUpdatedOutputData](outputDataStr)
 }
 
 func (ss *StakerSharesModel) handlePodSharesUpdatedEvent(log *storage.TransactionLog) (*StakerShareDeltas, error) {
@@ -281,17 +269,13 @@ type m2MigrationOutputData struct {
 }
 
 func parseLogOutputForM2MigrationEvent(outputDataStr string) (*m2MigrationOutputData, error) {
-	outputData := &m2MigrationOutputData{}
-	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
-	decoder.UseNumber()
-
-	err := decoder.Decode(&outputData)
+	outputData, err := base.ParseLogOutputAsType[m2MigrationOutputData](outputDataStr)
 	if err != nil {
 		return nil, err
 	}
 	outputData.OldWithdrawalRootString = hex.EncodeToString(outputData.OldWithdrawalRoot)
 	outputData.NewWithdrawalRootString = hex.EncodeToString(outputData.NewWithdrawalRoot)
-	return outputData, err
+	return outputData, nil
 }
 
 // handleMigratedM2StakerWithdrawals handles the WithdrawalMigrated event from the DelegationManager contract
@@ -365,17 +349,13 @@ type m2WithdrawalOutputData struct {
 }
 
 func parseLogOutputForM2WithdrawalEvent(outputDataStr string) (*m2WithdrawalOutputData, error) {
-	outputData := &m2WithdrawalOutputData{}
-	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
-	decoder.UseNumber()
-
-	err := decoder.Decode(&outputData)
+	outputData, err := base.ParseLogOutputAsType[m2WithdrawalOutputData](outputDataStr)
 	if err != nil {
 		return nil, err
 	}
 	outputData.Withdrawal.Staker = strings.ToLower(outputData.Withdrawal.Staker)
 	outputData.WithdrawalRootString = hex.EncodeToString(outputData.WithdrawalRoot)
-	return outputData, err
+	return outputData, nil
 }
 
 // handleM2QueuedWithdrawal handles the WithdrawalQueued event from the DelegationManager contract for M2.
@@ -424,17 +404,13 @@ type slashingWithdrawalQueuedOutputData struct {
 }
 
 func parseLogOutputForSlashingWithdrawalQueuedEvent(outputDataStr string) (*slashingWithdrawalQueuedOutputData, error) {
-	outputData := &slashingWithdrawalQueuedOutputData{}
-	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
-	decoder.UseNumber()
-
-	err := decoder.Decode(&outputData)
+	outputData, err := base.ParseLogOutputAsType[slashingWithdrawalQueuedOutputData](outputDataStr)
 	if err != nil {
 		return nil, err
 	}
 	outputData.Withdrawal.Staker = strings.ToLower(outputData.Withdrawal.Staker)
 	outputData.WithdrawalRootString = hex.EncodeToString(outputData.WithdrawalRoot)
-	return outputData, err
+	return outputData, nil
 }
 
 // handleSlashingWithdrawalQueued handles the WithdrawalQueued event from the DelegationManager contract for slashing
@@ -476,16 +452,7 @@ type OperatorSlashedOutputData struct {
 }
 
 func parseLogOutputForOperatorSlashedEvent(outputDataStr string) (*OperatorSlashedOutputData, error) {
-	outputData := &OperatorSlashedOutputData{}
-	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
-	decoder.UseNumber()
-
-	err := decoder.Decode(&outputData)
-	if err != nil {
-		return nil, err
-	}
-
-	return outputData, err
+	return base.ParseLogOutputAsType[OperatorSlashedOutputData](outputDataStr)
 }
 
 func (ss *StakerSharesModel) handleOperatorSlashedEvent(log *storage.TransactionLog) ([]*SlashDiff, error) {
@@ -530,16 +497,7 @@ type BeaconChainSlashingFactorDecreasedOutputData struct {
 }
 
 func parseLogOutputForBeaconChainSlashingFactorDecreasedEvent(outputDataStr string) (*BeaconChainSlashingFactorDecreasedOutputData, error) {
-	outputData := &BeaconChainSlashingFactorDecreasedOutputData{}
-	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
-	decoder.UseNumber()
-
-	err := decoder.Decode(&outputData)
-	if err != nil {
-		return nil, err
-	}
-
-	return outputData, err
+	return base.ParseLogOutputAsType[BeaconChainSlashingFactorDecreasedOutputData](outputDataStr)
 }
 
 func (ss *StakerSharesModel) handleBeaconChainSlashingFactorDecreasedEvent(log *storage.TransactionLog) (*SlashDiff, error) {

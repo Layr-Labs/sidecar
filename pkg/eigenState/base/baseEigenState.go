@@ -53,6 +53,28 @@ func (b *BaseEigenState) ParseLogOutput(log *storage.TransactionLog) (map[string
 	return outputData, nil
 }
 
+// ParseLogOutputAsType decodes a transaction log's OutputData JSON string into a new value
+// of type T.
+//
+// It decodes with a json.Decoder configured to UseNumber() so that large integer and decimal
+// values (such as share amounts) retain their full precision. Without this, the standard
+// decoder would parse them into a float64 and lose precision by representing them in
+// scientific notation. Numeric fields on T that must preserve precision should therefore be
+// typed as json.Number.
+//
+// This is the generic form of the per-event parseLogOutputFor*Event helpers found across the
+// state models; callers apply any event-specific post-processing (e.g. lower-casing addresses,
+// hex-encoding roots) to the returned value.
+func ParseLogOutputAsType[T any](outputDataStr string) (*T, error) {
+	outputData := new(T)
+	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
+	decoder.UseNumber()
+	if err := decoder.Decode(outputData); err != nil {
+		return nil, err
+	}
+	return outputData, nil
+}
+
 // Include the block number as the first item in the tree.
 // This does two things:
 // 1. Ensures that the tree is always different for different blocks
