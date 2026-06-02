@@ -28,8 +28,8 @@ github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13 h1:Blb4AE+jC/vddV71w4/MQA
 github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13/go.mod h1:PD/HoyzZjxDw1tAcZw3yD0yGddo+yhmwQAi+lk298r4=
 github.com/Layr-Labs/protobuf-libs v0.1.0 h1:hfawlutriLq1i7cI2kXH8o2N+mx02cJTVlKrwAMazBY=
 github.com/Layr-Labs/protobuf-libs v0.1.0/go.mod h1:Om3Qb39NrWwald+08yTIj/VexKmocIMsMXXIM/iRcW8=
-github.com/Layr-Labs/protocol-apis v1.19.1-0.20260205151336-7d96482b4d9f h1:srHncqjoaQpMi9yAdwdRJrT8S8/NjwRzpXigJz+j1bw=
-github.com/Layr-Labs/protocol-apis v1.19.1-0.20260205151336-7d96482b4d9f/go.mod h1:ZJTZitWS+MnfHND/RF5DMQoFDXnjtP/Xu2Yoxf+hS+Q=
+github.com/Layr-Labs/protocol-apis v1.19.1-0.20260410142317-3e510945ea84 h1:aZT5uWuyJkwPsonD0VSAizbktttI02MPBPELnHCVnUY=
+github.com/Layr-Labs/protocol-apis v1.19.1-0.20260410142317-3e510945ea84/go.mod h1:ZJTZitWS+MnfHND/RF5DMQoFDXnjtP/Xu2Yoxf+hS+Q=
 github.com/Microsoft/go-winio v0.5.0/go.mod h1:JPGBdM1cNvN/6ISo+n8V5iA4v8pBzdOpzfwIujj1a84=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
@@ -46,8 +46,8 @@ github.com/akuity/grpc-gateway-client v0.0.0-20240912082144-55a48e8b4b89 h1:TNZN
 github.com/akuity/grpc-gateway-client v0.0.0-20240912082144-55a48e8b4b89/go.mod h1:0MZqOxL+zq+hGedAjYhkm1tOKuZyjUmE/xA8nqXa9q0=
 github.com/alevinval/sse v1.0.1 h1:cFubh2lMNdHT6niFLCsyTuhAgljaAWbdmceAe6qPIfo=
 github.com/alevinval/sse v1.0.1/go.mod h1:Bvl1EawUlmW1y1vSU5uDl03+1Zsqqz/+6D2PAUvftcw=
-github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.1.0-20230512164433-5d1fd1a340c9 h1:goHVqTbFX3AIo0tzGr14pgfAW2ZfPChKO21Z9MGf/gk=
-github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.1.0-20230512164433-5d1fd1a340c9/go.mod h1:pSwJ0fSY5KhvocuWSx4fz3BA8OrA1bQn+K1Eli3BRwM=
+github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230512164433-5d1fd1a340c9 h1:goHVqTbFX3AIo0tzGr14pgfAW2ZfPChKO21Z9MGf/gk=
+github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230512164433-5d1fd1a340c9/go.mod h1:pSwJ0fSY5KhvocuWSx4fz3BA8OrA1bQn+K1Eli3BRwM=
 github.com/bahlo/generic-list-go v0.2.0 h1:5sz/EEAK+ls5wF+NeqDpk5+iNdMDXrh3z3nPnH1Wvgk=
 github.com/bahlo/generic-list-go v0.2.0/go.mod h1:2KvAjgMlE5NNynlg/5iLrrCCZ2+5xWbdbCW3pNTGyYg=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=

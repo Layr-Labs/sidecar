@@ -94,6 +94,45 @@ func (pds *ProtocolDataService) ListOperatorsForAvs(ctx context.Context, avs str
 	return operators, nil
 }
 
+// ListRegisteredOperatorSetsForOperator returns operator sets an operator is actively registered to
+func (pds *ProtocolDataService) ListRegisteredOperatorSetsForOperator(ctx context.Context, operator string, blockHeight uint64) ([]OperatorSet, error) {
+	operator = strings.ToLower(operator)
+	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		with ranked_registrations as (
+			select
+				osor.avs,
+				osor.operator_set_id,
+				osor.is_active,
+				row_number() over (partition by osor.avs, osor.operator_set_id order by osor.block_number desc, osor.log_index asc) as rn
+			from operator_set_operator_registrations as osor
+			where
+				operator = @operator
+				and block_number <= @blockHeight
+		)
+		select
+			avs,
+			operator_set_id
+		from ranked_registrations
+		where rn = 1 and is_active = true
+		order by avs, operator_set_id
+	`
+
+	var operatorSets []OperatorSet
+	res := pds.db.Raw(query,
+		sql.Named("operator", operator),
+		sql.Named("blockHeight", blockHeight),
+	).Scan(&operatorSets)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	return operatorSets, nil
+}
+
 // ListOperatorSets returns all existing operator sets
 func (pds *ProtocolDataService) ListOperatorSets(ctx context.Context) ([]OperatorSet, error) {
 	query := `
