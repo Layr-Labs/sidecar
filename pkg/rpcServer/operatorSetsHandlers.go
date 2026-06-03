@@ -73,6 +73,22 @@ func (rpc *RpcServer) ListOperatorSets(ctx context.Context, request *operatorSet
 	}, nil
 }
 
+func (rpc *RpcServer) GetRegisteredOperatorSetsForOperator(ctx context.Context, request *operatorSetsV1.GetRegisteredOperatorSetsForOperatorRequest) (*operatorSetsV1.GetRegisteredOperatorSetsForOperatorResponse, error) {
+	operatorAddress := request.GetOperatorAddress()
+	if operatorAddress == "" {
+		return nil, errors.New("operator address is required")
+	}
+
+	operatorSets, err := rpc.protocolDataService.ListRegisteredOperatorSetsForOperator(ctx, operatorAddress, request.GetBlockHeight())
+	if err != nil {
+		return nil, err
+	}
+
+	return &operatorSetsV1.GetRegisteredOperatorSetsForOperatorResponse{
+		OperatorSets: convertProtocolOperatorSetsToProto(operatorSets),
+	}, nil
+}
+
 // convertOperatorStringsToProto converts operator address strings to protobuf Operator messages
 func convertOperatorStringsToProto(operatorAddresses []string) []*operatorSetsV1.Operator {
 	operators := make([]*operatorSetsV1.Operator, 0, len(operatorAddresses))
