@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+
 	"github.com/Layr-Labs/sidecar/pkg/parser"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"gorm.io/gorm/clause"
@@ -49,6 +51,36 @@ func (b *BaseEigenState) ParseLogOutput(log *storage.TransactionLog) (map[string
 			zap.Uint64("transactionIndex", log.TransactionIndex),
 		)
 		return nil, err
+	}
+	return outputData, nil
+}
+
+// ParseLogOutputAsType decodes a transaction log's OutputData JSON string into a new value
+// of type T.
+//
+// It decodes with a json.Decoder configured to UseNumber() so that large integer and decimal
+// values (such as share amounts) retain their full precision. Without UseNumber, JSON numbers
+// are decoded into float64, whose 53-bit mantissa cannot represent integers larger than 2^53
+// exactly, so large values would be silently rounded. Numeric fields on T that must preserve
+// precision should therefore be typed as json.Number.
+//
+// After decoding a single JSON value it confirms the input held nothing else, so trailing or
+// concatenated data is rejected rather than silently ignored.
+//
+// This is the generic form of the per-event parseLogOutputFor*Event helpers found across the
+// state models; callers apply any event-specific post-processing (e.g. lower-casing addresses,
+// hex-encoding roots) to the returned value.
+func ParseLogOutputAsType[T any](outputDataStr string) (*T, error) {
+	outputData := new(T)
+	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
+	decoder.UseNumber()
+	if err := decoder.Decode(outputData); err != nil {
+		return nil, err
+	}
+	// A single JSON value is expected; a second decode must hit EOF. Otherwise the input
+	// carried trailing or concatenated data, which we reject rather than silently ignore.
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("unexpected trailing data after JSON value")
 	}
 	return outputData, nil
 }
