@@ -128,36 +128,27 @@ jobs:
           make release-with-docker
           sudo chown -R $USER:$USER .
           ./scripts/bundleReleases.sh $VERSION
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@0cb9c9b65d5d1901c1f53e5e66eaf4afd303e70e # v1.1.4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-      - name: Upload Release Asset
+      - name: Create Release and upload assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -x
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
           ls -al ./release
-          
-          echo "Upload URL: ${{ steps.create_release.outputs.upload_url }}"
-          export upload_url=$(echo "${{ steps.create_release.outputs.upload_url }}" | sed -e "s/{?name,label}//")
-          
-          for asset_name in $(ls ./release | grep '.tar');
-          do
-            asset="./release/${asset_name}"
-            echo "Uploading ${asset_name}..."
-            curl --fail \
-              -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Content-Type: $(file -b --mime-type "$asset")" \
-              --data-binary @"$asset" \
-              "${upload_url}?name=$asset_name"
-          done
+
+          # Create the release only if it does not already exist (idempotent
+          # so re-runs on an existing tag do not hard-fail).
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --title "Release $TAG" \
+              --verify-tag \
+              --notes "Release $TAG"
+          else
+            echo "Release $TAG already exists; skipping create."
+          fi
+
+          # Upload assets, clobbering so re-runs replace rather than fail.
+          gh release upload "$TAG" ./release/*.tar.gz --clobber
   # release-helm-chart:
   #   runs-on: ubuntu-latest
   #   if: github.ref == 'refs/heads/master'
