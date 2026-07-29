@@ -68,8 +68,15 @@ func (rpc *RpcServer) GenerateRewards(ctx context.Context, req *rewardsV1.Genera
 
 	if waitForComplete {
 		data, qErr := rpc.rewardsQueue.EnqueueAndWait(ctx, msg)
-		cutoffDate = data.CutoffDate
 		err = qErr
+		// EnqueueAndWait returns (nil, ctx.Err()) when the caller's context is
+		// canceled (e.g. gRPC client disconnect while a long-running rewards
+		// generation is still queued). Reading data.CutoffDate before checking
+		// qErr caused a nil-pointer panic that crashed the entire sidecar
+		// process (exit code 2) and required a container restart.
+		if data != nil {
+			cutoffDate = data.CutoffDate
+		}
 	} else {
 		rpc.rewardsQueue.Enqueue(&rewardsCalculatorQueue.RewardsCalculationMessage{
 			Data:         msg,
