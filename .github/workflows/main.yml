@@ -136,7 +136,7 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
-          draft: false
+          draft: true
           prerelease: false
       - name: Upload Release Asset
         env:
@@ -158,6 +158,11 @@ jobs:
               --data-binary @"$asset" \
               "${upload_url}?name=$asset_name"
           done
+      - name: Publish Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit ${{ github.ref_name }} --draft=false --repo ${{ github.repository }}
   # release-helm-chart:
   #   runs-on: ubuntu-latest
   #   if: github.ref == 'refs/heads/master'
