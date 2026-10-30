@@ -19,6 +19,7 @@ import (
 	_202602061552_rewardsCoordinatorAndStrategyManager "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202602061552_rewardsCoordinatorAndStrategyManager"
 	_202603031000_mainnetRewardsCoordinatorAndStrategyManager "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202603031000_mainnetRewardsCoordinatorAndStrategyManager"
 	_202606021954_upgradePreprodHoodiImplContracts "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202606021954_upgradePreprodHoodiImplContracts"
+	_202610291200_mainnetUpgradeAllImplContracts "github.com/Layr-Labs/sidecar/pkg/coreContracts/migrations/202610291200_mainnetUpgradeAllImplContracts"
 	"github.com/Layr-Labs/sidecar/pkg/coreContracts/types"
 )
 
@@ -42,5 +43,6 @@ func GetCoreContractMigrations() []types.ICoreContractMigration {
 		&_202602061552_rewardsCoordinatorAndStrategyManager.ContractMigration{},
 		&_202603031000_mainnetRewardsCoordinatorAndStrategyManager.ContractMigration{},
 		&_202606021954_upgradePreprodHoodiImplContracts.ContractMigration{},
+		&_202610291200_mainnetUpgradeAllImplContracts.ContractMigration{},
 	}
 }

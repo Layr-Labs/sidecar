@@ -10,9 +10,9 @@ Please see our ["Getting Started"](https://sidecar-docs.eigenlayer.xyz/docs/side
 
 # Current versions
 
-* Mainnet: Sidecar ([v4.1.4](https://github.com/Layr-Labs/sidecar/releases/tag/v4.1.4))
-* Testnet: Sidecar ([v4.1.4](https://github.com/Layr-Labs/sidecar/releases/tag/v4.1.4))
-* Preprod: Sidecar ([v4.1.4](https://github.com/Layr-Labs/sidecar/releases/tag/v4.1.4))
+* Mainnet: Sidecar ([v4.1.5](https://github.com/Layr-Labs/sidecar/releases/tag/v4.1.5))
+* Testnet: Sidecar ([v4.1.5](https://github.com/Layr-Labs/sidecar/releases/tag/v4.1.5))
+* Preprod: Sidecar ([v4.1.5](https://github.com/Layr-Labs/sidecar/releases/tag/v4.1.5))
 
 **Helpful Links**
 
