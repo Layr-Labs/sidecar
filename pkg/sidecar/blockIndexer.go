@@ -3,9 +3,10 @@ package sidecar
 import (
 	"context"
 	"fmt"
-	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"sync/atomic"
 	"time"
+
+	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 
@@ -19,6 +20,9 @@ func (s *Sidecar) GetLastIndexedBlock() (int64, error) {
 	if err != nil {
 		s.Logger.Sugar().Errorw("Failed to get last indexed block", zap.Error(err))
 		return 0, err
+	}
+	if block == nil {
+		return 0, nil
 	}
 	return int64(block.Number), nil
 }
