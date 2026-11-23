@@ -74,8 +74,10 @@ func init() {
 	rootCmd.AddCommand(rpcCmd)
 	rootCmd.AddCommand(loadContractCmd)
 	rootCmd.AddCommand(runDebuggerCmd)
+	rootCmd.AddCommand(exportClaimsCmd)
 
 	// bind any subcommand flags
+	exportClaimsCmd.Flags().String("output", "", "Directory to write claim-amounts.json, root.json and claims/ to")
 	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "(deprecated, use --output) Path to save the snapshot file")
 	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutput, "", "Path to save the snapshot file")
 	createSnapshotCmd.PersistentFlags().Bool(config.SnapshotOutputMetadataFile, true, "Generate a metadata file for the snapshot")
