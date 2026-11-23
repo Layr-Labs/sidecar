@@ -42,8 +42,19 @@ var (
 	kindFlags = map[Kind]func(schema string) []string{
 		Kind_Slim: func(schema string) []string {
 			return []string{
+				// Exclude gold and sot tables
 				"-T", fmt.Sprintf(`%s.gold_*`, schema),
 				"-T", fmt.Sprintf(`%s.sot_*`, schema),
+				// Exclude all rewards-related tables for slim snapshots
+				"-T", fmt.Sprintf(`%s.generated_rewards_snapshots`, schema),
+				"-T", fmt.Sprintf(`%s.combined_rewards`, schema),
+				"-T", fmt.Sprintf(`%s.rewards_claimed`, schema),
+				"-T", fmt.Sprintf(`%s.operator_directed_rewards`, schema),
+				"-T", fmt.Sprintf(`%s.operator_directed_operator_set_rewards`, schema),
+				"-T", fmt.Sprintf(`%s.reward_submissions`, schema),
+				"-T", fmt.Sprintf(`%s.submitted_distribution_roots`, schema),
+				// Exclude new gold tables
+				"-T", fmt.Sprintf(`%s.rewards_gold_*`, schema),
 			}
 		},
 		Kind_Full: func(schema string) []string {
