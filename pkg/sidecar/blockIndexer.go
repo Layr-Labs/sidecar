@@ -3,9 +3,10 @@ package sidecar
 import (
 	"context"
 	"fmt"
-	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"sync/atomic"
 	"time"
+
+	ddTracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 
@@ -401,6 +402,17 @@ func (s *Sidecar) DeleteCorruptedStates(ctx context.Context, startBlock uint64, 
 			zap.Uint64("startBlock", startBlock),
 			zap.Uint64("endBlock", endBlock))
 		err = fmt.Errorf("failed to delete corrupted state from StateManager: %w", stateManagerErr)
+		return
+	}
+
+	// MetaStateManager
+	metaStateManagerErr := s.MetaStateManager.DeleteCorruptedState(startBlock, endBlock)
+	if metaStateManagerErr != nil {
+		s.Logger.Sugar().Errorw("Failed to delete corrupted state from MetaStateManager",
+			zap.Error(metaStateManagerErr),
+			zap.Uint64("startBlock", startBlock),
+			zap.Uint64("endBlock", endBlock))
+		err = fmt.Errorf("failed to delete corrupted state from MetaStateManager: %w", metaStateManagerErr)
 		return
 	}
 
